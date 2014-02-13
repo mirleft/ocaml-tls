@@ -189,7 +189,7 @@ cstruct c_hello {
   uint8_t  random[28];
 } as big_endian
 
-type client_hello = {
+type hello = {
   major  : int;
   minor  : int;
   time   : uint32;
@@ -200,13 +200,13 @@ type client_hello = {
 }
 
 let hello_to_string c_h =
-  sprintf "client hello %d %d ciphers %s" c_h.major c_h.minor
+  sprintf "protocol %d.%d ciphers %s" c_h.major c_h.minor
           ((List.map (fun s -> match s with
                               | None -> ""
                               | Some x -> ciphersuite_to_string x) c_h.ciphersuites)
            |> String.concat ",")
 
-let parse_client_hello buf =
+let parse_hello buf =
   let major = get_c_hello_major_version buf in
   let minor = get_c_hello_minor_version buf in
   let time = get_c_hello_gmt_unix_time buf in
@@ -218,17 +218,20 @@ let parse_client_hello buf =
   { major; minor; time; random; sessionid; ciphersuites; compression_methods }
 
 type tls_handshake =
-  | Client_hello of client_hello
+  | Client_hello of hello
+  | Server_hello of hello
 
 let handshake_to_string = function
- | Client_hello x -> hello_to_string x
+ | Client_hello x -> sprintf "Client Hello: %s" (hello_to_string x)
+ | Server_hello x -> sprintf "Server Hello: %s" (hello_to_string x)
 
 let parse_handshake buf =
   let handshake_type = int_to_handshake_type (get_handshake_handshake_type buf) in
   let len = (get_handshake_handshake_length buf) * (pow 2 8) + (get_handshake_handshake_length2 buf) in
   let payload = Cstruct.sub buf 4 len in
   let data = match handshake_type with
-    | Some CLIENT_HELLO -> Client_hello (parse_client_hello payload)
+    | Some CLIENT_HELLO -> Client_hello (parse_hello payload)
+    | Some SERVER_HELLO -> Server_hello (parse_hello payload)
   in ( data, Cstruct.shift buf (4 + len) )
 
 (*type tls_alert = {
