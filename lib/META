@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: 71a52a5e25f8844bd9a2935ee16b9219)
+version = "0.0.1"
+description = "TLS support for mirage"
+requires = "cstruct cstruct.syntax"
+archive(byte) = "tls.cma"
+archive(byte, plugin) = "tls.cma"
+archive(native) = "tls.cmxa"
+archive(native, plugin) = "tls.cmxs"
+exists_if = "tls.cma"
+# OASIS_STOP
+
