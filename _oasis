@@ -4,6 +4,7 @@ Version:     0.0.1
 Synopsis:    TLS support for mirage
 Authors:     Hannes Mehnert <hannes@mehnert.org>
 Maintainers: Hannes Mehnert <hannes@mehnert.org>
+Homepage:    https://github.com/hannesm/mirage-tls
 License:     BSD2
 Plugins:     META (0.4)
 Description:
