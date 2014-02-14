@@ -471,10 +471,12 @@ cenum alert_type {
 } as uint8_t
 
 
+let get_ciphersuite buf = int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0)
+
 let get_ciphersuites buf =
   let rec go buf acc = function
     | 0 -> acc
-    | n -> go (Cstruct.shift buf 2) ((int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0)) :: acc) (n - 1)
+    | n -> go (Cstruct.shift buf 2) ((get_ciphersuite buf) :: acc) (n - 1)
   in
   let len = Cstruct.BE.get_uint16 buf 0 in
   let suites = go (Cstruct.shift buf 2) [] (len / 2) in
@@ -691,26 +693,39 @@ cstruct c_hello {
   uint8_t  random[28];
 } as big_endian
 
-type hello = {
+type 'a hello = {
   major  : int;
   minor  : int;
   time   : uint32;
   random : Cstruct.t;
   sessionid : Cstruct.t option;
-  ciphersuites : (ciphersuite option) list;
+  ciphersuites : 'a;
   compression_methods : (compression_method option) list;
   extensions : extension list
 }
 
-let hello_to_string c_h =
-  sprintf "protocol %d.%d ciphers %s extensions %s" c_h.major c_h.minor
-          ((List.map (fun s -> match s with
-                              | None -> ""
-                              | Some x -> ciphersuite_to_string x) c_h.ciphersuites)
-           |> String.concat ", ")
-          ((List.map extension_to_string c_h.extensions) |> String.concat ", ")
+type client_hello = ciphersuite option list hello
+type server_hello = ciphersuite option hello
 
-let parse_hello buf =
+let client_hello_to_string c_h =
+  sprintf "client hello: protocol %d.%d ciphers %s extensions %s"
+          c_h.major c_h.minor
+          (List.map (function
+                      | None -> ""
+                      | Some x -> ciphersuite_to_string x)
+                     c_h.ciphersuites
+           |> String.concat ", ")
+          (List.map extension_to_string c_h.extensions |> String.concat ", ")
+
+let server_hello_to_string c_h =
+  sprintf "server hello: protocol %d.%d cipher %s extensions %s"
+          c_h.major c_h.minor
+          (match c_h.ciphersuites with
+           | None -> "unknown"
+           | Some x -> ciphersuite_to_string x)
+          (List.map extension_to_string c_h.extensions |> String.concat ", ")
+
+let parse_client_hello buf =
   let major = get_c_hello_major_version buf in
   let minor = get_c_hello_minor_version buf in
   let time = get_c_hello_gmt_unix_time buf in
@@ -719,6 +734,18 @@ let parse_hello buf =
   let ciphersuites, clen = get_ciphersuites (Cstruct.shift buf (34 + slen)) in
   let compression_methods, dlen = get_compression_methods (Cstruct.shift buf (34 + slen + clen)) in
   let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + clen + dlen)) in
+  (* assert that dlen is small *)
+  { major; minor; time; random; sessionid; ciphersuites; compression_methods; extensions }
+
+let parse_server_hello buf =
+  let major = get_c_hello_major_version buf in
+  let minor = get_c_hello_minor_version buf in
+  let time = get_c_hello_gmt_unix_time buf in
+  let random = get_c_hello_random buf in
+  let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
+  let ciphersuites = get_ciphersuite (Cstruct.shift buf (34 + slen)) in
+  let compression_methods, dlen = get_compression_methods (Cstruct.shift buf (34 + slen + 2)) in
+  let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + 2 + dlen)) in
   (* assert that dlen is small *)
   { major; minor; time; random; sessionid; ciphersuites; compression_methods; extensions }
 
@@ -736,22 +763,25 @@ let get_certificates buf =
   in
   let len = get_uint24_len buf in
   go (Cstruct.sub buf 3 len) []
+
 (*
 type server_key_exchange =
   | DiffieHellmann of diffie_hellmann
   | Rsa of rsa
   | EcDiffieHellmann of ec_diffie_hellmann
  *)
+
+
 type tls_handshake =
   | HelloRequest
-  | ClientHello of hello
-  | ServerHello of hello
+  | ClientHello of client_hello
+  | ServerHello of server_hello
   | Certificate of Cstruct.t list
 
 let handshake_to_string = function
   | HelloRequest -> "Hello request"
-  | ClientHello x -> sprintf "Client Hello: %s" (hello_to_string x)
-  | ServerHello x -> sprintf "Server Hello: %s" (hello_to_string x)
+  | ClientHello x -> client_hello_to_string x
+  | ServerHello x -> server_hello_to_string x
   | Certificate x -> sprintf "Certificate: %d" (List.length x)
 
 let parse_handshake buf =
@@ -760,8 +790,8 @@ let parse_handshake buf =
   let payload = Cstruct.sub buf 4 len in
   let data = match handshake_type with
     | Some HELLO_REQUEST -> HelloRequest
-    | Some CLIENT_HELLO -> ClientHello (parse_hello payload)
-    | Some SERVER_HELLO -> ServerHello (parse_hello payload)
+    | Some CLIENT_HELLO -> ClientHello (parse_client_hello payload)
+    | Some SERVER_HELLO -> ServerHello (parse_server_hello payload)
     | Some CERTIFICATE -> Certificate (get_certificates payload)
   in ( data, Cstruct.shift buf (4 + len) )
 
