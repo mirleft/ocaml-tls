@@ -665,12 +665,12 @@ let get_ec_point_format buf =
 let get_extension buf =
   let etype = Cstruct.BE.get_uint16 buf 0 in
   let len = Cstruct.BE.get_uint16 buf 2 in
-  let buf' = Cstruct.sub buf 4 len in
+  let buf = Cstruct.sub buf 4 len in
   let data = match (int_to_extension_type etype) with
-    | Some SERVER_NAME -> Hostname (get_hostnames buf')
-    | Some MAX_FRAGMENT_LENGTH -> MaxFragmentLength (get_fragment_length buf')
-    | Some ELLIPTIC_CURVES -> EllipticCurves (get_elliptic_curves buf')
-    | Some EC_POINT_FORMATS -> ECPointFormats (get_ec_point_format buf')
+    | Some SERVER_NAME -> Hostname (get_hostnames buf)
+    | Some MAX_FRAGMENT_LENGTH -> MaxFragmentLength (get_fragment_length buf)
+    | Some ELLIPTIC_CURVES -> EllipticCurves (get_elliptic_curves buf)
+    | Some EC_POINT_FORMATS -> ECPointFormats (get_ec_point_format buf)
     | Some x -> Unsupported x
   in
   (data, 4 + len)
@@ -753,7 +753,6 @@ let get_certificate buf =
   let len = get_uint24_len buf in
   ((Cstruct.sub buf 3 len), len + 3)
 
-
 let get_certificates buf =
   let rec go buf acc =
             match (Cstruct.len buf) with
@@ -764,25 +763,87 @@ let get_certificates buf =
   let len = get_uint24_len buf in
   go (Cstruct.sub buf 3 len) []
 
-(*
-type server_key_exchange =
-  | DiffieHellmann of diffie_hellmann
-  | Rsa of rsa
-  | EcDiffieHellmann of ec_diffie_hellmann
- *)
+type rsa_parameters = {
+  rsa_modulus : Cstruct.t;
+  rsa_exponent : Cstruct.t;
+}
 
+let rsa_param_to_string r =
+  "RSA parameters: modulus: " ^ Cstruct.copy r.rsa_modulus 0 (Cstruct.len r.rsa_modulus) ^
+  "exponent: " ^ Cstruct.copy r.rsa_exponent 0 (Cstruct.len r.rsa_exponent)
+
+let parse_rsa_parameters buf =
+  let mlength = Cstruct.BE.get_uint16 buf 0 in
+  let rsa_modulus = Cstruct.sub buf 2 mlength in
+  let buf = Cstruct.shift buf (2 + mlength) in
+  let elength = Cstruct.BE.get_uint16 buf 0 in
+  let rsa_exponent = Cstruct.sub buf 2 elength in
+  ({ rsa_modulus ; rsa_exponent }, 4 + mlength + elength)
+
+type dsa_parameters = {
+  dh_p : Cstruct.t;
+  dh_g : Cstruct.t;
+  dh_Ys : Cstruct.t;
+}
+
+let parse_dsa_parameters buf =
+  let plength = Cstruct.BE.get_uint16 buf 0 in
+  let dh_p = Cstruct.sub buf 2 plength in
+  let buf = Cstruct.shift buf (2 + plength) in
+  let glength = Cstruct.BE.get_uint16 buf 0 in
+  let dh_g = Cstruct.sub buf 2 glength in
+  let buf = Cstruct.shift buf (2 + plength) in
+  let yslength = Cstruct.BE.get_uint16 buf 0 in
+  let dh_Ys = Cstruct.sub buf 2 yslength in
+  ({ dh_p ; dh_g; dh_Ys }, 6 + plength + glength + yslength)
+
+let dsa_param_to_string r =
+  "DSA parameters: p: " ^ Cstruct.copy r.dh_p 0 (Cstruct.len r.dh_p) ^
+  "g: " ^ Cstruct.copy r.dh_g 0 (Cstruct.len r.dh_g) ^
+  "Ys: " ^ Cstruct.copy r.dh_Ys 0 (Cstruct.len r.dh_Ys)
+
+type signature =
+  | Anonymous
+  | RSA of Cstruct.t
+  | DSA of Cstruct.t
+
+let sig_to_string = function
+  | Anonymous -> "anonymous"
+  | RSA r -> "RSA sig: " ^ Cstruct.copy r 0 (Cstruct.len r)
+  | DSA d -> "DSA sig: " ^ Cstruct.copy d 0 (Cstruct.len d)
+
+let parse_sig buf =
+  let len = Cstruct.BE.get_uint16 buf 0 in
+  Cstruct.sub buf 2 len
+
+type server_key_exchange =
+  | DiffieHellmann of dsa_parameters * signature
+  | Rsa of rsa_parameters * signature
+
+let parse_server_key_exchange buf =
+  let len = Cstruct.BE.get_uint16 buf 0 in
+  let buf = Cstruct.sub buf 2 len in
+  let dh, size = parse_dsa_parameters buf in
+  let sign = DSA (parse_sig (Cstruct.shift buf size)) in
+  DiffieHellmann (dh, sign)
+
+let server_key_exchange_to_string = function
+  | DiffieHellmann (param, s)-> dsa_param_to_string param ^ sig_to_string s
+  | Rsa (param, s) -> rsa_param_to_string param ^ sig_to_string s
 
 type tls_handshake =
   | HelloRequest
   | ClientHello of client_hello
   | ServerHello of server_hello
   | Certificate of Cstruct.t list
+  | ServerKeyExchange of server_key_exchange
 
 let handshake_to_string = function
   | HelloRequest -> "Hello request"
   | ClientHello x -> client_hello_to_string x
   | ServerHello x -> server_hello_to_string x
   | Certificate x -> sprintf "Certificate: %d" (List.length x)
+  | ServerKeyExchange x -> server_key_exchange_to_string x
 
 let parse_handshake buf =
   let handshake_type = int_to_handshake_type (get_handshake_handshake_type buf) in
@@ -809,10 +870,10 @@ type tls_body =
   | Tls_handshake of tls_handshake
 
 let parse buf =
-  let header, buf' = parse_hdr buf in
-  let body, buf'' = match header.content_type with
-    | Some HANDSHAKE          -> parse_handshake buf'
-  in (header, body, buf'')
+  let header, buf = parse_hdr buf in
+  let body, buf = match header.content_type with
+    | Some HANDSHAKE          -> parse_handshake buf
+  in (header, body, buf)
 
 let header_to_string header =
   sprintf "%s %d.%d" (match header.content_type with
