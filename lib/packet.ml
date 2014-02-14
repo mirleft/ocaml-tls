@@ -3,6 +3,21 @@
 open Printf
 open Cstruct
 
+(* HACK: 24 bits type not in cstruct *)
+cstruct uint24_len {
+  uint16_t len1;
+  uint8_t  len2
+} as big_endian
+
+let rec pow a = function
+  | 0 -> 1
+  | 1 -> a
+  | n -> let b = pow a (n / 2) in
+         b * b * (if n mod 2 = 0 then 1 else a)
+
+let get_uint24_len buf =
+  (get_uint24_len_len1 buf) * (pow 2 8) + (get_uint24_len_len2 buf)
+
 cenum content_type {
   CHANGE_CIPHER_SPEC = 20;
   ALERT              = 21;
@@ -41,20 +56,18 @@ cenum handshake_type {
   SERVER_HELLO_DONE   = 14;
   CERTIFICATE_VERIFY  = 15;
   CLIENT_KEY_EXCHANGE = 16;
-  FINISHED            = 20
+  FINISHED            = 20;
+  (* from RFC 4366 *)
+  CERTIFICATE_URL     = 21;
+  CERTIFICATE_STATUS  = 22
 } as uint8_t
+
 
 cstruct handshake {
   uint8_t handshake_type;
-  uint16_t handshake_length; (* HACK: 24 bits type not in cstruct *)
+  uint16_t handshake_length;
   uint8_t handshake_length2
 } as big_endian
-
-let rec pow a = function
-  | 0 -> 1
-  | 1 -> a
-  | n -> let b = pow a (n / 2) in
-         b * b * (if n mod 2 = 0 then 1 else a)
 
 
 let get_varlength buf = function
@@ -170,7 +183,7 @@ let get_ciphersuites buf =
   (suites, len + 2)
 
 cenum compression_method {
-  Null = 0
+  NULL = 0
 } as uint8_t
 
 let get_compression_methods buf =
@@ -181,6 +194,54 @@ let get_compression_methods buf =
   let len = Cstruct.get_uint8 buf 0 in
   let methods = go (Cstruct.shift buf 1) [] len in
   (methods, len + 1)
+
+(* from RFC 4366 *)
+cenum extension_type {
+  SERVER_NAME = 0;
+  MAX_FREGMENT_LENGTH = 1;
+  CLIENT_CERTIFICATE_URL = 2;
+  TRUSTED_CA_KEYS =3;
+  TRUNCATED_HMAC = 4;
+  STATUS_REQUEST = 5;
+} as uint16_t
+
+type extension =
+  | Hostname of string list
+
+let get_hostnames buf =
+  let list_length = Cstruct.BE.get_uint16 buf 0 in
+  let rec go buf acc =
+    match (Cstruct.len buf) with
+    | 0 -> acc
+    | n ->
+       let name_type = Cstruct.get_uint8 buf 0 in
+       match name_type with
+       | 0 ->
+          let hostname_length = Cstruct.BE.get_uint16 buf 1 in
+          go (Cstruct.shift buf (3 + hostname_length)) ((Cstruct.copy buf 3 hostname_length) :: acc)
+  in
+  go (Cstruct.sub buf 2 list_length) []
+
+let get_extension buf =
+  let etype = Cstruct.BE.get_uint16 buf 0 in
+  let len = Cstruct.BE.get_uint16 buf 2 in
+  let buf' = Cstruct.sub buf 4 len in
+  let data = match (int_to_extension_type etype) with
+    | Some SERVER_NAME -> Some (Hostname (get_hostnames buf'))
+    | _ -> None
+  in
+  (data, 4 + len)
+
+let get_extensions buf =
+  let rec go buf acc =
+    match (Cstruct.len buf) with
+    | 0 -> acc
+    | n ->
+       let extension, esize = get_extension buf in
+       go (Cstruct.shift buf esize) (extension :: acc)
+  in
+  let len = Cstruct.BE.get_uint16 buf 0 in
+  (go (Cstruct.sub buf 2 len) [], Cstruct.shift buf (2 + len))
 
 cstruct c_hello {
   uint8_t major_version;
@@ -196,7 +257,8 @@ type hello = {
   random : Cstruct.t;
   sessionid : Cstruct.t option;
   ciphersuites : (ciphersuite option) list;
-  compression_methods : (compression_method option) list
+  compression_methods : (compression_method option) list;
+  extensions : (extension option) list
 }
 
 let hello_to_string c_h =
@@ -214,24 +276,46 @@ let parse_hello buf =
   let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
   let ciphersuites, clen = get_ciphersuites (Cstruct.shift buf (34 + slen)) in
   let compression_methods, dlen = get_compression_methods (Cstruct.shift buf (34 + slen + clen)) in
+  let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + clen + dlen)) in
   (* assert that dlen is small *)
-  { major; minor; time; random; sessionid; ciphersuites; compression_methods }
+  { major; minor; time; random; sessionid; ciphersuites; compression_methods; extensions }
+
+let get_certificate buf =
+  let len = get_uint24_len buf in
+  ((Cstruct.sub buf 3 len), len + 3)
+
+
+let get_certificates buf =
+  let rec go buf acc =
+            match (Cstruct.len buf) with
+            | 0 -> acc
+            | n -> let cert, size = get_certificate buf in
+                   go (Cstruct.shift buf size) (cert :: acc)
+  in
+  let len = get_uint24_len buf in
+  go (Cstruct.sub buf 3 len) []
 
 type tls_handshake =
+  | Hello_request
   | Client_hello of hello
   | Server_hello of hello
+  | Certificate of Cstruct.t list
 
 let handshake_to_string = function
- | Client_hello x -> sprintf "Client Hello: %s" (hello_to_string x)
- | Server_hello x -> sprintf "Server Hello: %s" (hello_to_string x)
+  | Hello_request -> "Hello request"
+  | Client_hello x -> sprintf "Client Hello: %s" (hello_to_string x)
+  | Server_hello x -> sprintf "Server Hello: %s" (hello_to_string x)
+  | Certificate x -> sprintf "Certificate: %d" (List.length x)
 
 let parse_handshake buf =
   let handshake_type = int_to_handshake_type (get_handshake_handshake_type buf) in
-  let len = (get_handshake_handshake_length buf) * (pow 2 8) + (get_handshake_handshake_length2 buf) in
+  let len = get_uint24_len (Cstruct.shift buf 1) in
   let payload = Cstruct.sub buf 4 len in
   let data = match handshake_type with
+    | Some HELLO_REQUEST -> Hello_request
     | Some CLIENT_HELLO -> Client_hello (parse_hello payload)
     | Some SERVER_HELLO -> Server_hello (parse_hello payload)
+    | Some CERTIFICATE -> Certificate (get_certificates payload)
   in ( data, Cstruct.shift buf (4 + len) )
 
 (*type tls_alert = {
