@@ -12,8 +12,8 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
     let payload chan =
       let a = Cstruct.sub (OS.Io_page.(to_cstruct (get 1))) 0 200 in
       let r = Cstruct.sub (OS.Io_page.(to_cstruct (get 1))) 0 28 in
-      let len = assemble_client_hello { major = 3; minor = 1; time = 0; random = r; sessionid = None; ciphersuites = []; compression_methods = []; extensions = [] } (Cstruct.shift a 5);
-      assemble_tls_hdr len { content_type = HANDSHAKE; major = 3; minor = 1 };
+      let len = assemble_client_hello (Cstruct.shift a 5) { major = 3; minor = 1; time = 0; random = r; sessionid = None; ciphersuites = []; compression_methods = []; extensions = [] };
+      assemble_hdr buf { content_type = HANDSHAKE; major = 3; minor = 1 } len;
       Net.Flow.write chan a >>
       Net.Flow.close chan
     in
@@ -31,12 +31,21 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
         >>= function
         | `Ok b ->
            let (header, body, rest) = P.parse b in
-           Cstruct.hexdump rest ;
+           Cstruct.hexdump rest;
            C.log_s c
                    (yellow "read: %d\n %s body %s (rest: %d)"
                            (Cstruct.len b) (P.header_to_string header) (P.body_to_string body) (Cstruct.len rest))
-           >>= fun () ->
-           S.TCPV4.close flow
+           >>
+             let answerp = P.answer body in
+             Cstruct.hexdump answerp;
+             let (header, body, rest) = P.parse answerp in
+             C.log_s c
+                     (yellow "answering: %d\n %s body %s rest %d"
+                             (Cstruct.len answerp) (P.header_to_string header) (P.body_to_string body) (Cstruct.len rest))
+             >>
+               S.TCPV4.write flow answerp
+             >>
+               S.TCPV4.close flow
 
         | `Eof -> C.log_s c (red "read: eof")
 

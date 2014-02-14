@@ -45,10 +45,10 @@ type tls_hdr = {
 }
 
 let assemble_hdr buf header payloadlength =
-  Cstruct.set_uint8 buf 0 (content_type_to_int header.content_type);
-  Cstruct.set_uint8 buf 1 header.major;
-  Cstruct.set_uint8 buf 2 header.major;
-  Cstruct.BE.set_uint16 buf 3 payloadlength
+  set_tls_h_content_type buf (content_type_to_int header.content_type);
+  set_tls_h_major_version buf header.major;
+  set_tls_h_minor_version buf header.minor;
+  set_tls_h_length buf payloadlength
 
 let parse_hdr buf =
   let content_type = match int_to_content_type (get_tls_h_content_type buf) with
@@ -84,14 +84,15 @@ cstruct handshake {
   uint8_t handshake_length2
 } as big_endian
 
-let get_varlength buf = function
-  | 0 -> (None, 0)
-  | n -> let rec go buf len = function
-           | 0 -> len
-           | n -> go (Cstruct.shift buf 1) ((Cstruct.get_uint8 buf 0) + len * (pow 2 8)) (n - 1)
-         in
-         let len = go buf 0 n in
-         let total = len + n in
+let get_varlength buf bytes =
+  let rec go buf len = function
+    | 0 -> len
+    | n -> go (Cstruct.shift buf 1) ((Cstruct.get_uint8 buf 0) + len * (pow 2 8)) (n - 1)
+  in
+  let len = go buf 0 bytes in
+  match len with
+  | 0 -> (None, 1)
+  | n -> let total = n + bytes in
          (Some (Cstruct.sub buf n total), total)
 
 cenum ciphersuite {
@@ -505,11 +506,11 @@ cenum compression_method {
   NULL = 0
 } as uint8_t
 
+let get_compression_method buf =
+  match int_to_compression_method (Cstruct.get_uint8 buf 0) with
+  | Some x -> x
+
 let get_compression_methods buf =
-  let get_compression_method buf =
-    match int_to_compression_method (Cstruct.get_uint8 buf 0) with
-    | Some x -> x
-  in
   let rec go buf acc = function
     | 0 -> acc
     | n -> go (Cstruct.shift buf 1) (get_compression_method buf :: acc) (n - 1)
@@ -724,19 +725,19 @@ cstruct c_hello {
   uint8_t  random[28];
 } as big_endian
 
-type 'a hello = {
+type ('a, 'b) hello = {
   major  : int;
   minor  : int;
   time   : uint32;
   random : Cstruct.t;
   sessionid : Cstruct.t option;
   ciphersuites : 'a;
-  compression_methods : compression_method list;
+  compression_methods : 'b;
   extensions : extension list
 }
 
-type client_hello = ciphersuite option list hello
-type server_hello = ciphersuite option hello
+type client_hello = (ciphersuite option list, compression_method list) hello
+type server_hello = (ciphersuite option, compression_method) hello
 
 let client_hello_to_string c_h =
   sprintf "client hello: protocol %d.%d ciphers %s extensions %s"
@@ -756,15 +757,19 @@ let server_hello_to_string c_h =
            | Some x -> ciphersuite_to_string x)
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
 
+let assemble_compression_method buf m =
+  Cstruct.set_uint8 buf 0 (compression_method_to_int m);
+  Cstruct.shift buf 1
+
 let rec assemble_compression_methods buf acc = function
   | [] -> acc
-  | m :: ms -> Cstruct.set_uint8 buf 0 (compression_method_to_int m);
-               assemble_compression_methods (Cstruct.shift buf 1) (acc + 1) ms
+  | m :: ms -> let buf = assemble_compression_method buf m in
+               assemble_compression_methods buf (acc + 1) ms
 
 let assemble_client_hello buf cl =
-  Cstruct.set_uint8 buf 0 cl.major;
-  Cstruct.set_uint8 buf 1 cl.minor;
-  Cstruct.BE.set_uint32 buf 2 cl.time;
+  set_c_hello_major_version buf cl.major;
+  set_c_hello_minor_version buf cl.minor;
+  set_c_hello_gmt_unix_time buf cl.time;
   Cstruct.blit cl.random 0 buf 6 28;
   let buf = Cstruct.shift buf 34 in
   let slen = match cl.sessionid with
@@ -788,9 +793,9 @@ let assemble_client_hello buf cl =
   34 + slen + cslen + 2 + 1 + clen + 2
 
 let assemble_server_hello buf sh =
-  Cstruct.set_uint8 buf 0 sh.major;
-  Cstruct.set_uint8 buf 1 sh.minor;
-  Cstruct.BE.set_uint32 buf 2 sh.time;
+  set_c_hello_major_version buf sh.major;
+  set_c_hello_minor_version buf sh.minor;
+  set_c_hello_gmt_unix_time buf sh.time;
   Cstruct.blit sh.random 0 buf 6 28;
   let buf = Cstruct.shift buf 34 in
   let slen = match sh.sessionid with
@@ -805,11 +810,9 @@ let assemble_server_hello buf sh =
   in
   let buf = Cstruct.shift buf slen in
   let buf = assemble_ciphersuite buf sh.ciphersuites in
-  Cstruct.set_uint8 buf 0 (List.length sh.compression_methods);
-  let buf = Cstruct.shift buf 1 in
-  let clen = assemble_compression_methods buf 0 sh.compression_methods in
-  Cstruct.BE.set_uint16 buf clen (List.length sh.extensions);
-  34 + slen + 2 + 1 + clen + 2
+  let buf = assemble_compression_method buf sh.compression_methods in
+(*  Cstruct.BE.set_uint16 buf 0 (List.length sh.extensions); *)
+  34 + slen + 2 + 1
 
 let parse_client_hello buf =
   let major = get_c_hello_major_version buf in
@@ -830,8 +833,8 @@ let parse_server_hello buf =
   let random = get_c_hello_random buf in
   let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
   let ciphersuites = get_ciphersuite (Cstruct.shift buf (34 + slen)) in
-  let compression_methods, dlen = get_compression_methods (Cstruct.shift buf (34 + slen + 2)) in
-  let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + 2 + dlen)) in
+  let compression_methods = get_compression_method (Cstruct.shift buf (34 + slen + 2)) in
+  let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + 2 + 1)) in
   (* assert that dlen is small *)
   { major; minor; time; random; sessionid; ciphersuites; compression_methods; extensions }
 
@@ -919,7 +922,7 @@ let server_key_exchange_to_string = function
 
 let answer_client_hello buf ch =
   let r = Cstruct.create 28 in
-  let server_hello = { major = 3; minor = 1; time = ch.time; random = r; sessionid = ch.sessionid; ciphersuites =  TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; compression_methods = [ NULL ]; extensions = [] } in
+  let server_hello = { major = 3; minor = 1; time = ch.time; random = r; sessionid = None; ciphersuites =  TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; compression_methods = NULL; extensions = [] } in
   assemble_server_hello buf server_hello
 
 type tls_handshake =
@@ -999,7 +1002,7 @@ let answer req =
     | TLS_Handshake hs -> answer_handshake (Cstruct.shift buf 5) hs
   in
   assemble_hdr buf { major = 3 ; minor = 1 ; content_type = HANDSHAKE } len;
-  buf
+  Cstruct.sub buf 0 (len + 5)
 
 let parse buf =
   let header, buf = parse_hdr buf in
