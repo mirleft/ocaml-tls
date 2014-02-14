@@ -9,19 +9,13 @@ cstruct uint24_len {
   uint8_t  len2
 } as big_endian
 
-let rec pow a = function
-  | 0 -> 1
-  | 1 -> a
-  | n -> let b = pow a (n / 2) in
-         b * b * (if n mod 2 = 0 then 1 else a)
-
 let get_uint24_len buf =
-  (get_uint24_len_len1 buf) * (pow 2 8) + (get_uint24_len_len2 buf)
+  (get_uint24_len_len1 buf) * 0x100 + (get_uint24_len_len2 buf)
 
 let set_uint24_len buf num =
-  let twosixteen = pow 2 8 in
-  set_uint24_len_len1 buf (num / twosixteen);
-  set_uint24_len_len2 buf (num mod twosixteen)
+  set_uint24_len_len1 buf (num / 0x100);
+  set_uint24_len_len2 buf (num mod 0x100)
+
 
 cenum content_type {
   CHANGE_CIPHER_SPEC = 20;
@@ -40,24 +34,33 @@ cstruct tls_h {
 
 type tls_hdr = {
   content_type : content_type;
-  major        : int;
-  minor        : int
+  version      : int * int;
 }
+
+let header_to_string (header : tls_hdr) =
+  let (major, minor) = header.version in
+  sprintf "protocol %d.%d: %s"
+          major minor (content_type_to_string header.content_type)
 
 let assemble_hdr buf header payloadlength =
   set_tls_h_content_type buf (content_type_to_int header.content_type);
-  set_tls_h_major_version buf header.major;
-  set_tls_h_minor_version buf header.minor;
+  let (major, minor) = header.version in
+  set_tls_h_major_version buf major;
+  set_tls_h_minor_version buf minor;
   set_tls_h_length buf payloadlength
 
 let parse_hdr buf =
   let content_type = match int_to_content_type (get_tls_h_content_type buf) with
-    | Some x -> x in
+    | Some x -> x
+    | None -> assert false
+  in
   let major = get_tls_h_major_version buf in
   let minor = get_tls_h_minor_version buf in
+  let version = (major, minor) in
   let len = get_tls_h_length buf in
   let payload = Cstruct.sub buf 5 len in
-  ( { content_type; major; minor }, payload)
+  (* FIXME: return length as well *)
+  ( { content_type; version }, payload)
 
 cenum handshake_type {
   HELLO_REQUEST        = 0;
@@ -78,16 +81,10 @@ cenum handshake_type {
   SUPPLEMENTAL_DATA    = 23; (*RFC4680*)
 } as uint8_t
 
-cstruct handshake {
-  uint8_t handshake_type;
-  uint16_t handshake_length;
-  uint8_t handshake_length2
-} as big_endian
-
 let get_varlength buf bytes =
   let rec go buf len = function
     | 0 -> len
-    | n -> go (Cstruct.shift buf 1) ((Cstruct.get_uint8 buf 0) + len * (pow 2 8)) (n - 1)
+    | n -> go (Cstruct.shift buf 1) ((Cstruct.get_uint8 buf 0) + len * 0x100) (n - 1)
   in
   let len = go buf 0 bytes in
   match len with
@@ -491,7 +488,10 @@ let rec assemble_ciphersuites buf acc = function
      let buf = assemble_ciphersuite buf m in
      assemble_ciphersuites buf (acc + 2) ms
 
-let get_ciphersuite buf = int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0)
+let get_ciphersuite buf =
+  match int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0) with
+  | Some x -> x
+  | None -> assert false
 
 let get_ciphersuites buf =
   let rec go buf acc = function
@@ -509,6 +509,7 @@ cenum compression_method {
 let get_compression_method buf =
   match int_to_compression_method (Cstruct.get_uint8 buf 0) with
   | Some x -> x
+  | None -> assert false
 
 let get_compression_methods buf =
   let rec go buf acc = function
@@ -668,6 +669,7 @@ let get_hostnames buf =
        | 0 ->
           let hostname_length = Cstruct.BE.get_uint16 buf 1 in
           go (Cstruct.shift buf (3 + hostname_length)) ((Cstruct.copy buf 3 hostname_length) :: acc)
+       | _ -> assert false
   in
   go (Cstruct.sub buf 2 list_length) []
 
@@ -704,6 +706,7 @@ let get_extension buf =
     | Some ELLIPTIC_CURVES -> EllipticCurves (get_elliptic_curves buf)
     | Some EC_POINT_FORMATS -> ECPointFormats (get_ec_point_format buf)
     | Some x -> Unsupported x
+    | None -> assert false
   in
   (data, 4 + len)
 
@@ -725,36 +728,30 @@ cstruct c_hello {
   uint8_t  random[28];
 } as big_endian
 
-type ('a, 'b) hello = {
-  major  : int;
-  minor  : int;
-  time   : uint32;
-  random : Cstruct.t;
-  sessionid : Cstruct.t option;
+type 'a hello = {
+  version      : int * int;
+  time         : uint32;
+  random       : Cstruct.t;
+  sessionid    : Cstruct.t option;
   ciphersuites : 'a;
-  compression_methods : 'b;
-  extensions : extension list
+  extensions   : extension list
 }
 
-type client_hello = (ciphersuite option list, compression_method list) hello
-type server_hello = (ciphersuite option, compression_method) hello
+type client_hello = ciphersuite list hello
+type server_hello = ciphersuite hello
 
 let client_hello_to_string c_h =
+  let (major, minor) = c_h.version in
   sprintf "client hello: protocol %d.%d ciphers %s extensions %s"
-          c_h.major c_h.minor
-          (List.map (function
-                      | None -> ""
-                      | Some x -> ciphersuite_to_string x)
-                     c_h.ciphersuites
-           |> String.concat ", ")
+          major minor
+          (List.map ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
 
 let server_hello_to_string c_h =
+  let (major, minor) = c_h.version in
   sprintf "server hello: protocol %d.%d cipher %s extensions %s"
-          c_h.major c_h.minor
-          (match c_h.ciphersuites with
-           | None -> "unknown"
-           | Some x -> ciphersuite_to_string x)
+          major minor
+          (ciphersuite_to_string c_h.ciphersuites)
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
 
 let assemble_compression_method buf m =
@@ -767,8 +764,9 @@ let rec assemble_compression_methods buf acc = function
                assemble_compression_methods buf (acc + 1) ms
 
 let assemble_client_hello buf cl =
-  set_c_hello_major_version buf cl.major;
-  set_c_hello_minor_version buf cl.minor;
+  let (major, minor) = cl.version in
+  set_c_hello_major_version buf major;
+  set_c_hello_minor_version buf minor;
   set_c_hello_gmt_unix_time buf cl.time;
   Cstruct.blit cl.random 0 buf 6 28;
   let buf = Cstruct.shift buf 34 in
@@ -786,15 +784,17 @@ let assemble_client_hello buf cl =
   Cstruct.BE.set_uint16 buf 0 (2 * List.length cl.ciphersuites);
   let buf = Cstruct.shift buf 2 in
   let cslen = assemble_ciphersuites buf 0 cl.ciphersuites in
-  Cstruct.set_uint8 buf 0 (List.length cl.compression_methods);
+  (* compression methods, completely useless *)
+  Cstruct.set_uint8 buf 0 1;
   let buf = Cstruct.shift buf 1 in
-  let clen = assemble_compression_methods buf 0 cl.compression_methods in
-  Cstruct.BE.set_uint16 buf clen (List.length cl.extensions);
+  let clen = assemble_compression_methods buf 0 [NULL] in
+  (* extensions *)
   34 + slen + cslen + 2 + 1 + clen + 2
 
 let assemble_server_hello buf sh =
-  set_c_hello_major_version buf sh.major;
-  set_c_hello_minor_version buf sh.minor;
+  let (major, minor) = sh.version in
+  set_c_hello_major_version buf major;
+  set_c_hello_minor_version buf minor;
   set_c_hello_gmt_unix_time buf sh.time;
   Cstruct.blit sh.random 0 buf 6 28;
   let buf = Cstruct.shift buf 34 in
@@ -810,33 +810,37 @@ let assemble_server_hello buf sh =
   in
   let buf = Cstruct.shift buf slen in
   let buf = assemble_ciphersuite buf sh.ciphersuites in
-  let buf = assemble_compression_method buf sh.compression_methods in
+  (* useless compression method *)
+  let _ = assemble_compression_method buf NULL in
+  (* extensions *)
 (*  Cstruct.BE.set_uint16 buf 0 (List.length sh.extensions); *)
   34 + slen + 2 + 1
 
 let parse_client_hello buf =
   let major = get_c_hello_major_version buf in
   let minor = get_c_hello_minor_version buf in
+  let version = (major, minor) in
   let time = get_c_hello_gmt_unix_time buf in
   let random = get_c_hello_random buf in
   let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
   let ciphersuites, clen = get_ciphersuites (Cstruct.shift buf (34 + slen)) in
-  let compression_methods, dlen = get_compression_methods (Cstruct.shift buf (34 + slen + clen)) in
+  let _, dlen = get_compression_methods (Cstruct.shift buf (34 + slen + clen)) in
   let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + clen + dlen)) in
   (* assert that dlen is small *)
-  { major; minor; time; random; sessionid; ciphersuites; compression_methods; extensions }
+  { version; time; random; sessionid; ciphersuites; extensions }
 
 let parse_server_hello buf =
   let major = get_c_hello_major_version buf in
   let minor = get_c_hello_minor_version buf in
+  let version = (major, minor) in
   let time = get_c_hello_gmt_unix_time buf in
   let random = get_c_hello_random buf in
   let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
   let ciphersuites = get_ciphersuite (Cstruct.shift buf (34 + slen)) in
-  let compression_methods = get_compression_method (Cstruct.shift buf (34 + slen + 2)) in
+  let _ = get_compression_method (Cstruct.shift buf (34 + slen + 2)) in
   let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + 2 + 1)) in
   (* assert that dlen is small *)
-  { major; minor; time; random; sessionid; ciphersuites; compression_methods; extensions }
+  { version; time; random; sessionid; ciphersuites; extensions }
 
 let get_certificate buf =
   let len = get_uint24_len buf in
@@ -922,7 +926,7 @@ let server_key_exchange_to_string = function
 
 let answer_client_hello buf ch =
   let r = Cstruct.create 28 in
-  let server_hello = { major = 3; minor = 1; time = ch.time; random = r; sessionid = None; ciphersuites =  TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; compression_methods = NULL; extensions = [] } in
+  let server_hello = { version = (3, 1); time = ch.time; random = r; sessionid = None; ciphersuites =  TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; extensions = [] } in
   assemble_server_hello buf server_hello
 
 type tls_handshake =
@@ -936,8 +940,9 @@ type tls_handshake =
 let answer_handshake buf hs =
   let len = match hs with
     | ClientHello ch ->
-       set_handshake_handshake_type buf (handshake_type_to_int SERVER_HELLO);
+       Cstruct.set_uint8 buf 0 (handshake_type_to_int SERVER_HELLO);
        answer_client_hello (Cstruct.shift buf 4) ch
+    | _ -> assert false
   in
   set_uint24_len (Cstruct.shift buf 1) len;
   len + 4
@@ -948,9 +953,10 @@ let handshake_to_string = function
   | ServerHello x -> server_hello_to_string x
   | Certificate x -> sprintf "Certificate: %d" (List.length x)
   | ServerKeyExchange x -> server_key_exchange_to_string x
+  | _ -> assert false
 
 let parse_handshake buf =
-  let handshake_type = int_to_handshake_type (get_handshake_handshake_type buf) in
+  let handshake_type = int_to_handshake_type (Cstruct.get_uint8 buf 0) in
   let len = get_uint24_len (Cstruct.shift buf 1) in
   let payload = Cstruct.sub buf 4 len in
   let data = match handshake_type with
@@ -960,6 +966,7 @@ let parse_handshake buf =
     | Some CERTIFICATE -> Certificate (get_certificates payload)
     | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload)
     | Some SERVER_HELLO_DONE -> ServerHelloDone
+    | _ -> assert false
   in ( data, Cstruct.shift buf (4 + len) )
 
 cenum alert_level {
@@ -974,7 +981,7 @@ let alert_to_string (lvl, typ) =
 
 type tls_body =
   | TLS_ChangeCipherSpec
-(*  | Tls_application_data of tls_application_data *)
+(*  | TLS_application_data of tls_application_data *)
   | TLS_Alert of tls_alert
   | TLS_Handshake of tls_handshake
 
@@ -989,10 +996,12 @@ let parse_alert buf =
   let level = Cstruct.get_uint8 buf 0 in
   let lvl = match int_to_alert_level level with
     | Some x -> x
+    | None -> assert false
   in
   let desc = Cstruct.get_uint8 buf 1 in
   let msg = match int_to_alert_type desc with
     | Some x -> x
+    | None -> assert false
   in
   ((lvl, msg), Cstruct.shift buf 2)
 
@@ -1000,19 +1009,19 @@ let answer req =
   let buf = Cstruct.create 200 in
   let len = match req with
     | TLS_Handshake hs -> answer_handshake (Cstruct.shift buf 5) hs
+    | _ -> assert false
   in
-  assemble_hdr buf { major = 3 ; minor = 1 ; content_type = HANDSHAKE } len;
+  assemble_hdr buf { version = (3, 1) ; content_type = HANDSHAKE } len;
   Cstruct.sub buf 0 (len + 5)
 
 let parse buf =
-  let header, buf = parse_hdr buf in
+  let header, buf (*, len *) = parse_hdr buf in
   let body, buf = match header.content_type with
     | HANDSHAKE          -> let hs, buf = parse_handshake buf in
                             (TLS_Handshake hs, buf)
     | CHANGE_CIPHER_SPEC -> (TLS_ChangeCipherSpec, parse_change_cipher_spec buf)
     | ALERT              -> let al, buf = parse_alert buf in
                             (TLS_Alert al, buf)
+    | _ -> assert false
   in (header, body, buf)
 
-let header_to_string (header : tls_hdr) =
-  sprintf "protocol %d.%d: %s" header.major header.minor (content_type_to_string header.content_type)
