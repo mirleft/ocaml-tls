@@ -16,7 +16,6 @@ let set_uint24_len buf num =
   set_uint24_len_len1 buf (num / 0x100);
   set_uint24_len_len2 buf (num mod 0x100)
 
-
 cenum content_type {
   CHANGE_CIPHER_SPEC = 20;
   ALERT              = 21;
@@ -60,7 +59,7 @@ let parse_hdr buf =
   let len = get_tls_h_length buf in
   let payload = Cstruct.sub buf 5 len in
   (* FIXME: return length as well *)
-  ( { content_type; version }, payload)
+  ( { content_type; version }, payload, len + 5)
 
 cenum handshake_type {
   HELLO_REQUEST        = 0;
@@ -742,7 +741,7 @@ type server_hello = ciphersuite hello
 
 let client_hello_to_string c_h =
   let (major, minor) = c_h.version in
-  sprintf "client hello: protocol %d.%d ciphers %s extensions %s"
+  sprintf "client hello: protocol %d.%d\n  ciphers %s\n  extensions %s"
           major minor
           (List.map ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
@@ -959,7 +958,7 @@ let parse_handshake buf =
   let handshake_type = int_to_handshake_type (Cstruct.get_uint8 buf 0) in
   let len = get_uint24_len (Cstruct.shift buf 1) in
   let payload = Cstruct.sub buf 4 len in
-  let data = match handshake_type with
+  match handshake_type with
     | Some HELLO_REQUEST -> HelloRequest
     | Some CLIENT_HELLO -> ClientHello (parse_client_hello payload)
     | Some SERVER_HELLO -> ServerHello (parse_server_hello payload)
@@ -967,7 +966,6 @@ let parse_handshake buf =
     | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload)
     | Some SERVER_HELLO_DONE -> ServerHelloDone
     | _ -> assert false
-  in ( data, Cstruct.shift buf (4 + len) )
 
 cenum alert_level {
   WARNING = 1;
@@ -990,8 +988,6 @@ let body_to_string = function
   | TLS_Handshake x -> handshake_to_string x
   | TLS_Alert a -> alert_to_string a
 
-let parse_change_cipher_spec buf = Cstruct.shift buf 1
-
 let parse_alert buf =
   let level = Cstruct.get_uint8 buf 0 in
   let lvl = match int_to_alert_level level with
@@ -1003,7 +999,7 @@ let parse_alert buf =
     | Some x -> x
     | None -> assert false
   in
-  ((lvl, msg), Cstruct.shift buf 2)
+  (lvl, msg)
 
 let answer req =
   let buf = Cstruct.create 200 in
@@ -1014,14 +1010,16 @@ let answer req =
   assemble_hdr buf { version = (3, 1) ; content_type = HANDSHAKE } len;
   Cstruct.sub buf 0 (len + 5)
 
-let parse buf =
-  let header, buf (*, len *) = parse_hdr buf in
-  let body, buf = match header.content_type with
-    | HANDSHAKE          -> let hs, buf = parse_handshake buf in
-                            (TLS_Handshake hs, buf)
-    | CHANGE_CIPHER_SPEC -> (TLS_ChangeCipherSpec, parse_change_cipher_spec buf)
-    | ALERT              -> let al, buf = parse_alert buf in
-                            (TLS_Alert al, buf)
-    | _ -> assert false
-  in (header, body, buf)
+type tls_frame = tls_hdr * tls_body
 
+let parse buf =
+  let header, buf, len = parse_hdr buf in
+  let body = match header.content_type with
+    | HANDSHAKE          -> TLS_Handshake (parse_handshake buf)
+    | CHANGE_CIPHER_SPEC -> TLS_ChangeCipherSpec
+    | ALERT              -> TLS_Alert (parse_alert buf)
+    | _ -> assert false
+  in ((header, body), len)
+
+let to_string (hdr, body) =
+  sprintf "header: %s\n body: %s" (header_to_string hdr) (body_to_string body)

@@ -30,18 +30,17 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
         S.TCPV4.read flow
         >>= function
         | `Ok b ->
-           let (header, body, rest) = P.parse b in
-           Cstruct.hexdump rest;
+           let tls, len = P.parse b in
            C.log_s c
-                   (yellow "read: %d\n %s body %s (rest: %d)"
-                           (Cstruct.len b) (P.header_to_string header) (P.body_to_string body) (Cstruct.len rest))
+                   (yellow "read: %d (len %d)\n %s"
+                           (Cstruct.len b) len (P.to_string tls))
            >>
-             let answerp = P.answer body in
+             let answerp = P.answer (snd tls) in
              Cstruct.hexdump answerp;
-             let (header, body, rest) = P.parse answerp in
+             let tls, len = P.parse answerp in
              C.log_s c
-                     (yellow "answering: %d\n %s body %s rest %d"
-                             (Cstruct.len answerp) (P.header_to_string header) (P.body_to_string body) (Cstruct.len rest))
+                     (yellow "answering: %d (len %d)\n %s"
+                             (Cstruct.len answerp) len (P.to_string tls))
              >>
                S.TCPV4.write flow answerp
              >>
