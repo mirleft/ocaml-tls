@@ -886,6 +886,7 @@ let server_key_exchange_to_string = function
 
 type tls_handshake =
   | HelloRequest
+  | ServerHelloDone
   | ClientHello of client_hello
   | ServerHello of server_hello
   | Certificate of Cstruct.t list
@@ -907,25 +908,52 @@ let parse_handshake buf =
     | Some CLIENT_HELLO -> ClientHello (parse_client_hello payload)
     | Some SERVER_HELLO -> ServerHello (parse_server_hello payload)
     | Some CERTIFICATE -> Certificate (get_certificates payload)
+    | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload)
+    | Some SERVER_HELLO_DONE -> ServerHelloDone
   in ( data, Cstruct.shift buf (4 + len) )
 
-(*type tls_alert = {
-}
-type tls_application_data = {
-}
-type tls_change_ciper_spec = {
-}
- *)
+cenum alert_level {
+  WARNING = 1;
+  FATAL = 2
+} as uint8_t
+
+type tls_alert = alert_level * alert_type
+
+let alert_to_string (lvl, typ) =
+  alert_level_to_string lvl ^ alert_type_to_string typ
+
 type tls_body =
-(*  | Tls_change_cipher_spec of tls_change_cipher_spec
-  | Tls_application_data of tls_application_data
-  | Tls_alert of tls_alert *)
-  | Tls_handshake of tls_handshake
+  | TLS_ChangeCipherSpec
+(*  | Tls_application_data of tls_application_data *)
+  | TLS_Alert of tls_alert
+  | TLS_Handshake of tls_handshake
+
+let body_to_string = function
+  | TLS_ChangeCipherSpec -> "TLS Change Cipher Spec"
+  | TLS_Handshake x -> handshake_to_string x
+  | TLS_Alert a -> alert_to_string a
+
+let parse_change_cipher_spec buf = Cstruct.shift buf 1
+
+let parse_alert buf =
+  let level = Cstruct.get_uint8 buf 0 in
+  let lvl = match int_to_alert_level level with
+    | Some x -> x
+  in
+  let desc = Cstruct.get_uint8 buf 1 in
+  let msg = match int_to_alert_type desc with
+    | Some x -> x
+  in
+  ((lvl, msg), Cstruct.shift buf 2)
 
 let parse buf =
   let header, buf = parse_hdr buf in
   let body, buf = match header.content_type with
-    | HANDSHAKE          -> parse_handshake buf
+    | HANDSHAKE          -> let hs, buf = parse_handshake buf in
+                            (TLS_Handshake hs, buf)
+    | CHANGE_CIPHER_SPEC -> (TLS_ChangeCipherSpec, parse_change_cipher_spec buf)
+    | ALERT              -> let al, buf = parse_alert buf in
+                            (TLS_Alert al, buf)
   in (header, body, buf)
 
 let header_to_string (header : tls_hdr) =
