@@ -484,6 +484,38 @@ cenum client_certificate_type {
   ECDSA_FIXED_ECDH = 66; (*RFC4492*)
 } as uint8_t
 
+type certificate_request = {
+  certificate_types       : client_certificate_type list;
+  certificate_authorities : string list
+}
+
+let certificate_request_to_string cr =
+  "FOOO"
+
+let rec get_certificate_types buf acc = function
+  | 0 -> acc
+  | n -> let ctype =
+           match int_to_client_certificate_type (Cstruct.get_uint8 buf 0) with
+           | Some x -> x
+           | None -> assert false
+         in get_certificate_types (Cstruct.shift buf 1) (ctype :: acc) (n - 1)
+
+let rec get_cas buf acc =
+  match (Cstruct.len buf) with
+  | 0 -> acc
+  | n ->
+     let len = Cstruct.BE.get_uint16 buf 0 in
+     let name = Cstruct.copy buf 2 len in
+     get_cas (Cstruct.shift buf (2 + len)) (name :: acc)
+
+let parse_certificate_request buf =
+  let typeslen = Cstruct.get_uint8 buf 0 in
+  let certificate_types = get_certificate_types (Cstruct.shift buf 1) [] typeslen in
+  let buf = Cstruct.shift buf (1 + typeslen) in
+  let calength = Cstruct.BE.get_uint16 buf 0 in
+  let certificate_authorities = get_cas (Cstruct.sub buf 2 calength) [] in
+  { certificate_types ; certificate_authorities }
+
 cenum alert_type {
   CLOSE_NOTIFY = 0; (*RFC5246*)
   UNEXPECTED_MESSAGE = 10; (*RFC5246*)
@@ -1090,6 +1122,7 @@ type tls_handshake =
   | ServerHello of server_hello
   | Certificate of Cstruct.t list
   | ServerKeyExchange of server_key_exchange
+  | CertificateRequest of certificate_request
 
 let answer_handshake buf hs =
   let len = match hs with
@@ -1103,11 +1136,12 @@ let answer_handshake buf hs =
 
 let handshake_to_string = function
   | HelloRequest -> "Hello request"
+  | ServerHelloDone -> "Server hello done"
   | ClientHello x -> client_hello_to_string x
   | ServerHello x -> server_hello_to_string x
   | Certificate x -> sprintf "Certificate: %d" (List.length x)
   | ServerKeyExchange x -> server_key_exchange_to_string x
-  | _ -> assert false
+  | CertificateRequest x -> certificate_request_to_string x
 
 let parse_handshake buf =
   let handshake_type = int_to_handshake_type (Cstruct.get_uint8 buf 0) in
@@ -1120,6 +1154,7 @@ let parse_handshake buf =
     | Some CERTIFICATE -> Certificate (get_certificates payload)
     | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload)
     | Some SERVER_HELLO_DONE -> ServerHelloDone
+    | Some CERTIFICATE_REQUEST -> CertificateRequest (parse_certificate_request payload)
     | _ -> assert false
 
 cenum alert_level {
