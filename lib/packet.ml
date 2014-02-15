@@ -80,17 +80,6 @@ cenum handshake_type {
   SUPPLEMENTAL_DATA    = 23; (*RFC4680*)
 } as uint8_t
 
-let get_varlength buf bytes =
-  let rec go buf len = function
-    | 0 -> len
-    | n -> go (Cstruct.shift buf 1) ((Cstruct.get_uint8 buf 0) + len * 0x100) (n - 1)
-  in
-  let len = go buf 0 bytes in
-  match len with
-  | 0 -> (None, 1)
-  | n -> let total = n + bytes in
-         (Some (Cstruct.sub buf n total), total)
-
 cenum ciphersuite {
   TLS_NULL_WITH_NULL_NULL                = 0x0000;
 
@@ -431,6 +420,57 @@ cenum ciphersuite {
   TLS_PSK_DHE_WITH_AES_256_CCM_8 = 0xC0AB; (*RFC6655*)
 } as uint16_t
 
+let assemble_ciphersuite buf c =
+  Cstruct.BE.set_uint16 buf 0 (ciphersuite_to_int c);
+  Cstruct.shift buf 2
+
+let rec assemble_ciphersuites buf acc = function
+  | [] -> acc
+  | m :: ms ->
+     let buf = assemble_ciphersuite buf m in
+     assemble_ciphersuites buf (acc + 2) ms
+
+let get_ciphersuite buf =
+  match int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0) with
+  | Some x -> x
+  | None -> assert false
+
+let get_ciphersuites buf =
+  let rec go buf acc = function
+    | 0 -> acc
+    | n -> go (Cstruct.shift buf 2) ((get_ciphersuite buf) :: acc) (n - 1)
+  in
+  let len = Cstruct.BE.get_uint16 buf 0 in
+  let suites = go (Cstruct.shift buf 2) [] (len / 2) in
+  (suites, len + 2)
+
+cenum compression_method {
+  NULL = 0
+} as uint8_t
+
+let get_compression_method buf =
+  match int_to_compression_method (Cstruct.get_uint8 buf 0) with
+  | Some x -> x
+  | None -> assert false
+
+let get_compression_methods buf =
+  let rec go buf acc = function
+    | 0 -> acc
+    | n -> go (Cstruct.shift buf 1) (get_compression_method buf :: acc) (n - 1)
+  in
+  let len = Cstruct.get_uint8 buf 0 in
+  let methods = go (Cstruct.shift buf 1) [] len in
+  (methods, len + 1)
+
+let assemble_compression_method buf m =
+  Cstruct.set_uint8 buf 0 (compression_method_to_int m);
+  Cstruct.shift buf 1
+
+let rec assemble_compression_methods buf acc = function
+  | [] -> acc
+  | m :: ms -> let buf = assemble_compression_method buf m in
+               assemble_compression_methods buf (acc + 1) ms
+
 cenum client_certificate_type {
   RSA_SIGN = 1; (*RFC5246*)
   DSS_SIGN = 2; (*RFC5246*)
@@ -477,47 +517,7 @@ cenum alert_type {
   UNKNOWN_PSK_IDENTITY = 115; (*RFC4279*)
 } as uint8_t
 
-let assemble_ciphersuite buf c =
-  Cstruct.BE.set_uint16 buf 0 (ciphersuite_to_int c);
-  Cstruct.shift buf 2
 
-let rec assemble_ciphersuites buf acc = function
-  | [] -> acc
-  | m :: ms ->
-     let buf = assemble_ciphersuite buf m in
-     assemble_ciphersuites buf (acc + 2) ms
-
-let get_ciphersuite buf =
-  match int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0) with
-  | Some x -> x
-  | None -> assert false
-
-let get_ciphersuites buf =
-  let rec go buf acc = function
-    | 0 -> acc
-    | n -> go (Cstruct.shift buf 2) ((get_ciphersuite buf) :: acc) (n - 1)
-  in
-  let len = Cstruct.BE.get_uint16 buf 0 in
-  let suites = go (Cstruct.shift buf 2) [] (len / 2) in
-  (suites, len + 2)
-
-cenum compression_method {
-  NULL = 0
-} as uint8_t
-
-let get_compression_method buf =
-  match int_to_compression_method (Cstruct.get_uint8 buf 0) with
-  | Some x -> x
-  | None -> assert false
-
-let get_compression_methods buf =
-  let rec go buf acc = function
-    | 0 -> acc
-    | n -> go (Cstruct.shift buf 1) (get_compression_method buf :: acc) (n - 1)
-  in
-  let len = Cstruct.get_uint8 buf 0 in
-  let methods = go (Cstruct.shift buf 1) [] len in
-  (methods, len + 1)
 
 (* from RFC 4366 *)
 (* from https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml *)
@@ -739,6 +739,17 @@ type 'a hello = {
 type client_hello = ciphersuite list hello
 type server_hello = ciphersuite hello
 
+let get_varlength buf bytes =
+  let rec go buf len = function
+    | 0 -> len
+    | n -> go (Cstruct.shift buf 1) ((Cstruct.get_uint8 buf 0) + len * 0x100) (n - 1)
+  in
+  let len = go buf 0 bytes in
+  match len with
+  | 0 -> (None, 1)
+  | n -> let total = n + bytes in
+         (Some (Cstruct.sub buf n total), total)
+
 let client_hello_to_string c_h =
   let (major, minor) = c_h.version in
   sprintf "client hello: protocol %d.%d\n  ciphers %s\n  extensions %s"
@@ -752,15 +763,6 @@ let server_hello_to_string c_h =
           major minor
           (ciphersuite_to_string c_h.ciphersuites)
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
-
-let assemble_compression_method buf m =
-  Cstruct.set_uint8 buf 0 (compression_method_to_int m);
-  Cstruct.shift buf 1
-
-let rec assemble_compression_methods buf acc = function
-  | [] -> acc
-  | m :: ms -> let buf = assemble_compression_method buf m in
-               assemble_compression_methods buf (acc + 1) ms
 
 let assemble_client_hello buf cl =
   let (major, minor) = cl.version in
