@@ -566,7 +566,7 @@ cenum ec_curve_type {
   NAMED_CURVE = 3
 } as uint8_t
 
-cenum named_curve {
+cenum named_curve_type {
   SECT163K1 = 1;
   SECT163R1 = 2;
   SECT163R2 = 3;
@@ -631,8 +631,8 @@ cenum ec_point_format {
 type extension =
   | Hostname of string list
   | MaxFragmentLength of max_fragment_length option
-  | EllipticCurves of (named_curve option) list
-  | ECPointFormats of (ec_point_format option) list
+  | EllipticCurves of named_curve_type list
+  | ECPointFormats of ec_point_format list
   | Unsupported of extension_type
 
 (*
@@ -649,12 +649,8 @@ let extension_to_string = function
                               | None -> "unknown max_fragment_length"
                               | Some x -> "Maximum fragment length: " ^ (max_fragment_length_to_string x))
   | EllipticCurves curves -> "Elliptic curves: " ^
-                               (String.concat ", " (List.map (function
-                                                               | None -> ""
-                                                               | Some e -> named_curve_to_string e) curves))
-  | ECPointFormats formats -> "Elliptic Curve formats: " ^ (String.concat ", " (List.map (function
-                                                             | None -> ""
-                                                             | Some f -> ec_point_format_to_string f) formats))
+                               (String.concat ", " (List.map named_curve_type_to_string curves))
+  | ECPointFormats formats -> "Elliptic Curve formats: " ^ (String.concat ", " (List.map ec_point_format_to_string formats))
   | Unsupported i -> "unsupported: " ^ (extension_type_to_string i)
 
 let get_hostnames buf =
@@ -675,12 +671,19 @@ let get_hostnames buf =
 let get_fragment_length buf =
   int_to_max_fragment_length (Cstruct.get_uint8 buf 0)
 
+let assemble_named_curve buf nc =
+  Cstruct.BE.set_uint16 buf 0 (named_curve_type_to_int nc);
+  Cstruct.shift buf 2
+
+let get_named_curve buf =
+  match int_to_named_curve_type (Cstruct.BE.get_uint16 buf 0) with
+  | Some x -> x
+  | None -> assert false
+
 let get_elliptic_curves buf =
   let rec go buf acc = match (Cstruct.len buf) with
     | 0 -> acc
-    | n ->
-       let curve = int_to_named_curve (Cstruct.BE.get_uint16 buf 0) in
-       go (Cstruct.shift buf 2) (curve :: acc)
+    | n -> go (Cstruct.shift buf 2) (get_named_curve buf :: acc)
   in
   let len = Cstruct.BE.get_uint16 buf 0 in
   go (Cstruct.sub buf 2 len) []
@@ -689,7 +692,10 @@ let get_ec_point_format buf =
   let rec go buf acc = match (Cstruct.len buf) with
     | 0 -> acc
     | n ->
-       let fmt = int_to_ec_point_format (Cstruct.get_uint8 buf 0) in
+       let fmt = match int_to_ec_point_format (Cstruct.get_uint8 buf 0) with
+         | Some x -> x
+         | None -> assert false
+       in
        go (Cstruct.shift buf 1) (fmt :: acc)
   in
   let len = Cstruct.get_uint8 buf 0 in
@@ -896,6 +902,150 @@ let dsa_param_to_string r =
   "g: " ^ Cstruct.copy r.dh_g 0 (Cstruct.len r.dh_g) ^
   "Ys: " ^ Cstruct.copy r.dh_Ys 0 (Cstruct.len r.dh_Ys)
 
+type ec_curve = {
+  a : Cstruct.t;
+  b : Cstruct.t
+}
+
+let parse_ec_curve buf =
+  let al = Cstruct.get_uint8 buf 0 in
+  let a = Cstruct.sub buf 1 al in
+  let buf = Cstruct.shift buf (1 + al) in
+  let bl = Cstruct.get_uint8 buf 0 in
+  let b = Cstruct.sub buf 1 bl in
+  let buf = Cstruct.shift buf (1 + bl) in
+  ({ a ; b }, buf)
+
+type ec_prime_parameters = {
+  prime : Cstruct.t;
+  curve : ec_curve;
+  base : Cstruct.t;
+  order : Cstruct.t;
+  cofactor : Cstruct.t;
+  public : Cstruct.t
+}
+
+let parse_ec_prime_parameters buf =
+  let plen = Cstruct.get_uint8 buf 0 in
+  let prime = Cstruct.sub buf 1 plen in
+  let buf = Cstruct.shift buf (1 + plen) in
+  let curve, buf = parse_ec_curve buf in
+  let blen = Cstruct.get_uint8 buf 0 in
+  let base = Cstruct.sub buf 1 blen in
+  let buf = Cstruct.shift buf (1 + blen) in
+  let olen = Cstruct.get_uint8 buf 0 in
+  let order = Cstruct.sub buf 1 olen in
+  let buf = Cstruct.shift buf (1 + olen) in
+  let cofactorlength = Cstruct.get_uint8 buf 0 in
+  let cofactor = Cstruct.sub buf 1 cofactorlength in
+  let buf = Cstruct.shift buf (1 + cofactorlength) in
+  let publiclen = Cstruct.get_uint8 buf 0 in
+  let public = Cstruct.sub buf 1 publiclen in
+  let buf = Cstruct.shift buf (1 + publiclen) in
+  ({ prime ; curve ; base ; order ; cofactor ; public }, buf)
+
+cenum ec_basis_type {
+  TRINOMIAL = 0;
+  PENTANOMIAL = 1
+} as uint8_t
+
+type ec_char_parameters = {
+  m : int;
+  basis : ec_basis_type;
+  ks : Cstruct.t list;
+  curve : ec_curve;
+  base : Cstruct.t;
+  order : Cstruct.t;
+  cofactor : Cstruct.t;
+  public : Cstruct.t
+}
+
+let parse_ec_char_parameters buf =
+  let m = Cstruct.BE.get_uint16 buf 0 in
+  let basis = match int_to_ec_basis_type (Cstruct.get_uint8 buf 2) with
+    | Some x -> x
+    | None -> assert false
+  in
+  let buf = Cstruct.shift buf 3 in
+  let ks, buf = match basis with
+    | TRINOMIAL ->
+       let len = Cstruct.get_uint8 buf 0 in
+       ([Cstruct.sub buf 1 len], Cstruct.shift buf (len + 1))
+    | PENTANOMIAL ->
+       let k1len = Cstruct.get_uint8 buf 0 in
+       let k1 = Cstruct.sub buf 1 k1len in
+       let buf = Cstruct.shift buf (k1len + 1) in
+       let k2len = Cstruct.get_uint8 buf 0 in
+       let k2 = Cstruct.sub buf 1 k2len in
+       let buf = Cstruct.shift buf (k2len + 1) in
+       let k3len = Cstruct.get_uint8 buf 0 in
+       let k3 = Cstruct.sub buf 1 k3len in
+       ([k1; k2; k3], Cstruct.shift buf (k3len + 1))
+  in
+  let curve, buf = parse_ec_curve buf in
+  let blen = Cstruct.get_uint8 buf 0 in
+  let base = Cstruct.sub buf 1 blen in
+  let buf = Cstruct.shift buf (1 + blen) in
+  let olen = Cstruct.get_uint8 buf 0 in
+  let order = Cstruct.sub buf 1 olen in
+  let buf = Cstruct.shift buf (1 + olen) in
+  let cofactorlength = Cstruct.get_uint8 buf 0 in
+  let cofactor = Cstruct.sub buf 1 cofactorlength in
+  let buf = Cstruct.shift buf (1 + cofactorlength) in
+  let publiclen = Cstruct.get_uint8 buf 0 in
+  let public = Cstruct.sub buf 1 publiclen in
+  let buf = Cstruct.shift buf (1 + publiclen) in
+  ({ m ; basis ; ks ; curve ; base ; order ; cofactor ; public }, buf)
+
+type ec_parameters =
+  | ExplicitPrimeParameters of ec_prime_parameters
+  | ExplicitCharParameters of ec_char_parameters
+  | NamedCurveParameters of (named_curve_type * Cstruct.t)
+
+let ec_prime_parameters_to_string pp = "EC Prime Parameters"
+
+let ec_char_parameters_to_string cp = "EC Char Parameters"
+
+let ec_param_to_string = function
+  | ExplicitPrimeParameters pp -> ec_prime_parameters_to_string pp
+  | ExplicitCharParameters cp -> ec_char_parameters_to_string cp
+  | NamedCurveParameters (nc, public) -> named_curve_type_to_string nc
+
+let parse_ec_parameters buf =
+  let pbuf = Cstruct.shift buf 1 in
+  match int_to_ec_curve_type (Cstruct.get_uint8 buf 0) with
+  | Some EXPLICIT_PRIME ->
+     let ep, buf = parse_ec_prime_parameters pbuf in
+     (ExplicitPrimeParameters ep, buf)
+  | Some EXPLICIT_CHAR2 ->
+     let ec, buf = parse_ec_char_parameters pbuf in
+     (ExplicitCharParameters ec, buf)
+  | Some NAMED_CURVE ->
+     let curve = get_named_curve pbuf in
+     let plen = Cstruct.get_uint8 buf 2 in
+     let public = Cstruct.sub buf 3 plen in
+     (NamedCurveParameters (curve, public), Cstruct.shift buf (3 + plen))
+  | _ -> assert false
+
+let assemble_ec_prime_parameters buf pp = 0
+
+let assemble_ec_char_parameters buf cp = 0
+
+let assemble_ec_parameters buf = function
+  | ExplicitPrimeParameters pp ->
+     Cstruct.set_uint8 buf 0 (ec_curve_type_to_int EXPLICIT_PRIME);
+     1 + (assemble_ec_prime_parameters (Cstruct.shift buf 1) pp)
+  | ExplicitCharParameters cp ->
+     Cstruct.set_uint8 buf 0 (ec_curve_type_to_int EXPLICIT_CHAR2);
+     1 + (assemble_ec_char_parameters (Cstruct.shift buf 1) cp)
+  | NamedCurveParameters (np, pub) ->
+     Cstruct.set_uint8 buf 0 (ec_curve_type_to_int NAMED_CURVE);
+     let buf = assemble_named_curve buf np in
+     let len = Cstruct.len pub in
+     Cstruct.set_uint8 buf 0 len;
+     Cstruct.blit pub 0 buf 1 len;
+     (4 + len)
+
 type signature =
   | Anonymous
   | RSA of Cstruct.t
@@ -913,10 +1063,12 @@ let parse_sig buf =
 type server_key_exchange =
   | DiffieHellmann of dsa_parameters * signature
   | Rsa of rsa_parameters * signature
+  | EllipticCurve of ec_parameters * signature
 
 let parse_server_key_exchange buf =
   let len = Cstruct.BE.get_uint16 buf 0 in
   let buf = Cstruct.sub buf 2 len in
+  (* need to get from selected ciphersuite what I should parse! *)
   let dh, size = parse_dsa_parameters buf in
   let sign = DSA (parse_sig (Cstruct.shift buf size)) in
   DiffieHellmann (dh, sign)
@@ -924,6 +1076,7 @@ let parse_server_key_exchange buf =
 let server_key_exchange_to_string = function
   | DiffieHellmann (param, s)-> dsa_param_to_string param ^ sig_to_string s
   | Rsa (param, s) -> rsa_param_to_string param ^ sig_to_string s
+  | EllipticCurve (param, s) -> ec_param_to_string param ^ sig_to_string s
 
 let answer_client_hello buf ch =
   let r = Cstruct.create 28 in
