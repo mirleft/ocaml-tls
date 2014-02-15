@@ -1,4 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: f39181116a0042e3b50710c2a1e70f74)
+# DO NOT EDIT (digest: fbc56f2f6621729b5563b664afc16d5e)
 Packet
+Core
+Printer
+Reader
+Writer
+Flow
 # OASIS_STOP

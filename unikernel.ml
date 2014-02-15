@@ -1,5 +1,4 @@
 open Lwt
-module P = Tls.Packet
 
 let red fmt    = Printf.sprintf ("\027[31m"^^fmt^^"\027[m")
 let green fmt  = Printf.sprintf ("\027[32m"^^fmt^^"\027[m")
@@ -30,17 +29,17 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
         S.TCPV4.read flow
         >>= function
         | `Ok b ->
-           let tls, len = P.parse b in
+           let tls, len = Tls.Reader.parse b in
            C.log_s c
                    (yellow "read: %d (len %d)\n %s"
-                           (Cstruct.len b) len (P.to_string tls))
+                           (Cstruct.len b) len (Tls.Printer.to_string tls))
            >>
-             let answerp = P.answer (snd tls) in
+             let answerp = Tls.Flow.answer (snd tls) in
              Cstruct.hexdump answerp;
-             let tls, len = P.parse answerp in
+             let tls, len = Tls.Reader.parse answerp in
              C.log_s c
                      (yellow "answering: %d (len %d)\n %s"
-                             (Cstruct.len answerp) len (P.to_string tls))
+                             (Cstruct.len answerp) len (Tls.Printer.to_string tls))
              >>
                S.TCPV4.write flow answerp
              >>
