@@ -7,19 +7,19 @@ type key_exchange_algorithm =
   | DHE_DSS
   | DHE_RSA
   | DH_anon
-  | KRB5
+  | PSK
+  | DHE_PSK
+  | RSA_PSK
+  | ECDHE_PSK
   | ECDH_ECDSA
   | ECDHE_ECDSA
   | ECDH_RSA
   | ECDHE_RSA
   | ECDH_anon
+  | KRB5
   | SRP_SHA
   | SRP_SHA_RSA
   | SRP_SHA_DSS
-  | ECDHE_PSK
-  | PSK
-  | DHE_PSK
-  | RSA_PSK
 
 type encryption_algorithm =
   | NULL
@@ -32,21 +32,21 @@ type encryption_algorithm =
   | TRIPLE_DES_EDE_CBC
   | AES_128_CBC
   | AES_256_CBC
-  | CAMELLIA_128_CBC
-  | CAMELLIA_256_CBC
-  | SEED_CBC
   | AES_128_GCM
   | AES_256_GCM
-  | ARIA_128_GCM
-  | ARIA_256_GCM
-  | ARIA_128_CBC
-  | ARIA_256_CBC
-  | CAMELLIA_128_GCM
-  | CAMELLIA_256_GCM
   | AES_128_CCM
   | AES_256_CCM
   | AES_128_CCM_8
   | AES_256_CCM_8
+  | CAMELLIA_128_CBC
+  | CAMELLIA_256_CBC
+  | CAMELLIA_128_GCM
+  | CAMELLIA_256_GCM
+  | SEED_CBC
+  | ARIA_128_GCM
+  | ARIA_256_GCM
+  | ARIA_128_CBC
+  | ARIA_256_CBC
 
 type hash_algorithm =
   | NULL
