@@ -54,6 +54,7 @@ type hash_algorithm =
   | SHA
   | SHA256
   | SHA384
+  | SHA512
 
 (* TLS ciphersuites *)
 cenum ciphersuite {
