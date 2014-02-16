@@ -18,7 +18,7 @@ let rec assemble_compression_methods buf acc = function
                assemble_compression_methods buf (acc + 1) ms
 
 let assemble_ciphersuite buf c =
-  Cstruct.BE.set_uint16 buf 0 (ciphersuite_to_int c);
+  Cstruct.BE.set_uint16 buf 0 (Ciphersuite.ciphersuite_to_int c);
   Cstruct.shift buf 2
 
 let rec assemble_ciphersuites buf acc = function

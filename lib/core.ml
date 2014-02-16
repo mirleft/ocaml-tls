@@ -1,4 +1,5 @@
 open Packet
+open Ciphersuite
 open Cstruct
 
 (* well, a client most likely will not have to deal with this *)

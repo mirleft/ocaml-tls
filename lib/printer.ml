@@ -24,14 +24,14 @@ let client_hello_to_string c_h =
   let (major, minor) = c_h.version in
   sprintf "client hello: protocol %d.%d\n  ciphers %s\n  extensions %s"
           major minor
-          (List.map ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
+          (List.map Ciphersuite.ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
 
 let server_hello_to_string c_h =
   let (major, minor) = c_h.version in
   sprintf "server hello: protocol %d.%d cipher %s extensions %s"
           major minor
-          (ciphersuite_to_string c_h.ciphersuites)
+          (Ciphersuite.ciphersuite_to_string c_h.ciphersuites)
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
 
 let rsa_param_to_string r =
@@ -77,6 +77,7 @@ let alert_to_string (lvl, typ) =
 
 let body_to_string = function
   | TLS_ChangeCipherSpec -> "TLS Change Cipher Spec"
+  | TLS_ApplicationData -> "TLS Application Data"
   | TLS_Handshake x -> handshake_to_string x
   | TLS_Alert a -> alert_to_string a
 

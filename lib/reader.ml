@@ -66,7 +66,7 @@ let get_compression_methods buf =
   (methods, len + 1)
 
 let get_ciphersuite buf =
-  match int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0) with
+  match Ciphersuite.int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0) with
   | Some x -> x
   | None -> assert false
 

@@ -2,7 +2,7 @@ open Core
 
 let answer_client_hello buf ch =
   let r = Cstruct.create 28 in
-  let server_hello = { version = (3, 1); time = ch.time; random = r; sessionid = None; ciphersuites =  Packet.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; extensions = [] } in
+  let server_hello = { version = (3, 1); time = ch.time; random = r; sessionid = None; ciphersuites =  Ciphersuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; extensions = [] } in
   Writer.assemble_server_hello buf server_hello
 
 let answer_handshake buf hs =
