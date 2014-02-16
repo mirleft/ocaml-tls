@@ -13,6 +13,6 @@ BuildTools:  ocamlbuild
 
 Library tls
   Path: lib
-  Modules: Ciphersuite, Packet, Core, Printer, Reader, Writer, Flow
+  Modules: Ciphersuite, Packet, Core, Printer, Reader, Writer, State, Flow
   Pack: true
   BuildDepends: cstruct, cstruct.syntax
