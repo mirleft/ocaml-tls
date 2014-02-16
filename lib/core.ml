@@ -91,6 +91,7 @@ type tls_handshake =
   | Certificate of Cstruct.t list
   | ServerKeyExchange of server_key_exchange
   | CertificateRequest of certificate_request
+  | Finished of Cstruct.t
 
 type tls_alert = alert_level * alert_type
 

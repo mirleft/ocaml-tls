@@ -71,6 +71,7 @@ let handshake_to_string = function
   | Certificate x -> sprintf "Certificate: %d" (List.length x)
   | ServerKeyExchange x -> server_key_exchange_to_string x
   | CertificateRequest x -> certificate_request_to_string x
+  | Finished x -> "Finished"
 
 let alert_to_string (lvl, typ) =
   alert_level_to_string lvl ^ alert_type_to_string typ

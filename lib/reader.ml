@@ -325,6 +325,7 @@ let parse_handshake buf =
     | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload)
     | Some SERVER_HELLO_DONE -> ServerHelloDone
     | Some CERTIFICATE_REQUEST -> CertificateRequest (parse_certificate_request payload)
+    | Some FINISHED -> Finished (Cstruct.sub payload 0 12)
     | _ -> assert false
 
 let parse buf =
