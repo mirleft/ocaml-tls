@@ -1,4 +1,4 @@
-mirage-tls
+ocaml-tls
 ==========
 
-tls support for mirage
+tls support for ocaml
