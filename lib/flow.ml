@@ -73,6 +73,7 @@ module Server = struct
   let s_to_string t = match t.state with
     | Initial -> "Initial"
     | ServerHelloSent params -> "Server Hello Sent"
+    | ServerCertificateSent params -> "Server Certificate Sent"
 
   let handle_handshake t msg =
     match t.state with
