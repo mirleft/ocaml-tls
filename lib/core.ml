@@ -17,7 +17,6 @@ type extension =
 
 type 'a hello = {
   version      : int * int;
-  time         : uint32;
   random       : Cstruct.t;
   sessionid    : Cstruct.t option;
   ciphersuites : 'a;

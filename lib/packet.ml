@@ -20,8 +20,7 @@ cstruct tls_h {
 cstruct c_hello {
   uint8_t major_version;
   uint8_t minor_version;
-  uint32_t gmt_unix_time;
-  uint8_t  random[28];
+  uint8_t  random[32];
 } as big_endian
 
 (* TLS record content type *)

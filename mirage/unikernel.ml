@@ -25,23 +25,20 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
         let dst, dst_port = S.TCPV4.get_dest flow in
         C.log_s c (green "new tcp connection from %s %d"
                      (Ipaddr.V4.to_string dst) dst_port)
-        >>= fun () ->
-        S.TCPV4.read flow
+        >>
+          S.TCPV4.read flow
         >>= function
-        | `Ok b ->
-           let tls, len = Tls.Reader.parse b in
-           C.log_s c
-                   (yellow "read: %d (len %d)\n %s"
-                           (Cstruct.len b) len (Tls.Printer.to_string tls))
-           >>
-             let answerp = Tls.Flow.answer (snd tls) in
-             Cstruct.hexdump answerp;
-             let tls, len = Tls.Reader.parse answerp in
+          | `Ok b ->
+             let s = Tls.Flow.Server.make () in
+             Cstruct.hexdump b;
+             let answer = Tls.Flow.Server.handle_tls s b in
+             Cstruct.hexdump answer;
+             let tls, len = Tls.Reader.parse answer in
              C.log_s c
                      (yellow "answering: %d (len %d)\n %s"
-                             (Cstruct.len answerp) len (Tls.Printer.to_string tls))
+                             (Cstruct.len answer) len (Tls.Printer.to_string tls))
              >>
-               S.TCPV4.write flow answerp
+               S.TCPV4.write flow answer
              >>
                S.TCPV4.close flow
 

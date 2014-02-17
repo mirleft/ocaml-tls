@@ -11,7 +11,6 @@ let parse_hdr buf =
   let version = (major, minor) in
   let len = get_tls_h_length buf in
   let payload = Cstruct.sub buf 5 len in
-  (* FIXME: return length as well *)
   ( { content_type; version }, payload, len + 5)
 
 let parse_alert buf =
@@ -164,27 +163,25 @@ let parse_client_hello buf =
   let major = get_c_hello_major_version buf in
   let minor = get_c_hello_minor_version buf in
   let version = (major, minor) in
-  let time = get_c_hello_gmt_unix_time buf in
   let random = get_c_hello_random buf in
   let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
   let ciphersuites, clen = get_ciphersuites (Cstruct.shift buf (34 + slen)) in
   let _, dlen = get_compression_methods (Cstruct.shift buf (34 + slen + clen)) in
   let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + clen + dlen)) in
   (* assert that dlen is small *)
-  { version; time; random; sessionid; ciphersuites; extensions }
+  { version ; random ; sessionid ; ciphersuites ; extensions }
 
 let parse_server_hello buf =
   let major = get_c_hello_major_version buf in
   let minor = get_c_hello_minor_version buf in
   let version = (major, minor) in
-  let time = get_c_hello_gmt_unix_time buf in
   let random = get_c_hello_random buf in
   let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
   let ciphersuites = get_ciphersuite (Cstruct.shift buf (34 + slen)) in
   let _ = get_compression_method (Cstruct.shift buf (34 + slen + 2)) in
   let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + 2 + 1)) in
   (* assert that dlen is small *)
-  { version; time; random; sessionid; ciphersuites; extensions }
+  { version ; random ; sessionid ; ciphersuites ; extensions }
 
 let get_certificate buf =
   let len = get_uint24_len buf in

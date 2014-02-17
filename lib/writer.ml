@@ -35,8 +35,7 @@ let assemble_client_hello buf cl =
   let (major, minor) = cl.version in
   set_c_hello_major_version buf major;
   set_c_hello_minor_version buf minor;
-  set_c_hello_gmt_unix_time buf cl.time;
-  Cstruct.blit cl.random 0 buf 6 28;
+  Cstruct.blit cl.random 0 buf 6 32;
   let buf = Cstruct.shift buf 34 in
   let slen = match cl.sessionid with
     | None ->
@@ -63,8 +62,7 @@ let assemble_server_hello buf sh =
   let (major, minor) = sh.version in
   set_c_hello_major_version buf major;
   set_c_hello_minor_version buf minor;
-  set_c_hello_gmt_unix_time buf sh.time;
-  Cstruct.blit sh.random 0 buf 6 28;
+  Cstruct.blit sh.random 0 buf 6 32;
   let buf = Cstruct.shift buf 34 in
   let slen = match sh.sessionid with
     | None ->
