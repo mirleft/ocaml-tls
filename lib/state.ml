@@ -38,9 +38,9 @@ let empty_client_security_parameters =
   }
 
 type connection_state = {
-  cipher_state : Cstruct.t;
+  mutable cipher_state : Cstruct.t;
   mac_secret : Cstruct.t;
-  sequence_number : int; (*uint64 says the spec*)
+  mutable sequence_number : int; (*uint64 says the spec*)
 
   client_write_MAC_secret : Cstruct.t; (*security_parameters.hash_size*)
   server_write_MAC_secret : Cstruct.t; (*security_parameters.hash_size*)

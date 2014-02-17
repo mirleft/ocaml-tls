@@ -1,14 +1,14 @@
 OASISFormat: 0.4
-Name:        mirage-tls
+Name:        ocaml-tls
 Version:     0.0.1
-Synopsis:    TLS support for mirage
+Synopsis:    TLS support for ocaml
 Authors:     Hannes Mehnert <hannes@mehnert.org>
 Maintainers: Hannes Mehnert <hannes@mehnert.org>
-Homepage:    https://github.com/hannesm/mirage-tls
+Homepage:    https://github.com/mirleft/ocaml-tls
 License:     FreeBSD
 Plugins:     META (0.4)
 Description:
-  TLS support on top of mirage
+  TLS support on top of OCaml
 BuildTools:  ocamlbuild
 
 Library tls

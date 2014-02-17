@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 71a52a5e25f8844bd9a2935ee16b9219)
+# DO NOT EDIT (digest: 84e244bbce3b201e9f4cd4c1812a0e31)
 version = "0.0.1"
-description = "TLS support for mirage"
+description = "TLS support for ocaml"
 requires = "cstruct cstruct.syntax"
 archive(byte) = "tls.cma"
 archive(byte, plugin) = "tls.cma"
