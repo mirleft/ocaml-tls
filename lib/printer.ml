@@ -27,7 +27,7 @@ let client_hello_to_string c_h =
           (List.map Ciphersuite.ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
 
-let server_hello_to_string c_h =
+let server_hello_to_string (c_h : server_hello) =
   let (major, minor) = c_h.version in
   sprintf "server hello: protocol %d.%d cipher %s extensions %s"
           major minor

@@ -8,6 +8,23 @@ let assemble_hdr buf header payloadlength =
   set_tls_h_minor_version buf minor;
   set_tls_h_length buf payloadlength
 
+let assemble_certificate buf c =
+  let len = Cstruct.len c in
+  set_uint24_len buf len;
+  Cstruct.blit buf 3 c 0 len;
+  len + 3
+
+let assemble_certificates buf cs =
+  let rec go buf len = function
+    | [] -> len
+    | c :: cs ->
+       let l = assemble_certificate buf c in
+       go (Cstruct.shift buf l) (l + len) cs
+  in
+  let lens = go (Cstruct.shift buf 3) 0 cs in
+  set_uint24_len buf lens;
+  lens + 3
+
 let assemble_compression_method buf m =
   Cstruct.set_uint8 buf 0 (compression_method_to_int m);
   Cstruct.shift buf 1
@@ -58,7 +75,7 @@ let assemble_client_hello buf cl =
   (* extensions *)
   34 + slen + cslen + 2 + 1 + clen + 2
 
-let assemble_server_hello buf sh =
+let assemble_server_hello buf (sh : server_hello) =
   let (major, minor) = sh.version in
   set_c_hello_major_version buf major;
   set_c_hello_minor_version buf minor;

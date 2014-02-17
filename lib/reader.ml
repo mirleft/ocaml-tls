@@ -76,7 +76,7 @@ let get_ciphersuites buf =
   in
   let len = Cstruct.BE.get_uint16 buf 0 in
   let suites = go (Cstruct.shift buf 2) [] (len / 2) in
-  (suites, len + 2)
+  (List.rev suites, len + 2)
 
 let get_hostnames buf =
   let list_length = Cstruct.BE.get_uint16 buf 0 in
@@ -171,7 +171,7 @@ let parse_client_hello buf =
   (* assert that dlen is small *)
   { version ; random ; sessionid ; ciphersuites ; extensions }
 
-let parse_server_hello buf =
+let parse_server_hello buf : server_hello =
   let major = get_c_hello_major_version buf in
   let minor = get_c_hello_minor_version buf in
   let version = (major, minor) in

@@ -21,6 +21,14 @@ type key_exchange_algorithm =
   | SRP_SHA_RSA
   | SRP_SHA_DSS
 
+let needs_certificate = function
+  | NULL | DH_anon | PSK -> false
+  | _ -> true
+
+let needs_kex = function
+  | NULL | RSA -> false
+  | _ -> true
+
 type encryption_algorithm =
   | NULL
   | RC4_40
