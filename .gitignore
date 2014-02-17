@@ -1,4 +1,4 @@
-/_build/
+mirage/_build/
 setup.data
 setup.log
 Makefile
