@@ -31,14 +31,15 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
           | `Ok b ->
              let s = Tls.Flow.Server.make () in
              Cstruct.hexdump b;
-             let answer = Tls.Flow.Server.handle_tls s b in
-             Cstruct.hexdump answer;
-             let tls, len = Tls.Reader.parse answer in
-             C.log_s c
-                     (yellow "answering: %d (len %d)\n %s"
-                             (Cstruct.len answer) len (Tls.Printer.to_string tls))
-             >>
-               S.TCPV4.write flow answer
+             let answers = List.rev (Tls.Flow.Server.handle_tls s b) in
+             Lwt_list.iter_s (fun answer ->
+                              Cstruct.hexdump answer;
+                              let tls, len = Tls.Reader.parse answer in
+                              C.log_s c
+                                      (yellow "answering: %d (len %d)\n %s"
+                                              (Cstruct.len answer) len (Tls.Printer.to_string tls))
+                              >>
+                                S.TCPV4.write flow answer) answers
              >>
                S.TCPV4.close flow
 
