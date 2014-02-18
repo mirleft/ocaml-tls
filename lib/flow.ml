@@ -32,9 +32,9 @@ module Server = struct
 
   let make () = { state = Initial ; packets = [] ; outgoing = [] }
 
-  let respond t (ch : client_hello)  =
+  let respond_hello t (ch : client_hello)  =
     let r = Cstruct.create 32 in
-    let cipher = Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA in
+    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in
     if List.mem cipher ch.ciphersuites then
       (let kex, enc, hash = Ciphersuite.get_kex_enc_hash cipher in
        let params = { entity = Server ; cipher = enc ; block_or_stream = Block ; mac = hash ; master_secret = Cstruct.create 0 ; client_random = ch.random ; server_random = r } in
@@ -56,19 +56,40 @@ module Server = struct
           Packet.set_uint24_len (Cstruct.shift buf 1) len;
           let rbuf = Cstruct.sub b 0 (len + 4 + 5) in
           t.state <- ServerCertificateSent params;
-          t.outgoing <- (len + 4, rbuf) :: t.outgoing))
-(*      if needs_kex kex then
-        let b = Cstruct.create 200 in
-        let buf = Cstruct.shift b 5 in
-        Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.SERVER_KEY_EXCHANGE);
-        let kex = __ in (* punch in cert! *)
-        let len = Writer.assemble_certificate (Cstruct.shift buf 4) cert in
-        Packet.set_uint24_len (Cstruct.shift buf 1) len;
-        let rbuf = Cstruct.sub b 0 (len + 4 + 5) in
-        t.state <- ServerCertificateSent params;
-        t.outgoing <- (len + 4, rbuf) :: t.outgoing;
- *)
+          t.outgoing <- (len + 4, rbuf) :: t.outgoing);
+(*        if needs_kex kex then
+          (let b = Cstruct.create 200 in
+           let buf = Cstruct.shift b 5 in
+           Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.SERVER_KEY_EXCHANGE);
+           let kex = __ in (* punch in cert! *)
+           let len = Writer.assemble_certificate (Cstruct.shift buf 4) cert in
+           Packet.set_uint24_len (Cstruct.shift buf 1) len;
+           let rbuf = Cstruct.sub b 0 (len + 4 + 5) in
+           t.state <- ServerCertificateSent params;
+           t.outgoing <- (len + 4, rbuf) :: t.outgoing;) *)
+       (* server hello done! *)
+       let b = Cstruct.create 9 in
+       let buf = Cstruct.shift b 5 in
+       Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.SERVER_HELLO_DONE);
+       Packet.set_uint24_len (Cstruct.shift buf 1) 0;
+       t.outgoing <- (4, rbuf) :: t.outgoing)
 
+  let respond_kex t p kex =
+    let premastersecret = (* magic decrypt voodoo *) Cstruct.copy kex 0 (Cstruct.len kex) in
+    let cr = Cstruct.copy p.client_random 0 32 in
+    let sr = Cstruct.copy p.server_random 0 32 in
+    let mastersecret = Crypto.generate_master_secret premastersecret (cr ^ sr) in
+    let length = 10 (* find and punch in the required length *) in
+    let keys = Crypto.key_block length mastersecret (sr ^ cr) in
+    (* let ctx = { connection_state instance } in
+    <set it up!> *)
+    ()
+
+(* let respond_change_cipher_spec =
+    security_parameters
+    connection_state
+    send_change_cipher_spec
+    send_finished *)
 
   let s_to_string t = match t.state with
     | Initial -> "Initial"
@@ -77,8 +98,10 @@ module Server = struct
 
   let handle_handshake t msg =
     match t.state with
-    | Initial -> match msg with
-                 | ClientHello c -> respond t c
+    | Initial -> (match msg with
+                  | ClientHello c -> respond_hello t c)
+    | ServerCertificateSent p -> (match msg with
+                                  | ClientKeyExchange (ClientRsa kex) -> respond_kex t p kex)
 
 
   let handle_tls t buf =

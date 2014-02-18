@@ -59,7 +59,7 @@ let sig_to_string = function
 
 
 let server_key_exchange_to_string = function
-  | DiffieHellmann (param, s)-> dsa_param_to_string param ^ sig_to_string s
+  | DiffieHellman (param, s)-> dsa_param_to_string param ^ sig_to_string s
   | Rsa (param, s) -> rsa_param_to_string param ^ sig_to_string s
   | EllipticCurve (param, s) -> ec_param_to_string param ^ sig_to_string s
 

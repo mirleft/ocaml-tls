@@ -307,7 +307,7 @@ let parse_server_key_exchange buf =
   (* need to get from selected ciphersuite what I should parse! *)
   let dh, size = parse_dsa_parameters buf in
   let sign = DSA (parse_sig (Cstruct.shift buf size)) in
-  DiffieHellmann (dh, sign)
+  DiffieHellman (dh, sign)
 
 
 let parse_handshake buf =
@@ -322,6 +322,7 @@ let parse_handshake buf =
     | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload)
     | Some SERVER_HELLO_DONE -> ServerHelloDone
     | Some CERTIFICATE_REQUEST -> CertificateRequest (parse_certificate_request payload)
+    | Some CLIENT_KEY_EXCHANGE -> ClientKeyExchange (ClientRsa (Cstruct.sub payload 0 len))
     | Some FINISHED -> Finished (Cstruct.sub payload 0 12)
     | _ -> assert false
 

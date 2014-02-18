@@ -73,9 +73,13 @@ type signature =
   | DSA of Cstruct.t
 
 type server_key_exchange =
-  | DiffieHellmann of dsa_parameters * signature
+  | DiffieHellman of dsa_parameters * signature
   | Rsa of rsa_parameters * signature
   | EllipticCurve of ec_parameters * signature
+
+type client_key_exchange =
+  | ClientRsa of Cstruct.t
+  | ClientDiffieHellmanPublic
 
 type certificate_request = {
   certificate_types       : client_certificate_type list;
@@ -90,6 +94,7 @@ type tls_handshake =
   | Certificate of Cstruct.t list
   | ServerKeyExchange of server_key_exchange
   | CertificateRequest of certificate_request
+  | ClientKeyExchange of client_key_exchange
   | Finished of Cstruct.t
 
 type tls_alert = alert_level * alert_type
