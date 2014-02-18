@@ -15,4 +15,4 @@ Library tls
   Path: lib
   Modules: Ciphersuite, Packet, Core, Printer, Reader, Writer, State, Crypto, Flow
   Pack: true
-  BuildDepends: cstruct, cstruct.syntax
+  BuildDepends: cstruct, cstruct.syntax, asn1-combinators
