@@ -16,6 +16,25 @@ let client_handshake stream =
   send_finished stream connection_state;
   connection_state
  *)
+
+let read_file filename =
+  let lines = ref "" in
+  let chan = open_in filename in
+  try
+    while true; do
+      lines := !lines ^ input_line chan ^ "\n"
+    done; ""
+  with End_of_file ->
+    close_in chan;
+    !lines
+
+let pem_to_cstruct pem =
+  Cstruct.create 20
+
+let get_cert_from_file filename =
+  let pem = read_file filename in
+  pem_to_cstruct pem
+
 module Server = struct
   type server_handshake_state =
     | Initial
@@ -51,8 +70,8 @@ module Server = struct
          (let b = Cstruct.create 200 in
           let buf = Cstruct.shift b 5 in
           Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.CERTIFICATE);
-          let cert = [] in (* punch in certs!! *)
-          let len = Writer.assemble_certificates (Cstruct.shift buf 4) cert in
+          let cert = get_cert_from_file "server.pem" in
+          let len = Writer.assemble_certificates (Cstruct.shift buf 4) [cert] in
           Packet.set_uint24_len (Cstruct.shift buf 1) len;
           let rbuf = Cstruct.sub b 0 (len + 4 + 5) in
           t.state <- ServerCertificateSent params;
@@ -72,7 +91,7 @@ module Server = struct
        let buf = Cstruct.shift b 5 in
        Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.SERVER_HELLO_DONE);
        Packet.set_uint24_len (Cstruct.shift buf 1) 0;
-       t.outgoing <- (4, rbuf) :: t.outgoing)
+       t.outgoing <- (4, b) :: t.outgoing)
 
   let respond_kex t p kex =
     let premastersecret = (* magic decrypt voodoo *) Cstruct.copy kex 0 (Cstruct.len kex) in
