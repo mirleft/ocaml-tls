@@ -16,4 +16,4 @@ Library tls
   Modules: Ciphersuite, Packet, Core, Printer, Reader, Writer, State, Crypto, Flow
   InternalModules: X509
   Pack: true
-  BuildDepends: cstruct, cstruct.syntax, asn1-combinators
+  BuildDepends: cstruct, cstruct.syntax, asn1-combinators, cryptokit

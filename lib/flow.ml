@@ -18,18 +18,20 @@ let client_handshake stream =
  *)
 
 let read_file filename =
-  let lines = ref "" in
+  let lines = ref [] in
   let chan = open_in filename in
   try
     while true; do
-      lines := !lines ^ input_line chan ^ "\n"
+      lines := input_line chan :: !lines
     done; ""
   with End_of_file ->
     close_in chan;
-    !lines
+    List.fold_left (fun a b -> a ^ b) "" (List.tl (List.rev (List.tl !lines)))
 
 let pem_to_cstruct pem =
-  Cstruct.create 20
+  let b64 = Cryptokit.Base64.decode () in
+  let str = Cryptokit.transform_string b64 pem in
+  Cstruct.of_string str
 
 let get_cert_from_file filename =
   let pem = read_file filename in
@@ -67,7 +69,7 @@ module Server = struct
        t.state <- ServerHelloSent params;
        t.outgoing <- (len + 4, rbuf) :: t.outgoing;
        if Ciphersuite.needs_certificate kex then
-         (let b = Cstruct.create 200 in
+         (let b = Cstruct.create 1000 in
           let buf = Cstruct.shift b 5 in
           Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.CERTIFICATE);
           let cert = get_cert_from_file "server.pem" in

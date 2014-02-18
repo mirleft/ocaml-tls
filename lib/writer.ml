@@ -11,7 +11,7 @@ let assemble_hdr buf header payloadlength =
 let assemble_certificate buf c =
   let len = Cstruct.len c in
   set_uint24_len buf len;
-  Cstruct.blit buf 3 c 0 len;
+  Cstruct.blit c 0 buf 3 len;
   len + 3
 
 let assemble_certificates buf cs =

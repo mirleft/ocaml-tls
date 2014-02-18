@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e2cd865522e5ec7a71154dfeefa489a7)
+# DO NOT EDIT (digest: 1058b40b642787f5141c312004c716f7)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -28,4 +28,5 @@
 <lib/*.ml{,i}>: pkg_cstruct
 <lib/*.ml{,i}>: pkg_cstruct.syntax
 <lib/*.ml{,i}>: pkg_asn1-combinators
+<lib/*.ml{,i}>: pkg_cryptokit
 # OASIS_STOP
