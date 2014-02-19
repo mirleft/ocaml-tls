@@ -33,16 +33,18 @@ let client_handshake stream =
   connection_state
  *)
 
-let read_file filename =
-  let lines = ref [] in
+let read_lines filename =
   let chan = open_in filename in
-  try
-    while true; do
-      lines := input_line chan :: !lines
-    done; ""
-  with End_of_file ->
-    close_in chan;
-    List.fold_left (fun a b -> a ^ b) "" (List.tl (List.rev (List.tl !lines)))
+  let rec read () =
+    try
+      let line = input_line chan in line :: read ()
+    with End_of_file -> ( close_in chan ; [] ) in
+  read ()
+
+let read_pem_file filename =
+  let lines = read_lines filename in
+  String.concat "" (List.filter (fun line -> line.[0] <> '-') lines)
+
 
 open Bigarray
 let bytes_of_string string =
@@ -60,7 +62,7 @@ let pem_to_cstruct pem =
   Cstruct.of_string str
 
 let get_cert_from_file filename =
-  let pem = read_file filename in
+  let pem = read_pem_file filename in
   pem_to_cstruct pem
 
 module Server = struct
