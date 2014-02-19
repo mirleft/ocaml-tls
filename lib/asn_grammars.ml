@@ -186,7 +186,10 @@ let rsa_private_key =
       prime2             = f ; exponent1       = g ;
       exponent2          = h ; coefficient     = i ;
       other_prime_infos  = j ; } ->
-    (`I 0, (b, (c, (d, (e, (f, (g, (h, (i, def' [] j)))))))))
+    let (ver, opi) = match j with
+      | [] -> (`I 0, None   )
+      | xs -> (`I 1, Some xs) in
+    (ver, (b, (c, (d, (e, (f, (g, (h, (i, opi)))))))))
   in
 
   map f g @@

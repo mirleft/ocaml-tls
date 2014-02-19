@@ -56,7 +56,7 @@ let bytes_of_string string =
 let pem_to_cstruct pem =
   let b64 = Cryptokit.Base64.decode () in
   let str = Cryptokit.transform_string b64 pem in
-  (match X509.certificate_of_bytes (bytes_of_string str) with
+  (match Asn_grammars.certificate_of_bytes (bytes_of_string str) with
    | None -> Printf.printf "decoding failed"
    | Some (cert, bytes) -> Printf.printf "decoded cert");
   Cstruct.of_string str
