@@ -116,13 +116,17 @@ module Server = struct
     | Initial -> "Initial"
     | ServerHelloSent params -> "Server Hello Sent"
     | ServerCertificateSent params -> "Server Certificate Sent"
+    | _ -> "something"
 
   let handle_handshake t msg =
     match t.state with
     | Initial -> (match msg with
-                  | ClientHello c -> respond_hello t c)
+                  | ClientHello c -> respond_hello t c
+                  | _ -> assert false)
     | ServerCertificateSent p -> (match msg with
-                                  | ClientKeyExchange (ClientRsa kex) -> respond_kex t p kex)
+                                  | ClientKeyExchange (ClientRsa kex) -> respond_kex t p kex
+                                  | _ -> assert false)
+    | _ -> assert false
 
 
   let handle_tls t buf =
@@ -138,6 +142,7 @@ module Server = struct
                  t.packets <- Cstruct.shift p 5 :: t.packets;
                  Writer.assemble_hdr p { version = (3, 1) ; content_type = Packet.HANDSHAKE } l;
                  p) answers
+    | _ -> assert false
 (*    | TLS_ChangeCipherSpec -> handle_change_cipher_spec
     | TLS_Alert al -> handle_alert al *)
 end
