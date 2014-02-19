@@ -97,16 +97,6 @@ let subjectPublicKeyInfo =
 
 let uniqueIdentifier = Asn.bit_string
 
-let sequence10 a b c d e f g h i j =
-  Asn.(
-    map (fun (a, (b, (c, (d, (e, (f, (g, (h, (i, j))))))))) ->
-          (a, b, c, d, e, f, g, h, i, j))
-        (fun (a, b, c, d, e, f, g, h, i, j) ->
-          (a, (b, (c, (d, (e, (f, (g, (h, (i, j))))))))))
-        (sequence @@ a @ b @ c @ d @ e @ f @ g @ h @ i @ single j)
-  )
-
-
 let tBSCertificate =
   let f = fun (a, (b, (c, (d, (e, (f, (g, (h, (i, j))))))))) ->
     let v' = match a with None -> `V1 | Some v -> v in
@@ -160,3 +150,59 @@ let codec = Asn.(codec ber) certificate
 let certificate_of_bytes = Asn.decode codec
 and certificate_to_bytes = Asn.encode codec
 
+type rsa_private_key = {
+  modulus : int;
+  public_exponent : int;
+  private_exponent : int;
+  prime1 : int;
+  prime2 : int;
+  exponent1 : int;
+  exponent2 : int;
+  coefficient : int
+}
+
+(*
+RSAPrivateKey ::= SEQUENCE {
+  version           Version,
+  modulus           INTEGER,  -- n
+  publicExponent    INTEGER,  -- e
+  privateExponent   INTEGER,  -- d
+  prime1            INTEGER,  -- p
+  prime2            INTEGER,  -- q
+  exponent1         INTEGER,  -- d mod (p1)
+  exponent2         INTEGER,  -- d mod (q-1)
+  coefficient       INTEGER,  -- (inverse of q) mod p
+  otherPrimeInfos   OtherPrimeInfos OPTIONAL
+} *)
+
+let sequence9 a b c d e f g h i =
+  Asn.(
+    map (fun (a, (b, (c, (d, (e, (f, (g, (h, i)))))))) ->
+          (a, b, c, d, e, f, g, h, i))
+        (fun (a, b, c, d, e, f, g, h, i) ->
+          (a, (b, (c, (d, (e, (f, (g, (h, i)))))))))
+        (sequence @@ a @ b @ c @ d @ e @ f @ g @ h @ single i)
+  )
+
+
+let key =
+  Asn.(
+    map (fun (a, b, c, d, e, f, g, h, i) ->
+         { modulus = b ; public_exponent = c ; private_exponent = d ;
+           prime1 = e ; prime2 = f ; exponent1 = g ; exponent2 = h ;
+           coefficient = i })
+        (fun { modulus = b ; public_exponent = c ; private_exponent = d ;
+               prime1 = e ; prime2 = f ; exponent1 = g ; exponent2 = h ;
+               coefficient = i } ->
+         (0, b, c, d, e, f, g, h, i))
+    @@
+    sequence9
+      (required ~label:"version" @@ int)
+      (required ~label:"modulus" @@ int)
+      (required ~label:"publicExponent" @@ int)
+      (required ~label:"privateExponent" @@ int)
+      (required ~label:"prime1" @@ int)
+      (required ~label:"prime2" @@ int)
+      (required ~label:"exponent1" @@ int)
+      (required ~label:"exponent2" @@ int)
+      (required ~label:"coefficient" @@ int))
