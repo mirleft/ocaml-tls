@@ -235,6 +235,6 @@ let rsa_private_key =
    -@ (optional ~label:"otherPrimeInfos"   other_prime_infos)
 
 
-let rsa_private_key_ber = codec ber certificate
+let rsa_private_key_ber = codec ber rsa_private_key
 let rsa_private_key_of_bytes = decode rsa_private_key_ber
 and rsa_private_key_to_bytes = encode rsa_private_key_ber

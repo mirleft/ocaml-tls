@@ -124,10 +124,28 @@ module Server = struct
        t.outgoing <- (4, b) :: t.outgoing)
 
   let respond_kex t p kex =
-    let premastersecret = (* magic decrypt voodoo *) Cstruct.copy kex 0 (Cstruct.len kex) in
+    let pem = read_pem_file "server.key" in
+    let b64 = Cryptokit.Base64.decode () in
+    let str = Cryptokit.transform_string b64 pem in
+    let Some (private_key, _) = Asn_grammars.rsa_private_key_of_bytes (bytes_of_string str) in
+    Printf.printf "got a private key\n";
+    let crprivate : Cryptokit.RSA.key =
+      { size = (8 * String.length private_key.modulus) ;
+        n = private_key.modulus ;
+        e = private_key.public_exponent ;
+        d = private_key.private_exponent ;
+        p = private_key.prime1 ;
+        q = private_key.prime2 ;
+        dp = private_key.exponent1 ;
+        dq = private_key.exponent2 ;
+        qinv = private_key.coefficient } in
+    Printf.printf "before premastersecret\n";
+    let premastersecret = Cryptokit.RSA.decrypt crprivate (Cstruct.copy kex 0 (Cstruct.len kex)) in
+    Printf.printf "premastersecret is %s\n" premastersecret;
     let cr = Cstruct.copy p.client_random 0 32 in
     let sr = Cstruct.copy p.server_random 0 32 in
     let mastersecret = Crypto.generate_master_secret premastersecret (cr ^ sr) in
+    Printf.printf "master secret %s\n" mastersecret;
     let length = 10 (* find and punch in the required length *) in
     let keys = Crypto.key_block length mastersecret (sr ^ cr) in
     (* let ctx = { connection_state instance } in
