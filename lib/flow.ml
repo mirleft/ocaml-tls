@@ -152,6 +152,7 @@ module Server = struct
     let len = Cstruct.BE.get_uint16 kex 0 in
     let premastersecret = Cryptokit.RSA.decrypt crprivate (Cstruct.copy kex 2 len) in
     Printf.printf "premastersecret is %s\n" premastersecret;
+    Cstruct.hexdump (Cstruct.of_string premastersecret);
     let cr = Cstruct.copy p.client_random 0 32 in
     let sr = Cstruct.copy p.server_random 0 32 in
     let mastersecret = Crypto.generate_master_secret premastersecret (cr ^ sr) in
