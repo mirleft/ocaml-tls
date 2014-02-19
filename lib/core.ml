@@ -106,3 +106,6 @@ type tls_body =
   | TLS_Handshake of tls_handshake
 
 type tls_frame = tls_hdr * tls_body
+
+(* type tls_frame = int * int * tls_body *)
+
