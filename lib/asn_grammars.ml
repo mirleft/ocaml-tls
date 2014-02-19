@@ -152,24 +152,53 @@ and certificate_to_bytes = encode cert_ber
  * RSA pk
  *)
 
+(* just do *something* before we settle bignum repr... :( *)
+
+let string_of_positive_integer n =
+  let open Big_int in
+
+  let rec octs_of_int acc x =
+    if x = 0 then acc
+    else octs_of_int ((x land 0xff) :: acc) (x lsr 8)
+
+  and octs_of_big acc x =
+    if eq_big_int x zero_big_int then acc else
+      let x' = shift_right_big_int x 8
+      and d  = int_of_big_int (extract_big_int x 0 8) in
+      octs_of_big (d :: acc) x' in
+
+  let octets = match n with
+    | `I x -> octs_of_int [] x
+    | `B x -> octs_of_big [] x in
+  let b  = Buffer.create 16 in
+  let () = List.iter (fun n -> Buffer.add_char b (char_of_int n)) octets
+  in
+  Buffer.contents b
+
+(* quickfix parser to go with cryptokit *)
+let nat =
+  map string_of_positive_integer
+      (fun _ -> failwith "nat: no writer")
+  int
+
 type rsa_private_key = {
-  modulus           : integer;
-  public_exponent   : integer;
-  private_exponent  : integer;
-  prime1            : integer;
-  prime2            : integer;
-  exponent1         : integer;
-  exponent2         : integer;
-  coefficient       : integer;
-  other_prime_infos : (integer * integer * integer) list
+  modulus           : string;
+  public_exponent   : string;
+  private_exponent  : string;
+  prime1            : string;
+  prime2            : string;
+  exponent1         : string;
+  exponent2         : string;
+  coefficient       : string;
+  other_prime_infos : (string * string * string) list
 }
 
 let other_prime_infos =
   sequence_of @@
     (sequence3
-      (required ~label:"prime"       int)
-      (required ~label:"exponent"    int)
-      (required ~label:"coefficient" int))
+      (required ~label:"prime"       nat)
+      (required ~label:"exponent"    nat)
+      (required ~label:"coefficient" nat))
 
 let rsa_private_key =
 
@@ -195,14 +224,14 @@ let rsa_private_key =
   map f g @@
   sequence @@
       (required ~label:"version"           int)
-    @ (required ~label:"modulus"           int)
-    @ (required ~label:"publicExponent"    int)
-    @ (required ~label:"privateExponent"   int)
-    @ (required ~label:"prime1"            int)
-    @ (required ~label:"prime2"            int)
-    @ (required ~label:"exponent1"         int)
-    @ (required ~label:"exponent2"         int)
-    @ (required ~label:"coefficient"       int)
+    @ (required ~label:"modulus"           nat)
+    @ (required ~label:"publicExponent"    nat)
+    @ (required ~label:"privateExponent"   nat)
+    @ (required ~label:"prime1"            nat)
+    @ (required ~label:"prime2"            nat)
+    @ (required ~label:"exponent1"         nat)
+    @ (required ~label:"exponent2"         nat)
+    @ (required ~label:"coefficient"       nat)
    -@ (optional ~label:"otherPrimeInfos"   other_prime_infos)
 
 
