@@ -48,7 +48,18 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
                >>
                  C.log_s c (blue "state %s" (Tls.Flow.Server.s_to_string s))
                >>
-                 S.TCPV4.close flow
+
+                 S.TCPV4.read flow
+               >>= (function
+                 | `Ok b ->
+                    Cstruct.hexdump b;
+                    let answers = Tls.Flow.Server.handle_tls s b in
+                    C.log_s c (blue "state %s" (Tls.Flow.Server.s_to_string s))
+                    >>
+                      S.TCPV4.close flow
+                 | `Eof -> C.log_s c (red "read: eof")
+
+                 | `Error e -> C.log_s c (red "read: error"))
 
         | `Eof -> C.log_s c (red "read: eof")
 
