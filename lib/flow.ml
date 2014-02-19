@@ -124,11 +124,20 @@ module Server = struct
        t.outgoing <- (4, b) :: t.outgoing)
 
   let respond_kex t p kex =
+    Printf.printf "respond_kex\n";
     let pem = read_pem_file "server.key" in
     let b64 = Cryptokit.Base64.decode () in
     let str = Cryptokit.transform_string b64 pem in
     let Some (private_key, _) = Asn_grammars.rsa_private_key_of_bytes (bytes_of_string str) in
-    Printf.printf "got a private key\n";
+    Printf.printf "got a private key %d %d %d %d %d %d %d %d\n"
+                  (String.length private_key.modulus)
+                  (String.length private_key.public_exponent)
+                  (String.length private_key.private_exponent)
+                  (String.length private_key.prime1)
+                  (String.length private_key.prime2)
+                  (String.length private_key.exponent1)
+                  (String.length private_key.exponent2)
+                  (String.length private_key.coefficient);
     let crprivate : Cryptokit.RSA.key =
       { size = (8 * String.length private_key.modulus) ;
         n = private_key.modulus ;
@@ -139,8 +148,9 @@ module Server = struct
         dp = private_key.exponent1 ;
         dq = private_key.exponent2 ;
         qinv = private_key.coefficient } in
-    Printf.printf "before premastersecret\n";
-    let premastersecret = Cryptokit.RSA.decrypt crprivate (Cstruct.copy kex 0 (Cstruct.len kex)) in
+    Printf.printf "before premastersecret (kex len %d)\n" (Cstruct.len kex);
+    let len = Cstruct.BE.get_uint16 kex 0 in
+    let premastersecret = Cryptokit.RSA.decrypt crprivate (Cstruct.copy kex 2 len) in
     Printf.printf "premastersecret is %s\n" premastersecret;
     let cr = Cstruct.copy p.client_random 0 32 in
     let sr = Cstruct.copy p.server_random 0 32 in
@@ -165,6 +175,7 @@ module Server = struct
     | _ -> "something"
 
   let handle_handshake t msg =
+    Printf.printf "handling handshake with state %s\n" (s_to_string t);
     match t.state with
     | Initial -> (match msg with
                   | ClientHello c -> respond_hello t c
@@ -176,10 +187,13 @@ module Server = struct
 
 
   let handle_tls t buf =
+    Printf.printf "starting to handle tls\n";
     let (header, body), len = Reader.parse buf in
     (* continue parsing if len < Cstruct.len buf!! *)
+    Printf.printf "handle_tls %s\n" (Printer.to_string (header, body));
     match body with
     | TLS_Handshake hs ->
+       Printf.printf "calling handling the handshake\n";
        t.packets <- Cstruct.sub buf 5 len :: t.packets;
        handle_handshake t hs;
        let answers = t.outgoing in

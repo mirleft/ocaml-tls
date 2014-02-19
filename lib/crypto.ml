@@ -18,8 +18,10 @@ let rec p_sha len secret a seed =
 
 let halve secret =
   let len = String.length secret in
-  (String.sub secret 0 (len / 2),
-   String.sub secret (len / 2) len)
+  let half = int_of_float (ceil ((float_of_int len) /. 2.)) in
+  Printf.printf "length half is %d, len %d\n" half len;
+  (String.sub secret 0 half,
+   String.sub secret (len - half) half)
 
 let pseudo_random_function len secret label seed =
   let s1, s2 = halve secret in

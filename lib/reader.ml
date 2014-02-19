@@ -339,23 +339,27 @@ let parse_server_key_exchange buf =
 
 
 let parse_handshake buf =
-  let handshake_type = int_to_handshake_type (Cstruct.get_uint8 buf 0) in
+  let Some handshake_type = int_to_handshake_type (Cstruct.get_uint8 buf 0) in
   let len = get_uint24_len (Cstruct.shift buf 1) in
   let payload = Cstruct.sub buf 4 len in
+  Printf.printf "parse with ht %s\n" (handshake_type_to_string handshake_type);
   match handshake_type with
-    | Some HELLO_REQUEST -> HelloRequest
-    | Some CLIENT_HELLO -> ClientHello (parse_client_hello payload)
-    | Some SERVER_HELLO -> ServerHello (parse_server_hello payload)
-    | Some CERTIFICATE -> Certificate (get_certificates payload)
-    | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload)
-    | Some SERVER_HELLO_DONE -> ServerHelloDone
-    | Some CERTIFICATE_REQUEST -> CertificateRequest (parse_certificate_request payload)
-    | Some CLIENT_KEY_EXCHANGE -> ClientKeyExchange (ClientRsa (Cstruct.sub payload 0 len))
-    | Some FINISHED -> Finished (Cstruct.sub payload 0 12)
+    | HELLO_REQUEST -> HelloRequest
+    | CLIENT_HELLO -> ClientHello (parse_client_hello payload)
+    | SERVER_HELLO -> ServerHello (parse_server_hello payload)
+    | CERTIFICATE -> Certificate (get_certificates payload)
+    | SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload)
+    | SERVER_HELLO_DONE -> ServerHelloDone
+    | CERTIFICATE_REQUEST -> CertificateRequest (parse_certificate_request payload)
+    | CLIENT_KEY_EXCHANGE ->
+       Printf.printf "CKEX %d\n" len;
+       ClientKeyExchange (ClientRsa (Cstruct.sub payload 0 len))
+    | FINISHED -> Finished (Cstruct.sub payload 0 12)
     | _ -> assert false
 
 let parse buf =
   let header, buf, len = parse_hdr buf in
+  Printf.printf "parse with ct %s\n" (content_type_to_string header.content_type);
   let body = match header.content_type with
     | HANDSHAKE          -> TLS_Handshake (parse_handshake buf)
     | CHANGE_CIPHER_SPEC -> TLS_ChangeCipherSpec
