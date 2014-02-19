@@ -28,9 +28,19 @@ let read_file filename =
     close_in chan;
     List.fold_left (fun a b -> a ^ b) "" (List.tl (List.rev (List.tl !lines)))
 
+open Bigarray
+let bytes_of_string string =
+  let length = String.length string in
+  let arr = Array1.create int8_unsigned c_layout length in
+  for i = 0 to length - 1 do arr.{i} <- int_of_char string.[i] done;
+  arr
+
 let pem_to_cstruct pem =
   let b64 = Cryptokit.Base64.decode () in
   let str = Cryptokit.transform_string b64 pem in
+  (match X509.certificate_of_bytes (bytes_of_string str) with
+   | None -> Printf.printf "decoding failed"
+   | Some (cert, bytes) -> Printf.printf "decoded cert");
   Cstruct.of_string str
 
 let get_cert_from_file filename =
