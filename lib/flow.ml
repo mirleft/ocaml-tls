@@ -2,6 +2,22 @@ open Core
 open State
 
 (*
+
+let handle : tls_state -> Cstruct.t
+          -> (tls_state * (* out *) Cstruct.t * (* rest? *) Cstruct.t)
+
+let send : tls_state -> Cstruct.t -> (tls_state * Cstruct.t)
+
+let handle_io : tls_state -> Cstruct.t
+             -> (tls_state * (* rest? *) Cstruct.t) Lwt.t
+
+let send_io : tls_state -> Cstruct.t -> tls_state Lwt.t
+
+*)
+
+let ref _ = raise (Failure "no.")
+
+(*
 let client_handshake stream =
   let context = empty_client_security_parameters in
   let client_hello, new_context = make_client_hello context in
