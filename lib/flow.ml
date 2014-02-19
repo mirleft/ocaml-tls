@@ -28,9 +28,19 @@ let read_file filename =
     close_in chan;
     List.fold_left (fun a b -> a ^ b) "" (List.tl (List.rev (List.tl !lines)))
 
+open Bigarray
+let bytes_of_string string =
+  let length = String.length string in
+  let arr = Array1.create int8_unsigned c_layout length in
+  for i = 0 to length - 1 do arr.{i} <- int_of_char string.[i] done;
+  arr
+
 let pem_to_cstruct pem =
   let b64 = Cryptokit.Base64.decode () in
   let str = Cryptokit.transform_string b64 pem in
+  (match X509.certificate_of_bytes (bytes_of_string str) with
+   | None -> Printf.printf "decoding failed"
+   | Some (cert, bytes) -> Printf.printf "decoded cert");
   Cstruct.of_string str
 
 let get_cert_from_file filename =
@@ -116,13 +126,17 @@ module Server = struct
     | Initial -> "Initial"
     | ServerHelloSent params -> "Server Hello Sent"
     | ServerCertificateSent params -> "Server Certificate Sent"
+    | _ -> "something"
 
   let handle_handshake t msg =
     match t.state with
     | Initial -> (match msg with
-                  | ClientHello c -> respond_hello t c)
+                  | ClientHello c -> respond_hello t c
+                  | _ -> assert false)
     | ServerCertificateSent p -> (match msg with
-                                  | ClientKeyExchange (ClientRsa kex) -> respond_kex t p kex)
+                                  | ClientKeyExchange (ClientRsa kex) -> respond_kex t p kex
+                                  | _ -> assert false)
+    | _ -> assert false
 
 
   let handle_tls t buf =
@@ -138,6 +152,7 @@ module Server = struct
                  t.packets <- Cstruct.shift p 5 :: t.packets;
                  Writer.assemble_hdr p { version = (3, 1) ; content_type = Packet.HANDSHAKE } l;
                  p) answers
+    | _ -> assert false
 (*    | TLS_ChangeCipherSpec -> handle_change_cipher_spec
     | TLS_Alert al -> handle_alert al *)
 end
