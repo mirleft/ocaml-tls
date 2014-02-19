@@ -159,6 +159,24 @@ let get_varlength buf bytes =
   | n -> let total = n + bytes in
          (Some (Cstruct.sub buf n total), total)
 
+(* let parse_hello get_compression get_cipher buf =
+  let major = get_c_hello_major_version buf in
+  let minor = get_c_hello_minor_version buf in
+  let version = (major, minor) in
+  let random = get_c_hello_random buf in
+  let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
+  let ciphersuites, clen = get_cipher (Cstruct.shift buf (34 + slen)) in
+  let _, dlen = get_compression (Cstruct.shift buf (34 + slen + clen)) in
+  let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + clen + dlen)) in
+  |+ assert that dlen is small +|
+  { version ; random ; sessionid ; ciphersuites ; extensions }
+
+let parse_client_hello =
+  parse_hello get_compression_methods get_ciphersuites
+
+let parse_server_hello =
+  parse_hello get_compression_method get_ciphersuite *)
+
 let parse_client_hello buf =
   let major = get_c_hello_major_version buf in
   let minor = get_c_hello_minor_version buf in
@@ -186,6 +204,16 @@ let parse_server_hello buf : server_hello =
 let get_certificate buf =
   let len = get_uint24_len buf in
   ((Cstruct.sub buf 3 len), len + 3)
+
+(* hahaha get some, geddit?? *)
+(*
+let get_some prs buf =
+  let go buf = match (Cstruct.len buf) with
+    | 0 -> []
+    | n -> let x, buf' = prs buf in x :: go buf' in
+  let len = get_uint24_len buf in
+  go (Cstruct.sub buf 3 len)
+*)
 
 let get_certificates buf =
   let rec go buf acc =
