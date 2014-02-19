@@ -198,10 +198,11 @@ module Server = struct
        handle_handshake t hs;
        let answers = t.outgoing in
        t.outgoing <- [];
-       List.map (fun (l, p) ->
-                 t.packets <- Cstruct.shift p 5 :: t.packets;
-                 Writer.assemble_hdr p { version = (3, 1) ; content_type = Packet.HANDSHAKE } l;
-                 p) answers
+       List.rev (List.map (fun (l, p) ->
+                           t.packets <- Cstruct.shift p 5 :: t.packets;
+                           Writer.assemble_hdr p { version = (3, 1) ; content_type = Packet.HANDSHAKE } l;
+                           p)
+                          answers)
     | _ -> assert false
 (*    | TLS_ChangeCipherSpec -> handle_change_cipher_spec
     | TLS_Alert al -> handle_alert al *)

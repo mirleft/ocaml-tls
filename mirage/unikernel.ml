@@ -21,48 +21,30 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
     return ();
  *)
 
+  let handle_data = Tls.Flow.Server.handle_tls
+
+  let state = Tls.Flow.Server.make ()
+
+  let handle c flow =
+    Printf.printf "handling\n";
+    S.TCPV4.read flow
+    >>= function
+      | `Ok b ->
+         Cstruct.hexdump b;
+         let answer = handle_data state b in
+         Lwt_list.iter_s (S.TCPV4.write flow) answer
+      | `Eof -> C.log_s c (red "read: eof")
+      | `Error e -> C.log_s c (red "read: error")
+
   let start c s =
     S.listen_tcpv4 s ~port:80 (fun flow ->
         let dst, dst_port = S.TCPV4.get_dest flow in
         C.log_s c (green "new tcp connection from %s %d"
                      (Ipaddr.V4.to_string dst) dst_port)
-        >>
-          (S.TCPV4.read flow
-        >>= function
-          | `Ok b ->
-             let s = Tls.Flow.Server.make () in
-             C.log_s c (blue "state %s" (Tls.Flow.Server.s_to_string s))
-             >>= fun e ->
-               Cstruct.hexdump b;
-               let answers = List.rev (Tls.Flow.Server.handle_tls s b) in
-               Lwt_list.iter_s (fun answer ->
-                                    Cstruct.hexdump answer;
-                                    C.log_s c (blue "state %s" (Tls.Flow.Server.s_to_string s))
-                                    >>
-                                      let tls, len = Tls.Reader.parse answer in
-                                      C.log_s c
-                                              (yellow "answering: %d (len %d)\n %s"
-                                                      (Cstruct.len answer) len (Tls.Printer.to_string tls))
-                                      >>
-                                        S.TCPV4.write flow answer)
-                               answers
-               >>
-                 S.TCPV4.read flow
-               >>= (function
-                     | `Ok b ->
-                        Printf.printf "SECOND READ %d\n" (Cstruct.len b);
-                        let blob, len = Tls.Reader.parse b in
-                        Printf.printf "SECOND READ %d parsed: %s\n" len (Tls.Printer.to_string blob);
-                        let answers = Tls.Flow.Server.handle_tls s b in
-                        C.log_s c (blue "state %s" (Tls.Flow.Server.s_to_string s))
-                        >>
-                          S.TCPV4.close flow
-                     | _ -> C.log_s c (red "blabla"))
-
-        | `Eof -> C.log_s c (red "read: eof")
-
-        | `Error e -> C.log_s c (red "read: error")
-      ));
+        >> handle c flow
+        >> handle c flow
+        >> S.TCPV4.close flow
+    );
 
     S.listen s
 
