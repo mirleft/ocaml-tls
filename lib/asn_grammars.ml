@@ -174,20 +174,19 @@ let other_prime_infos =
 let rsa_private_key =
 
   let f = fun (_, (b, (c, (d, (e, (f, (g, (h, (i, j))))))))) ->
-    { modulus          = b         ; public_exponent = c ;
-      private_exponent = d         ; prime1          = e ;
-      prime2           = f         ; exponent1       = g ;
-      exponent2        = h         ; coefficient     = i ;
-      other_prime_infos = def [] j ;
-    }
+    { modulus           = b        ; public_exponent = c ;
+      private_exponent  = d        ; prime1          = e ;
+      prime2            = f        ; exponent1       = g ;
+      exponent2         = h        ; coefficient     = i ;
+      other_prime_infos = def [] j ; }
 
   and g = fun 
     { modulus            = b ; public_exponent = c ;
       private_exponent   = d ; prime1          = e ;
       prime2             = f ; exponent1       = g ;
       exponent2          = h ; coefficient     = i ;
-      other_prime_infos  = j
-    } -> (`I 0, (b, (c, (d, (e, (f, (g, (h, (i, def' [] j)))))))))
+      other_prime_infos  = j ; } ->
+    (`I 0, (b, (c, (d, (e, (f, (g, (h, (i, def' [] j)))))))))
   in
 
   map f g @@
