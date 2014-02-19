@@ -156,6 +156,7 @@ module Server = struct
     let sr = Cstruct.copy p.server_random 0 32 in
     let mastersecret = Crypto.generate_master_secret premastersecret (cr ^ sr) in
     Printf.printf "master secret %s\n" mastersecret;
+    Cstruct.hexdump (Cstruct.of_string mastersecret);
     let length = 10 (* find and punch in the required length *) in
     let keys = Crypto.key_block length mastersecret (sr ^ cr) in
     (* let ctx = { connection_state instance } in
