@@ -1,6 +1,6 @@
 
-let hmac_md5 sec see = sec
-let hmac_sha sec see = sec
+let hmac_md5 sec see = Cryptokit.hash_string (Cryptokit.MAC.hmac_md5 sec) see
+let hmac_sha sec see = Cryptokit.hash_string (Cryptokit.MAC.hmac_sha1 sec) see
 
 let rec p_md5 len secret a seed =
   let res = hmac_md5 secret (a ^ seed) in
@@ -25,7 +25,7 @@ let pseudo_random_function len secret label seed =
   let s1, s2 = halve secret in
   let md5 = p_md5 len s1 seed (label ^ seed) in
   let sha = p_sha len s2 seed (label ^ seed) in
-  (* xor_string md5 sha *)
+  Cryptokit.xor_string md5 0 sha 0 len;
   sha
 
 let generate_master_secret pre_master_secret seed =
