@@ -19,11 +19,13 @@ let bytes_of_string string =
   arr
 
 let pem_to_cstruct pem =
-  let b64 = Cryptokit.Base64.decode () in
-  let str = Cryptokit.transform_string b64 pem in
-  (match Asn_grammars.certificate_of_bytes (bytes_of_string str) with
-   | None -> Printf.printf "decoding failed"
-   | Some (cert, bytes) -> Printf.printf "decoded cert");
+  let str =
+    Cryptokit.(transform_string (Base64.decode ()) pem) in
+  ( match
+      Asn_grammars.certificate_of_cstruct (Cstruct.of_string str)
+    with
+    | None               -> Printf.printf "decoding failed"
+    | Some (cert, bytes) -> Printf.printf "decoded cert" );
   Cstruct.of_string str
 
 let get_cert_from_file filename =
@@ -40,34 +42,21 @@ let bin_of_int d =
 
 let get_key =
   let pem = read_pem_file "server.key" in
-  let b64 = Cryptokit.Base64.decode () in
-  let str = Cryptokit.transform_string b64 pem in
-  let Some (private_key, _) = Asn_grammars.rsa_private_key_of_bytes (bytes_of_string str) in
-  Printf.printf "got a private key %d %d %d %d %d %d %d %d\n"
-                (String.length private_key.modulus)
-                (String.length private_key.public_exponent)
-                (String.length private_key.private_exponent)
-                (String.length private_key.prime1)
-                (String.length private_key.prime2)
-                (String.length private_key.exponent1)
-                (String.length private_key.exponent2)
-                (String.length private_key.coefficient);
-  let fst = int_of_char (String.get private_key.modulus 0) in
-  let binfst = bin_of_int fst in
-  let lead = 8 - (String.length binfst) in
-  let bitlength = 8 * String.length private_key.modulus - lead in
-  Printf.printf "binfst is %s lead is %d; bitlength %d\n" binfst lead bitlength;
-  let crprivate : Cryptokit.RSA.key =
-    { size = bitlength ;
-      n = private_key.modulus ;
-      e = private_key.public_exponent ;
-      d = private_key.private_exponent ;
-      p = private_key.prime1 ;
-      q = private_key.prime2 ;
-      dp = private_key.exponent1 ;
-      dq = private_key.exponent2 ;
-      qinv = private_key.coefficient } in
-  crprivate
+  let str = Cryptokit.(transform_string (Base64.decode ()) pem)
+  in
+  let Some (pk, _) =
+    Asn_grammars.rsa_private_key_of_cstruct (Cstruct.of_string str) in
+  String.
+    (Printf.printf "got a private key %d %d %d %d %d %d %d %d\n"
+       (length pk.n)
+       (length pk.e)
+       (length pk.d)
+       (length pk.p)
+       (length pk.q)
+       (length pk.dp)
+       (length pk.dq)
+       (length pk.qinv)) ;
+  pk
 
 let encrypt msg =
   let crprivate = get_key in
