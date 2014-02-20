@@ -72,7 +72,6 @@ let (rsa_public_of_cstruct, rsa_public_to_cstruct) =
   let c = codec der rsa_public_key in (decode c, encode c)
 
 
-
 (*
  * X509 certs
  *)
@@ -209,8 +208,6 @@ let certificate =
     (required ~label:"signatureAlgorithm" algorithmIdentifier)
     (required ~label:"signatureValue"     bit_string')
 
-
-let cert_ber = codec ber certificate
-let certificate_of_cstruct = decode cert_ber
-and certificate_to_cstruct = encode cert_ber
+let (certificate_of_cstruct, certificate_to_cstruct) =
+  let c = codec ber certificate in (decode c, encode c)
 
