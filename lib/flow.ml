@@ -17,62 +17,6 @@ let send_io : tls_state -> Cstruct.t -> tls_state Lwt.t
 
 let ref _ = raise (Failure "no.")
 
-(*
-let client_handshake stream =
-  let context = empty_client_security_parameters in
-  let client_hello, new_context = make_client_hello context in
-  send_client_hello stream client_hello context;
-  let server_hello, new_context = parse read stream new_context in
-  let server_hello_done = parse read stream new_context in
-  let client_key_exchange, new_context = make_client_key_exchange new_context in
-  send_client_key_exchange stream client_key_exchange context;
-  send_change_cipher_spec stream context;
-  let connection_state = make_connection_state new_context in
-  let context = new_context in
-  send_finished stream connection_state;
-  connection_state
- *)
-
-let read_lines filename =
-  let chan = open_in filename in
-  let rec read () =
-    try
-      let line = input_line chan in line :: read ()
-    with End_of_file -> ( close_in chan ; [] ) in
-  read ()
-
-let read_pem_file filename =
-  let lines = read_lines filename in
-  String.concat "" (List.filter (fun line -> line.[0] <> '-') lines)
-
-
-open Bigarray
-let bytes_of_string string =
-  let length = String.length string in
-  let arr = Array1.create int8_unsigned c_layout length in
-  for i = 0 to length - 1 do arr.{i} <- int_of_char string.[i] done;
-  arr
-
-let pem_to_cstruct pem =
-  let b64 = Cryptokit.Base64.decode () in
-  let str = Cryptokit.transform_string b64 pem in
-  (match Asn_grammars.certificate_of_bytes (bytes_of_string str) with
-   | None -> Printf.printf "decoding failed"
-   | Some (cert, bytes) -> Printf.printf "decoded cert");
-  Cstruct.of_string str
-
-let get_cert_from_file filename =
-  let pem = read_pem_file filename in
-  pem_to_cstruct pem
-
-let bin_of_int d =
-  if d = 0 then "0" else
-  let rec aux acc d =
-    if d = 0 then acc else
-    aux (string_of_int (d land 1) :: acc) (d lsr 1)
-  in
-  String.concat "" (aux [] d)
-
 module Server = struct
   type server_handshake_state =
     | Initial
@@ -108,22 +52,13 @@ module Server = struct
          (let b = Cstruct.create 1000 in
           let buf = Cstruct.shift b 5 in
           Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.CERTIFICATE);
-          let cert = get_cert_from_file "server.pem" in
+          let cert = Crypto_utils.get_cert_from_file "server.pem" in
           let len = Writer.assemble_certificates (Cstruct.shift buf 4) [cert] in
           Packet.set_uint24_len (Cstruct.shift buf 1) len;
           let rbuf = Cstruct.sub b 0 (len + 4 + 5) in
           t.state <- ServerCertificateSent params;
           t.outgoing <- (len + 4, rbuf) :: t.outgoing);
-(*        if needs_kex kex then
-          (let b = Cstruct.create 200 in
-           let buf = Cstruct.shift b 5 in
-           Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.SERVER_KEY_EXCHANGE);
-           let kex = __ in (* punch in cert! *)
-           let len = Writer.assemble_certificate (Cstruct.shift buf 4) cert in
-           Packet.set_uint24_len (Cstruct.shift buf 1) len;
-           let rbuf = Cstruct.sub b 0 (len + 4 + 5) in
-           t.state <- ServerCertificateSent params;
-           t.outgoing <- (len + 4, rbuf) :: t.outgoing;) *)
+       (* TODO: Server Key Exchange *)
        (* server hello done! *)
        let b = Cstruct.create 9 in
        let buf = Cstruct.shift b 5 in
@@ -133,35 +68,9 @@ module Server = struct
 
   let respond_kex t p kex =
     Printf.printf "respond_kex\n";
-    let pem = read_pem_file "server.key" in
-    let b64 = Cryptokit.Base64.decode () in
-    let str = Cryptokit.transform_string b64 pem in
-    let Some (private_key, _) = Asn_grammars.rsa_private_key_of_bytes (bytes_of_string str) in
-    Printf.printf "got a private key %d %d %d %d %d %d %d %d\n"
-                  (String.length private_key.modulus)
-                  (String.length private_key.public_exponent)
-                  (String.length private_key.private_exponent)
-                  (String.length private_key.prime1)
-                  (String.length private_key.prime2)
-                  (String.length private_key.exponent1)
-                  (String.length private_key.exponent2)
-                  (String.length private_key.coefficient);
-    let fst = int_of_char (String.get private_key.modulus 0) in
-    let binfst = bin_of_int fst in
-    let lead = 7 - (String.length binfst) in
-    let crprivate : Cryptokit.RSA.key =
-      { size = (8 * ((String.length private_key.modulus) - 1) + lead) ;
-        n = private_key.modulus ;
-        e = private_key.public_exponent ;
-        d = private_key.private_exponent ;
-        p = private_key.prime1 ;
-        q = private_key.prime2 ;
-        dp = private_key.exponent1 ;
-        dq = private_key.exponent2 ;
-        qinv = private_key.coefficient } in
     Printf.printf "before premastersecret (kex len %d)\n" (Cstruct.len kex);
     let len = Cstruct.BE.get_uint16 kex 0 in
-    let premastersecret = Cryptokit.RSA.decrypt crprivate (Cstruct.copy kex 2 len) in
+    let premastersecret = Crypto_utils.decrypt (Cstruct.copy kex 2 len) in
     Printf.printf "premastersecret is %s\n" premastersecret;
     Cstruct.hexdump (Cstruct.of_string premastersecret);
     let cr = Cstruct.copy p.client_random 0 32 in
@@ -220,54 +129,3 @@ module Server = struct
 (*    | TLS_ChangeCipherSpec -> handle_change_cipher_spec
     | TLS_Alert al -> handle_alert al *)
 end
-
-
-
-(*
-let server_handshake stream =
-  let context = empty_server_security_parameters in
-  let client_hello, buffer = Reader.parse read stream context in
-  TLS_RSA_WITH_3DES_EDE_CBC_SHA
-  let server_hello, new_context = make_server_hello context in
-  send_server_hello stream server_hello context;
-  send_server_certificate stream __ context;
-  let new_context =
-    if (new_context.cipher needs keyexchange)
-      let server_key_exchange, new_context = make_server_key_exchange new_context in
-      send_server_key_exchange stream server_key_exchange context;
-      new_context
-    else
-      new_context
-  in
-  send_server_hello_done stream context;
-  let ccs = parse read stream in
-  let context = new_context in
-  let connection_state = make_connection_state context in
-  let finished = parse read stream in
-  send_finished stream connection_state;
-  connection_state
- *)
-
-let answer_client_hello buf ch =
-  let r = Cstruct.create 32 in
-  let server_hello = { version = (3, 1); random = r; sessionid = None; ciphersuites =  Ciphersuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; extensions = [] } in
-  Writer.assemble_server_hello buf server_hello
-
-let answer_handshake buf hs =
-  let len = match hs with
-    | ClientHello ch ->
-       Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.SERVER_HELLO);
-       answer_client_hello (Cstruct.shift buf 4) ch
-    | _ -> assert false
-  in
-  Packet.set_uint24_len (Cstruct.shift buf 1) len;
-  len + 4
-
-let answer req =
-  let buf = Cstruct.create 200 in
-  let len = match req with
-    | TLS_Handshake hs -> answer_handshake (Cstruct.shift buf 5) hs
-    | _ -> assert false
-  in
-  Writer.assemble_hdr buf { version = (3, 1) ; content_type = Packet.HANDSHAKE } len;
-  Cstruct.sub buf 0 (len + 5)
