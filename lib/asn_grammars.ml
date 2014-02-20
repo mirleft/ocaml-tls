@@ -7,6 +7,73 @@ let def  x = function None -> x | Some y -> y
 let def' x = fun y -> if y = x then None else Some y
 
 (*
+ * RSA
+ *)
+
+(* the no-decode integer, assuming >= 0 and DER. *)
+let nat =
+  let f cs =
+    Cstruct.(to_string @@
+              if get_uint8 cs 0 = 0x00 then shift cs 1 else cs)
+  and g str =
+    assert false in
+  map f g @@
+    implicit ~cls:`Universal 0x02 octet_string
+
+let other_prime_infos =
+  sequence_of @@
+    (sequence3
+      (required ~label:"prime"       nat)
+      (required ~label:"exponent"    nat)
+      (required ~label:"coefficient" nat))
+
+let rsa_private_key =
+  let open Cryptokit.RSA in
+
+  let f (_, (n, (e, (d, (p, (q, (dp, (dq, (qinv, _))))))))) =
+    let size = String.length n * 8 in
+    { size; n; e; d; p; q; dp; dq; qinv }
+
+  and g { size; n; e; d; p; q; dp; dq; qinv } =
+    (`I 0, (n, (e, (d, (p, (q, (dp, (dq, (qinv, None))))))))) in
+
+  map f g @@
+  sequence @@
+      (required ~label:"version"         integer)
+    @ (required ~label:"modulus"         nat)       (* n    *)
+    @ (required ~label:"publicExponent"  nat)       (* e    *)
+    @ (required ~label:"privateExponent" nat)       (* d    *)
+    @ (required ~label:"prime1"          nat)       (* p    *)
+    @ (required ~label:"prime2"          nat)       (* q    *)
+    @ (required ~label:"exponent1"       nat)       (* dp   *)
+    @ (required ~label:"exponent2"       nat)       (* dq   *)
+    @ (required ~label:"coefficient"     nat)       (* qinv *)
+   -@ (optional ~label:"otherPrimeInfos" other_prime_infos)
+
+
+let rsa_public_key =
+  let open Cryptokit.RSA in
+
+  let f (n, e) =
+    let size = String.length n * 8 in
+    { size; n; e; d = ""; p = ""; q = ""; dp = ""; dq = ""; qinv = "" }
+
+  and g { n; e } = (n, e) in
+
+  map f g @@
+  sequence2
+    (required ~label:"modulus"        nat)
+    (required ~label:"publicExponent" nat)
+
+let (rsa_private_of_cstruct, rsa_private_to_cstruct) =
+  let c = codec der rsa_private_key in (decode c, encode c)
+
+let (rsa_public_of_cstruct, rsa_public_to_cstruct) =
+  let c = codec der rsa_public_key in (decode c, encode c)
+
+
+
+(*
  * X509 certs
  *)
 
@@ -147,55 +214,3 @@ let cert_ber = codec ber certificate
 let certificate_of_cstruct = decode cert_ber
 and certificate_to_cstruct = encode cert_ber
 
-
-(*
- * RSA pk
- *)
-
-(* the no-decode integer, assuming >= 0 and DER.*)
-let nat =
-  map Cstruct.to_string Cstruct.of_string @@
-      implicit ~cls:`Universal 0x02
-      octet_string
-
-let other_prime_infos =
-  sequence_of @@
-    (sequence3
-      (required ~label:"prime"       nat)
-      (required ~label:"exponent"    nat)
-      (required ~label:"coefficient" nat))
-
-let rsa_private_key =
-  let open Cryptokit.RSA in
-
-  let f = fun (_, (n, (e, (d, (p, (q, (dp, (dq, (qinv, _))))))))) ->
-    let size = 0 in { size; n; e; d; p; q; dp; dq; qinv }
-
-  and g = fun { n; e; d; p; q; dp; dq; qinv } ->
-    (`I 0, (n, (e, (d, (p, (q, (dp, (dq, (qinv, None))))))))) in
-
-  map f g @@
-  sequence @@
-      (required ~label:"version"         integer) 
-    @ (required ~label:"modulus"         nat) 
-    @ (required ~label:"publicExponent"  nat) 
-    @ (required ~label:"privateExponent" nat) 
-    @ (required ~label:"prime1"          nat) 
-    @ (required ~label:"prime2"          nat) 
-    @ (required ~label:"exponent1"       nat) 
-    @ (required ~label:"exponent2"       nat) 
-    @ (required ~label:"coefficient"     nat) 
-   -@ (optional ~label:"otherPrimeInfos" other_prime_infos) 
-
-(* "modulus (n)"
-   "publicExponent (e)"
-   "privateExponent (d)"
-   "prime1 (p)"
-   "prime2 (q)"
-   "exponent1 (dp)"
-   "exponent2 (dq)"
-   "coefficient (qinv)" *)
-
-let rsa_private_key_ber = codec ber rsa_private_key
-let rsa_private_key_of_cstruct = decode rsa_private_key_ber
-and rsa_private_key_to_cstruct = encode rsa_private_key_ber

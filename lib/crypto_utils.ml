@@ -14,12 +14,13 @@ let read_pem_file filename =
 let pem_to_cstruct pem =
   let str =
     Cryptokit.(transform_string (Base64.decode ()) pem) in
-  ( match
-      Asn_grammars.certificate_of_cstruct (Cstruct.of_string str)
-    with
-    | None               -> Printf.printf "decoding failed"
-    | Some (cert, bytes) -> Printf.printf "decoded cert" );
   Cstruct.of_string str
+
+let pem_to_cert pem =
+  let cs = pem_to_cstruct pem in
+  match Asn_grammars.certificate_of_cstruct cs with
+  | None           -> failwith "pem decode failed"
+  | Some (cert, _) -> cert
 
 let get_cert_from_file filename =
   let pem = read_pem_file filename in pem_to_cstruct pem
@@ -29,7 +30,7 @@ let get_key filename =
   let str = Cryptokit.(transform_string (Base64.decode ()) pem)
   in
   let Some (pk, _) =
-    Asn_grammars.rsa_private_key_of_cstruct (Cstruct.of_string str) in
+    Asn_grammars.rsa_private_of_cstruct (Cstruct.of_string str) in
   String.
     (Printf.printf "got a private key %d %d %d %d %d %d %d %d\n"
        (length pk.n) (length pk.e ) (length pk.d ) (length pk.p)
