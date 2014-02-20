@@ -5,14 +5,16 @@ let hmac_sha sec see = Cryptokit.hash_string (Cryptokit.MAC.hmac_sha1 sec) see
 let rec p_md5 len secret a seed =
   let res = hmac_md5 secret (a ^ seed) in
   if len > 16 then
-    res ^ (p_md5 (len - 16) secret res seed)
+    let na = hmac_md5 secret a in
+    res ^ (p_md5 (len - 16) secret na seed)
   else
     res
 
 let rec p_sha len secret a seed =
   let res = hmac_sha secret (a ^ seed) in
   if len > 20 then
-    res ^ (p_sha (len - 20) secret res seed)
+    let na = hmac_sha secret a in
+    res ^ (p_sha (len - 20) secret na seed)
   else
     res
 
