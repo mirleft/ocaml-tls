@@ -1,9 +1,3 @@
-
-
-
-
-
-
 Network Working Group                                           P. Chown
 Request for Comments: 3268                            Skygate Technology
 Category: Standards Track                                      June 2002

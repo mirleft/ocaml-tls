@@ -1,9 +1,3 @@
-
-
-
-
-
-
 Network Working Group                                    S. Blake-Wilson
 Request for Comments: 4366                                           BCI
 Obsoletes: 3546                                               M. Nystrom

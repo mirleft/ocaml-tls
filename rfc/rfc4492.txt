@@ -1,9 +1,3 @@
-
-
-
-
-
-
 Network Working Group                                    S. Blake-Wilson
 Request for Comments: 4492                                       SafeNet
 Category: Informational                                       N. Bolyard

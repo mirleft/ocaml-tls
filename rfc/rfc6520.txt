@@ -1,9 +1,3 @@
-
-
-
-
-
-
 Internet Engineering Task Force (IETF)                     R. Seggelmann
 Request for Comments: 6520                                     M. Tuexen
 Category: Standards Track               Muenster Univ. of Appl. Sciences
@@ -38,27 +32,6 @@ Status of This Memo
    Information about the current status of this document, any errata,
    and how to provide feedback on it may be obtained at
    http://www.rfc-editor.org/info/rfc6520.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Seggelmann, et al.           Standards Track                    [Page 1]
-
-RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
-
 
 Copyright Notice
 
@@ -105,16 +78,6 @@ Table of Contents
    needs to perform path MTU (PMTU) discovery but has no specific
    message type to realize it without affecting the transfer of user
    messages.
-
-
-
-
-
-
-Seggelmann, et al.           Standards Track                    [Page 2]
-
-RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
-
 
    TLS is based on reliable protocols, but there is not necessarily a
    feature available to keep the connection alive without continuous
@@ -163,15 +126,6 @@ RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
    Upon reception of an unknown mode, an error Alert message using
    illegal_parameter as its AlertDescription MUST be sent in response.
 
-
-
-
-
-Seggelmann, et al.           Standards Track                    [Page 3]
-
-RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
-
-
 3.  Heartbeat Protocol
 
    The Heartbeat protocol is a new protocol running on top of the Record
@@ -217,16 +171,6 @@ RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
    allowed to be in flight, ensures that congestion control is handled
    appropriately in case of the transport protocol not providing one,
    like in the case of DTLS over UDP.
-
-
-
-
-
-
-Seggelmann, et al.           Standards Track                    [Page 4]
-
-RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
-
 
    When using a reliable transport protocol like the Stream Control
    Transmission Protocol (SCTP) or TCP, HeartbeatRequest messages only
@@ -274,16 +218,6 @@ RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
    If the payload_length of a received HeartbeatMessage is too large,
    the received HeartbeatMessage MUST be discarded silently.
 
-
-
-
-
-
-Seggelmann, et al.           Standards Track                    [Page 5]
-
-RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
-
-
    When a HeartbeatRequest message is received and sending a
    HeartbeatResponse is not prohibited as described elsewhere in this
    document, the receiver MUST send a corresponding HeartbeatResponse
@@ -328,17 +262,6 @@ RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
    SHOULD be configurable up to a period of multiple minutes and down to
    a period of one second.  A default value for the idle period SHOULD
    be configurable, but it SHOULD also be tunable on a per-peer basis.
-
-
-
-
-
-
-
-Seggelmann, et al.           Standards Track                    [Page 6]
-
-RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
-
 
 6.  IANA Considerations
 
@@ -388,14 +311,6 @@ RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
               IANA Considerations Section in RFCs", BCP 26, RFC 5226,
               May 2008.
 
-
-
-
-Seggelmann, et al.           Standards Track                    [Page 7]
-
-RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
-
-
    [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
               (TLS) Protocol Version 1.2", RFC 5246, August 2008.
 
@@ -426,32 +341,6 @@ RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
               Transport Layer Security (DTLS) for Stream Control
               Transmission Protocol (SCTP)", RFC 6083, January 2011.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Seggelmann, et al.           Standards Track                    [Page 8]
-
-RFC 6520              TLS/DTLS Heartbeat Extension         February 2012
-
-
 Authors' Addresses
 
    Robin Seggelmann
@@ -479,29 +368,3 @@ Authors' Addresses
    USA
 
    EMail: michael.glenn.williams@gmail.com
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Seggelmann, et al.           Standards Track                    [Page 9]
-

@@ -1,9 +1,3 @@
-
-
-
-
-
-
 Network Working Group                                         T. Dierks
 Request for Comments: 2246                                     Certicom
 Category: Standards Track                                      C. Allen
