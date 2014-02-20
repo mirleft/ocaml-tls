@@ -1,7 +1,7 @@
 
 open Asn
 
-type bits = bool array
+type bits = Cstruct.t
 
 let def  x = function None -> x | Some y -> y
 let def' x = fun y -> if y = x then None else Some y
@@ -20,7 +20,7 @@ type tBSCertificate = {
   pk_info    : oid * bits ;
   issuer_id  : bits option ;
   subject_id : bits option ;
-  extensions : (oid * bool * bytes) list option
+  extensions : (oid * bool * Cstruct.t) list option
 }
 
 type certificate = {
@@ -74,10 +74,10 @@ let algorithmIdentifier =
 let version =
   map (function `I 2 -> `V2 | `I 3 -> `V3 | _ -> `V1)
       (function `V2 -> `I 2 | `V3 -> `I 3 | _ -> `I 1)
-  int
+  integer
 
 let certificateSerialNumber =
-  map (function `I sn -> sn | _ -> -1) (fun sn -> `I sn) int
+  map (function `I sn -> sn | _ -> -1) (fun sn -> `I sn) integer
 
 let time =
   map (function `C1 t -> t | `C2 t -> t) (fun t -> `C2 t)
@@ -91,9 +91,9 @@ let validity =
 let subjectPublicKeyInfo =
   sequence2
     (required ~label:"algorithm" algorithmIdentifier)
-    (required ~label:"subjectPK" bit_string)
+    (required ~label:"subjectPK" bit_string')
 
-let uniqueIdentifier = bit_string
+let uniqueIdentifier = bit_string'
 
 let tBSCertificate =
   let f = fun (a, (b, (c, (d, (e, (f, (g, (h, (i, j))))))))) ->
@@ -140,58 +140,23 @@ let certificate =
   sequence3
     (required ~label:"tbsCertificate"     tBSCertificate)
     (required ~label:"signatureAlgorithm" algorithmIdentifier)
-    (required ~label:"signatureValue"     bit_string)
+    (required ~label:"signatureValue"     bit_string')
 
 
 let cert_ber = codec ber certificate
-let certificate_of_bytes = decode cert_ber
-and certificate_to_bytes = encode cert_ber
+let certificate_of_cstruct = decode cert_ber
+and certificate_to_cstruct = encode cert_ber
 
 
 (*
  * RSA pk
  *)
 
-(* just do *something* before we settle bignum repr... :( *)
-
-let string_of_positive_integer n =
-  let open Big_int in
-
-  let rec octs_of_int acc x =
-    if x = 0 then acc
-    else octs_of_int ((x land 0xff) :: acc) (x lsr 8)
-
-  and octs_of_big acc x =
-    if eq_big_int x zero_big_int then acc else
-      let x' = shift_right_big_int x 8
-      and d  = int_of_big_int (extract_big_int x 0 8) in
-      octs_of_big (d :: acc) x' in
-
-  let octets = match n with
-    | `I x -> octs_of_int [] x
-    | `B x -> octs_of_big [] x in
-  let b  = Buffer.create 16 in
-  let () = List.iter (fun n -> Buffer.add_char b (char_of_int n)) octets
-  in
-  Buffer.contents b
-
-(* quickfix parser to go with cryptokit *)
+(* the no-decode integer, assuming >= 0 and DER.*)
 let nat =
-  map string_of_positive_integer
-      (fun _ -> failwith "nat: no writer")
-  int
-
-type rsa_private_key = {
-  modulus           : string;
-  public_exponent   : string;
-  private_exponent  : string;
-  prime1            : string;
-  prime2            : string;
-  exponent1         : string;
-  exponent2         : string;
-  coefficient       : string;
-  other_prime_infos : (string * string * string) list
-}
+  map Cstruct.to_string Cstruct.of_string @@
+      implicit ~cls:`Universal 0x02
+      octet_string
 
 let other_prime_infos =
   sequence_of @@
@@ -201,40 +166,36 @@ let other_prime_infos =
       (required ~label:"coefficient" nat))
 
 let rsa_private_key =
+  let open Cryptokit.RSA in
 
-  let f = fun (_, (b, (c, (d, (e, (f, (g, (h, (i, j))))))))) ->
-    { modulus           = b        ; public_exponent = c ;
-      private_exponent  = d        ; prime1          = e ;
-      prime2            = f        ; exponent1       = g ;
-      exponent2         = h        ; coefficient     = i ;
-      other_prime_infos = def [] j ; }
+  let f = fun (_, (n, (e, (d, (p, (q, (dp, (dq, (qinv, _))))))))) ->
+    let size = 0 in { size; n; e; d; p; q; dp; dq; qinv }
 
-  and g = fun 
-    { modulus            = b ; public_exponent = c ;
-      private_exponent   = d ; prime1          = e ;
-      prime2             = f ; exponent1       = g ;
-      exponent2          = h ; coefficient     = i ;
-      other_prime_infos  = j ; } ->
-    let (ver, opi) = match j with
-      | [] -> (`I 0, None   )
-      | xs -> (`I 1, Some xs) in
-    (ver, (b, (c, (d, (e, (f, (g, (h, (i, opi)))))))))
-  in
+  and g = fun { n; e; d; p; q; dp; dq; qinv } ->
+    (`I 0, (n, (e, (d, (p, (q, (dp, (dq, (qinv, None))))))))) in
 
   map f g @@
   sequence @@
-      (required ~label:"version"           int)
-    @ (required ~label:"modulus"           nat)
-    @ (required ~label:"publicExponent"    nat)
-    @ (required ~label:"privateExponent"   nat)
-    @ (required ~label:"prime1"            nat)
-    @ (required ~label:"prime2"            nat)
-    @ (required ~label:"exponent1"         nat)
-    @ (required ~label:"exponent2"         nat)
-    @ (required ~label:"coefficient"       nat)
-   -@ (optional ~label:"otherPrimeInfos"   other_prime_infos)
+      (required ~label:"version"         integer) 
+    @ (required ~label:"modulus"         nat) 
+    @ (required ~label:"publicExponent"  nat) 
+    @ (required ~label:"privateExponent" nat) 
+    @ (required ~label:"prime1"          nat) 
+    @ (required ~label:"prime2"          nat) 
+    @ (required ~label:"exponent1"       nat) 
+    @ (required ~label:"exponent2"       nat) 
+    @ (required ~label:"coefficient"     nat) 
+   -@ (optional ~label:"otherPrimeInfos" other_prime_infos) 
 
+(* "modulus (n)"
+   "publicExponent (e)"
+   "privateExponent (d)"
+   "prime1 (p)"
+   "prime2 (q)"
+   "exponent1 (dp)"
+   "exponent2 (dq)"
+   "coefficient (qinv)" *)
 
 let rsa_private_key_ber = codec ber rsa_private_key
-let rsa_private_key_of_bytes = decode rsa_private_key_ber
-and rsa_private_key_to_bytes = encode rsa_private_key_ber
+let rsa_private_key_of_cstruct = decode rsa_private_key_ber
+and rsa_private_key_to_cstruct = encode rsa_private_key_ber
