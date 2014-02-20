@@ -39,18 +39,24 @@ let empty_client_security_parameters =
 
 type connection_state = {
 (*   mutable cipher_state : Cstruct.t; *)
-  cipher_state : Cstruct.t;
-  mac_secret : Cstruct.t;
   sequence_number : int; (*uint64 says the spec*)
 (*   mutable sequence_number : int; |+uint64 says the spec+| *)
 
-  client_write_MAC_secret : Cstruct.t; (*security_parameters.hash_size*)
-  server_write_MAC_secret : Cstruct.t; (*security_parameters.hash_size*)
-  client_write_key : Cstruct.t; (*security_parameters.key_material_size*)
-  server_write_key : Cstruct.t; (*security_parameters.key_material_size*)
-  client_write_IV : Cstruct.t; (*security_parameters.cipher_IV_size*)
-  server_write_IV : Cstruct.t (*security_parameters.cipher_IV_size*)
+  client_write_MAC_secret : string; (*security_parameters.hash_size*)
+  server_write_MAC_secret : string; (*security_parameters.hash_size*)
+  client_write_key : string; (*security_parameters.key_material_size*)
+  server_write_key : string; (*security_parameters.key_material_size*)
+(*  client_write_IV : string; (*security_parameters.cipher_IV_size*)
+  server_write_IV : string (*security_parameters.cipher_IV_size*) *)
 }
+
+let empty_ctx =
+  { sequence_number = 0 ;
+    client_write_MAC_secret = "" ;
+    server_write_MAC_secret = "" ;
+    client_write_key = "" ;
+    server_write_key = ""
+  }
 
 let needs_kex = function
   | DHE_DSS | DHE_RSA | DH_anon | ECDHE_ECDSA | ECDHE_RSA | ECDH_anon -> true

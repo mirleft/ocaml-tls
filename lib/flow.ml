@@ -29,9 +29,15 @@ module Server = struct
     mutable state : server_handshake_state;
     mutable packets : Cstruct.t list;
     mutable outgoing : (int * Cstruct.t) list;
+    mutable ctx : connection_state ;
+    mutable next_ctx : connection_state option ;
   }
 
-  let make () = { state = Initial ; packets = [] ; outgoing = [] }
+  let make () = { state = Initial ;
+                  packets = [] ;
+                  outgoing = [] ;
+                  ctx = empty_ctx ;
+                  next_ctx = None }
 
   let respond_hello t (ch : client_hello)  =
     let r = Cstruct.create 32 in
@@ -83,17 +89,27 @@ module Server = struct
     let mastersecret = Crypto.generate_master_secret premastersecret (cr ^ sr) in
     Printf.printf "master secret %s\n" mastersecret;
     Cstruct.hexdump (Cstruct.of_string mastersecret);
-    let length = 10 (* find and punch in the required length *) in
-    let keys = Crypto.key_block length mastersecret (sr ^ cr) in
-    (* let ctx = { connection_state instance } in
-    <set it up!> *)
-    ()
+    let key, iv, blocksize = key_lengths p.cipher in
+    let hash, passing = hash_length_padding p.mac in
+    let length =  2 * key + 2 * hash (* + 2 * iv *) in
+    let keyblock = Crypto.key_block length mastersecret (sr ^ cr) in
+    let cs =
+      { sequence_number = 0 ;
+        client_write_MAC_secret = String.sub keyblock 0 hash ;
+        server_write_MAC_secret = String.sub keyblock hash hash ;
+        client_write_key = String.sub keyblock (2 * hash) key ;
+        server_write_key = String.sub keyblock (2 * hash + key) key }
+    in
+    t.next_ctx <- Some cs
 
-(* let respond_change_cipher_spec =
-    security_parameters
-    connection_state
-    send_change_cipher_spec
-    send_finished *)
+ let handle_change_cipher_spec t =
+    let Some ct = t.next_ctx in
+    t.ctx <- ct;
+    t.next_ctx <- None;
+    let buf = Cstruct.create 6 in
+    Cstruct.set_uint8 buf 5 1;
+    (buf, 1)
+
 
   let s_to_string t = match t.state with
     | Initial -> "Initial"
@@ -115,10 +131,11 @@ module Server = struct
 
   let handle_tls t buf =
     Printf.printf "starting to handle tls\n";
+    Cstruct.hexdump buf;
     let (header, body), len = Reader.parse buf in
     (* continue parsing if len < Cstruct.len buf!! *)
     Printf.printf "handle_tls %s\n" (Printer.to_string (header, body));
-    match body with
+    let ans = match body with
     | TLS_Handshake hs ->
        Printf.printf "calling handling the handshake\n";
        t.packets <- Cstruct.sub buf 5 len :: t.packets;
@@ -130,7 +147,11 @@ module Server = struct
                            Writer.assemble_hdr p { version = (3, 1) ; content_type = Packet.HANDSHAKE } l;
                            p)
                           answers)
-    | _ -> assert false
-(*    | TLS_ChangeCipherSpec -> handle_change_cipher_spec
-    | TLS_Alert al -> handle_alert al *)
+    | TLS_ChangeCipherSpec ->
+       let p, len = handle_change_cipher_spec t in
+       Writer.assemble_hdr p { version = (3, 1) ; content_type = Packet.CHANGE_CIPHER_SPEC } len;
+       [p]
+    (* | TLS_Alert al -> handle_alert al *)
+    in
+    (ans, len)
 end
