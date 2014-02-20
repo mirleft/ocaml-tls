@@ -10,14 +10,6 @@ let read_pem_file filename =
   let lines = read_lines filename in
   String.concat "" (List.filter (fun line -> line.[0] <> '-') lines)
 
-
-open Bigarray
-let bytes_of_string string =
-  let length = String.length string in
-  let arr = Array1.create int8_unsigned c_layout length in
-  for i = 0 to length - 1 do arr.{i} <- int_of_char string.[i] done;
-  arr
-
 let pem_to_cstruct pem =
   let str =
     Cryptokit.(transform_string (Base64.decode ()) pem) in
@@ -29,18 +21,9 @@ let pem_to_cstruct pem =
   Cstruct.of_string str
 
 let get_cert_from_file filename =
-  let pem = read_pem_file filename in
-  pem_to_cstruct pem
+  let pem = read_pem_file filename in pem_to_cstruct pem
 
-let bin_of_int d =
-  if d = 0 then "0" else
-  let rec aux acc d =
-    if d = 0 then acc else
-    aux (string_of_int (d land 1) :: acc) (d lsr 1)
-  in
-  String.concat "" (aux [] d)
-
-let get_key =
+let key =
   let pem = read_pem_file "server.key" in
   let str = Cryptokit.(transform_string (Base64.decode ()) pem)
   in
@@ -59,13 +42,13 @@ let get_key =
   pk
 
 let encrypt msg =
-  let crprivate = get_key in
+  let crprivate = key in
   let enc = Cryptokit.RSA.encrypt crprivate msg in
   Printf.printf "enc is %s\n" enc;
   enc
 
 let decrypt msg =
-  let crprivate = get_key in
+  let crprivate = key in
   let dec = Cryptokit.RSA.decrypt crprivate msg in
   Printf.printf "dec is %s\n" dec;
   dec
