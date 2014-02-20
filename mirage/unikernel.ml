@@ -23,9 +23,7 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
 
   let handle_data = Tls.Flow.Server.handle_tls
 
-  let state = Tls.Flow.Server.make ()
-
-  let handle c flow =
+  let handle state c flow =
     Printf.printf "handling\n";
     S.TCPV4.read flow
     >>= function
@@ -37,13 +35,15 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
       | `Error e -> C.log_s c (red "read: error")
 
   let start c s =
-    S.listen_tcpv4 s ~port:80 (fun flow ->
-        let dst, dst_port = S.TCPV4.get_dest flow in
-        C.log_s c (green "new tcp connection from %s %d"
-                     (Ipaddr.V4.to_string dst) dst_port)
-        >> handle c flow
-        >> handle c flow
-        >> S.TCPV4.close flow
+    S.listen_tcpv4 s ~port:80
+                   (fun flow ->
+                    let state = Tls.Flow.Server.make () in
+                    let dst, dst_port = S.TCPV4.get_dest flow in
+                    C.log_s c (green "new tcp connection from %s %d"
+                                     (Ipaddr.V4.to_string dst) dst_port)
+                    >> handle state c flow
+                    >> handle state c flow
+                    >> S.TCPV4.close flow
     );
 
     S.listen s

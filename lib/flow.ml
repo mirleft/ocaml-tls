@@ -65,6 +65,14 @@ let get_cert_from_file filename =
   let pem = read_pem_file filename in
   pem_to_cstruct pem
 
+let bin_of_int d =
+  if d = 0 then "0" else
+  let rec aux acc d =
+    if d = 0 then acc else
+    aux (string_of_int (d land 1) :: acc) (d lsr 1)
+  in
+  String.concat "" (aux [] d)
+
 module Server = struct
   type server_handshake_state =
     | Initial
@@ -138,8 +146,11 @@ module Server = struct
                   (String.length private_key.exponent1)
                   (String.length private_key.exponent2)
                   (String.length private_key.coefficient);
+    let fst = int_of_char (String.get private_key.modulus 0) in
+    let binfst = bin_of_int fst in
+    let lead = 7 - (String.length binfst) in
     let crprivate : Cryptokit.RSA.key =
-      { size = (8 * String.length private_key.modulus) ;
+      { size = (8 * ((String.length private_key.modulus) - 1) + lead) ;
         n = private_key.modulus ;
         e = private_key.public_exponent ;
         d = private_key.private_exponent ;

@@ -11,7 +11,7 @@ let rec p_md5 len secret a seed =
 
 let rec p_sha len secret a seed =
   let res = hmac_sha secret (a ^ seed) in
-  if len > 16 then
+  if len > 20 then
     res ^ (p_sha (len - 20) secret res seed)
   else
     res
