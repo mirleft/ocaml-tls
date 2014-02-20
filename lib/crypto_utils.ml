@@ -55,8 +55,8 @@ let get_key =
   let fst = int_of_char (String.get private_key.modulus 0) in
   let binfst = bin_of_int fst in
   let lead = 8 - (String.length binfst) in
-  let bitlength = 8 * ((String.length private_key.modulus) - 1) + lead in
-  Printf.printf "lead is %d; bitlength %d\n" lead bitlength;
+  let bitlength = 8 * String.length private_key.modulus - lead in
+  Printf.printf "binfst is %s lead is %d; bitlength %d\n" binfst lead bitlength;
   let crprivate : Cryptokit.RSA.key =
     { size = bitlength ;
       n = private_key.modulus ;
