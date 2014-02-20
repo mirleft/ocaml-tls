@@ -25,8 +25,10 @@ let halve secret =
 
 let pseudo_random_function len secret label seed =
   let s1, s2 = halve secret in
-  let md5 = p_md5 len s1 seed (label ^ seed) in
-  let sha = p_sha len s2 seed (label ^ seed) in
+  let md5_a = hmac_md5 s1 (label ^ seed) in
+  let md5 = String.sub (p_md5 len s1 md5_a (label ^ seed)) 0 len in
+  let sha_a = hmac_sha s2 (label ^ seed) in
+  let sha = String.sub (p_sha len s2 sha_a (label ^ seed)) 0 len in
   Cryptokit.xor_string md5 0 sha 0 len;
   sha
 

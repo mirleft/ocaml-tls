@@ -70,11 +70,16 @@ module Server = struct
     Printf.printf "respond_kex\n";
     Printf.printf "before premastersecret (kex len %d)\n" (Cstruct.len kex);
     let len = Cstruct.BE.get_uint16 kex 0 in
-    let premastersecret = Crypto_utils.decrypt (Cstruct.copy kex 2 len) in
+    let pms = Crypto_utils.decrypt (Cstruct.copy kex 2 len) in
+    let premastersecret = String.sub pms ((String.length pms) - 48) 48 in
     Printf.printf "premastersecret is %s\n" premastersecret;
     Cstruct.hexdump (Cstruct.of_string premastersecret);
     let cr = Cstruct.copy p.client_random 0 32 in
     let sr = Cstruct.copy p.server_random 0 32 in
+    Printf.printf "client random\n";
+    Cstruct.hexdump (Cstruct.of_string cr);
+    Printf.printf "server random\n";
+    Cstruct.hexdump (Cstruct.of_string sr);
     let mastersecret = Crypto.generate_master_secret premastersecret (cr ^ sr) in
     Printf.printf "master secret %s\n" mastersecret;
     Cstruct.hexdump (Cstruct.of_string mastersecret);
