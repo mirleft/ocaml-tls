@@ -183,6 +183,8 @@ module Server = struct
                  | `Stream (seq, cipher, mac) ->
                     let data = Cstruct.copy buf 0 (Cstruct.len buf) in
                     let dec = Cryptokit.transform_string cipher data in
+                    Printf.printf "decrypted\n";
+                    Cstruct.hexdump (Cstruct.of_string dec);
                     let declength = String.length dec in
                     let maclength = 20 (* TODO: mac.mac_length *) in
                     let macstart = declength - maclength in
