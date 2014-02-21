@@ -7,34 +7,27 @@ let blue fmt   = Printf.sprintf ("\027[36m"^^fmt^^"\027[m")
 
 module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
 
-  let handle_data = Tls.Flow.Server.handle_tls
+  module TLS = Tls.Flow.Server
 
-  let handle_and_send state buf flow =
-    let st', answer = handle_data state buf in
-    S.TCPV4.write flow answer
-
-  let handle state c flow =
-    S.TCPV4.read flow
-    >>= function
-      | `Ok b -> handle_and_send state b flow
-      | `Eof -> C.log_s c (red "read: eof")
-      | `Error e -> C.log_s c (red "read: error")
+  let on_connect c flow =
+    let rec loop tls =
+      S.TCPV4.read flow >>= function
+        | `Eof     -> C.log_s c (red "read: eof")
+        | `Error e -> C.log_s c (red "read: error")
+        | `Ok buf  ->
+            let (tls', ans) = TLS.handle_tls tls buf in
+            S.TCPV4.write flow ans >> loop tls'
+    in
+    let (dst, dst_port) = S.TCPV4.get_dest flow in
+    lwt () =
+      C.log_s c (green "new tcp connection from %s %d"
+                  (Ipaddr.V4.to_string dst) dst_port)
+    in
+    try_lwt loop TLS.empty_state 
+    finally S.TCPV4.close flow
 
   let start c s =
-    S.listen_tcpv4 s ~port:80
-                   (fun flow ->
-                    let state = Tls.Flow.Server.empty_state in
-                    let dst, dst_port = S.TCPV4.get_dest flow in
-                    C.log_s c (green "new tcp connection from %s %d"
-                                     (Ipaddr.V4.to_string dst) dst_port)
-                    >> handle state c flow
-                    >> handle state c flow
-                    >> handle state c flow
-                    >> handle state c flow
-                    >> handle state c flow
-                    >> S.TCPV4.close flow
-    );
-
+    S.listen_tcpv4 s ~port:80 (on_connect c) ;
     S.listen s
 
 end
