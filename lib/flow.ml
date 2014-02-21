@@ -114,7 +114,7 @@ module Server = struct
                    client_random = sp.client_random ;
                    server_random = sp.server_random }
     in
-    let handshake_state = ClientKeyExchangeReceived (client_crypto_state, server_crypto_state) in
+    let handshake_state = ClientKeyExchangeReceived (server_crypto_state, client_crypto_state) in
     (`Handshaking (handshake_state, params, packets @ [raw]), [], `Pass)
 
   let answer_client_hello (ch : client_hello) raw =
@@ -245,7 +245,8 @@ module Server = struct
         | ClientKeyExchangeReceived (enc, dec) ->
            let ccs = Cstruct.create 1 in
            Cstruct.set_uint8 ccs 0 1;
-           (is, [`Record (Packet.CHANGE_CIPHER_SPEC, ccs); `Change_enc enc],
+           (is, (* maybe we need to add the raw packet? *)
+            [`Record (Packet.CHANGE_CIPHER_SPEC, ccs); `Change_enc enc],
             `Change_dec dec)
         | _ -> assert false)
     | _, _ -> assert false
