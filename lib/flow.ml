@@ -232,26 +232,37 @@ module Server = struct
 
   let cs_append cs1 cs2 = cs_appends [ cs1; cs2 ]
 
+  (* this should have been defined somewhere around here? *)
+  type content_type = unit
 
+  (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
   type tls_internal_state = unit
+
+  (* EVERYTHING a cypher needs, be it input or output. And pure, too. *)
   type crypto_state = unit
 
+  type record = content_type * Cstruct.t
+
+  (* this is the externally-visible state somebody will keep track of for us. *)
   type state = {
     machina   : tls_internal_state ;
     decryptor : crypto_state ;
     encryptor : crypto_state ;
   }
 
+  (* well-behaved pure encryptor *)
   let encrypt_ : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
   = fun _ -> assert false
 
+  (* well-behaved pure decryptor *)
   let decrypt_ : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
   = fun _ -> assert false
 
-  type content_type = unit
   (* analogous to Writer.assemble_hdr *)
-  let assemble_hdr_pure : content_type * Cstruct.t -> Cstruct.t
-  = fun _ -> assert false
+  let assemble_hdr_pure : record -> Cstruct.t = fun _ -> assert false
+
+
+  (* party time *)
 
   let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list
   = fun buf -> (* we assume no fragmentation here *)
@@ -261,12 +272,12 @@ module Server = struct
       let (hdr, buf', len) = Reader.parse_hdr buf in
       (hdr, buf') :: separate_records (Cstruct.shift buf len)
 
-  let assemble_records : (content_type * Cstruct.t) list -> Cstruct.t =
+  let assemble_records : record list -> Cstruct.t =
     o cs_appends @@ List.map @@ assemble_hdr_pure
 
   type rec_resp = [
       `Change_enc of crypto_state
-    | `Record     of content_type * Cstruct.t
+    | `Record     of record
   ] 
   type dec_resp = [ `Change_dec of crypto_state | `Pass ]
 
@@ -307,12 +318,6 @@ module Server = struct
       loop state in_records in
     let buf' = assemble_records out_records in
     (state', buf')
-
-
-
-
-
-
 
 
 end
