@@ -152,17 +152,22 @@ module Server = struct
 
   let empty_state = { machina = `Initial ; decryptor = `Nothing ; encryptor = `Nothing }
 
-  let signature : hash_algorithm -> int64 -> content_type -> string -> string
-    = fun mac n ty data ->
-            let dlen = String.length data in
+  let signature : hash_algorithm -> int64 -> int -> content_type -> string -> string
+    = fun mac n len ty data ->
             let prefix = Cstruct.create 9 in
             Cstruct.BE.set_uint64 prefix 0 n;
             Cstruct.set_uint8 prefix 4 (Packet.content_type_to_int ty);
             Cstruct.set_uint8 prefix 5 3; (* version major *)
             Cstruct.set_uint8 prefix 6 1; (* version minor *)
-            Cstruct.BE.set_uint16 prefix 7 dlen;
+            Cstruct.BE.set_uint16 prefix 7 len;
             let ps = Cstruct.copy prefix 0 9 in
-            Cryptokit.hash_string mac (ps ^ data)
+            let a = Cryptokit.hash_string mac (ps ^ data) in
+            Printf.printf "sig a";
+            Cstruct.hexdump (Cstruct.of_string a);
+            let b = Cryptokit.hash_string mac (ps ^ data) in
+            Printf.printf "sig b";
+            Cstruct.hexdump (Cstruct.of_string b);
+            b
 
   (* well-behaved pure encryptor *)
   let encrypt_ : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
@@ -171,7 +176,8 @@ module Server = struct
                  | `Stream (seq, cipher, mac) ->
                     let data = Cstruct.copy buf 0 (Cstruct.len buf) in
                     (* TODO : needs content type!!! *)
-                    let sign = signature mac seq Packet.HANDSHAKE data in
+                    let len = (String.length data) + 20 + 1 + 2 + 2 in
+                    let sign = signature mac seq len Packet.HANDSHAKE data in
                     let enc = Cryptokit.transform_string cipher (data ^ sign) in
                     (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
                      Cstruct.of_string enc)
@@ -191,7 +197,8 @@ module Server = struct
                     let body = String.sub dec 0 macstart in
                     let actual_signature = String.sub dec macstart maclength in
                     (* TODO: real content_type *)
-                    let computed_signature = signature mac seq Packet.HANDSHAKE body in
+                    let len = declength + 1 + 2 + 2 in
+                    let computed_signature = signature mac seq len Packet.HANDSHAKE body in
                     Printf.printf "computed signature\n";
                     Cstruct.hexdump (Cstruct.of_string computed_signature);
                     Printf.printf "actual signature\n";
