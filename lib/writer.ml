@@ -90,12 +90,12 @@ let assemble_server_hello (sh : server_hello) : Cstruct.t =
     | None -> 1
     | Some s -> 1 + Cstruct.len s
   in
-  let buf = Cstruct.create (2 + 32 + slen + 2 + 1) (* extensions *) in
+  let bbuf = Cstruct.create (2 + 32 + slen + 2 + 1) (* extensions *) in
   let (major, minor) = sh.version in
-  set_c_hello_major_version buf major;
-  set_c_hello_minor_version buf minor;
-  Cstruct.blit sh.random 0 buf 2 32;
-  let buf = Cstruct.shift buf 34 in
+  set_c_hello_major_version bbuf major;
+  set_c_hello_minor_version bbuf minor;
+  Cstruct.blit sh.random 0 bbuf 2 32;
+  let buf = Cstruct.shift bbuf 34 in
   (match sh.sessionid with
    | None -> Cstruct.set_uint8 buf 0 0;
    | Some s -> let slen = Cstruct.len s in
@@ -107,7 +107,7 @@ let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let _ = assemble_compression_method buf NULL in
   (* extensions *)
   (* Cstruct.BE.set_uint16 buf 0 (List.length sh.extensions); *)
-  buf
+  bbuf
 
 let assemble_ec_prime_parameters buf pp = 0
 
@@ -144,4 +144,6 @@ let assemble_handshake hs =
   Cstruct.blit payload 0 buf 4 pay_len;
   Cstruct.set_uint8 buf 0 (handshake_type_to_int payload_type);
   set_uint24_len (Cstruct.shift buf 1) pay_len;
+  Printf.printf "assembled %s into a buf of size %d\n" (handshake_type_to_string payload_type) pay_len;
+  Cstruct.hexdump buf;
   buf
