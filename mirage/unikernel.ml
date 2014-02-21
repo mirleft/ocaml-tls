@@ -9,18 +9,11 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
 
   let handle_data = Tls.Flow.Server.handle_tls
 
-  let rec handle_and_send state buf flow =
-    Cstruct.hexdump buf;
-    let answer, len = handle_data state buf in
-    Lwt_list.iter_s (S.TCPV4.write flow) answer
-    >>
-      if Cstruct.len buf > len then
-        handle_and_send state (Cstruct.shift buf len) flow
-      else return ()
-
+  let handle_and_send state buf flow =
+    let st', answer = handle_data state buf in
+    S.TCPV4.write flow answer
 
   let handle state c flow =
-    Printf.printf "handling\n";
     S.TCPV4.read flow
     >>= function
       | `Ok b -> handle_and_send state b flow
@@ -30,7 +23,7 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
   let start c s =
     S.listen_tcpv4 s ~port:80
                    (fun flow ->
-                    let state = Tls.Flow.Server.make () in
+                    let state = Tls.Flow.Server.empty_state in
                     let dst, dst_port = S.TCPV4.get_dest flow in
                     C.log_s c (green "new tcp connection from %s %d"
                                      (Ipaddr.V4.to_string dst) dst_port)

@@ -232,11 +232,50 @@ module Server = struct
 
   let cs_append cs1 cs2 = cs_appends [ cs1; cs2 ]
 
-  (* this should have been defined somewhere around here? *)
+
   type content_type = Packet.content_type
 
+  type handshake_state =
+    | ClientHelloReceived
+    | ServerHelloSent
+    | ClientKeyExchangeReceived
+    | Established
+
   (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
-  type tls_internal_state = unit
+  type tls_internal_state = [
+      `Initial
+    | `Handshaking of handshake_state * security_parameters * Cstruct.t list
+    | `Established
+  ]
+
+  let state_to_string = function
+    | `Initial -> "Initial"
+    | `Handshaking x -> "Shaking hands"
+    | `Established -> "Established"
+
+  let answer_client_hello (ch : client_hello) raw =
+    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in
+    assert (List.mem cipher ch.ciphersuites);
+    let kex, enc, hash = Ciphersuite.get_kex_enc_hash cipher in
+    (* TODO : real random *)
+    let r = Cstruct.create 32 in
+    let params = { entity = Server ; cipher = enc ; block_or_stream = Block ; mac = hash ; master_secret = "" ; client_random = ch.random ; server_random = r } in
+    let server_hello : server_hello = { version = (3, 1) ; random = r ; sessionid = None ; ciphersuites = cipher ; extensions = [] } in
+    let bufs = [Writer.assemble_handshake (ServerHello server_hello)] in
+    let bufs' =
+      if Ciphersuite.needs_certificate kex then
+        (let cert = Crypto_utils.get_cert_from_file "server.pem" in
+         bufs @ [Writer.assemble_handshake (Certificate [cert])])
+      else
+        bufs
+    in
+    (* TODO: Server Key Exchange *)
+    (* server hello done! *)
+    let hello_done = Writer.assemble_handshake ServerHelloDone in
+    let packets = bufs' @ [hello_done] in
+    (`Handshaking (ServerHelloSent, params, raw :: packets),
+     List.map (fun e -> `Record (Packet.HANDSHAKE, e)) packets,
+     `Pass)
 
   type stream_encryption_algorithm = Cryptokit.transform
   type hash_algorithm = Cryptokit.hash
@@ -245,7 +284,7 @@ module Server = struct
   type crypto_state = [
     `Nothing
   | `Stream of int64 * stream_encryption_algorithm * hash_algorithm
-(*  | `Block of int * encryption_algorithm * string * string * hash_algorithm * string *)
+(*  | `Block of int64 * block_encryption_algorithm * string * hash_algorithm *)
   ]
 
   type record = content_type * Cstruct.t
@@ -256,6 +295,8 @@ module Server = struct
     decryptor : crypto_state ;
     encryptor : crypto_state ;
   }
+
+  let empty_state = { machina = `Initial ; decryptor = `Nothing ; encryptor = `Nothing }
 
   let signature : hash_algorithm -> int64 -> content_type -> string -> string
     = fun mac n ty data ->
@@ -275,7 +316,7 @@ module Server = struct
                  | `Nothing -> (s, buf)
                  | `Stream (seq, cipher, mac) ->
                     let data = Cstruct.copy buf 0 (Cstruct.len buf) in
-                    (* TODO : needs type!!! *)
+                    (* TODO : needs content type!!! *)
                     let sign = signature mac seq Packet.HANDSHAKE data in
                     let enc = Cryptokit.transform_string cipher (data ^ sign) in
                     (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
@@ -312,20 +353,38 @@ module Server = struct
     o cs_appends @@ List.map @@ Writer.assemble_hdr
 
   type rec_resp = [
-      `Change_enc of crypto_state
+    | `Change_enc of crypto_state
     | `Record     of record
   ]
   type dec_resp = [ `Change_dec of crypto_state | `Pass ]
 
   let handle_record
-  : tls_internal_state -> tls_hdr -> Cstruct.t
+  : tls_internal_state -> content_type -> Cstruct.t
     -> (tls_internal_state * rec_resp list * dec_resp)
-  = fun _ -> assert false
+  = fun is ct buf ->
+    Printf.printf "HANDLE_RECORD (in state %s) %s\n"
+                  (state_to_string is)
+                  (Packet.content_type_to_string ct);
+    match (is, ct) with
+    | _, Packet.ALERT ->
+       let al = Reader.parse_alert buf in
+       Printf.printf "ALERT: %s" (Printer.alert_to_string al);
+       (is, [], `Pass)
+    | `Initial, Packet.HANDSHAKE ->
+       (match Reader.parse_handshake buf with
+        | ClientHello ch -> answer_client_hello ch buf
+        | _ -> assert false)
+    | `Handshaking (hs, sp, packets), Packet.HANDSHAKE ->
+       (match Reader.parse_handshake buf with
+(*        | _ -> answer_handshake packet hs sp packets *)
+        | _ -> assert false
+       )
+    | _, _ -> assert false
 
   let handle_raw_record state (hdr, buf) =
     let (dec_st, dec) = decrypt_ state.decryptor buf in
     let (machina, items, dec_cmd) =
-      handle_record state.machina hdr dec in
+      handle_record state.machina hdr.content_type dec in
     let (encryptor, encs) =
       let rec loop st = function
         | [] -> (st, [])

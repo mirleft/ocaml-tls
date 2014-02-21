@@ -18,90 +18,96 @@ let assemble_certificate buf c =
   Cstruct.blit c 0 buf 3 len;
   len + 3
 
-let assemble_certificates buf cs =
-  let rec go buf len = function
-    | [] -> len
+let assemble_certificates cs =
+  let len = List.fold_left (fun a b -> a + 3 + Cstruct.len b) 0 cs in
+  let buf = Cstruct.create (len + 3) in
+  let rec go buf = function
+    | [] -> ()
     | c :: cs ->
        let l = assemble_certificate buf c in
-       go (Cstruct.shift buf l) (l + len) cs
+       go (Cstruct.shift buf l) cs
   in
-  let lens = go (Cstruct.shift buf 3) 0 cs in
-  set_uint24_len buf lens;
-  lens + 3
+  go (Cstruct.shift buf 3) cs;
+  set_uint24_len buf len;
+  buf
 
 let assemble_compression_method buf m =
   Cstruct.set_uint8 buf 0 (compression_method_to_int m);
   Cstruct.shift buf 1
 
-let rec assemble_compression_methods buf acc = function
-  | [] -> acc
+let rec assemble_compression_methods buf = function
+  | [] -> ()
   | m :: ms -> let buf = assemble_compression_method buf m in
-               assemble_compression_methods buf (acc + 1) ms
+               assemble_compression_methods buf ms
 
 let assemble_ciphersuite buf c =
   Cstruct.BE.set_uint16 buf 0 (Ciphersuite.ciphersuite_to_int c);
   Cstruct.shift buf 2
 
-let rec assemble_ciphersuites buf acc = function
-  | [] -> acc
+let rec assemble_ciphersuites buf = function
+  | [] -> ()
   | m :: ms ->
      let buf = assemble_ciphersuite buf m in
-     assemble_ciphersuites buf (acc + 2) ms
+     assemble_ciphersuites buf ms
 
 let assemble_named_curve buf nc =
   Cstruct.BE.set_uint16 buf 0 (named_curve_type_to_int nc);
   Cstruct.shift buf 2
 
-let assemble_client_hello buf cl =
+let assemble_client_hello (cl : client_hello) : Cstruct.t =
+  let slen = match cl.sessionid with
+    | None -> 1
+    | Some s -> 1 + Cstruct.len s
+  in
+  let cslen = 2 * List.length cl.ciphersuites in
+  let buf = Cstruct.create (2 + 32 + slen + 2 + cslen + 1 + 1) (* TODO : extensions *) in
   let (major, minor) = cl.version in
   set_c_hello_major_version buf major;
   set_c_hello_minor_version buf minor;
-  Cstruct.blit cl.random 0 buf 6 32;
+  Cstruct.blit cl.random 0 buf 2 32;
   let buf = Cstruct.shift buf 34 in
-  let slen = match cl.sessionid with
-    | None ->
-       Cstruct.set_uint8 buf 0 0;
-       1
-    | Some s ->
-       let slen = Cstruct.len s in
-       Cstruct.set_uint8 buf 0 slen;
-       Cstruct.blit s 0 buf 1 slen;
-       slen + 1
-  in
+  (match cl.sessionid with
+   | None ->
+      Cstruct.set_uint8 buf 0 0;
+   | Some s ->
+      let slen = Cstruct.len s in
+      Cstruct.set_uint8 buf 0 slen;
+      Cstruct.blit s 0 buf 1 slen);
   let buf = Cstruct.shift buf slen in
   Cstruct.BE.set_uint16 buf 0 (2 * List.length cl.ciphersuites);
   let buf = Cstruct.shift buf 2 in
-  let cslen = assemble_ciphersuites buf 0 cl.ciphersuites in
+  assemble_ciphersuites buf cl.ciphersuites;
+  let buf = Cstruct.shift buf cslen in
   (* compression methods, completely useless *)
   Cstruct.set_uint8 buf 0 1;
   let buf = Cstruct.shift buf 1 in
-  let clen = assemble_compression_methods buf 0 [NULL] in
+  assemble_compression_methods buf [NULL];
   (* extensions *)
-  34 + slen + cslen + 2 + 1 + clen + 2
+  buf
 
-let assemble_server_hello buf (sh : server_hello) =
+let assemble_server_hello (sh : server_hello) : Cstruct.t =
+  let slen = match sh.sessionid with
+    | None -> 1
+    | Some s -> 1 + Cstruct.len s
+  in
+  let buf = Cstruct.create (2 + 32 + slen + 2 + 1) (* extensions *) in
   let (major, minor) = sh.version in
   set_c_hello_major_version buf major;
   set_c_hello_minor_version buf minor;
-  Cstruct.blit sh.random 0 buf 6 32;
+  Cstruct.blit sh.random 0 buf 2 32;
   let buf = Cstruct.shift buf 34 in
-  let slen = match sh.sessionid with
-    | None ->
-       Cstruct.set_uint8 buf 0 0;
-       1
-    | Some s ->
-       let slen = Cstruct.len s in
-       Cstruct.set_uint8 buf 0 slen;
-       Cstruct.blit s 0 buf 1 slen;
-       slen + 1
-  in
+  (match sh.sessionid with
+   | None -> Cstruct.set_uint8 buf 0 0;
+   | Some s -> let slen = Cstruct.len s in
+               Cstruct.set_uint8 buf 0 slen;
+               Cstruct.blit s 0 buf 1 slen);
   let buf = Cstruct.shift buf slen in
   let buf = assemble_ciphersuite buf sh.ciphersuites in
   (* useless compression method *)
   let _ = assemble_compression_method buf NULL in
   (* extensions *)
-(*  Cstruct.BE.set_uint16 buf 0 (List.length sh.extensions); *)
-  34 + slen + 2 + 1
+  (* Cstruct.BE.set_uint16 buf 0 (List.length sh.extensions); *)
+  buf
 
 let assemble_ec_prime_parameters buf pp = 0
 
@@ -121,3 +127,21 @@ let assemble_ec_parameters buf = function
      Cstruct.set_uint8 buf 0 len;
      Cstruct.blit pub 0 buf 1 len;
      (4 + len)
+
+let assemble_handshake hs =
+  let (payload, payload_type) =
+    match hs with
+    | ClientHello ch -> (assemble_client_hello ch, CLIENT_HELLO)
+    | ServerHello sh -> (assemble_server_hello sh, SERVER_HELLO)
+    | Certificate cs -> (assemble_certificates cs, CERTIFICATE)
+(*    | ServerKeyExchange kex -> (assemble_server_key_exchange kex, SERVER_KEY_EXCHANGE) *)
+    | ServerHelloDone -> (Cstruct.create 0, SERVER_HELLO_DONE)
+    | Finished fs -> (fs, FINISHED)
+    | _ -> assert false
+  in
+  let pay_len = Cstruct.len payload in
+  let buf = Cstruct.create (pay_len + 4) in
+  Cstruct.blit payload 0 buf 4 pay_len;
+  Cstruct.set_uint8 buf 0 (handshake_type_to_int payload_type);
+  set_uint24_len (Cstruct.shift buf 1) pay_len;
+  buf

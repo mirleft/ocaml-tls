@@ -340,11 +340,9 @@ let parse_server_key_exchange buf =
 
 let parse_handshake buf =
   let typ = Cstruct.get_uint8 buf 0 in
-  Printf.printf "parsing handshake %d\n" typ;
   let Some handshake_type = int_to_handshake_type typ in
   let len = get_uint24_len (Cstruct.shift buf 1) in
   let payload = Cstruct.sub buf 4 len in
-  Printf.printf "parse with ht %s\n" (handshake_type_to_string handshake_type);
   match handshake_type with
     | HELLO_REQUEST -> HelloRequest
     | CLIENT_HELLO -> ClientHello (parse_client_hello payload)
