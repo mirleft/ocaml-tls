@@ -33,12 +33,7 @@ let get_key filename =
     Asn_grammars.rsa_private_of_cstruct (Cstruct.of_string str)
   with
   | None         -> assert false
-  | Some (pk, _) ->
-    String.
-      (Printf.printf "got a private key %d %d %d %d %d %d %d %d\n"
-        (length pk.n) (length pk.e ) (length pk.d ) (length pk.p)
-        (length pk.q) (length pk.dp) (length pk.dq) (length pk.qinv)) ;
-    pk
+  | Some (pk, _) -> pk
 
 let the_key = lazy (get_key "server.key")
 
@@ -53,3 +48,4 @@ let decrypt msg =
   let dec = Cryptokit.RSA.decrypt crprivate msg in
   Printf.printf "dec is %s\n" dec;
   dec
+

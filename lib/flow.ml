@@ -20,7 +20,7 @@ let ref _ = raise (Failure "no.")
 let o f g x = f (g x)
 
 module Server = struct
-
+(*
 
   type server_handshake_state =
     | Initial
@@ -202,7 +202,7 @@ module Server = struct
     in
     (ans, len)
 
-
+ *)
 
 
 
@@ -233,13 +233,20 @@ module Server = struct
   let cs_append cs1 cs2 = cs_appends [ cs1; cs2 ]
 
   (* this should have been defined somewhere around here? *)
-  type content_type = unit
+  type content_type = Packet.content_type
 
   (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
   type tls_internal_state = unit
 
-  (* EVERYTHING a cypher needs, be it input or output. And pure, too. *)
-  type crypto_state = unit
+  type stream_encryption_algorithm = Cryptokit.transform
+  type hash_algorithm = Cryptokit.hash
+
+  (* EVERYTHING a cipher needs, be it input or output. And pure, too. *)
+  type crypto_state = [
+    `Nothing
+  | `Stream of int64 * stream_encryption_algorithm * hash_algorithm
+(*  | `Block of int * encryption_algorithm * string * string * hash_algorithm * string *)
+  ]
 
   type record = content_type * Cstruct.t
 
@@ -250,20 +257,49 @@ module Server = struct
     encryptor : crypto_state ;
   }
 
+  let signature : hash_algorithm -> int64 -> content_type -> string -> string
+    = fun mac n ty data ->
+            let dlen = String.length data in
+            let prefix = Cstruct.create 9 in
+            Cstruct.BE.set_uint64 prefix 0 n;
+            Cstruct.set_uint8 prefix 4 (Packet.content_type_to_int ty);
+            Cstruct.set_uint8 prefix 5 3; (* version major *)
+            Cstruct.set_uint8 prefix 6 1; (* version minor *)
+            Cstruct.BE.set_uint16 prefix 7 dlen;
+            let ps = Cstruct.copy prefix 0 9 in
+            Cryptokit.hash_string mac (ps ^ data)
+
   (* well-behaved pure encryptor *)
   let encrypt_ : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
-  = fun _ -> assert false
+  = fun s buf -> match s with
+                 | `Nothing -> (s, buf)
+                 | `Stream (seq, cipher, mac) ->
+                    let data = Cstruct.copy buf 0 (Cstruct.len buf) in
+                    (* TODO : needs type!!! *)
+                    let sign = signature mac seq Packet.HANDSHAKE data in
+                    let enc = Cryptokit.transform_string cipher (data ^ sign) in
+                    (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
+                     Cstruct.of_string enc)
 
   (* well-behaved pure decryptor *)
   let decrypt_ : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
-  = fun _ -> assert false
-
-  (* analogous to Writer.assemble_hdr *)
-  let assemble_hdr_pure : record -> Cstruct.t = fun _ -> assert false
-
+  = fun s buf -> match s with
+                 | `Nothing -> (s, buf)
+                 | `Stream (seq, cipher, mac) ->
+                    let data = Cstruct.copy buf 0 (Cstruct.len buf) in
+                    let dec = Cryptokit.transform_string cipher data in
+                    let declength = String.length dec in
+                    let maclength = 20 (* TODO: mac.mac_length *) in
+                    let macstart = declength - maclength in
+                    let body = String.sub dec 0 macstart in
+                    let actual_signature = String.sub dec macstart maclength in
+                    (* TODO: real content_type *)
+                    let computed_signature = signature mac seq Packet.HANDSHAKE body in
+                    assert (actual_signature = computed_signature);
+                    (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
+                     Cstruct.of_string body)
 
   (* party time *)
-
   let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list
   = fun buf -> (* we assume no fragmentation here *)
     match Cstruct.len buf with
@@ -273,12 +309,12 @@ module Server = struct
       (hdr, buf') :: separate_records (Cstruct.shift buf len)
 
   let assemble_records : record list -> Cstruct.t =
-    o cs_appends @@ List.map @@ assemble_hdr_pure
+    o cs_appends @@ List.map @@ Writer.assemble_hdr
 
   type rec_resp = [
       `Change_enc of crypto_state
     | `Record     of record
-  ] 
+  ]
   type dec_resp = [ `Change_dec of crypto_state | `Pass ]
 
   let handle_record

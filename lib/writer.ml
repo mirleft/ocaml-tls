@@ -1,12 +1,16 @@
 open Packet
 open Core
 
-let assemble_hdr buf header payloadlength =
-  set_tls_h_content_type buf (content_type_to_int header.content_type);
-  let (major, minor) = header.version in
+let assemble_hdr (content_type, payload) =
+  let payloadlength = Cstruct.len payload in
+  let buf = Cstruct.create (5 + payloadlength) in
+  Cstruct.blit payload 0 buf 5 payloadlength;
+  set_tls_h_content_type buf (content_type_to_int content_type);
+  let (major, minor) = (3, 1) in
   set_tls_h_major_version buf major;
   set_tls_h_minor_version buf minor;
-  set_tls_h_length buf payloadlength
+  set_tls_h_length buf payloadlength;
+  buf
 
 let assemble_certificate buf c =
   let len = Cstruct.len c in
