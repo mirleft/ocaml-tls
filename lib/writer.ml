@@ -60,12 +60,12 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
     | Some s -> 1 + Cstruct.len s
   in
   let cslen = 2 * List.length cl.ciphersuites in
-  let buf = Cstruct.create (2 + 32 + slen + 2 + cslen + 1 + 1) (* TODO : extensions *) in
+  let bbuf = Cstruct.create (2 + 32 + slen + 2 + cslen + 1 + 1) (* TODO : extensions *) in
   let (major, minor) = cl.version in
-  set_c_hello_major_version buf major;
-  set_c_hello_minor_version buf minor;
-  Cstruct.blit cl.random 0 buf 2 32;
-  let buf = Cstruct.shift buf 34 in
+  set_c_hello_major_version bbuf major;
+  set_c_hello_minor_version bbuf minor;
+  Cstruct.blit cl.random 0 bbuf 2 32;
+  let buf = Cstruct.shift bbuf 34 in
   (match cl.sessionid with
    | None ->
       Cstruct.set_uint8 buf 0 0;
@@ -83,7 +83,7 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let buf = Cstruct.shift buf 1 in
   assemble_compression_methods buf [NULL];
   (* extensions *)
-  buf
+  bbuf
 
 let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let slen = match sh.sessionid with
