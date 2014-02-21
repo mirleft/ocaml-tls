@@ -17,7 +17,11 @@ let send_io : tls_state -> Cstruct.t -> tls_state Lwt.t
 
 let ref _ = raise (Failure "no.")
 
+let o f g x = f (g x)
+
 module Server = struct
+
+
   type server_handshake_state =
     | Initial
     | ServerHelloSent of security_parameters
@@ -39,38 +43,41 @@ module Server = struct
                   ctx = empty_ctx ;
                   next_ctx = None }
 
+
   let respond_hello t (ch : client_hello)  =
-    let r = Cstruct.create 32 in
-    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in
-    if List.mem cipher ch.ciphersuites then
-      (let kex, enc, hash = Ciphersuite.get_kex_enc_hash cipher in
-       let params = { entity = Server ; cipher = enc ; block_or_stream = Block ; mac = hash ; master_secret = "" ; client_random = ch.random ; server_random = r } in
-       let b = Cstruct.create 200 in
-       let buf = Cstruct.shift b 5 in
-       Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.SERVER_HELLO);
-       let server_hello : server_hello = { version = (3, 1) ; random = r ; sessionid = None ; ciphersuites = cipher ; extensions = [] } in
-       let len = Writer.assemble_server_hello (Cstruct.shift buf 4) server_hello in
-       Packet.set_uint24_len (Cstruct.shift buf 1) len;
-       let rbuf = Cstruct.sub b 0 (len + 4 + 5) in
-       t.state <- ServerHelloSent params;
-       t.outgoing <- (len + 4, rbuf) :: t.outgoing;
-       if Ciphersuite.needs_certificate kex then
-         (let b = Cstruct.create 1000 in
-          let buf = Cstruct.shift b 5 in
-          Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.CERTIFICATE);
-          let cert = Crypto_utils.get_cert_from_file "server.pem" in
-          let len = Writer.assemble_certificates (Cstruct.shift buf 4) [cert] in
-          Packet.set_uint24_len (Cstruct.shift buf 1) len;
-          let rbuf = Cstruct.sub b 0 (len + 4 + 5) in
-          t.state <- ServerCertificateSent params;
-          t.outgoing <- (len + 4, rbuf) :: t.outgoing);
-       (* TODO: Server Key Exchange *)
-       (* server hello done! *)
-       let b = Cstruct.create 9 in
-       let buf = Cstruct.shift b 5 in
-       Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.SERVER_HELLO_DONE);
-       Packet.set_uint24_len (Cstruct.shift buf 1) 0;
-       t.outgoing <- (4, b) :: t.outgoing)
+      let r = Cstruct.create 32 in
+      let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in
+      if List.mem cipher ch.ciphersuites then
+        (let kex, enc, hash = Ciphersuite.get_kex_enc_hash cipher in
+        let params = { entity = Server ; cipher = enc ; block_or_stream = Block ; mac = hash ; master_secret = "" ; client_random = ch.random ; server_random = r } in
+        let b = Cstruct.create 200 in
+        let buf = Cstruct.shift b 5 in
+        Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.SERVER_HELLO);
+        let server_hello : server_hello = { version = (3, 1) ; random = r ; sessionid = None ; ciphersuites = cipher ; extensions = [] } in
+        let len = Writer.assemble_server_hello (Cstruct.shift buf 4) server_hello in
+        Packet.set_uint24_len (Cstruct.shift buf 1) len;
+        let rbuf = Cstruct.sub b 0 (len + 4 + 5) in
+        t.state <- ServerHelloSent params;
+        t.outgoing <- (len + 4, rbuf) :: t.outgoing;
+        if Ciphersuite.needs_certificate kex then
+          (let b = Cstruct.create 1000 in
+            let buf = Cstruct.shift b 5 in
+            Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.CERTIFICATE);
+            let cert = Crypto_utils.get_cert_from_file "server.pem" in
+            let len = Writer.assemble_certificates (Cstruct.shift buf 4) [cert] in
+            Packet.set_uint24_len (Cstruct.shift buf 1) len;
+            let rbuf = Cstruct.sub b 0 (len + 4 + 5) in
+            t.state <- ServerCertificateSent params;
+            t.outgoing <- (len + 4, rbuf) :: t.outgoing);
+        (* TODO: Server Key Exchange *)
+        (* server hello done! *)
+        let b = Cstruct.create 9 in
+        let buf = Cstruct.shift b 5 in
+        Cstruct.set_uint8 buf 0 (Packet.handshake_type_to_int Packet.SERVER_HELLO_DONE);
+        Packet.set_uint24_len (Cstruct.shift buf 1) 0;
+        t.outgoing <- (4, b) :: t.outgoing)
+
+
 
   let respond_kex t p kex =
     Printf.printf "respond_kex\n";
@@ -160,6 +167,11 @@ module Server = struct
     else
       buf
 
+  let hexdump ~msg cs =
+    Printf.printf "%s\n%!" msg;
+    Cstruct.hexdump cs
+
+
   let handle_tls t buf =
     Printf.printf "starting to handle tls\n";
     Cstruct.hexdump buf;
@@ -189,4 +201,118 @@ module Server = struct
     (* | TLS_Alert al -> handle_alert al *)
     in
     (ans, len)
+
+
+
+
+
+  (* new core handler *)
+
+
+  (*
+   * MORNING PRAYER:
+   *
+   * I will allocate data, more and more data and all new data, since i'm not
+   * writing C like a peasant.
+   *
+   * This kinda travesty will go away. After we reach correctness. Not before.
+   *)
+
+  let cs_appends csn =
+    let cs =
+      Cstruct.create @@
+        List.fold_left (fun x cs -> x + Cstruct.len cs) 0 csn in
+    let _ =
+      List.fold_left
+        (fun off e ->
+          let len = Cstruct.len e in
+          ( Cstruct.blit e 0 cs off len ; off + len ))
+        0 csn in
+    cs
+
+  let cs_append cs1 cs2 = cs_appends [ cs1; cs2 ]
+
+
+  type tls_internal_state = unit
+  type crypto_state = unit
+
+  type state = {
+    machina   : tls_internal_state ;
+    decryptor : crypto_state ;
+    encryptor : crypto_state ;
+  }
+
+  let encrypt_ : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
+  = fun _ -> assert false
+
+  let decrypt_ : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
+  = fun _ -> assert false
+
+  type content_type = unit
+  (* analogous to Writer.assemble_hdr *)
+  let assemble_hdr_pure : content_type * Cstruct.t -> Cstruct.t
+  = fun _ -> assert false
+
+  let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list
+  = fun buf -> (* we assume no fragmentation here *)
+    match Cstruct.len buf with
+    | 0 -> []
+    | _ ->
+      let (hdr, buf', len) = Reader.parse_hdr buf in
+      (hdr, buf') :: separate_records (Cstruct.shift buf len)
+
+  let assemble_records : (content_type * Cstruct.t) list -> Cstruct.t =
+    o cs_appends @@ List.map @@ assemble_hdr_pure
+
+  type rec_resp = [
+      `Change_enc of crypto_state
+    | `Record     of content_type * Cstruct.t
+  ] 
+  type dec_resp = [ `Change_dec of crypto_state | `Pass ]
+
+  let handle_record
+  : tls_internal_state -> tls_hdr -> Cstruct.t
+    -> (tls_internal_state * rec_resp list * dec_resp)
+  = fun _ -> assert false
+
+  let handle_raw_record state (hdr, buf) =
+    let (dec_st, dec) = decrypt_ state.decryptor buf in
+    let (machina, items, dec_cmd) =
+      handle_record state.machina hdr dec in
+    let (encryptor, encs) =
+      let rec loop st = function
+        | [] -> (st, [])
+        | `Change_enc st'   :: xs -> loop st' xs
+        | `Record (ty, buf) :: xs ->
+            let (st1, enc ) = encrypt_ st buf in
+            let (st2, rest) = loop st1 xs in
+            (st2, (ty, enc) :: rest)
+      in
+      loop state.encryptor items in
+    let decryptor = match dec_cmd with
+      | `Change_dec dec -> dec
+      | `Pass           -> dec_st in
+    ({ machina ; encryptor ; decryptor }, encs)
+
+  let handle_tls : state -> Cstruct.t -> state * Cstruct.t
+  = fun state buf ->
+    let in_records = separate_records buf in
+    let (state', out_records) =
+      let rec loop st = function
+        | []    -> (st, [])
+        | r::rs ->
+            let (st1, raw_rs ) = handle_raw_record st r in
+            let (st2, raw_rs') = loop st1 rs in
+            (st2, raw_rs @ raw_rs') in
+      loop state in_records in
+    let buf' = assemble_records out_records in
+    (state', buf')
+
+
+
+
+
+
+
+
 end
