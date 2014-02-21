@@ -12,7 +12,7 @@ type security_parameters = {
   block_or_stream     : cipher_block_or_stream_type;
   mac                 : hash_algorithm;
 
-  master_secret       : Cstruct.t;
+  master_secret       : string;
   client_random       : Cstruct.t;
   server_random       : Cstruct.t
 }
@@ -22,7 +22,7 @@ let empty_server_security_parameters =
     cipher = NULL;
     block_or_stream = Stream;
     mac = NULL;
-    master_secret = Cstruct.create 0;
+    master_secret = "";
     client_random = Cstruct.create 0;
     server_random = Cstruct.create 0;
   }
@@ -32,7 +32,7 @@ let empty_client_security_parameters =
     cipher = NULL;
     block_or_stream = Stream;
     mac = NULL;
-    master_secret = Cstruct.create 0;
+    master_secret = "";
     client_random = Cstruct.create 0;
     server_random = Cstruct.create 0;
   }

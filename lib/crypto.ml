@@ -29,4 +29,7 @@ let generate_master_secret pre_master_secret seed =
 let key_block len master_secret seed =
   pseudo_random_function len master_secret "key expansion" seed
 
-
+let finished master_secret label data =
+  let md5 = Cryptokit.(hash_string (Hash.md5 ()) data) in
+  let sha1 = Cryptokit.(hash_string (Hash.sha1 ()) data) in
+  pseudo_random_function 12 master_secret label (md5 ^ sha1)

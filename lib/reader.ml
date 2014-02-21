@@ -339,7 +339,9 @@ let parse_server_key_exchange buf =
 
 
 let parse_handshake buf =
-  let Some handshake_type = int_to_handshake_type (Cstruct.get_uint8 buf 0) in
+  let typ = Cstruct.get_uint8 buf 0 in
+  Printf.printf "parsing handshake %d\n" typ;
+  let Some handshake_type = int_to_handshake_type typ in
   let len = get_uint24_len (Cstruct.shift buf 1) in
   let payload = Cstruct.sub buf 4 len in
   Printf.printf "parse with ht %s\n" (handshake_type_to_string handshake_type);
@@ -357,13 +359,17 @@ let parse_handshake buf =
     | FINISHED -> Finished (Cstruct.sub payload 0 12)
     | _ -> assert false
 
+let parse_body ct buf =
+  Printf.printf "parse body with ct %s\n" (content_type_to_string ct);
+  match ct with
+  | HANDSHAKE          -> TLS_Handshake (parse_handshake buf)
+  | CHANGE_CIPHER_SPEC -> TLS_ChangeCipherSpec
+  | ALERT              -> TLS_Alert (parse_alert buf)
+  | _ -> assert false
+
 let parse buf =
   let header, buf, len = parse_hdr buf in
   Printf.printf "parse with ct %s\n" (content_type_to_string header.content_type);
-  let body = match header.content_type with
-    | HANDSHAKE          -> TLS_Handshake (parse_handshake buf)
-    | CHANGE_CIPHER_SPEC -> TLS_ChangeCipherSpec
-    | ALERT              -> TLS_Alert (parse_alert buf)
-    | _ -> assert false
-  in ((header, body), len)
+  let body = parse_body header.content_type buf in
+  ((header, body), len)
 
