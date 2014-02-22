@@ -98,19 +98,19 @@ module Server = struct
     let mastersecret = Crypto.generate_master_secret premastersecret (cr ^ sr) in
     Printf.printf "master secret\n";
     Cstruct.hexdump (Cstruct.of_string mastersecret);
-    let key, iv, blocksize = Ciphersuite.key_lengths sp.cipher in
-    let hash = Ciphersuite.hash_length sp.mac in
-    let length =  2 * key + 2 * hash (* + 2 * iv *) in
+    let keylen, ivlen, _ = Ciphersuite.key_lengths sp.cipher in
+    let hashlen = Ciphersuite.hash_length sp.mac in
+    let length =  2 * keylen + 2 * hashlen (* + 2 * ivlen *) in
     let keyblock = Crypto.key_block length mastersecret (sr ^ cr) in
 
-    let client_write_key = String.sub keyblock (2 * hash) key in
-    let server_write_key = String.sub keyblock (2 * hash + key) key in
+    let client_mac_key   = String.sub keyblock 0                      hashlen in
+    let server_mac_key   = String.sub keyblock hashlen                hashlen in
+    let client_write_key = String.sub keyblock (2 * hashlen)          keylen in
+    let server_write_key = String.sub keyblock (2 * hashlen + keylen) keylen in
 
     let ccipher = new Cryptokit.Stream.arcfour client_write_key in
     let scipher = new Cryptokit.Stream.arcfour server_write_key in
 
-    let client_mac_key = String.sub keyblock 0 hash in
-    let server_mac_key = String.sub keyblock hash hash in
 
     let client_crypto_context = `Stream { sequence      = Int64.of_int 0 ;
                                           cipher        = ccipher ;
@@ -122,9 +122,9 @@ module Server = struct
                                           mac            = sp.mac ;
                                           mac_secret     = server_mac_key }
     in
-    let params = { entity = sp.entity ;
-                   cipher = sp.cipher ;
-                   mac = sp.mac ;
+    let params = { entity        = sp.entity ;
+                   cipher        = sp.cipher ;
+                   mac           = sp.mac ;
                    master_secret = mastersecret ;
                    client_random = sp.client_random ;
                    server_random = sp.server_random }
@@ -138,8 +138,17 @@ module Server = struct
     let kex, enc, hash = Ciphersuite.get_kex_enc_hash cipher in
     (* TODO : real random *)
     let r = Cstruct.create 32 in
-    let params = { entity = Server ; cipher = enc ; mac = hash ; master_secret = "" ; client_random = ch.random ; server_random = r } in
-    let server_hello : server_hello = { version = (3, 1) ; random = r ; sessionid = None ; ciphersuites = cipher ; extensions = [] } in
+    let params = { entity        = Server ;
+                   cipher        = enc ;
+                   mac           = hash ;
+                   master_secret = "" ;
+                   client_random = ch.random ;
+                   server_random = r } in
+    let server_hello : server_hello = { version      = (3, 1) ;
+                                        random       = r ;
+                                        sessionid    = None ;
+                                        ciphersuites = cipher ;
+                                        extensions   = [] } in
     let bufs = [Writer.assemble_handshake (ServerHello server_hello)] in
     let bufs' =
       if Ciphersuite.needs_certificate kex then
@@ -301,6 +310,5 @@ module Server = struct
       loop state in_records in
     let buf' = assemble_records out_records in
     (state', buf')
-
 
 end
