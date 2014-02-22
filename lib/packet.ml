@@ -29,47 +29,47 @@ cenum content_type {
   ALERT              = 21;
   HANDSHAKE          = 22;
   APPLICATION_DATA   = 23;
-  HEARTBEAT          = 24
+  HEARTBEAT          = 24;
 } as uint8_t
 
 (* TLS alert level *)
 cenum alert_level {
   WARNING = 1;
-  FATAL = 2
+  FATAL   = 2;
 } as uint8_t
 
 (* TLS alert types *)
 cenum alert_type {
-  CLOSE_NOTIFY = 0; (*RFC5246*)
-  UNEXPECTED_MESSAGE = 10; (*RFC5246*)
-  BAD_RECORD_MAC = 20; (*RFC5246*)
-  DECRYPTION_FAILED = 21; (*RFC5246*)
-  RECORD_OVERFLOW = 22; (*RFC5246*)
-  DECOMPRESSION_FAILURE = 30; (*RFC5246*)
-  HANDSHAKE_FAILURE = 40; (*RFC5246*)
-  NO_CERTIFICATE_RESERVED = 41; (*RFC5246*)
-  BAD_CERTIFICATE = 42; (*RFC5246*)
-  UNSUPPORTED_CERTIFICATE = 43; (*RFC5246*)
-  CERTIFICATE_REVOKED = 44; (*RFC5246*)
-  CERTIFICATE_EXPIRED = 45; (*RFC5246*)
-  CERTIFICATE_UNKNOWN = 46; (*RFC5246*)
-  ILLEGAL_PARAMETER = 47; (*RFC5246*)
-  UNKNOWN_CA = 48; (*RFC5246*)
-  ACCESS_DENIED = 49; (*RFC5246*)
-  DECODE_ERROR = 50; (*RFC5246*)
-  DECRYPT_ERROR = 51; (*RFC5246*)
-  EXPORT_RESTRICTION_RESERVED = 60; (*RFC5246*)
-  PROTOCOL_VERSION = 70; (*RFC5246*)
-  INSUFFICIENT_SECURITY = 71; (*RFC5246*)
-  INTERNAL_ERROR = 80; (*RFC5246*)
-  USER_CANCELED = 90; (*RFC5246*)
-  NO_RENEGOTIATION = 100; (*RFC5246*)
-  UNSUPPORTED_EXTENSION = 110; (*RFC5246*)
-  CERTIFICATE_UNOBTAINABLE = 111; (*RFC6066*)
-  UNRECOGNIZED_NAME = 112; (*RFC6066*)
+  CLOSE_NOTIFY                    = 0;   (*RFC5246*)
+  UNEXPECTED_MESSAGE              = 10;  (*RFC5246*)
+  BAD_RECORD_MAC                  = 20;  (*RFC5246*)
+  DECRYPTION_FAILED               = 21;  (*RFC5246*)
+  RECORD_OVERFLOW                 = 22;  (*RFC5246*)
+  DECOMPRESSION_FAILURE           = 30;  (*RFC5246*)
+  HANDSHAKE_FAILURE               = 40;  (*RFC5246*)
+  NO_CERTIFICATE_RESERVED         = 41;  (*RFC5246*)
+  BAD_CERTIFICATE                 = 42;  (*RFC5246*)
+  UNSUPPORTED_CERTIFICATE         = 43;  (*RFC5246*)
+  CERTIFICATE_REVOKED             = 44;  (*RFC5246*)
+  CERTIFICATE_EXPIRED             = 45;  (*RFC5246*)
+  CERTIFICATE_UNKNOWN             = 46;  (*RFC5246*)
+  ILLEGAL_PARAMETER               = 47;  (*RFC5246*)
+  UNKNOWN_CA                      = 48;  (*RFC5246*)
+  ACCESS_DENIED                   = 49;  (*RFC5246*)
+  DECODE_ERROR                    = 50;  (*RFC5246*)
+  DECRYPT_ERROR                   = 51;  (*RFC5246*)
+  EXPORT_RESTRICTION_RESERVED     = 60;  (*RFC5246*)
+  PROTOCOL_VERSION                = 70;  (*RFC5246*)
+  INSUFFICIENT_SECURITY           = 71;  (*RFC5246*)
+  INTERNAL_ERROR                  = 80;  (*RFC5246*)
+  USER_CANCELED                   = 90;  (*RFC5246*)
+  NO_RENEGOTIATION                = 100; (*RFC5246*)
+  UNSUPPORTED_EXTENSION           = 110; (*RFC5246*)
+  CERTIFICATE_UNOBTAINABLE        = 111; (*RFC6066*)
+  UNRECOGNIZED_NAME               = 112; (*RFC6066*)
   BAD_CERTIFICATE_STATUS_RESPONSE = 113; (*RFC6066*)
-  BAD_CERTIFICATE_HASH_VALUE = 114; (*RFC6066*)
-  UNKNOWN_PSK_IDENTITY = 115; (*RFC4279*)
+  BAD_CERTIFICATE_HASH_VALUE      = 114; (*RFC6066*)
+  UNKNOWN_PSK_IDENTITY            = 115; (*RFC4279*)
 } as uint8_t
 
 (* TLS handshake type *)
@@ -94,73 +94,73 @@ cenum handshake_type {
 
 (* TLS certificate types *)
 cenum client_certificate_type {
-  RSA_SIGN = 1; (*RFC5246*)
-  DSS_SIGN = 2; (*RFC5246*)
-  RSA_FIXED_DH = 3; (*RFC5246*)
-  DSS_FIXED_DH = 4; (*RFC5246*)
-  RSA_EPHEMERAL_DH_RESERVED = 5; (*RFC5246*)
-  DSS_EPHEMERAL_DH_RESERVED = 6; (*RFC5246*)
-  FORTEZZA_DMS_RESERVED = 20; (*RFC5246*)
-  ECDSA_SIGN = 64; (*RFC4492*)
-  RSA_FIXED_ECDH = 65; (*RFC4492*)
-  ECDSA_FIXED_ECDH = 66; (*RFC4492*)
+  RSA_SIGN                  = 1;  (*RFC5246*)
+  DSS_SIGN                  = 2;  (*RFC5246*)
+  RSA_FIXED_DH              = 3;  (*RFC5246*)
+  DSS_FIXED_DH              = 4;  (*RFC5246*)
+  RSA_EPHEMERAL_DH_RESERVED = 5;  (*RFC5246*)
+  DSS_EPHEMERAL_DH_RESERVED = 6;  (*RFC5246*)
+  FORTEZZA_DMS_RESERVED     = 20; (*RFC5246*)
+  ECDSA_SIGN                = 64; (*RFC4492*)
+  RSA_FIXED_ECDH            = 65; (*RFC4492*)
+  ECDSA_FIXED_ECDH          = 66; (*RFC4492*)
 } as uint8_t
 
 (* TLS compression methods, used in hello packets *)
 cenum compression_method {
-  NULL    = 0  ;
-  DEFLATE = 1  ;
-  LZS     = 64 ;
+  NULL    = 0;
+  DEFLATE = 1;
+  LZS     = 64;
 } as uint8_t
 
 (* TLS extensions in hello packets from RFC 4366 *)
 cenum extension_type {
-  SERVER_NAME = 0;
-  MAX_FRAGMENT_LENGTH = 1;
-  CLIENT_CERTIFICATE_URL = 2;
-  TRUSTED_CA_KEYS =3;
-  TRUNCATED_HMAC = 4;
-  STATUS_REQUEST = 5;
-  USER_MAPPING = 6; (*RFC4681*)
-  CLIENT_AUTHZ = 7; (*RFC5878*)
-  SERVER_AUTHZ = 8; (*RFC5878*)
-  CERT_TYPE = 9; (*RFC6091*)
+  SERVER_NAME                            = 0;
+  MAX_FRAGMENT_LENGTH                    = 1;
+  CLIENT_CERTIFICATE_URL                 = 2;
+  TRUSTED_CA_KEYS                        = 3;
+  TRUNCATED_HMAC                         = 4;
+  STATUS_REQUEST                         = 5;
+  USER_MAPPING                           = 6; (*RFC4681*)
+  CLIENT_AUTHZ                           = 7; (*RFC5878*)
+  SERVER_AUTHZ                           = 8; (*RFC5878*)
+  CERT_TYPE                              = 9; (*RFC6091*)
   (* from RFC 4492 *)
-  ELLIPTIC_CURVES = 0x000A;
-  EC_POINT_FORMATS = 0x000B;
-  SRP = 12; (*RFC5054*)
-  SIGNATURE_ALGORITHMS = 13; (*RFC5246*)
-  USE_SRP = 14; (*RFC5764*)
-  HEARTBEAT = 15; (*RFC6520*)
+  ELLIPTIC_CURVES                        = 0x000A;
+  EC_POINT_FORMATS                       = 0x000B;
+  SRP                                    = 12; (*RFC5054*)
+  SIGNATURE_ALGORITHMS                   = 13; (*RFC5246*)
+  USE_SRP                                = 14; (*RFC5764*)
+  HEARTBEAT                              = 15; (*RFC6520*)
   APPLICATION_LAYER_PROTOCOL_NEGOTIATION = 16; (*draft-friedl-tls-applayerprotoneg*)
-  STATUS_REQUEST_V2 = 17; (*RFC6961*)
-  SIGNED_CERTIFICATE_TIMESTAMP = 18; (*RFC6962*)
-  CLIENT_CERTIFICATE_TYPE = 19; (*RFC-ietf-tls-oob-pubkey-11*)
-  SERVER_CERTIFICATE_TYPE = 20; (*RFC-ietf-tls-oob-pubkey-11*)
-  SESSIONTICKET_TLS = 35; (*RFC4507*)
-  RENEGOTIATION_INFO = 0xFF01; (*RFC5746*)
+  STATUS_REQUEST_V2                      = 17; (*RFC6961*)
+  SIGNED_CERTIFICATE_TIMESTAMP           = 18; (*RFC6962*)
+  CLIENT_CERTIFICATE_TYPE                = 19; (*RFC-ietf-tls-oob-pubkey-11*)
+  SERVER_CERTIFICATE_TYPE                = 20; (*RFC-ietf-tls-oob-pubkey-11*)
+  SESSIONTICKET_TLS                      = 35; (*RFC4507*)
+  RENEGOTIATION_INFO                     = 0xFF01; (*RFC5746*)
 } as uint16_t
 
 (* TLS maximum fragment length *)
 cenum max_fragment_length {
-  TWO_9 = 1;
+  TWO_9  = 1;
   TWO_10 = 2;
   TWO_11 = 3;
-  TWO_12 = 4
+  TWO_12 = 4;
 } as uint8_t
 
 (* RFC 5246 *)
 cenum signature_algorithm_type {
   ANONYMOUS = 0;
-  RSA = 1;
-  DSA = 2;
-  ECDSA = 3;
+  RSA       = 1;
+  DSA       = 2;
+  ECDSA     = 3;
 } as uint8_t
 
 cenum hash_algorithm_type {
-  NONE = 0;
-  MD5 = 1;
-  SHA1 = 2;
+  NONE   = 0;
+  MD5    = 1;
+  SHA1   = 2;
   SHA224 = 3;
   SHA256 = 4;
   SHA384 = 5;
@@ -210,13 +210,13 @@ cenum named_curve_type {
 } as uint16_t
 
 cenum ec_point_format {
-  UNCOMPRESSED = 0;
+  UNCOMPRESSED              = 0;
   ANSIX962_COMPRESSED_PRIME = 1;
   ANSIX962_COMPRESSED_CHAR2 = 2;
   (* reserved 248..255 *)
 } as uint8_t
 
 cenum ec_basis_type {
-  TRINOMIAL = 0;
-  PENTANOMIAL = 1
+  TRINOMIAL   = 0;
+  PENTANOMIAL = 1;
 } as uint8_t
