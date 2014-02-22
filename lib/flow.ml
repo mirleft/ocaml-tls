@@ -193,35 +193,35 @@ module Server = struct
   = fun s ty buf -> match s with
                     | `Nothing -> (s, buf)
                     | `Stream ctx ->
-                       let len = Cstruct.len buf in
-                       let data = Cstruct.copy buf 0 len in
-                       let sign = signature ctx.mac ctx.mac_secret ctx.sequence ty data in
-                       let totallen = len + Ciphersuite.hash_length ctx.mac in
-                       let enc = String.create totallen in
-                       ctx.cipher#transform (data ^ sign) 0 enc 0 totallen;
-                       (`Stream (next_stream_crypto_context ctx),
-                        Cstruct.of_string enc)
+                        let len = Cstruct.len buf in
+                        let data = Cstruct.copy buf 0 len in
+                        let sign = signature ctx.mac ctx.mac_secret ctx.sequence ty data in
+                        let totallen = len + Ciphersuite.hash_length ctx.mac in
+                        let enc = String.create totallen in
+                        ctx.cipher#transform (data ^ sign) 0 enc 0 totallen;
+                        (`Stream (next_stream_crypto_context ctx),
+                         Cstruct.of_string enc)
 
   (* well-behaved pure decryptor *)
   let decrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
   = fun s ty buf -> match s with
                     | `Nothing -> (s, buf)
                     | `Stream ctx ->
-                       let len = Cstruct.len buf in
-                       let data = Cstruct.copy buf 0 len in
-                       let dec = String.create len in
-                       ctx.cipher#transform data 0 dec 0 len;
-                       Printf.printf "decrypted\n";
-                       Cstruct.hexdump (Cstruct.of_string dec);
-                       let maclength = Ciphersuite.hash_length ctx.mac in
-                       let declength = String.length dec in
-                       let macstart = declength - maclength in
-                       let body = String.sub dec 0 macstart in
-                       let actual_signature = String.sub dec macstart maclength in
-                       let computed_signature = signature ctx.mac ctx.mac_secret ctx.sequence ty body in
-                       assert (actual_signature = computed_signature);
-                       (`Stream (next_stream_crypto_context ctx),
-                        Cstruct.of_string body)
+                        let len = Cstruct.len buf in
+                        let data = Cstruct.copy buf 0 len in
+                        let dec = String.create len in
+                        ctx.cipher#transform data 0 dec 0 len;
+                        Printf.printf "decrypted\n";
+                        Cstruct.hexdump (Cstruct.of_string dec);
+                        let maclength = Ciphersuite.hash_length ctx.mac in
+                        let declength = String.length dec in
+                        let macstart = declength - maclength in
+                        let body = String.sub dec 0 macstart in
+                        let actual_signature = String.sub dec macstart maclength in
+                        let computed_signature = signature ctx.mac ctx.mac_secret ctx.sequence ty body in
+                        assert (actual_signature = computed_signature);
+                        (`Stream (next_stream_crypto_context ctx),
+                         Cstruct.of_string body)
 
   (* party time *)
   let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list
