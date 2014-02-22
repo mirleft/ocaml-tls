@@ -51,9 +51,10 @@ let parse_certificate_request buf =
   { certificate_types ; certificate_authorities }
 
 let get_compression_method buf =
-  match int_to_compression_method (Cstruct.get_uint8 buf 0) with
+  let cm = Cstruct.get_uint8 buf 0 in
+  match int_to_compression_method cm with
   | Some x -> x
-  | None -> assert false
+  | None   -> failwith @@ "unsupported compression method: " ^ string_of_int cm
 
 let get_compression_methods buf =
   let rec go buf acc = function

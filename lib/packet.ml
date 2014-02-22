@@ -108,7 +108,9 @@ cenum client_certificate_type {
 
 (* TLS compression methods, used in hello packets *)
 cenum compression_method {
-  NULL = 0
+  NULL    = 0  ;
+  DEFLATE = 1  ;
+  LZS     = 64 ;
 } as uint8_t
 
 (* TLS extensions in hello packets from RFC 4366 *)
