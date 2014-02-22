@@ -164,36 +164,34 @@ module Server = struct
             Cryptokit.hash_string mac (ps ^ data)
 
   (* well-behaved pure encryptor *)
-  let encrypt : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
-  = fun s buf -> match s with
-                 | `Nothing -> (s, buf)
-                 | `Stream (seq, cipher, mac) ->
-                    let data = Cstruct.copy buf 0 (Cstruct.len buf) in
-                    (* TODO : needs content type!!! *)
-                    let sign = signature mac seq Packet.HANDSHAKE data in
-                    let enc = Cryptokit.transform_string cipher (data ^ sign) in
-                    (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
-                     Cstruct.of_string enc)
+  let encrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
+  = fun s ty buf -> match s with
+                    | `Nothing -> (s, buf)
+                    | `Stream (seq, cipher, mac) ->
+                       let data = Cstruct.copy buf 0 (Cstruct.len buf) in
+                       let sign = signature mac seq ty data in
+                       let enc = Cryptokit.transform_string cipher (data ^ sign) in
+                       (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
+                        Cstruct.of_string enc)
 
   (* well-behaved pure decryptor *)
-  let decrypt : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
-  = fun s buf -> match s with
-                 | `Nothing -> (s, buf)
-                 | `Stream (seq, cipher, mac) ->
-                    let data = Cstruct.copy buf 0 (Cstruct.len buf) in
-                    let dec = Cryptokit.transform_string cipher data in
-                    Printf.printf "decrypted\n";
-                    Cstruct.hexdump (Cstruct.of_string dec);
-                    let maclength = 20 (* TODO: mac.mac_length *) in
-                    let declength = String.length dec in
-                    let macstart = declength - maclength in
-                    let body = String.sub dec 0 macstart in
-                    let actual_signature = String.sub dec macstart maclength in
-                    (* TODO: real content_type *)
-                    let computed_signature = signature mac seq Packet.HANDSHAKE body in
-                    assert (actual_signature = computed_signature);
-                    (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
-                     Cstruct.of_string body)
+  let decrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
+  = fun s ty buf -> match s with
+                    | `Nothing -> (s, buf)
+                    | `Stream (seq, cipher, mac) ->
+                       let data = Cstruct.copy buf 0 (Cstruct.len buf) in
+                       let dec = Cryptokit.transform_string cipher data in
+                       Printf.printf "decrypted\n";
+                       Cstruct.hexdump (Cstruct.of_string dec);
+                       let maclength = 20 (* TODO: mac.mac_length *) in
+                       let declength = String.length dec in
+                       let macstart = declength - maclength in
+                       let body = String.sub dec 0 macstart in
+                       let actual_signature = String.sub dec macstart maclength in
+                       let computed_signature = signature mac seq ty body in
+                       assert (actual_signature = computed_signature);
+                       (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
+                        Cstruct.of_string body)
 
   (* party time *)
   let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list
@@ -251,7 +249,7 @@ module Server = struct
     | _, _ -> assert false
 
   let handle_raw_record state (hdr, buf) =
-    let (dec_st, dec) = decrypt state.decryptor buf in
+    let (dec_st, dec) = decrypt state.decryptor hdr.content_type buf in
     let (machina, items, dec_cmd) =
       handle_record state.machina hdr.content_type dec in
     let (encryptor, encs) =
@@ -259,7 +257,7 @@ module Server = struct
         | [] -> (st, [])
         | `Change_enc st'   :: xs -> loop st' xs
         | `Record (ty, buf) :: xs ->
-            let (st1, enc ) = encrypt st buf in
+            let (st1, enc ) = encrypt st ty buf in
             let (st2, rest) = loop st1 xs in
             (st2, (ty, enc) :: rest)
       in
