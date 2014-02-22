@@ -44,3 +44,23 @@ let hmac = function
   | Ciphersuite.MD5 -> hmac_md5
   | Ciphersuite.SHA -> hmac_sha
   | _               -> assert false
+
+let signature : Ciphersuite.hash_algorithm -> string -> int64 -> Packet.content_type -> string -> string
+  = fun mac secret n ty data ->
+      let prefix = Cstruct.create 13 in
+      let len = String.length data in
+      Cstruct.BE.set_uint64 prefix 0 n;
+      Cstruct.set_uint8 prefix 8 (Packet.content_type_to_int ty);
+      Cstruct.set_uint8 prefix 9 3; (* version major *)
+      Cstruct.set_uint8 prefix 10 1; (* version minor *)
+      Cstruct.BE.set_uint16 prefix 11 len;
+      let ps = Cstruct.copy prefix 0 13 in
+      hmac mac secret (ps ^ data)
+
+(* encryption and decryption is the same, thus "crypt" *)
+let crypt_stream : Cryptokit.Stream.stream_cipher -> string -> string
+  = fun cipher decrypted ->
+      let len = String.length decrypted in
+      let encrypted = String.create len in
+      cipher#transform decrypted 0 encrypted 0 len;
+      encrypted
