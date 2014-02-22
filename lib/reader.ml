@@ -340,7 +340,10 @@ let parse_server_key_exchange buf =
 
 let parse_handshake buf =
   let typ = Cstruct.get_uint8 buf 0 in
-  let Some handshake_type = int_to_handshake_type typ in
+  let handshake_type = match int_to_handshake_type typ with
+    | Some x -> x
+    | None -> assert false
+  in
   let len = get_uint24_len (Cstruct.shift buf 1) in
   let payload = Cstruct.sub buf 4 len in
   match handshake_type with

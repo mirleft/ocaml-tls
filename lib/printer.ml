@@ -64,7 +64,8 @@ let server_key_exchange_to_string = function
   | EllipticCurve (param, s) -> ec_param_to_string param ^ sig_to_string s
 
 let client_key_exchange_to_string = function
-  | ClientRsa c -> "Client Key Exchange: " ^ string_of_int (Cstruct.len c)
+  | ClientRsa c -> "Client RSA Key Exchange: " ^ string_of_int (Cstruct.len c)
+  | ClientDiffieHellmanPublic -> "Client DH Key exchange"
 
 let handshake_to_string = function
   | HelloRequest -> "Hello request"

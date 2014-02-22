@@ -1,5 +1,4 @@
 open Core
-open State
 
 let ref _ = raise (Failure "no.")
 
@@ -61,6 +60,17 @@ module Server = struct
     | ClientKeyExchangeReceived of crypto_state * crypto_state
     | Established
 
+  type connection_end = Server | Client
+
+  type security_parameters = {
+    entity              : connection_end;
+    cipher              : Ciphersuite.encryption_algorithm;
+    mac                 : Ciphersuite.hash_algorithm;
+    master_secret       : string;
+    client_random       : Cstruct.t;
+    server_random       : Cstruct.t
+  }
+
   (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
   type tls_internal_state = [
       `Initial
@@ -82,8 +92,8 @@ module Server = struct
     let mastersecret = Crypto.generate_master_secret premastersecret (cr ^ sr) in
     Printf.printf "master secret\n";
     Cstruct.hexdump (Cstruct.of_string mastersecret);
-    let key, iv, blocksize = key_lengths sp.cipher in
-    let hash, passing = hash_length_padding sp.mac in
+    let key, iv, blocksize = Ciphersuite.key_lengths sp.cipher in
+    let hash, passing = Ciphersuite.hash_length_padding sp.mac in
     let length =  2 * key + 2 * hash (* + 2 * iv *) in
     let keyblock = Crypto.key_block length mastersecret (sr ^ cr) in
 
@@ -102,7 +112,6 @@ module Server = struct
     let server_crypto_state = `Stream ((Int64.of_int 0), scipher, shash) in
     let params = { entity = sp.entity ;
                    cipher = sp.cipher ;
-                   block_or_stream = sp.block_or_stream ;
                    mac = sp.mac ;
                    master_secret = mastersecret ;
                    client_random = sp.client_random ;
@@ -117,7 +126,7 @@ module Server = struct
     let kex, enc, hash = Ciphersuite.get_kex_enc_hash cipher in
     (* TODO : real random *)
     let r = Cstruct.create 32 in
-    let params = { entity = Server ; cipher = enc ; block_or_stream = Block ; mac = hash ; master_secret = "" ; client_random = ch.random ; server_random = r } in
+    let params = { entity = Server ; cipher = enc ; mac = hash ; master_secret = "" ; client_random = ch.random ; server_random = r } in
     let server_hello : server_hello = { version = (3, 1) ; random = r ; sessionid = None ; ciphersuites = cipher ; extensions = [] } in
     let bufs = [Writer.assemble_handshake (ServerHello server_hello)] in
     let bufs' =
