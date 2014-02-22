@@ -40,3 +40,7 @@ let encryptRSA key msg =
 let decryptRSA key msg =
   Cryptokit.RSA.decrypt key msg
 
+let hmac = function
+  | Ciphersuite.MD5 -> hmac_md5
+  | Ciphersuite.SHA -> hmac_sha
+  | _               -> assert false

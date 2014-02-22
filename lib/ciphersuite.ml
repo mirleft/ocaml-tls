@@ -106,6 +106,9 @@ let hash_length_padding = function
   | NULL -> (0, 0)
   | _ -> assert false
 
+let hash_length h =
+  let (l, _) = hash_length_padding h in l
+
 (* TLS ciphersuites *)
 cenum ciphersuite {
   TLS_NULL_WITH_NULL_NULL                = 0x0000;

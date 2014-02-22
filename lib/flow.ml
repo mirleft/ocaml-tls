@@ -31,13 +31,23 @@ module Server = struct
 
   type content_type = Packet.content_type
 
-  type stream_encryption_algorithm = Cryptokit.transform
-  type hash_algorithm = Cryptokit.hash
+  type stream_crypto_context = {
+    sequence      : int64 ;
+    cipher        : Cryptokit.Stream.stream_cipher ; (* XXX *)
+    mac           : Ciphersuite.hash_algorithm ;
+    mac_secret    : string
+  }
+
+  let next_stream_crypto_context old =
+    { sequence   = Int64.add (Int64.of_int 1) old.sequence ;
+      cipher     = old.cipher ;
+      mac        = old.mac ;
+      mac_secret = old.mac_secret }
 
   (* EVERYTHING a cipher needs, be it input or output. And pure, too. *)
   type crypto_state = [
     `Nothing
-  | `Stream of int64 * stream_encryption_algorithm * hash_algorithm
+  | `Stream of stream_crypto_context
 (*  | `Block of int64 * block_encryption_algorithm * string * hash_algorithm *)
   ]
 
@@ -96,16 +106,22 @@ module Server = struct
     let client_write_key = String.sub keyblock (2 * hash) key in
     let server_write_key = String.sub keyblock (2 * hash + key) key in
 
-    let ccipher = Cryptokit.Cipher.arcfour client_write_key Cryptokit.Cipher.Encrypt in
-    let scipher = Cryptokit.Cipher.arcfour server_write_key Cryptokit.Cipher.Encrypt in
+    let ccipher = new Cryptokit.Stream.arcfour client_write_key in
+    let scipher = new Cryptokit.Stream.arcfour server_write_key in
 
     let client_mac_key = String.sub keyblock 0 hash in
     let server_mac_key = String.sub keyblock hash hash in
-    let chash = Cryptokit.MAC.hmac_sha1 client_mac_key in
-    let shash = Cryptokit.MAC.hmac_sha1 server_mac_key in
 
-    let client_crypto_state = `Stream ((Int64.of_int 0), ccipher, chash) in
-    let server_crypto_state = `Stream ((Int64.of_int 0), scipher, shash) in
+    let client_crypto_context = `Stream { sequence      = Int64.of_int 0 ;
+                                          cipher        = ccipher ;
+                                          mac           = sp.mac ;
+                                          mac_secret    = client_mac_key }
+    in
+    let server_crypto_context = `Stream { sequence       = Int64.of_int 0 ;
+                                          cipher         = scipher ;
+                                          mac            = sp.mac ;
+                                          mac_secret     = server_mac_key }
+    in
     let params = { entity = sp.entity ;
                    cipher = sp.cipher ;
                    mac = sp.mac ;
@@ -113,7 +129,7 @@ module Server = struct
                    client_random = sp.client_random ;
                    server_random = sp.server_random }
     in
-    let handshake_state = ClientKeyExchangeReceived (server_crypto_state, client_crypto_state) in
+    let handshake_state = ClientKeyExchangeReceived (server_crypto_context, client_crypto_context) in
     (`Handshaking (handshake_state, params, packets @ [raw]), [], `Pass)
 
   let answer_client_hello (ch : client_hello) raw =
@@ -151,8 +167,8 @@ module Server = struct
 
   let empty_state = { machina = `Initial ; decryptor = `Nothing ; encryptor = `Nothing }
 
-  let signature : hash_algorithm -> int64 -> content_type -> string -> string
-    = fun mac n ty data ->
+  let signature : Ciphersuite.hash_algorithm -> string -> int64 -> content_type -> string -> string
+    = fun mac secret n ty data ->
             let prefix = Cstruct.create 13 in
             let len = String.length data in
             Cstruct.BE.set_uint64 prefix 0 n;
@@ -161,36 +177,41 @@ module Server = struct
             Cstruct.set_uint8 prefix 10 1; (* version minor *)
             Cstruct.BE.set_uint16 prefix 11 len;
             let ps = Cstruct.copy prefix 0 13 in
-            Cryptokit.hash_string mac (ps ^ data)
+            Crypto.hmac mac secret (ps ^ data)
 
   (* well-behaved pure encryptor *)
   let encrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
   = fun s ty buf -> match s with
                     | `Nothing -> (s, buf)
-                    | `Stream (seq, cipher, mac) ->
-                       let data = Cstruct.copy buf 0 (Cstruct.len buf) in
-                       let sign = signature mac seq ty data in
-                       let enc = Cryptokit.transform_string cipher (data ^ sign) in
-                       (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
+                    | `Stream ctx ->
+                       let len = Cstruct.len buf in
+                       let data = Cstruct.copy buf 0 len in
+                       let sign = signature ctx.mac ctx.mac_secret ctx.sequence ty data in
+                       let totallen = len + Ciphersuite.hash_length ctx.mac in
+                       let enc = String.create totallen in
+                       ctx.cipher#transform (data ^ sign) 0 enc 0 totallen;
+                       (`Stream (next_stream_crypto_context ctx),
                         Cstruct.of_string enc)
 
   (* well-behaved pure decryptor *)
   let decrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
   = fun s ty buf -> match s with
                     | `Nothing -> (s, buf)
-                    | `Stream (seq, cipher, mac) ->
-                       let data = Cstruct.copy buf 0 (Cstruct.len buf) in
-                       let dec = Cryptokit.transform_string cipher data in
+                    | `Stream ctx ->
+                       let len = Cstruct.len buf in
+                       let data = Cstruct.copy buf 0 len in
+                       let dec = String.create len in
+                       ctx.cipher#transform data 0 dec 0 len;
                        Printf.printf "decrypted\n";
                        Cstruct.hexdump (Cstruct.of_string dec);
-                       let maclength = 20 (* TODO: mac.mac_length *) in
+                       let maclength = Ciphersuite.hash_length ctx.mac in
                        let declength = String.length dec in
                        let macstart = declength - maclength in
                        let body = String.sub dec 0 macstart in
                        let actual_signature = String.sub dec macstart maclength in
-                       let computed_signature = signature mac seq ty body in
+                       let computed_signature = signature ctx.mac ctx.mac_secret ctx.sequence ty body in
                        assert (actual_signature = computed_signature);
-                       (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
+                       (`Stream (next_stream_crypto_context ctx),
                         Cstruct.of_string body)
 
   (* party time *)
