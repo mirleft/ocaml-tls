@@ -5,20 +5,6 @@ let ref _ = raise (Failure "no.")
 let o f g x = f (g x)
 
 module Server = struct
-(*  let respond_finished t p buf =
-    let should = Crypto.finished p.master_secret "client finished" (String.concat "" t.packets) in
-    let is = Cstruct.copy buf 0 12 in
-    if should = is then
-      Printf.printf "success!! respond finished successfully"
-    else
-      Printf.printf "failure!! respond finished unsuccessfully"
- *)
-
-
-
-  (* new core handler *)
-
-
   (*
    * MORNING PRAYER:
    *
@@ -82,6 +68,16 @@ module Server = struct
     | `Initial -> "Initial"
     | `Handshaking x -> "Shaking hands"
     | `Established -> "Established"
+
+  let answer_client_finished (is : tls_internal_state) (hs : handshake_state) (sp : security_parameters) (packets : Cstruct.t list) (buf : Cstruct.t) (raw : Cstruct.t)  =
+    let msgs = String.concat "" (List.map (fun c -> Cstruct.copy c 0 (Cstruct.len c)) packets) in
+    let computed = Crypto.finished sp.master_secret "client finished" msgs in
+    let checksum = Cstruct.copy buf 0 12 in
+    assert (computed = checksum);
+    let my_check = Crypto.finished sp.master_secret "server finished" (msgs ^ Cstruct.copy raw 0 (Cstruct.len raw)) in
+    let send = Writer.assemble_handshake (Finished (Cstruct.of_string my_check)) in
+    (is, [`Record (Packet.HANDSHAKE, send)], `Pass)
+
 
   let answer_client_key_exchange (is : tls_internal_state) (hs : handshake_state) (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
     let len = Cstruct.BE.get_uint16 kex 0 in
@@ -236,7 +232,7 @@ module Server = struct
     | `Handshaking (hs, sp, packets), Packet.HANDSHAKE ->
        (match Reader.parse_handshake buf with
         | ClientKeyExchange (ClientRsa kex) -> answer_client_key_exchange is hs sp packets kex buf
-(*        | Finished fin -> answer_finished hs sp packets fin*)
+        | Finished fin -> answer_client_finished is hs sp packets fin buf
         | _ -> assert false
        )
     | `Handshaking (hs, sp, _), Packet.CHANGE_CIPHER_SPEC ->
