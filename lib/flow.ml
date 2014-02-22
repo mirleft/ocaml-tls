@@ -77,16 +77,10 @@ module Server = struct
     let len = Cstruct.BE.get_uint16 kex 0 in
     let pms = Crypto_utils.decrypt (Cstruct.copy kex 2 len) in
     let premastersecret = String.sub pms ((String.length pms) - 48) 48 in
-    Printf.printf "premastersecret is %s\n" premastersecret;
-    Cstruct.hexdump (Cstruct.of_string premastersecret);
     let cr = Cstruct.copy sp.client_random 0 32 in
     let sr = Cstruct.copy sp.server_random 0 32 in
-    Printf.printf "client random\n";
-    Cstruct.hexdump (Cstruct.of_string cr);
-    Printf.printf "server random\n";
-    Cstruct.hexdump (Cstruct.of_string sr);
     let mastersecret = Crypto.generate_master_secret premastersecret (cr ^ sr) in
-    Printf.printf "master secret %s\n" mastersecret;
+    Printf.printf "master secret\n";
     Cstruct.hexdump (Cstruct.of_string mastersecret);
     let key, iv, blocksize = key_lengths sp.cipher in
     let hash, passing = hash_length_padding sp.mac in
@@ -192,10 +186,6 @@ module Server = struct
                     let actual_signature = String.sub dec macstart maclength in
                     (* TODO: real content_type *)
                     let computed_signature = signature mac seq Packet.HANDSHAKE body in
-                    Printf.printf "computed signature\n";
-                    Cstruct.hexdump (Cstruct.of_string computed_signature);
-                    Printf.printf "actual signature\n";
-                    Cstruct.hexdump (Cstruct.of_string actual_signature);
                     assert (actual_signature = computed_signature);
                     (`Stream ((Int64.add seq (Int64.of_int 1)), cipher, mac),
                      Cstruct.of_string body)

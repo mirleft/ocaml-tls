@@ -39,13 +39,9 @@ let the_key = lazy (get_key "server.key")
 
 let encrypt msg =
   let crprivate = Lazy.force the_key in
-  let enc = Cryptokit.RSA.encrypt crprivate msg in
-  Printf.printf "enc is %s\n" enc;
-  enc
+  Cryptokit.RSA.encrypt crprivate msg
 
 let decrypt msg =
   let crprivate = Lazy.force the_key in
-  let dec = Cryptokit.RSA.decrypt crprivate msg in
-  Printf.printf "dec is %s\n" dec;
-  dec
+  Cryptokit.RSA.decrypt crprivate msg
 
