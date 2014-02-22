@@ -70,7 +70,7 @@ module Server = struct
     | `Established -> "Established"
 
   let answer_client_finished (is : tls_internal_state) (hs : handshake_state) (sp : security_parameters) (packets : Cstruct.t list) (buf : Cstruct.t) (raw : Cstruct.t)  =
-    let msgs = String.concat "" (List.map (fun c -> Cstruct.copy c 0 (Cstruct.len c)) packets) in
+    let msgs = Cstruct.copyv packets in
     let computed = Crypto.finished sp.master_secret "client finished" msgs in
     let checksum = Cstruct.copy buf 0 12 in
     assert (computed = checksum);
@@ -224,6 +224,10 @@ module Server = struct
     | _, Packet.ALERT ->
        let al = Reader.parse_alert buf in
        Printf.printf "ALERT: %s" (Printer.alert_to_string al);
+       (is, [], `Pass)
+    | _, Packet.APPLICATION_DATA ->
+       Printf.printf "APPLICATION DATA";
+       Cstruct.hexdump buf;
        (is, [], `Pass)
     | `Initial, Packet.HANDSHAKE ->
        (match Reader.parse_handshake buf with
