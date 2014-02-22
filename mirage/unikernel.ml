@@ -19,10 +19,9 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
             S.TCPV4.write flow ans >> loop tls'
     in
     let (dst, dst_port) = S.TCPV4.get_dest flow in
-    lwt () =
-      C.log_s c (green "new tcp connection from %s %d"
-                  (Ipaddr.V4.to_string dst) dst_port)
-    in
+    C.log_s c (green "new tcp connection from %s %d"
+                (Ipaddr.V4.to_string dst) dst_port)
+    >>
     try_lwt loop TLS.empty_state 
     finally S.TCPV4.close flow
 
