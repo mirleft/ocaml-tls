@@ -99,7 +99,7 @@ module Server = struct
     Printf.printf "master secret\n";
     Cstruct.hexdump (Cstruct.of_string mastersecret);
     let key, iv, blocksize = Ciphersuite.key_lengths sp.cipher in
-    let hash, passing = Ciphersuite.hash_length_padding sp.mac in
+    let hash = Ciphersuite.hash_length sp.mac in
     let length =  2 * key + 2 * hash (* + 2 * iv *) in
     let keyblock = Crypto.key_block length mastersecret (sr ^ cr) in
 

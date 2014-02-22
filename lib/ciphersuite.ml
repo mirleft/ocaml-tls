@@ -88,7 +88,6 @@ let key_lengths = function
   | NULL -> (0, None, None)
   | _ -> assert false
 
-
 type hash_algorithm =
   | NULL
   | MD5
