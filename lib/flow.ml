@@ -165,7 +165,7 @@ module Server = struct
             Cryptokit.hash_string mac (ps ^ data)
 
   (* well-behaved pure encryptor *)
-  let encrypt_ : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
+  let encrypt : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
   = fun s buf -> match s with
                  | `Nothing -> (s, buf)
                  | `Stream (seq, cipher, mac) ->
@@ -177,7 +177,7 @@ module Server = struct
                      Cstruct.of_string enc)
 
   (* well-behaved pure decryptor *)
-  let decrypt_ : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
+  let decrypt : crypto_state -> Cstruct.t -> crypto_state * Cstruct.t
   = fun s buf -> match s with
                  | `Nothing -> (s, buf)
                  | `Stream (seq, cipher, mac) ->
@@ -252,7 +252,7 @@ module Server = struct
     | _, _ -> assert false
 
   let handle_raw_record state (hdr, buf) =
-    let (dec_st, dec) = decrypt_ state.decryptor buf in
+    let (dec_st, dec) = decrypt state.decryptor buf in
     let (machina, items, dec_cmd) =
       handle_record state.machina hdr.content_type dec in
     let (encryptor, encs) =
@@ -260,7 +260,7 @@ module Server = struct
         | [] -> (st, [])
         | `Change_enc st'   :: xs -> loop st' xs
         | `Record (ty, buf) :: xs ->
-            let (st1, enc ) = encrypt_ st buf in
+            let (st1, enc ) = encrypt st buf in
             let (st2, rest) = loop st1 xs in
             (st2, (ty, enc) :: rest)
       in
