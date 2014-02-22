@@ -81,7 +81,7 @@ module Server = struct
 
   let answer_client_key_exchange (is : tls_internal_state) (hs : handshake_state) (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
     let len = Cstruct.BE.get_uint16 kex 0 in
-    let pms = Crypto_utils.decrypt (Cstruct.copy kex 2 len) in
+    let pms = Crypto.decryptRSA (Crypto_utils.get_key "server.key") (Cstruct.copy kex 2 len) in
     let premastersecret = String.sub pms ((String.length pms) - 48) 48 in
     let cr = Cstruct.copy sp.client_random 0 32 in
     let sr = Cstruct.copy sp.server_random 0 32 in

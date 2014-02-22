@@ -36,12 +36,3 @@ let get_key filename =
   | Some (pk, _) -> pk
 
 let the_key = lazy (get_key "server.key")
-
-let encrypt msg =
-  let crprivate = Lazy.force the_key in
-  Cryptokit.RSA.encrypt crprivate msg
-
-let decrypt msg =
-  let crprivate = Lazy.force the_key in
-  Cryptokit.RSA.decrypt crprivate msg
-

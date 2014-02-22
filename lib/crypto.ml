@@ -33,3 +33,10 @@ let finished master_secret label data =
   let md5 = Cryptokit.(hash_string (Hash.md5 ()) data) in
   let sha1 = Cryptokit.(hash_string (Hash.sha1 ()) data) in
   pseudo_random_function 12 master_secret label (md5 ^ sha1)
+
+let encryptRSA key msg =
+  Cryptokit.RSA.encrypt key msg
+
+let decryptRSA key msg =
+  Cryptokit.RSA.decrypt key msg
+
