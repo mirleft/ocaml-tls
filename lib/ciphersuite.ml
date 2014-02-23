@@ -753,3 +753,17 @@ let get_kex_enc_hash
   | TLS_PSK_DHE_WITH_AES_128_CCM_8               -> (DHE_PSK, AES_128_CCM_8, NULL)
   | TLS_PSK_DHE_WITH_AES_256_CCM_8               -> (DHE_PSK, AES_256_CCM_8, NULL)
 
+let ciphersuite_kex c = let (k, _, _) = get_kex_enc_hash c in k
+let ciphersuite_cipher c = let (_, k, _) = get_kex_enc_hash c in k
+let ciphersuite_mac c = let (_, _, k) = get_kex_enc_hash c in k
+
+let ciphersuite_cipher_mac_length c =
+  let cipher = ciphersuite_cipher c in
+  let key, iv', _ = key_lengths cipher in
+  let iv = match iv' with
+    | None -> 0
+    | Some x -> x
+  in
+  let mac = ciphersuite_mac c in
+  let hlen = hash_length mac in
+  (key, iv, hlen)

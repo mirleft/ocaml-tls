@@ -338,6 +338,10 @@ let parse_server_key_exchange buf =
   let sign = DSA (parse_sig (Cstruct.shift buf size)) in
   DiffieHellman (dh, sign)
 
+let parse_client_key_exchange buf =
+  let len = Cstruct.BE.get_uint16 buf 0 in
+  Cstruct.sub buf 2 len
+
 
 let parse_handshake buf =
   let typ = Cstruct.get_uint8 buf 0 in
@@ -355,9 +359,7 @@ let parse_handshake buf =
     | SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload)
     | SERVER_HELLO_DONE -> ServerHelloDone
     | CERTIFICATE_REQUEST -> CertificateRequest (parse_certificate_request payload)
-    | CLIENT_KEY_EXCHANGE ->
-       Printf.printf "CKEX %d\n" len;
-       ClientKeyExchange (ClientRsa (Cstruct.sub payload 0 len))
+    | CLIENT_KEY_EXCHANGE -> ClientKeyExchange (parse_client_key_exchange payload)
     | FINISHED -> Finished (Cstruct.sub payload 0 12)
     | _ -> assert false
 

@@ -63,10 +63,6 @@ let server_key_exchange_to_string = function
   | Rsa (param, s) -> rsa_param_to_string param ^ sig_to_string s
   | EllipticCurve (param, s) -> ec_param_to_string param ^ sig_to_string s
 
-let client_key_exchange_to_string = function
-  | ClientRsa c -> "Client RSA Key Exchange: " ^ string_of_int (Cstruct.len c)
-  | ClientDiffieHellmanPublic -> "Client DH Key exchange"
-
 let handshake_to_string = function
   | HelloRequest -> "Hello request"
   | ServerHelloDone -> "Server hello done"
@@ -74,7 +70,7 @@ let handshake_to_string = function
   | ServerHello x -> server_hello_to_string x
   | Certificate x -> sprintf "Certificate: %d" (List.length x)
   | ServerKeyExchange x -> server_key_exchange_to_string x
-  | ClientKeyExchange x -> client_key_exchange_to_string x
+  | ClientKeyExchange x -> sprintf "Client KEX: %d" (Cstruct.len x)
   | CertificateRequest x -> certificate_request_to_string x
   | Finished x -> "Finished"
 
