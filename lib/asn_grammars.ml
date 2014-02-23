@@ -35,11 +35,11 @@ let rsa_private_key =
     { size; n; e; d; p; q; dp; dq; qinv }
 
   and g { size; n; e; d; p; q; dp; dq; qinv } =
-    (`I 0, (n, (e, (d, (p, (q, (dp, (dq, (qinv, None))))))))) in
+    (0, (n, (e, (d, (p, (q, (dp, (dq, (qinv, None))))))))) in
 
   map f g @@
   sequence @@
-      (required ~label:"version"         integer)
+      (required ~label:"version"         int)
     @ (required ~label:"modulus"         nat)       (* n    *)
     @ (required ~label:"publicExponent"  nat)       (* e    *)
     @ (required ~label:"privateExponent" nat)       (* d    *)
@@ -78,7 +78,7 @@ let (rsa_public_of_cstruct, rsa_public_to_cstruct) =
 
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
-  serial     : int ;
+  serial     : Num.num ;
   signature  : oid ;
   issuer     : (oid * string) list list ;
   validity   : time * time ;
@@ -138,12 +138,11 @@ let algorithmIdentifier =
     (optional ~label:"params"    null)
 
 let version =
-  map (function `I 2 -> `V2 | `I 3 -> `V3 | _ -> `V1)
-      (function `V2 -> `I 2 | `V3 -> `I 3 | _ -> `I 1)
-  integer
+  map (function 2 -> `V2 | 3 -> `V3 | _ -> `V1)
+      (function `V2 -> 2 | `V3 -> 3 | _ -> 1)
+  int
 
-let certificateSerialNumber =
-  map (function `I sn -> sn | _ -> -1) (fun sn -> `I sn) integer
+let certificateSerialNumber = integer
 
 let time =
   map (function `C1 t -> t | `C2 t -> t) (fun t -> `C2 t)
