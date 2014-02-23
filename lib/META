@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: cdfd1f5afcf4d8d5ebf7b831d123d15a)
+# DO NOT EDIT (digest: 429dae992547d62c15a3d610ecb9d197)
 version = "0.0.1"
 description = "TLS support for ocaml"
-requires = "cstruct cstruct.syntax asn1-combinators cryptokit"
+requires = "cstruct cstruct.syntax nocrypto asn1-combinators cryptokit"
 archive(byte) = "tls.cma"
 archive(byte, plugin) = "tls.cma"
 archive(native) = "tls.cmxa"
