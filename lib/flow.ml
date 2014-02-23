@@ -106,21 +106,20 @@ module Server = struct
                     let _, off = (String.sub keyblock off iv, off + iv) in
                     let _ = String.sub keyblock off iv in
 
-                    let mac_algorithm = ciphersuite_mac sp.ciphersuite in
+                    let mac = ciphersuite_mac sp.ciphersuite in
+                    let sequence = Int64.of_int 0 in
 
                     let c_context, s_context =
                       match ciphersuite_cipher sp.ciphersuite with
                       | RC4_128 ->
                          let ccipher = new Cryptokit.Stream.arcfour c_key in
                          let scipher = new Cryptokit.Stream.arcfour s_key in
-                         (`Stream { sequence      = Int64.of_int 0 ;
-                                    cipher        = ccipher ;
-                                    mac           = mac_algorithm ;
-                                    mac_secret    = c_mac },
-                          `Stream { sequence      = Int64.of_int 0 ;
-                                    cipher        = scipher ;
-                                    mac           = mac_algorithm ;
-                                    mac_secret    = s_mac })
+                         (`Stream { cipher = ccipher ;
+                                    mac_secret = c_mac ;
+                                    mac ; sequence },
+                          `Stream { cipher = scipher ;
+                                    mac_secret = s_mac ;
+                                    mac ; sequence })
                       | _ -> assert false
                     in
                     let params = { sp with master_secret = mastersecret } in
