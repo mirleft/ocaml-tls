@@ -11,13 +11,6 @@ Description:
   TLS support on top of OCaml
 BuildTools:  ocamlbuild
 
-Library nocrypto
-  Path:         nocrypto/
-  Modules:      Meh
-  CSources:     sha1.c, sha1.h, md5.c, md5.h, stubs.c
-  BuildDepends: cstruct
-  Pack:         true
-
 Library tls
   Path: lib/
   Modules:
