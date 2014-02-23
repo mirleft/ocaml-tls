@@ -45,11 +45,6 @@ module Server = struct
 (*  | `Block of int64 * block_encryption_algorithm * string * hash_algorithm *)
   ]
 
-  type handshake_state =
-    | ServerHelloSent
-    | ClientKeyExchangeReceived of crypto_state * crypto_state
-    | Established
-
   type connection_end = Server | Client
 
   type security_parameters = {
@@ -63,16 +58,18 @@ module Server = struct
   (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
   type tls_internal_state = [
       `Initial
-    | `Handshaking of handshake_state * security_parameters * Cstruct.t list
+    | `Handshaking of security_parameters * Cstruct.t list
+    | `KeysExchanged of crypto_state * crypto_state * security_parameters * Cstruct.t list
     | `Established
   ]
 
   let state_to_string = function
     | `Initial -> "Initial"
-    | `Handshaking x -> "Shaking hands"
+    | `Handshaking _ -> "Shaking hands"
+    | `KeysExchanged _ -> "Keys are exchanged"
     | `Established -> "Established"
 
-  let answer_client_finished (is : tls_internal_state) (hs : handshake_state) (sp : security_parameters) (packets : Cstruct.t list) (buf : Cstruct.t) (raw : Cstruct.t)  =
+  let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list) (buf : Cstruct.t) (raw : Cstruct.t)  =
     let msgs = Cstruct.copyv packets in
     let computed = Crypto.finished sp.master_secret "client finished" msgs in
     let checksum = Cstruct.copy buf 0 12 in
@@ -82,8 +79,7 @@ module Server = struct
     (`Established, [`Record (Packet.HANDSHAKE, send)], `Pass)
 
 
-  let answer_client_key_exchange (is : tls_internal_state) (hs : handshake_state) (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
-
+  let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
     let data = Cstruct.copy kex 0 (Cstruct.len kex) in
     Ciphersuite.(match ciphersuite_kex sp.ciphersuite with
                  | RSA ->
@@ -123,8 +119,7 @@ module Server = struct
                       | _ -> assert false
                     in
                     let params = { sp with master_secret = mastersecret } in
-                    let handshake_state = ClientKeyExchangeReceived (s_context, c_context) in
-                    (`Handshaking (handshake_state, params, packets @ [raw]), [], `Pass)
+                    (`KeysExchanged (s_context, c_context, params, packets @ [raw]), [], `Pass)
                  | _ -> assert false)
 
   let answer_client_hello (ch : client_hello) raw =
@@ -156,7 +151,7 @@ module Server = struct
     (* server hello done! *)
     let hello_done = Writer.assemble_handshake ServerHelloDone in
     let packets = bufs' @ [hello_done] in
-    (`Handshaking (ServerHelloSent, params, raw :: packets),
+    (`Handshaking (params, raw :: packets),
      List.map (fun e -> `Record (Packet.HANDSHAKE, e)) packets,
      `Pass)
 
@@ -169,7 +164,9 @@ module Server = struct
     encryptor : crypto_state ;
   }
 
-  let empty_state = { machina = `Initial ; decryptor = `Nothing ; encryptor = `Nothing }
+  let empty_state = { machina = `Initial ;
+                      decryptor = `Nothing ;
+                      encryptor = `Nothing }
 
 
   (* well-behaved pure encryptor *)
@@ -230,35 +227,40 @@ module Server = struct
     Printf.printf "HANDLE_RECORD (in state %s) %s\n"
                   (state_to_string is)
                   (Packet.content_type_to_string ct);
-    match (is, ct) with
-    | _, Packet.ALERT ->
+    match ct with
+    | Packet.ALERT ->
        let al = Reader.parse_alert buf in
        Printf.printf "ALERT: %s" (Printer.alert_to_string al);
        (is, [], `Pass)
-    | _, Packet.APPLICATION_DATA ->
+    | Packet.APPLICATION_DATA ->
        Printf.printf "APPLICATION DATA";
        Cstruct.hexdump buf;
        (is, [], `Pass)
-    | `Initial, Packet.HANDSHAKE ->
-       (match Reader.parse_handshake buf with
-        | ClientHello ch -> answer_client_hello ch buf
-        | _ -> assert false)
-    | `Handshaking (hs, sp, packets), Packet.HANDSHAKE ->
-       (match Reader.parse_handshake buf with
-        | ClientKeyExchange kex -> answer_client_key_exchange is hs sp packets kex buf
-        | Finished fin -> answer_client_finished is hs sp packets fin buf
-        | _ -> assert false
-       )
-    | `Handshaking (hs, sp, _), Packet.CHANGE_CIPHER_SPEC ->
-       (match hs with
-        | ClientKeyExchangeReceived (enc, dec) ->
-           let ccs = Cstruct.create 1 in
-           Cstruct.set_uint8 ccs 0 1;
-           (is, (* maybe we need to add the raw packet? *)
-            [`Record (Packet.CHANGE_CIPHER_SPEC, ccs); `Change_enc enc],
-            `Change_dec dec)
-        | _ -> assert false)
-    | _, _ -> assert false
+    | Packet.CHANGE_CIPHER_SPEC ->
+       begin
+         match is with
+         | `KeysExchanged (enc, dec, _, _) ->
+            let ccs = Cstruct.create 1 in
+            Cstruct.set_uint8 ccs 0 1;
+            (is,
+             [`Record (Packet.CHANGE_CIPHER_SPEC, ccs); `Change_enc enc],
+             `Change_dec dec)
+         | _ -> assert false
+       end
+    | Packet.HANDSHAKE ->
+       begin
+         match (is, Reader.parse_handshake buf) with
+         | `Initial, ClientHello ch ->
+              answer_client_hello ch buf
+         | `Handshaking (p, bs), ClientKeyExchange kex ->
+              answer_client_key_exchange p bs kex buf
+         | `KeysExchanged (_, _, p, bs), Finished fin ->
+              answer_client_finished p bs fin buf
+         | `Established, ClientHello ch ->
+              answer_client_hello ch buf
+         | _, _-> assert false
+       end
+    | _ -> assert false
 
   let handle_raw_record state (hdr, buf) =
     let (dec_st, dec) = decrypt state.decryptor hdr.content_type buf in
