@@ -1,4 +1,6 @@
 
+let (<>) = Utils.cs_append
+
 let hmac_md5 sec = Cryptokit.(hash_string (MAC.hmac_md5 sec))
 let hmac_sha sec = Cryptokit.(hash_string (MAC.hmac_sha1 sec))
 
@@ -45,22 +47,46 @@ let hmac = function
   | Ciphersuite.SHA -> hmac_sha
   | _               -> assert false
 
-let signature : Ciphersuite.hash_algorithm -> string -> int64 -> Packet.content_type -> string -> string
+let signature : Ciphersuite.hash_algorithm -> string -> int64 -> Packet.content_type -> Cstruct.t -> Cstruct.t
   = fun mac secret n ty data ->
       let prefix = Cstruct.create 13 in
-      let len = String.length data in
+      let len = Cstruct.len data in
       Cstruct.BE.set_uint64 prefix 0 n;
       Cstruct.set_uint8 prefix 8 (Packet.content_type_to_int ty);
       Cstruct.set_uint8 prefix 9 3; (* version major *)
       Cstruct.set_uint8 prefix 10 1; (* version minor *)
       Cstruct.BE.set_uint16 prefix 11 len;
-      let ps = Cstruct.copy prefix 0 13 in
-      hmac mac secret (ps ^ data)
+      let to_sign = prefix <> data in
+      let ps = Cstruct.copy to_sign 0 (Cstruct.len to_sign) in
+      let res = hmac mac secret ps in
+      Cstruct.of_string res
 
 (* encryption and decryption is the same, thus "crypt" *)
-let crypt_stream : Cryptokit.Stream.stream_cipher -> string -> string
+let crypt_stream : Cryptokit.Stream.stream_cipher -> Cstruct.t -> Cstruct.t
   = fun cipher decrypted ->
-      let len = String.length decrypted in
+      let len = Cstruct.len decrypted in
       let encrypted = String.create len in
-      cipher#transform decrypted 0 encrypted 0 len;
-      encrypted
+      let dec = Cstruct.copy decrypted 0 len in
+      cipher#transform dec 0 encrypted 0 len;
+      Cstruct.of_string encrypted
+(*
+let pad : encryption_algorithm -> string -> string
+  = fun enc data ->
+  let bs = Ciphersuite.encryption_algorithm_block_size enc in
+  (* 1 is the padding length, encoded as 8 bit at the end of the fragment *)
+  let len = String.length data + 1 in
+  (* we might want to add additional blocks of padding *)
+  let padding_length = bs - (len mod bs) in
+  (* 1 is again padding length field *)
+  let cstruct_len = padding_length + 1 in
+  let pad = Cstruct.create cstruct_len in
+  for i = 0 to cstruct_len do
+    Cstruct.set_uint8 pad i padding_length
+  done;
+  Cstruct.copy pad 0 cstruct_len
+
+(* in: algo, secret, iv, data
+   out: [padded]encrypted data *)
+let encrypt_block : Ciphersuite.encryption_algorithm -> string -> string -> string
+  = fun enc sec iv data ->
+ *)

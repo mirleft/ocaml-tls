@@ -5,29 +5,8 @@ let ref _ = raise (Failure "no.")
 let o f g x = f (g x)
 
 module Server = struct
-  (*
-   * MORNING PRAYER:
-   *
-   * I will allocate data, more and more data and all new data, since i'm not
-   * writing C like a peasant.
-   *
-   * This kinda travesty will go away. After we reach correctness. Not before.
-   *)
 
-  let cs_appends csn =
-    let cs =
-      Cstruct.create @@
-        List.fold_left (fun x cs -> x + Cstruct.len cs) 0 csn in
-    let _ =
-      List.fold_left
-        (fun off e ->
-          let len = Cstruct.len e in
-          ( Cstruct.blit e 0 cs off len ; off + len ))
-        0 csn in
-    cs
-
-  let cs_append cs1 cs2 = cs_appends [ cs1; cs2 ]
-
+  let (<>) = Utils.cs_append
 
   type content_type = Packet.content_type
 
@@ -38,11 +17,20 @@ module Server = struct
     mac_secret    : string
   }
 
+  type block_crypto_context = {
+    sequence      : int64 ;
+    cipher        : Ciphersuite.encryption_algorithm ;
+    cipher_secret : string ;
+    cipher_iv     : string ;
+    mac           : Ciphersuite.hash_algorithm ;
+    mac_secret    : string
+  }
+
   (* EVERYTHING a cipher needs, be it input or output. And pure, too. *)
   type crypto_state = [
     `Nothing
   | `Stream of stream_crypto_context
-(*  | `Block of int64 * block_encryption_algorithm * string * hash_algorithm *)
+  | `Block of block_crypto_context
   ]
 
   type connection_end = Server | Client
@@ -99,14 +87,15 @@ module Server = struct
                     let s_mac, off = (String.sub keyblock off mac, off + mac) in
                     let c_key, off = (String.sub keyblock off key, off + key) in
                     let s_key, off = (String.sub keyblock off key, off + key) in
-                    let _, off = (String.sub keyblock off iv, off + iv) in
-                    let _ = String.sub keyblock off iv in
+                    let c_iv, off = (String.sub keyblock off iv, off + iv) in
+                    let s_iv = String.sub keyblock off iv in
 
                     let mac = ciphersuite_mac sp.ciphersuite in
                     let sequence = Int64.of_int 0 in
+                    let cipher = ciphersuite_cipher sp.ciphersuite in
 
                     let c_context, s_context =
-                      match ciphersuite_cipher sp.ciphersuite with
+                      match cipher with
                       | RC4_128 ->
                          let ccipher = new Cryptokit.Stream.arcfour c_key in
                          let scipher = new Cryptokit.Stream.arcfour s_key in
@@ -116,6 +105,15 @@ module Server = struct
                           `Stream { cipher = scipher ;
                                     mac_secret = s_mac ;
                                     mac ; sequence })
+                      | TRIPLE_DES_EDE_CBC ->
+                         (`Block { cipher_secret = c_key ;
+                                   cipher_iv = c_iv ;
+                                   mac_secret = c_mac ;
+                                   cipher ; mac ; sequence },
+                          `Block { cipher_secret = s_key ;
+                                   cipher_iv = s_iv ;
+                                   mac_secret = s_mac ;
+                                   cipher ; mac ; sequence })
                       | _ -> assert false
                     in
                     let params = { sp with master_secret = mastersecret } in
@@ -175,12 +173,13 @@ module Server = struct
       match s with
       | `Nothing -> (s, buf)
       | `Stream ctx ->
-         let data = Cstruct.copy buf 0 (Cstruct.len buf) in
-         let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty data in
-         let enc = Crypto.crypt_stream ctx.cipher (data ^ sign) in
-         let add1 = Int64.add (Int64.of_int 1) in
-         (`Stream { ctx with sequence = add1 ctx.sequence },
-          Cstruct.of_string enc)
+         let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty buf in
+         let to_encrypt = buf <> sign in
+         let enc = Crypto.crypt_stream ctx.cipher to_encrypt in
+         let next_sequence = Int64.add (Int64.of_int 1) ctx.sequence in
+         (`Stream { ctx with sequence = next_sequence }, enc)
+      | _ -> assert false
+(*      | `Block ctx -> *)
 
   (* well-behaved pure decryptor *)
   let decrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
@@ -188,19 +187,20 @@ module Server = struct
       match s with
       | `Nothing -> (s, buf)
       | `Stream ctx ->
-         let data = Cstruct.copy buf 0 (Cstruct.len buf) in
-         let dec = Crypto.crypt_stream ctx.cipher data in
+         let dec = Crypto.crypt_stream ctx.cipher buf in
          Printf.printf "decrypted\n";
-         Cstruct.hexdump (Cstruct.of_string dec);
-         let maclength = Ciphersuite.hash_length ctx.mac in
-         let macstart = (String.length dec) - maclength in
-         let body = String.sub dec 0 macstart in
-         let mac = String.sub dec macstart maclength in
+         Cstruct.hexdump dec;
+         let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
+         let body, mac = Cstruct.split dec macstart in
          let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty body in
-         assert (cmac = mac);
+         Printf.printf "received:";
+         Cstruct.hexdump mac;
+         Printf.printf "computed:";
+         Cstruct.hexdump cmac;
+         assert (Utils.cs_eq cmac mac);
          let add1 = Int64.add (Int64.of_int 1) in
-         (`Stream { ctx with sequence = add1 ctx.sequence },
-          Cstruct.of_string body)
+         (`Stream { ctx with sequence = add1 ctx.sequence }, body)
+      | _ -> assert false (* `Block ctx -> *)
 
   (* party time *)
   let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list
@@ -212,7 +212,7 @@ module Server = struct
       (hdr, buf') :: separate_records (Cstruct.shift buf len)
 
   let assemble_records : record list -> Cstruct.t =
-    o cs_appends @@ List.map @@ Writer.assemble_hdr
+    o Utils.cs_appends @@ List.map @@ Writer.assemble_hdr
 
   type rec_resp = [
     | `Change_enc of crypto_state
@@ -256,7 +256,7 @@ module Server = struct
               answer_client_key_exchange p bs kex buf
          | `KeysExchanged (_, _, p, bs), Finished fin ->
               answer_client_finished p bs fin buf
-         | `Established, ClientHello ch ->
+         | `Established, ClientHello ch -> (* key renegotiation *)
               answer_client_hello ch buf
          | _, _-> assert false
        end
