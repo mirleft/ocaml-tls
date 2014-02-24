@@ -173,8 +173,10 @@ module Server = struct
            | Some x -> (Crypto.crypt_stream x to_encrypt, "")
            | None -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv to_encrypt
          in
-         let next_sequence = Int64.add (Int64.of_int 1) ctx.sequence in
-         (`Crypted { ctx with sequence = next_sequence ; cipher_iv = next_iv }, enc)
+         let add1 = Int64.add (Int64.of_int 1) in
+         (`Crypted { ctx with sequence = add1 ctx.sequence ;
+                              cipher_iv = next_iv },
+          enc)
 
   (* well-behaved pure decryptor *)
   let decrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
@@ -192,7 +194,9 @@ module Server = struct
          let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty body in
          assert (Utils.cs_eq cmac mac);
          let add1 = Int64.add (Int64.of_int 1) in
-         (`Crypted { ctx with sequence = add1 ctx.sequence ; cipher_iv = next_iv }, body)
+         (`Crypted { ctx with sequence = add1 ctx.sequence ;
+                              cipher_iv = next_iv },
+          body)
 
   (* party time *)
   let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list
