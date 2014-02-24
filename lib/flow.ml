@@ -10,15 +10,9 @@ module Server = struct
 
   type content_type = Packet.content_type
 
-  type stream_crypto_context = {
+  type crypto_context = {
     sequence      : int64 ;
-    cipher        : Cryptokit.Stream.stream_cipher ; (* XXX *)
-    mac           : Ciphersuite.hash_algorithm ;
-    mac_secret    : string
-  }
-
-  type block_crypto_context = {
-    sequence      : int64 ;
+    stream_cipher : Cryptokit.Stream.stream_cipher option ; (* XXX *)
     cipher        : Ciphersuite.encryption_algorithm ;
     cipher_secret : string ;
     cipher_iv     : string ;
@@ -29,8 +23,7 @@ module Server = struct
   (* EVERYTHING a cipher needs, be it input or output. And pure, too. *)
   type crypto_state = [
     `Nothing
-  | `Stream of stream_crypto_context
-  | `Block of block_crypto_context
+  | `Crypted of crypto_context
   ]
 
   type connection_end = Server | Client
@@ -94,30 +87,30 @@ module Server = struct
                     let sequence = Int64.of_int 0 in
                     let cipher = ciphersuite_cipher sp.ciphersuite in
 
-                    let c_context, s_context =
+                    let c_stream_cipher, s_stream_cipher =
                       match cipher with
                       | RC4_128 ->
                          let ccipher = new Cryptokit.Stream.arcfour c_key in
                          let scipher = new Cryptokit.Stream.arcfour s_key in
-                         (`Stream { cipher = ccipher ;
-                                    mac_secret = c_mac ;
-                                    mac ; sequence },
-                          `Stream { cipher = scipher ;
-                                    mac_secret = s_mac ;
-                                    mac ; sequence })
-                      | TRIPLE_DES_EDE_CBC ->
-                         (`Block { cipher_secret = c_key ;
-                                   cipher_iv = c_iv ;
-                                   mac_secret = c_mac ;
-                                   cipher ; mac ; sequence },
-                          `Block { cipher_secret = s_key ;
-                                   cipher_iv = s_iv ;
-                                   mac_secret = s_mac ;
-                                   cipher ; mac ; sequence })
-                      | _ -> assert false
+                         (Some ccipher, Some scipher)
+                      | _ -> (None, None)
+                    in
+
+                    let c_context =
+                      { stream_cipher = c_stream_cipher ;
+                        cipher_secret = c_key ;
+                        cipher_iv = c_iv ;
+                        mac_secret = c_mac ;
+                        cipher ; mac ; sequence } in
+                    let s_context =
+                      { stream_cipher = s_stream_cipher ;
+                        cipher_secret = s_key ;
+                        cipher_iv = s_iv ;
+                        mac_secret = s_mac ;
+                        cipher ; mac ; sequence }
                     in
                     let params = { sp with master_secret = mastersecret } in
-                    (`KeysExchanged (s_context, c_context, params, packets @ [raw]), [], `Pass)
+                    (`KeysExchanged (`Crypted s_context, `Crypted c_context, params, packets @ [raw]), [], `Pass)
                  | _ -> assert false)
 
   let answer_client_hello (ch : client_hello) raw =
@@ -172,43 +165,34 @@ module Server = struct
   = fun s ty buf ->
       match s with
       | `Nothing -> (s, buf)
-      | `Stream ctx ->
+      | `Crypted ctx ->
          let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty buf in
          let to_encrypt = buf <> sign in
-         let enc = Crypto.crypt_stream ctx.cipher to_encrypt in
+         let enc, next_iv =
+           match ctx.stream_cipher with
+           | Some x -> (Crypto.crypt_stream x to_encrypt, "")
+           | None -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv to_encrypt
+         in
          let next_sequence = Int64.add (Int64.of_int 1) ctx.sequence in
-         (`Stream { ctx with sequence = next_sequence }, enc)
-      | `Block ctx ->
-         let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty buf in
-         let to_encrypt = buf <> sign in
-         let enc, next_iv = Crypto.encrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv to_encrypt in
-         let next_sequence = Int64.add (Int64.of_int 1) ctx.sequence in
-         (`Block { ctx with sequence = next_sequence ; cipher_iv = next_iv }, enc)
+         (`Crypted { ctx with sequence = next_sequence ; cipher_iv = next_iv }, enc)
 
   (* well-behaved pure decryptor *)
   let decrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
   = fun s ty buf ->
       match s with
       | `Nothing -> (s, buf)
-      | `Stream ctx ->
-         let dec = Crypto.crypt_stream ctx.cipher buf in
+      | `Crypted ctx ->
+         let dec, next_iv =
+           match ctx.stream_cipher with
+           | Some x -> (Crypto.crypt_stream x buf, "")
+           | None -> Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf
+         in
          let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
          let body, mac = Cstruct.split dec macstart in
          let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty body in
          assert (Utils.cs_eq cmac mac);
          let add1 = Int64.add (Int64.of_int 1) in
-         (`Stream { ctx with sequence = add1 ctx.sequence }, body)
-      | `Block ctx ->
-         let dec, next_iv = Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf in
-         let declen = Cstruct.len dec in
-         let padding = Cstruct.get_uint8 dec (declen - 1) in
-         let data, padding = Cstruct.split dec (declen - padding - 1) in
-         let macstart = (Cstruct.len data) - (Ciphersuite.hash_length ctx.mac) in
-         let body, mac = Cstruct.split data macstart in
-         let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty body in
-         assert (Utils.cs_eq cmac mac);
-         let add1 = Int64.add (Int64.of_int 1) in
-         (`Block { ctx with sequence = add1 ctx.sequence ; cipher_iv = next_iv }, body)
+         (`Crypted { ctx with sequence = add1 ctx.sequence ; cipher_iv = next_iv }, body)
 
   (* party time *)
   let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list

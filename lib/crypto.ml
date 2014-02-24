@@ -125,5 +125,8 @@ let decrypt_block : Ciphersuite.encryption_algorithm -> string -> string -> Cstr
       for i = 0 to (blocks - 1) do
         cip#transform dat (i * bs) dec (i * bs)
       done;
+      let res = Cstruct.of_string dec in
+      let padding = Cstruct.get_uint8 res (datalen - 1) in
+      let data, _ = Cstruct.split res (datalen - padding - 1) in
       (* last block is new iv *)
-      (Cstruct.of_string dec, String.sub dat ((blocks - 1) * bs) bs)
+      (data, String.sub dat ((blocks - 1) * bs) bs)
