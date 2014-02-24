@@ -14,10 +14,10 @@ module Server = struct
     sequence      : int64 ;
     stream_cipher : Cryptokit.Stream.stream_cipher option ; (* XXX *)
     cipher        : Ciphersuite.encryption_algorithm ;
-    cipher_secret : string ;
-    cipher_iv     : string ;
+    cipher_secret : Cstruct.t ;
+    cipher_iv     : Cstruct.t ;
     mac           : Ciphersuite.hash_algorithm ;
-    mac_secret    : string
+    mac_secret    : Cstruct.t
   }
 
   (* EVERYTHING a cipher needs, be it input or output. And pure, too. *)
@@ -31,7 +31,7 @@ module Server = struct
   type security_parameters = {
     entity        : connection_end ;
     ciphersuite   : Ciphersuite.ciphersuite ;
-    master_secret : string ;
+    master_secret : Cstruct.t ;
     client_random : Cstruct.t ;
     server_random : Cstruct.t ;
   }
@@ -51,37 +51,33 @@ module Server = struct
     | `Established -> "Established"
 
   let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list) (buf : Cstruct.t) (raw : Cstruct.t)  =
-    let msgs = Cstruct.copyv packets in
+    let msgs = Utils.cs_appends packets in
     let computed = Crypto.finished sp.master_secret "client finished" msgs in
-    let checksum = Cstruct.copy buf 0 12 in
-    assert (computed = checksum);
-    let my_check = Crypto.finished sp.master_secret "server finished" (msgs ^ Cstruct.copy raw 0 (Cstruct.len raw)) in
-    let send = Writer.assemble_handshake (Finished (Cstruct.of_string my_check)) in
+    assert (Utils.cs_eq computed buf);
+    let my_checksum = Crypto.finished sp.master_secret "server finished" (msgs <> raw) in
+    let send = Writer.assemble_handshake (Finished my_checksum) in
     (`Established, [`Record (Packet.HANDSHAKE, send)], `Pass)
 
 
   let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
-    let data = Cstruct.copy kex 0 (Cstruct.len kex) in
     Ciphersuite.(match ciphersuite_kex sp.ciphersuite with
                  | RSA ->
-                    let pms = Crypto.decryptRSA (Crypto_utils.get_key "server.key") data in
-                    let premastersecret = String.sub pms ((String.length pms) - 48) 48 in
-                    let cr = Cstruct.copy sp.client_random 0 32 in
-                    let sr = Cstruct.copy sp.server_random 0 32 in
-                    let mastersecret = Crypto.generate_master_secret premastersecret (cr ^ sr) in
+                    let pms = Crypto.decryptRSA (Crypto_utils.get_key "server.key") kex in
+                    let premastersecret = Cstruct.sub pms ((Cstruct.len pms) - 48) 48 in
+                    let mastersecret = Crypto.generate_master_secret premastersecret (sp.client_random <> sp.server_random) in
                     Printf.printf "master secret\n";
-                    Cstruct.hexdump (Cstruct.of_string mastersecret);
+                    Cstruct.hexdump mastersecret;
 
                     let key, iv, mac = ciphersuite_cipher_mac_length sp.ciphersuite in
                     let keyblocklength =  2 * key + 2 * mac + 2 * iv in
-                    let keyblock = Crypto.key_block keyblocklength mastersecret (sr ^ cr) in
+                    let keyblock = Crypto.key_block keyblocklength mastersecret (sp.server_random <> sp.client_random) in
 
-                    let c_mac, off = (String.sub keyblock 0 mac, mac) in
-                    let s_mac, off = (String.sub keyblock off mac, off + mac) in
-                    let c_key, off = (String.sub keyblock off key, off + key) in
-                    let s_key, off = (String.sub keyblock off key, off + key) in
-                    let c_iv, off = (String.sub keyblock off iv, off + iv) in
-                    let s_iv = String.sub keyblock off iv in
+                    let c_mac, off = (Cstruct.sub keyblock 0 mac, mac) in
+                    let s_mac, off = (Cstruct.sub keyblock off mac, off + mac) in
+                    let c_key, off = (Cstruct.sub keyblock off key, off + key) in
+                    let s_key, off = (Cstruct.sub keyblock off key, off + key) in
+                    let c_iv, off = (Cstruct.sub keyblock off iv, off + iv) in
+                    let s_iv = Cstruct.sub keyblock off iv in
 
                     let mac = ciphersuite_mac sp.ciphersuite in
                     let sequence = Int64.of_int 0 in
@@ -90,8 +86,8 @@ module Server = struct
                     let c_stream_cipher, s_stream_cipher =
                       match cipher with
                       | RC4_128 ->
-                         let ccipher = new Cryptokit.Stream.arcfour c_key in
-                         let scipher = new Cryptokit.Stream.arcfour s_key in
+                         let ccipher = new Cryptokit.Stream.arcfour (Cstruct.copy c_key 0 key) in
+                         let scipher = new Cryptokit.Stream.arcfour (Cstruct.copy s_key 0 key) in
                          (Some ccipher, Some scipher)
                       | _ -> (None, None)
                     in
@@ -114,13 +110,14 @@ module Server = struct
                  | _ -> assert false)
 
   let answer_client_hello (ch : client_hello) raw =
-    let cipher = Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA in
+(*    let cipher = Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA in *)
+    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in
     assert (List.mem cipher ch.ciphersuites);
     (* TODO : real random *)
     let r = Cstruct.create 32 in
     let params = { entity        = Server ;
                    ciphersuite   = cipher ;
-                   master_secret = "" ;
+                   master_secret = Cstruct.create 0 ;
                    client_random = ch.random ;
                    server_random = r } in
     let server_hello : server_hello =
@@ -170,7 +167,7 @@ module Server = struct
          let to_encrypt = buf <> sign in
          let enc, next_iv =
            match ctx.stream_cipher with
-           | Some x -> (Crypto.crypt_stream x to_encrypt, "")
+           | Some x -> (Crypto.crypt_stream x to_encrypt, Cstruct.create 0)
            | None -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv to_encrypt
          in
          let add1 = Int64.add (Int64.of_int 1) in
@@ -186,7 +183,7 @@ module Server = struct
       | `Crypted ctx ->
          let dec, next_iv =
            match ctx.stream_cipher with
-           | Some x -> (Crypto.crypt_stream x buf, "")
+           | Some x -> (Crypto.crypt_stream x buf, Cstruct.create 0)
            | None -> Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf
          in
          let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in

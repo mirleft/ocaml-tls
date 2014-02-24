@@ -14,16 +14,19 @@ let rec p_hash (hmac, hmac_n) secret seed len =
   expand (hmac secret seed) len
 
 let halve secret =
-  let len  = String.length secret in
+  let len  = Cstruct.len secret in
   let half = len - len / 2 in
-  String.( sub secret 0 half, sub secret (len - half) half )
+  (Cstruct.sub secret 0 half, Cstruct.sub secret (len - half) half)
 
 let pseudo_random_function len secret label seed =
   let (s1, s2) = halve secret in
-  let md5 = p_hash (hmac_md5, 16) s1 (label ^ seed) len
-  and sha = p_hash (hmac_sha, 20) s2 (label ^ seed) len in
+  let dat = Cstruct.copy seed 0 (Cstruct.len seed) in
+  let ss1 = Cstruct.copy s1 0 (Cstruct.len s1) in
+  let ss2 = Cstruct.copy s2 0 (Cstruct.len s2) in
+  let md5 = p_hash (hmac_md5, 16) ss1 (label ^ dat) len
+  and sha = p_hash (hmac_sha, 20) ss2 (label ^ dat) len in
   Cryptokit.xor_string md5 0 sha 0 len ;
-  sha
+  Cstruct.of_string sha
 
 let generate_master_secret pre_master_secret seed =
   pseudo_random_function 48 pre_master_secret "master secret" seed
@@ -32,22 +35,27 @@ let key_block len master_secret seed =
   pseudo_random_function len master_secret "key expansion" seed
 
 let finished master_secret label data =
-  let md5 = Cryptokit.(hash_string (Hash.md5 ()) data) in
-  let sha1 = Cryptokit.(hash_string (Hash.sha1 ()) data) in
-  pseudo_random_function 12 master_secret label (md5 ^ sha1)
+  let str = Cstruct.copy data 0 (Cstruct.len data) in
+  let md5 = Cstruct.of_string (Cryptokit.(hash_string (Hash.md5 ()) str)) in
+  let sha1 = Cstruct.of_string (Cryptokit.(hash_string (Hash.sha1 ()) str)) in
+  pseudo_random_function 12 master_secret label (md5 <> sha1)
 
 let encryptRSA key msg =
-  Cryptokit.RSA.encrypt key msg
+  let input = Cstruct.copy msg 0 (Cstruct.len msg) in
+  let res = Cryptokit.RSA.encrypt key input in
+  Cstruct.of_string res
 
 let decryptRSA key msg =
-  Cryptokit.RSA.decrypt key msg
+  let input = Cstruct.copy msg 0 (Cstruct.len msg) in
+  let res = Cryptokit.RSA.decrypt key input in
+  Cstruct.of_string res
 
 let hmac = function
   | Ciphersuite.MD5 -> hmac_md5
   | Ciphersuite.SHA -> hmac_sha
   | _               -> assert false
 
-let signature : Ciphersuite.hash_algorithm -> string -> int64 -> Packet.content_type -> Cstruct.t -> Cstruct.t
+let signature : Ciphersuite.hash_algorithm -> Cstruct.t -> int64 -> Packet.content_type -> Cstruct.t -> Cstruct.t
   = fun mac secret n ty data ->
       let prefix = Cstruct.create 13 in
       let len = Cstruct.len data in
@@ -58,7 +66,8 @@ let signature : Ciphersuite.hash_algorithm -> string -> int64 -> Packet.content_
       Cstruct.BE.set_uint16 prefix 11 len;
       let to_sign = prefix <> data in
       let ps = Cstruct.copy to_sign 0 (Cstruct.len to_sign) in
-      let res = hmac mac secret ps in
+      let sec = Cstruct.copy secret 0 (Cstruct.len secret) in
+      let res = hmac mac sec ps in
       Cstruct.of_string res
 
 (* encryption and decryption is the same, thus "crypt" *)
@@ -87,13 +96,15 @@ let pad : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t
 
 (* in: algo, secret, iv, data
    out: [padded]encrypted data, new_iv *)
-let encrypt_block : Ciphersuite.encryption_algorithm -> string -> string -> Cstruct.t -> (Cstruct.t * string)
+let encrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -> Cstruct.t -> (Cstruct.t * Cstruct.t)
   = fun cipher sec iv data ->
       let to_encrypt = data <> (pad cipher data) in
       let cip = match cipher with
         | Ciphersuite.TRIPLE_DES_EDE_CBC ->
-           let cip = new Cryptokit.Block.triple_des_encrypt sec in
-           new Cryptokit.Block.cbc_encrypt ~iv:iv cip
+           let key = Cstruct.copy sec 0 (Cstruct.len sec) in
+           let siv = Cstruct.copy iv 0 (Cstruct.len iv) in
+           let cip = new Cryptokit.Block.triple_des_encrypt key in
+           new Cryptokit.Block.cbc_encrypt ~iv:siv cip
         | _ -> assert false
       in
       let datalen = Cstruct.len to_encrypt in
@@ -104,17 +115,20 @@ let encrypt_block : Ciphersuite.encryption_algorithm -> string -> string -> Cstr
       for i = 0 to (blocks - 1) do
         cip#transform dat (i * bs) enc (i * bs)
       done;
-      (* last block is new iv *)
-      (Cstruct.of_string enc, String.sub enc ((blocks - 1) * bs) bs)
+      (* last ciphertext block is new iv *)
+      let res = Cstruct.of_string enc in
+      (res, Cstruct.sub res ((blocks - 1) * bs) bs)
 
 (* in: algo, secret, iv, data
    out: [padded]decrypted data, new_iv *)
-let decrypt_block : Ciphersuite.encryption_algorithm -> string -> string -> Cstruct.t -> (Cstruct.t * string)
+let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -> Cstruct.t -> (Cstruct.t * Cstruct.t)
   = fun cipher sec iv data ->
       let cip = match cipher with
         | Ciphersuite.TRIPLE_DES_EDE_CBC ->
-           let cip = new Cryptokit.Block.triple_des_decrypt sec in
-           new Cryptokit.Block.cbc_decrypt ~iv:iv cip
+           let key = Cstruct.copy sec 0 (Cstruct.len sec) in
+           let siv = Cstruct.copy iv 0 (Cstruct.len iv) in
+           let cip = new Cryptokit.Block.triple_des_decrypt key in
+           new Cryptokit.Block.cbc_decrypt ~iv:siv cip
         | _ -> assert false
       in
       let datalen = Cstruct.len data in
@@ -125,8 +139,8 @@ let decrypt_block : Ciphersuite.encryption_algorithm -> string -> string -> Cstr
       for i = 0 to (blocks - 1) do
         cip#transform dat (i * bs) dec (i * bs)
       done;
-      let res = Cstruct.of_string dec in
-      let padding = Cstruct.get_uint8 res (datalen - 1) in
-      let data, _ = Cstruct.split res (datalen - padding - 1) in
-      (* last block is new iv *)
-      (data, String.sub dat ((blocks - 1) * bs) bs)
+      let result = Cstruct.of_string dec in
+      let padding = Cstruct.get_uint8 result (datalen - 1) in
+      let res, _ = Cstruct.split result (datalen - padding - 1) in
+      (* last ciphertext block is new iv *)
+      (res, Cstruct.sub data ((blocks - 1) * bs) bs)
