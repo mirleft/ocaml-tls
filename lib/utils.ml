@@ -23,7 +23,15 @@ let cs_appends csn =
 
 let cs_append cs1 cs2 = cs_appends [ cs1; cs2 ]
 
-let cs_eq cs1 cs2 =
+let cs_canonicalize cs =
+  if cs.Cstruct.off = 0 then cs else
+    Cstruct.(of_bigarray @@
+                Bigarray.Array1.sub cs.buffer cs.off cs.len)
+
+let cs_eq cs1 cs2 = cs_canonicalize cs1 = cs_canonicalize cs2
+
+
+(* let cs_eq cs1 cs2 =
   let len = Cstruct.len cs1 in
   if len = Cstruct.len cs2 then
     let rec cmp a b = function
@@ -35,4 +43,4 @@ let cs_eq cs1 cs2 =
     in
     cmp cs1 cs2 len
   else
-    false
+    false *)

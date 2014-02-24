@@ -80,7 +80,7 @@ module Server = struct
                     let s_iv = Cstruct.sub keyblock off iv in
 
                     let mac = ciphersuite_mac sp.ciphersuite in
-                    let sequence = Int64.of_int 0 in
+                    let sequence = 0L in
                     let cipher = ciphersuite_cipher sp.ciphersuite in
 
                     let c_stream_cipher, s_stream_cipher =
@@ -170,8 +170,7 @@ module Server = struct
            | Some x -> (Crypto.crypt_stream x to_encrypt, Cstruct.create 0)
            | None -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv to_encrypt
          in
-         let add1 = Int64.add (Int64.of_int 1) in
-         (`Crypted { ctx with sequence = add1 ctx.sequence ;
+         (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
                               cipher_iv = next_iv },
           enc)
 
@@ -190,8 +189,7 @@ module Server = struct
          let body, mac = Cstruct.split dec macstart in
          let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty body in
          assert (Utils.cs_eq cmac mac);
-         let add1 = Int64.add (Int64.of_int 1) in
-         (`Crypted { ctx with sequence = add1 ctx.sequence ;
+         (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
                               cipher_iv = next_iv },
           body)
 
