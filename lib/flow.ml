@@ -121,7 +121,7 @@ module Server = struct
                  | _ -> assert false)
 
   let answer_client_hello (ch : client_hello) raw =
-    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in
+    let cipher = Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA in
     assert (List.mem cipher ch.ciphersuites);
     (* TODO : real random *)
     let r = Cstruct.create 32 in
@@ -178,8 +178,12 @@ module Server = struct
          let enc = Crypto.crypt_stream ctx.cipher to_encrypt in
          let next_sequence = Int64.add (Int64.of_int 1) ctx.sequence in
          (`Stream { ctx with sequence = next_sequence }, enc)
-      | _ -> assert false
-(*      | `Block ctx -> *)
+      | `Block ctx ->
+         let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty buf in
+         let to_encrypt = buf <> sign in
+         let enc, next_iv = Crypto.encrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv to_encrypt in
+         let next_sequence = Int64.add (Int64.of_int 1) ctx.sequence in
+         (`Block { ctx with sequence = next_sequence ; cipher_iv = next_iv }, enc)
 
   (* well-behaved pure decryptor *)
   let decrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
@@ -188,19 +192,23 @@ module Server = struct
       | `Nothing -> (s, buf)
       | `Stream ctx ->
          let dec = Crypto.crypt_stream ctx.cipher buf in
-         Printf.printf "decrypted\n";
-         Cstruct.hexdump dec;
          let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
          let body, mac = Cstruct.split dec macstart in
          let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty body in
-         Printf.printf "received:";
-         Cstruct.hexdump mac;
-         Printf.printf "computed:";
-         Cstruct.hexdump cmac;
          assert (Utils.cs_eq cmac mac);
          let add1 = Int64.add (Int64.of_int 1) in
          (`Stream { ctx with sequence = add1 ctx.sequence }, body)
-      | _ -> assert false (* `Block ctx -> *)
+      | `Block ctx ->
+         let dec, next_iv = Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf in
+         let declen = Cstruct.len dec in
+         let padding = Cstruct.get_uint8 dec (declen - 1) in
+         let data, padding = Cstruct.split dec (declen - padding - 1) in
+         let macstart = (Cstruct.len data) - (Ciphersuite.hash_length ctx.mac) in
+         let body, mac = Cstruct.split data macstart in
+         let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty body in
+         assert (Utils.cs_eq cmac mac);
+         let add1 = Int64.add (Int64.of_int 1) in
+         (`Block { ctx with sequence = add1 ctx.sequence ; cipher_iv = next_iv }, body)
 
   (* party time *)
   let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list

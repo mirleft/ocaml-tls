@@ -88,7 +88,11 @@ let key_lengths = function
   | NULL -> (0, None, None)
   | _ -> assert false
 
-let encryption_algorithm_block_size e = let _, _, bs = key_lengths e in bs
+let encryption_algorithm_block_size e =
+  let _, _, bs = key_lengths e in
+  match bs with
+  | Some x -> x
+  | None -> assert false
 
 
 type hash_algorithm =
