@@ -180,7 +180,6 @@ module Server = struct
              Cstruct.hexdump signing;
              let sign = Crypto.padPKCS1_and_signRSA 128 (Crypto_utils.get_key "server.key") signing in
              let kex = DiffieHellman (written, sign) in
-             (* somehow I need to preserver the parameters *)
              (bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)], params')
           | _ -> assert false
         end

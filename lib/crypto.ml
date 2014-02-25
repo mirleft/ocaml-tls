@@ -93,10 +93,10 @@ let decryptRSA_unpadPKCS len key msg =
   Cstruct.sub dec start len
 
 let generateDH bits =
-  Cryptokit.(
-    let ps = DH.new_parameters bits in
-    let priv = DH.private_secret ps in
-    let msg = DH.message ps priv in
+  Cryptokit.DH.(
+    let ps = new_parameters bits in
+    let priv = private_secret ps in
+    let msg = message ps priv in
     Cstruct.(of_string ps.p, of_string ps.g, of_string msg, priv))
 
 let computeDH p g secret other =

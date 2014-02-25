@@ -22,7 +22,7 @@ type key_exchange_algorithm =
   | SRP_SHA_DSS
 
 let needs_certificate = function
-  | NULL | DH_anon | PSK -> false
+  | DH_anon | PSK -> false
   | _ -> true
 
 let needs_server_kex = function
@@ -85,7 +85,6 @@ let key_lengths = function
   | ARIA_256_GCM
   | ARIA_128_CBC
   | ARIA_256_CBC *)
-  | NULL -> (0, None, None)
   | _ -> assert false
 
 let encryption_algorithm_block_size e =
@@ -104,12 +103,13 @@ type hash_algorithm =
   | SHA512
 
 let hash_length_padding = function
+    (* so far padding is unused... wonder where it will come into play
+       and whether the values here are correct (found on the internet ;) *)
   | MD5 -> (16, 48)
   | SHA -> (20, 40)
   | SHA256 -> (32, 0)
 (*  | SHA384 -> ()
   | SHA512 -> () *)
-  | NULL -> (0, 0)
   | _ -> assert false
 
 let hash_length h =
