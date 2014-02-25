@@ -2,8 +2,8 @@ OASISFormat: 0.4
 Name:        ocaml-tls
 Version:     0.0.1
 Synopsis:    TLS support for ocaml
-Authors:     Hannes Mehnert <hannes@mehnert.org>
-Maintainers: Hannes Mehnert <hannes@mehnert.org>
+Authors:     Hannes Mehnert <hannes@mehnert.org>, David Kaloper <david@numm.org>
+Maintainers: David Kaloper <david@numm.org>, Hannes Mehnert <hannes@mehnert.org>
 Homepage:    https://github.com/mirleft/ocaml-tls
 License:     FreeBSD
 Plugins:     META (0.4)
