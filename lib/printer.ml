@@ -52,16 +52,10 @@ let ec_param_to_string = function
   | ExplicitCharParameters cp -> ec_char_parameters_to_string cp
   | NamedCurveParameters (nc, public) -> named_curve_type_to_string nc
 
-let sig_to_string = function
-  | Anonymous -> "anonymous"
-  | RSA r -> "RSA sig: " ^ Cstruct.copy r 0 (Cstruct.len r)
-  | DSA d -> "DSA sig: " ^ Cstruct.copy d 0 (Cstruct.len d)
-
-
 let server_key_exchange_to_string = function
-  | DiffieHellman (param, s)-> dsa_param_to_string param ^ sig_to_string s
-  | Rsa (param, s) -> rsa_param_to_string param ^ sig_to_string s
-  | EllipticCurve (param, s) -> ec_param_to_string param ^ sig_to_string s
+  | DiffieHellman (param, s)-> "DH Server KEX"
+  | Rsa (param, s) -> "RSA Server KEX"
+  | EllipticCurve (param, s) -> "EC Server KEX"
 
 let handshake_to_string = function
   | HelloRequest -> "Hello request"

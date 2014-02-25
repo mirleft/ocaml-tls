@@ -128,13 +128,35 @@ let assemble_ec_parameters buf = function
      Cstruct.blit pub 0 buf 1 len;
      (4 + len)
 
+let assemble_dh_parameters p =
+  let plen, glen, yslen = Cstruct.(len p.dh_p, len p.dh_g, len p.dh_Ys ) in
+  let buf = Cstruct.create (2 + 2 + 2 + plen + glen + yslen) in
+  Cstruct.BE.set_uint16  buf  0 plen;
+  Cstruct.blit p.dh_p  0 buf  2 plen;
+  Cstruct.BE.set_uint16  buf (2 + plen) glen;
+  Cstruct.blit p.dh_g  0 buf (4 + plen) glen;
+  Cstruct.BE.set_uint16  buf (4 + plen + glen) yslen;
+  Cstruct.blit p.dh_Ys 0 buf (6 + plen + glen) yslen;
+  buf
+
+let assemble_server_key_exchange = function
+  | DiffieHellman (param, signature) ->
+     let plen = Cstruct.len param in
+     let slen = Cstruct.len signature in
+     let buf = Cstruct.create (2 + plen + slen) in
+     Cstruct.BE.set_uint16 buf plen slen;
+     Cstruct.blit param 0 buf 0 plen;
+     Cstruct.blit signature 0 buf (plen + 2) slen;
+     buf
+  | _ -> assert false
+
 let assemble_handshake hs =
   let (payload, payload_type) =
     match hs with
     | ClientHello ch -> (assemble_client_hello ch, CLIENT_HELLO)
     | ServerHello sh -> (assemble_server_hello sh, SERVER_HELLO)
     | Certificate cs -> (assemble_certificates cs, CERTIFICATE)
-(*    | ServerKeyExchange kex -> (assemble_server_key_exchange kex, SERVER_KEY_EXCHANGE) *)
+    | ServerKeyExchange kex -> (assemble_server_key_exchange kex, SERVER_KEY_EXCHANGE)
     | ServerHelloDone -> (Cstruct.create 0, SERVER_HELLO_DONE)
     | Finished fs -> (fs, FINISHED)
     | _ -> assert false

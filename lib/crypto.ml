@@ -1,6 +1,17 @@
 
 let (<>) = Utils.cs_append
 
+
+let sha buf =
+  let data = Cstruct.copy buf 0 (Cstruct.len buf) in
+  let hash = Cryptokit.hash_string (Cryptokit.Hash.sha1 ()) data in
+  Cstruct.of_string hash
+
+let md5 buf =
+  let data = Cstruct.copy buf 0 (Cstruct.len buf) in
+  let hash = Cryptokit.hash_string (Cryptokit.Hash.md5 ()) data in
+  Cstruct.of_string hash
+
 let hmac_md5 sec = Cryptokit.(hash_string (MAC.hmac_md5 sec))
 let hmac_sha sec = Cryptokit.(hash_string (MAC.hmac_sha1 sec))
 
@@ -35,9 +46,8 @@ let key_block len master_secret seed =
   pseudo_random_function len master_secret "key expansion" seed
 
 let finished master_secret label data =
-  let str = Cstruct.copy data 0 (Cstruct.len data) in
-  let md5 = Cstruct.of_string (Cryptokit.(hash_string (Hash.md5 ()) str)) in
-  let sha1 = Cstruct.of_string (Cryptokit.(hash_string (Hash.sha1 ()) str)) in
+  let md5 = md5 data in
+  let sha1 = sha data in
   pseudo_random_function 12 master_secret label (md5 <> sha1)
 
 let encryptRSA key msg =
@@ -45,10 +55,57 @@ let encryptRSA key msg =
   let res = Cryptokit.RSA.encrypt key input in
   Cstruct.of_string res
 
+let signRSA key msg =
+  let input = Cstruct.copy msg 0 (Cstruct.len msg) in
+  let res = Cryptokit.RSA.sign key input in
+  Cstruct.of_string res
+
+let padPKCS1_and_signRSA len key msg =
+  (* inspiration from RFC3447 EMSA-PKCS1-v1_5 and rsa_sign.c from OpenSSL *)
+  (* also ocaml-ssh kex.ml *)
+  (* msg.length must be 36 (16 MD5 + 20 SHA1)! *)
+  let mlen = Cstruct.len msg in
+  assert (mlen = 36);
+  let padlen = len - mlen in
+  assert (padlen > 3);
+  let out = Cstruct.create len in
+  Cstruct.set_uint8 out 0 0;
+  Cstruct.set_uint8 out 1 1;
+  for i = 2 to (padlen - 2) do
+    Cstruct.set_uint8 out i 0xff;
+  done;
+  Cstruct.set_uint8 out (padlen - 1) 0;
+  Cstruct.blit msg 0 out padlen mlen;
+  signRSA key out
+
 let decryptRSA key msg =
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in
   let res = Cryptokit.RSA.decrypt key input in
   Cstruct.of_string res
+
+let decryptRSA_unpadPKCS len key msg =
+  let dec = decryptRSA key msg in
+  let dlen = Cstruct.len dec in
+  let start = dlen - len in
+  assert (Cstruct.get_uint8 dec 0 = 0);
+  assert (Cstruct.get_uint8 dec 1 = 2);
+  assert (Cstruct.get_uint8 dec (start - 1) = 0);
+  Cstruct.sub dec start len
+
+let generateDH bits =
+  Cryptokit.(
+    let ps = DH.new_parameters bits in
+    let priv = DH.private_secret ps in
+    let msg = DH.message ps priv in
+    Cstruct.(of_string ps.p, of_string ps.g, of_string msg, priv))
+
+let computeDH p g secret other =
+  let ps = Cryptokit.DH.({ p = Cstruct.copy p 0 (Cstruct.len p) ;
+                           g = Cstruct.copy g 0 (Cstruct.len g) ;
+                           privlen = 160 })
+  in
+  let shared = Cryptokit.DH.shared_secret ps secret (Cstruct.copy other 0 (Cstruct.len other)) in
+  Cstruct.of_string shared
 
 let hmac = function
   | Ciphersuite.MD5 -> hmac_md5

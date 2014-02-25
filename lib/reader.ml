@@ -326,18 +326,6 @@ let parse_ec_parameters buf =
      (NamedCurveParameters (curve, public), Cstruct.shift buf (3 + plen))
   | _ -> assert false
 
-let parse_sig buf =
-  let len = Cstruct.BE.get_uint16 buf 0 in
-  Cstruct.sub buf 2 len
-
-let parse_server_key_exchange buf =
-  let len = Cstruct.BE.get_uint16 buf 0 in
-  let buf = Cstruct.sub buf 2 len in
-  (* need to get from selected ciphersuite what I should parse! *)
-  let dh, size = parse_dsa_parameters buf in
-  let sign = DSA (parse_sig (Cstruct.shift buf size)) in
-  DiffieHellman (dh, sign)
-
 let parse_client_key_exchange buf =
   let len = Cstruct.BE.get_uint16 buf 0 in
   Cstruct.sub buf 2 len
@@ -356,7 +344,7 @@ let parse_handshake buf =
     | CLIENT_HELLO -> ClientHello (parse_client_hello payload)
     | SERVER_HELLO -> ServerHello (parse_server_hello payload)
     | CERTIFICATE -> Certificate (get_certificates payload)
-    | SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload)
+(*    | SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload) *)
     | SERVER_HELLO_DONE -> ServerHelloDone
     | CERTIFICATE_REQUEST -> CertificateRequest (parse_certificate_request payload)
     | CLIENT_KEY_EXCHANGE -> ClientKeyExchange (parse_client_key_exchange payload)

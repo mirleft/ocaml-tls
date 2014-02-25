@@ -31,7 +31,7 @@ type rsa_parameters = {
   rsa_exponent : Cstruct.t;
 }
 
-type dsa_parameters = {
+type dh_parameters = {
   dh_p : Cstruct.t;
   dh_g : Cstruct.t;
   dh_Ys : Cstruct.t;
@@ -67,15 +67,10 @@ type ec_parameters =
   | ExplicitCharParameters of ec_char_parameters
   | NamedCurveParameters of (named_curve_type * Cstruct.t)
 
-type signature =
-  | Anonymous
-  | RSA of Cstruct.t
-  | DSA of Cstruct.t
-
 type server_key_exchange =
-  | DiffieHellman of dsa_parameters * signature
-  | Rsa of rsa_parameters * signature
-  | EllipticCurve of ec_parameters * signature
+  | DiffieHellman of Cstruct.t * Cstruct.t
+  | Rsa of rsa_parameters * Cstruct.t
+  | EllipticCurve of ec_parameters * Cstruct.t
 
 type certificate_request = {
   certificate_types       : client_certificate_type list;

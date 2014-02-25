@@ -34,6 +34,9 @@ module Server = struct
     master_secret : Cstruct.t ;
     client_random : Cstruct.t ;
     server_random : Cstruct.t ;
+    dh_p          : Cstruct.t option ;
+    dh_g          : Cstruct.t option ;
+    dh_secret     : Cryptokit.DH.private_secret option
   }
 
   (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
@@ -54,64 +57,83 @@ module Server = struct
     let msgs = Utils.cs_appends packets in
     let computed = Crypto.finished sp.master_secret "client finished" msgs in
     assert (Utils.cs_eq computed buf);
+    Printf.printf "received good handshake finished\n";
     let my_checksum = Crypto.finished sp.master_secret "server finished" (msgs <> raw) in
     let send = Writer.assemble_handshake (Finished my_checksum) in
     (`Established, [`Record (Packet.HANDSHAKE, send)], `Pass)
 
 
   let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
-    Ciphersuite.(match ciphersuite_kex sp.ciphersuite with
-                 | RSA ->
-                    let pms = Crypto.decryptRSA (Crypto_utils.get_key "server.key") kex in
-                    let premastersecret = Cstruct.sub pms ((Cstruct.len pms) - 48) 48 in
-                    let mastersecret = Crypto.generate_master_secret premastersecret (sp.client_random <> sp.server_random) in
-                    Printf.printf "master secret\n";
-                    Cstruct.hexdump mastersecret;
+    let premastersecret =
+      match Ciphersuite.ciphersuite_kex sp.ciphersuite with
+      | Ciphersuite.RSA ->
+         Crypto.decryptRSA_unpadPKCS 48 (Crypto_utils.get_key "server.key") kex
+      | Ciphersuite.DHE_RSA ->
+         (* we assume explicit communication here, not a client certificate *)
+         let p = match sp.dh_p with
+           | Some x -> x
+           | None -> assert false
+         in
+         let g = match sp.dh_g with
+           | Some x -> x
+           | None -> assert false
+         in
+         let sec = match sp.dh_secret with
+           | Some x -> x
+           | None -> assert false
+         in
+         Crypto.computeDH p g sec kex
+      | _ -> assert false
+    in
+    let mastersecret = Crypto.generate_master_secret premastersecret (sp.client_random <> sp.server_random) in
+    Printf.printf "master secret\n";
+    Cstruct.hexdump mastersecret;
 
-                    let key, iv, mac = ciphersuite_cipher_mac_length sp.ciphersuite in
-                    let keyblocklength =  2 * key + 2 * mac + 2 * iv in
-                    let keyblock = Crypto.key_block keyblocklength mastersecret (sp.server_random <> sp.client_random) in
+    let key, iv, mac = Ciphersuite.ciphersuite_cipher_mac_length sp.ciphersuite in
+    let keyblocklength =  2 * key + 2 * mac + 2 * iv in
+    let keyblock = Crypto.key_block keyblocklength mastersecret (sp.server_random <> sp.client_random) in
 
-                    let c_mac, off = (Cstruct.sub keyblock 0 mac, mac) in
-                    let s_mac, off = (Cstruct.sub keyblock off mac, off + mac) in
-                    let c_key, off = (Cstruct.sub keyblock off key, off + key) in
-                    let s_key, off = (Cstruct.sub keyblock off key, off + key) in
-                    let c_iv, off = (Cstruct.sub keyblock off iv, off + iv) in
-                    let s_iv = Cstruct.sub keyblock off iv in
+    let c_mac, off = (Cstruct.sub keyblock 0 mac, mac) in
+    let s_mac, off = (Cstruct.sub keyblock off mac, off + mac) in
+    let c_key, off = (Cstruct.sub keyblock off key, off + key) in
+    let s_key, off = (Cstruct.sub keyblock off key, off + key) in
+    let c_iv, off = (Cstruct.sub keyblock off iv, off + iv) in
+    let s_iv = Cstruct.sub keyblock off iv in
 
-                    let mac = ciphersuite_mac sp.ciphersuite in
-                    let sequence = 0L in
-                    let cipher = ciphersuite_cipher sp.ciphersuite in
+    let mac = Ciphersuite.ciphersuite_mac sp.ciphersuite in
+    let sequence = 0L in
+    let cipher = Ciphersuite.ciphersuite_cipher sp.ciphersuite in
 
-                    let c_stream_cipher, s_stream_cipher =
-                      match cipher with
-                      | RC4_128 ->
-                         let ccipher = new Cryptokit.Stream.arcfour (Cstruct.copy c_key 0 key) in
-                         let scipher = new Cryptokit.Stream.arcfour (Cstruct.copy s_key 0 key) in
-                         (Some ccipher, Some scipher)
-                      | _ -> (None, None)
-                    in
+    let c_stream_cipher, s_stream_cipher =
+      match cipher with
+      | Ciphersuite.RC4_128 ->
+         let ccipher = new Cryptokit.Stream.arcfour (Cstruct.copy c_key 0 key) in
+         let scipher = new Cryptokit.Stream.arcfour (Cstruct.copy s_key 0 key) in
+         (Some ccipher, Some scipher)
+      | _ -> (None, None)
+    in
 
-                    let c_context =
-                      { stream_cipher = c_stream_cipher ;
-                        cipher_secret = c_key ;
-                        cipher_iv = c_iv ;
-                        mac_secret = c_mac ;
-                        cipher ; mac ; sequence } in
-                    let s_context =
-                      { stream_cipher = s_stream_cipher ;
-                        cipher_secret = s_key ;
-                        cipher_iv = s_iv ;
-                        mac_secret = s_mac ;
-                        cipher ; mac ; sequence }
-                    in
-                    let params = { sp with master_secret = mastersecret } in
-                    (`KeysExchanged (`Crypted s_context, `Crypted c_context, params, packets @ [raw]), [], `Pass)
-                 | _ -> assert false)
+    let c_context =
+      { stream_cipher = c_stream_cipher ;
+        cipher_secret = c_key ;
+        cipher_iv = c_iv ;
+        mac_secret = c_mac ;
+        cipher ; mac ; sequence } in
+    let s_context =
+      { stream_cipher = s_stream_cipher ;
+        cipher_secret = s_key ;
+        cipher_iv = s_iv ;
+        mac_secret = s_mac ;
+        cipher ; mac ; sequence }
+    in
+    let params = { sp with master_secret = mastersecret } in
+    (`KeysExchanged (`Crypted s_context, `Crypted c_context, params, packets @ [raw]), [], `Pass)
 
   let answer_client_hello (ch : client_hello) raw =
 (*    let cipher = Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA in *)
-    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in
+(*    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_MD5 in *)
+(*    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in *)
+    let cipher = Ciphersuite.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA in
     assert (List.mem cipher ch.ciphersuites);
     (* TODO : real random *)
     let r = Cstruct.create 32 in
@@ -119,7 +141,11 @@ module Server = struct
                    ciphersuite   = cipher ;
                    master_secret = Cstruct.create 0 ;
                    client_random = ch.random ;
-                   server_random = r } in
+                   server_random = r ;
+                   dh_p          = None ;
+                   dh_g          = None ;
+                   dh_secret     = None }
+    in
     let server_hello : server_hello =
       { version      = (3, 1) ;
         random       = r ;
@@ -135,11 +161,36 @@ module Server = struct
       else
         bufs
     in
-    (* TODO: Server Key Exchange *)
+    let bufs'', params' =
+      if Ciphersuite.needs_server_kex kex then
+        begin
+          match kex with
+          | Ciphersuite.DHE_RSA ->
+             let dh_p, dh_g, dh_Ys, priv = Crypto.generateDH 1024 in
+             let params' = { params with dh_p = Some dh_p ; dh_g = Some dh_g ; dh_secret = Some priv } in
+             let dhparams = { dh_p ; dh_g ; dh_Ys } in
+             let written = Writer.assemble_dh_parameters dhparams in
+             Printf.printf "written";
+             Cstruct.hexdump written;
+             let data = (params.client_random <> params.server_random) <> written in
+             let md5signature = Crypto.md5 data in
+             let shasignature = Crypto.sha data in
+             let signing = md5signature <> shasignature in
+             Printf.printf "signing";
+             Cstruct.hexdump signing;
+             let sign = Crypto.padPKCS1_and_signRSA 128 (Crypto_utils.get_key "server.key") signing in
+             let kex = DiffieHellman (written, sign) in
+             (* somehow I need to preserver the parameters *)
+             (bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)], params')
+          | _ -> assert false
+        end
+      else
+        (bufs', params)
+    in
     (* server hello done! *)
     let hello_done = Writer.assemble_handshake ServerHelloDone in
-    let packets = bufs' @ [hello_done] in
-    (`Handshaking (params, raw :: packets),
+    let packets = bufs'' @ [hello_done] in
+    (`Handshaking (params', raw :: packets),
      List.map (fun e -> `Record (Packet.HANDSHAKE, e)) packets,
      `Pass)
 
@@ -188,6 +239,8 @@ module Server = struct
          let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
          let body, mac = Cstruct.split dec macstart in
          let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty body in
+         Printf.printf "received mac is"; Cstruct.hexdump mac;
+         Printf.printf "computed mac is"; Cstruct.hexdump cmac;
          assert (Utils.cs_eq cmac mac);
          (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
                               cipher_iv = next_iv },
@@ -240,7 +293,10 @@ module Server = struct
        end
     | Packet.HANDSHAKE ->
        begin
-         match (is, Reader.parse_handshake buf) with
+         let handshake = Reader.parse_handshake buf in
+         Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
+         Cstruct.hexdump buf;
+         match (is, handshake) with
          | `Initial, ClientHello ch ->
               answer_client_hello ch buf
          | `Handshaking (p, bs), ClientKeyExchange kex ->
