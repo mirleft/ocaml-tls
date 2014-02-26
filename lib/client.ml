@@ -1,0 +1,150 @@
+open Core
+open Flow
+
+let answer_client_hello ch raw =
+  let params =
+    { entity             = Client ;
+      ciphersuite        = List.hd ch.ciphersuites ;
+      master_secret      = Cstruct.create 0 ;
+      client_random      = ch.random ;
+      server_random      = Cstruct.create 0 ;
+      dh_p               = None ;
+      dh_g               = None ;
+      dh_secret          = None ;
+      server_certificate = None
+    }
+  in
+  (`Handshaking (params, [raw]), [`Record (Packet.HANDSHAKE, raw)], `Pass)
+
+let answer_server_hello (p : security_parameters) bs sh raw =
+  (* sends nothing *)
+  let ps = { p with ciphersuite = sh.ciphersuites ; server_random = sh.random } in
+  (`Handshaking (ps, bs @ [raw]), [], `Pass)
+
+let answer_certificate p bs cs raw =
+  (* sends nothing *)
+  let cert = match Asn_grammars.certificate_of_cstruct (List.hd cs) with
+    | Some (cert, _) -> cert
+    | None -> assert false
+  in
+  (* TODO: certificate verification *)
+  let ps = { p with server_certificate = Some cert } in
+  (`Handshaking (ps, bs @ [raw]), [], `Pass)
+
+let answer_server_hello_done p bs raw =
+  (* sends clientkex change ciper spec; finished *)
+  (* TODO: also maybe certificate/certificateverify *)
+  match Ciphersuite.ciphersuite_kex p.ciphersuite with
+  | Ciphersuite.RSA ->
+     let cert = match p.server_certificate with
+       | Some x -> x
+       | None -> assert false
+     in
+     (* TODO: random ;) *)
+     let premaster = Cstruct.create 48 in
+     (* 128 should be size of modulus *)
+     let kex = Crypto.padPKCS1_and_encryptRSA 128 (Crypto_utils.get_key "server.key") premaster in (* this is wrong, should use 'cert' *)
+     let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
+     let ccs = Cstruct.create 1 in
+     Cstruct.set_uint8 ccs 0 1;
+     let client_ctx, server_ctx, params = initialise_crypto_ctx p premaster in
+     let to_fin = bs @ [raw; ckex] in
+     let checksum = Crypto.finished params.master_secret "client finished" to_fin in
+     let fin = Writer.assemble_handshake (Finished checksum) in
+     (`Handshaking (params, to_fin @ [fin]),
+      [`Record (Packet.HANDSHAKE, ckex);
+       `Record (Packet.CHANGE_CIPHER_SPEC, ccs);
+       `Change_enc (`Crypted client_ctx);
+       `Record (Packet.HANDSHAKE, fin)],
+      `Change_dec (`Crypted server_ctx))
+  | _ -> assert false
+
+let answer_server_finished p bs fin =
+  let computed = Crypto.finished p.master_secret "server finished" bs in
+  assert (Utils.cs_eq computed fin);
+  (`Established, [], `Pass)
+
+let handle_record
+    : tls_internal_state -> content_type -> Cstruct.t
+      -> (tls_internal_state * rec_resp list * dec_resp)
+ = fun is ct buf ->
+    Printf.printf "HANDLE_RECORD (in state %s) %s\n"
+                  (state_to_string is)
+                  (Packet.content_type_to_string ct);
+    match ct with
+    | Packet.ALERT ->
+       let al = Reader.parse_alert buf in
+       Printf.printf "ALERT: %s" (Printer.alert_to_string al);
+       (is, [], `Pass)
+    | Packet.APPLICATION_DATA ->
+       Printf.printf "APPLICATION DATA";
+       Cstruct.hexdump buf;
+       (is, [], `Pass)
+    | Packet.CHANGE_CIPHER_SPEC ->
+       (* actually, we're the client and have already sent the kex! *)
+       begin
+         match is with
+         | `Established -> Printf.printf "all good, received CCS\n";
+                           (is, [], `Pass)
+         | _ -> assert false
+       end
+    | Packet.HANDSHAKE ->
+       begin
+         let handshake = Reader.parse_handshake buf in
+         Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
+         Cstruct.hexdump buf;
+         match (is, handshake) with
+          (* this initiates a connection --
+             we use the pipeline with a manually crafted ClientHello *)
+         | `Initial, ClientHello ch ->
+            answer_client_hello ch buf
+         | `Handshaking (p, bs), ServerHello sh ->
+            answer_server_hello p bs sh buf (* sends nothing *)
+         | `Handshaking (p, bs), Certificate cs ->
+            answer_certificate p bs cs buf (* sends nothing *)
+(*         | `Handshaking (p, bs), ServerKeyExchange kex ->
+            answer_server_key_exchange p bs kex buf(* sends nothing *) *)
+         | `Handshaking (p, bs), ServerHelloDone ->
+            answer_server_hello_done p bs buf
+            (* sends clientkex change ciper spec; finished *)
+            (* also maybe certificate/certificateverify *)
+         | `Handshaking (p, bs), Finished fin ->
+              answer_server_finished p bs fin
+(*         | `Established, HelloRequest ch -> (* key renegotiation *)
+              answer_hello_request ch buf *)
+         | _, _-> assert false
+       end
+    | _ -> assert false
+
+let handle_raw_record state (hdr, buf) =
+  let (dec_st, dec) = decrypt state.decryptor hdr.content_type buf in
+  let (machina, items, dec_cmd) =
+    handle_record state.machina hdr.content_type dec in
+  let (encryptor, encs) =
+    let rec loop st = function
+      | [] -> (st, [])
+      | `Change_enc st'   :: xs -> loop st' xs
+      | `Record (ty, buf) :: xs ->
+          let (st1, enc ) = encrypt st ty buf in
+          let (st2, rest) = loop st1 xs in
+          (st2, (ty, enc) :: rest)
+    in
+    loop state.encryptor items in
+  let decryptor = match dec_cmd with
+    | `Change_dec dec -> dec
+    | `Pass           -> dec_st in
+  ({ machina ; encryptor ; decryptor }, encs)
+
+let handle_tls : state -> Cstruct.t -> state * Cstruct.t
+= fun state buf ->
+  let in_records = separate_records buf in
+  let (state', out_records) =
+    let rec loop st = function
+      | []    -> (st, [])
+      | r::rs ->
+          let (st1, raw_rs ) = handle_raw_record st r in
+          let (st2, raw_rs') = loop st1 rs in
+          (st2, raw_rs @ raw_rs') in
+    loop state in_records in
+  let buf' = assemble_records out_records in
+  (state', buf')

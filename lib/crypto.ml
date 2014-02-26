@@ -51,11 +51,6 @@ let finished master_secret label ps =
   let sha1 = sha data in
   pseudo_random_function 12 master_secret label (md5 <> sha1)
 
-let encryptRSA key msg =
-  let input = Cstruct.copy msg 0 (Cstruct.len msg) in
-  let res = Cryptokit.RSA.encrypt key input in
-  Cstruct.of_string res
-
 let signRSA key msg =
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in
   let res = Cryptokit.RSA.sign key input in
@@ -78,6 +73,25 @@ let padPKCS1_and_signRSA len key msg =
   Cstruct.set_uint8 out (padlen - 1) 0;
   Cstruct.blit msg 0 out padlen mlen;
   signRSA key out
+
+let encryptRSA key msg =
+  let input = Cstruct.copy msg 0 (Cstruct.len msg) in
+  let res = Cryptokit.RSA.encrypt key input in
+  Cstruct.of_string res
+
+let padPKCS1_and_encryptRSA len pubkey data =
+  (* we're supposed to do the following:
+     0x00 0x02 <random_not_zero> 0x00 data *)
+  let padlen = len - (Cstruct.len data) in
+  let pad = Cstruct.create len in
+  Cstruct.set_uint8 pad 0 0;
+  Cstruct.set_uint8 pad 1 2;
+  for i = 2 to padlen - 2 do
+    Cstruct.set_uint8 pad i 0xAA; (* TODO: might use better random *)
+  done;
+  Cstruct.set_uint8 pad (padlen - 1) 0;
+  Cstruct.blit data 0 pad padlen (Cstruct.len data);
+  encryptRSA pubkey pad
 
 let decryptRSA key msg =
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in

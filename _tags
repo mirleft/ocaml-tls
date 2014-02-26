@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 17ebdb8c029aadb8ab3eaec8f60937f2)
+# DO NOT EDIT (digest: 7d9a4215120ee79c02b012178efbd5f0)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -26,6 +26,7 @@
 "lib/crypto_utils.cmx": for-pack(Tls)
 "lib/flow.cmx": for-pack(Tls)
 "lib/server.cmx": for-pack(Tls)
+"lib/client.cmx": for-pack(Tls)
 "lib/asn_grammars.cmx": for-pack(Tls)
 <lib/*.ml{,i}>: pkg_asn1-combinators
 <lib/*.ml{,i}>: pkg_cryptokit
