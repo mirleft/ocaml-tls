@@ -2,11 +2,10 @@ open Core
 open Flow
 
 let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list) (fin : Cstruct.t) (raw : Cstruct.t)  =
-  let msgs = Utils.cs_appends packets in
-  let computed = Crypto.finished sp.master_secret "client finished" msgs in
+  let computed = Crypto.finished sp.master_secret "client finished" packets in
   assert (Utils.cs_eq computed fin);
   Printf.printf "received good handshake finished\n";
-  let my_checksum = Crypto.finished sp.master_secret "server finished" (msgs <> raw) in
+  let my_checksum = Crypto.finished sp.master_secret "server finished" (packets @ [raw]) in
   let send = Writer.assemble_handshake (Finished my_checksum) in
   (`Established, [`Record (Packet.HANDSHAKE, send)], `Pass)
 

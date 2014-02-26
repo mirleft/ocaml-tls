@@ -45,7 +45,8 @@ let generate_master_secret pre_master_secret seed =
 let key_block len master_secret seed =
   pseudo_random_function len master_secret "key expansion" seed
 
-let finished master_secret label data =
+let finished master_secret label ps =
+  let data = Utils.cs_appends ps in
   let md5 = md5 data in
   let sha1 = sha data in
   pseudo_random_function 12 master_secret label (md5 <> sha1)
