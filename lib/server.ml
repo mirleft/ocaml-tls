@@ -1,10 +1,10 @@
 open Core
 open Flow
 
-let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list) (buf : Cstruct.t) (raw : Cstruct.t)  =
+let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list) (fin : Cstruct.t) (raw : Cstruct.t)  =
   let msgs = Utils.cs_appends packets in
   let computed = Crypto.finished sp.master_secret "client finished" msgs in
-  assert (Utils.cs_eq computed buf);
+  assert (Utils.cs_eq computed fin);
   Printf.printf "received good handshake finished\n";
   let my_checksum = Crypto.finished sp.master_secret "server finished" (msgs <> raw) in
   let send = Writer.assemble_handshake (Finished my_checksum) in
@@ -32,49 +32,8 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
        Crypto.computeDH p g sec kex
     | _ -> assert false
   in
-  let mastersecret = Crypto.generate_master_secret premastersecret (sp.client_random <> sp.server_random) in
-  Printf.printf "master secret\n";
-  Cstruct.hexdump mastersecret;
-
-  let key, iv, mac = Ciphersuite.ciphersuite_cipher_mac_length sp.ciphersuite in
-  let keyblocklength =  2 * key + 2 * mac + 2 * iv in
-  let keyblock = Crypto.key_block keyblocklength mastersecret (sp.server_random <> sp.client_random) in
-
-  let c_mac, off = (Cstruct.sub keyblock 0 mac, mac) in
-  let s_mac, off = (Cstruct.sub keyblock off mac, off + mac) in
-  let c_key, off = (Cstruct.sub keyblock off key, off + key) in
-  let s_key, off = (Cstruct.sub keyblock off key, off + key) in
-  let c_iv, off = (Cstruct.sub keyblock off iv, off + iv) in
-  let s_iv = Cstruct.sub keyblock off iv in
-
-  let mac = Ciphersuite.ciphersuite_mac sp.ciphersuite in
-  let sequence = 0L in
-  let cipher = Ciphersuite.ciphersuite_cipher sp.ciphersuite in
-
-  let c_stream_cipher, s_stream_cipher =
-    match cipher with
-    | Ciphersuite.RC4_128 ->
-       let ccipher = new Cryptokit.Stream.arcfour (Cstruct.copy c_key 0 key) in
-       let scipher = new Cryptokit.Stream.arcfour (Cstruct.copy s_key 0 key) in
-       (Some ccipher, Some scipher)
-    | _ -> (None, None)
-  in
-
-  let c_context =
-    { stream_cipher = c_stream_cipher ;
-      cipher_secret = c_key ;
-      cipher_iv = c_iv ;
-      mac_secret = c_mac ;
-      cipher ; mac ; sequence } in
-  let s_context =
-    { stream_cipher = s_stream_cipher ;
-      cipher_secret = s_key ;
-      cipher_iv = s_iv ;
-      mac_secret = s_mac ;
-      cipher ; mac ; sequence }
-  in
-  let params = { sp with master_secret = mastersecret } in
-  (`KeysExchanged (`Crypted s_context, `Crypted c_context, params, packets @ [raw]), [], `Pass)
+  let client_ctx, server_ctx, params = initialise_crypto_ctx sp premastersecret in
+  (`KeysExchanged (`Crypted server_ctx, `Crypted client_ctx, params, packets @ [raw]), [], `Pass)
 
 let answer_client_hello (ch : client_hello) raw =
 (*    let cipher = Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA in *)
