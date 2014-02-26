@@ -7,7 +7,7 @@ let blue fmt   = Printf.sprintf ("\027[36m"^^fmt^^"\027[m")
 
 module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
 
-  module TLS = Tls.Flow.Server
+  module TLS = Tls.Server
 
   let on_connect c flow =
     let rec loop tls =
@@ -22,7 +22,7 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
     C.log_s c (green "new tcp connection from %s %d"
                 (Ipaddr.V4.to_string dst) dst_port)
     >>
-    try_lwt loop TLS.empty_state 
+    try_lwt loop Tls.Flow.empty_state
     finally S.TCPV4.close flow
 
   let start c s =

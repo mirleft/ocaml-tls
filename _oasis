@@ -15,7 +15,7 @@ Library tls
   Path: lib/
   Modules:
    Ciphersuite, Utils, Packet, Core, Printer, Reader, Writer,
-   Crypto, Crypto_utils, Flow
+   Crypto, Crypto_utils, Flow, Server
   InternalModules: Asn_grammars
   Pack: true
   BuildDepends: cstruct, cstruct.syntax, nocrypto, asn1-combinators, cryptokit
