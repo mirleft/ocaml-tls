@@ -164,3 +164,39 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
          mac_secret = s_mac ;
          cipher ; mac ; sequence } in
      (c_context, s_context, { sp with master_secret = mastersecret })
+
+
+let handle_raw_record handler state (hdr, buf) =
+  let (dec_st, dec) = decrypt state.decryptor hdr.content_type buf in
+  let (machina, items, dec_cmd) =
+    handler state.machina hdr.content_type dec in
+  let (encryptor, encs) =
+    let rec loop st = function
+      | [] -> (st, [])
+      | `Change_enc st'   :: xs -> loop st' xs
+      | `Record (ty, buf) :: xs ->
+          let (st1, enc ) = encrypt st ty buf in
+          let (st2, rest) = loop st1 xs in
+          (st2, (ty, enc) :: rest)
+    in
+    loop state.encryptor items in
+  let decryptor = match dec_cmd with
+    | `Change_dec dec -> dec
+    | `Pass           -> dec_st in
+  ({ machina ; encryptor ; decryptor }, encs)
+
+let handle_tls_int : (tls_internal_state -> content_type -> Cstruct.t
+      -> (tls_internal_state * rec_resp list * dec_resp)) ->
+                 state -> Cstruct.t -> state * Cstruct.t
+= fun handler state buf ->
+  let in_records = separate_records buf in
+  let (state', out_records) =
+    let rec loop st = function
+      | []    -> (st, [])
+      | r::rs ->
+          let (st1, raw_rs ) = handle_raw_record handler st r in
+          let (st2, raw_rs') = loop st1 rs in
+          (st2, raw_rs @ raw_rs') in
+    loop state in_records in
+  let buf' = assemble_records out_records in
+  (state', buf')
