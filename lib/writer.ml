@@ -150,6 +150,13 @@ let assemble_server_key_exchange = function
      buf
   | _ -> assert false
 
+let assemble_client_key_exchange kex =
+  let len = Cstruct.len kex in
+  let buf = Cstruct.create (len + 2) in
+  Cstruct.BE.set_uint16 buf 0 len;
+  Cstruct.blit kex 0 buf 2 len;
+  buf
+
 let assemble_handshake hs =
   let (payload, payload_type) =
     match hs with
@@ -157,6 +164,7 @@ let assemble_handshake hs =
     | ServerHello sh -> (assemble_server_hello sh, SERVER_HELLO)
     | Certificate cs -> (assemble_certificates cs, CERTIFICATE)
     | ServerKeyExchange kex -> (assemble_server_key_exchange kex, SERVER_KEY_EXCHANGE)
+    | ClientKeyExchange kex -> (assemble_client_key_exchange kex, CLIENT_KEY_EXCHANGE)
     | ServerHelloDone -> (Cstruct.create 0, SERVER_HELLO_DONE)
     | Finished fs -> (fs, FINISHED)
     | _ -> assert false

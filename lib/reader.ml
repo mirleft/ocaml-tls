@@ -330,7 +330,6 @@ let parse_client_key_exchange buf =
   let len = Cstruct.BE.get_uint16 buf 0 in
   Cstruct.sub buf 2 len
 
-
 let parse_handshake buf =
   let typ = Cstruct.get_uint8 buf 0 in
   let handshake_type = match int_to_handshake_type typ with
