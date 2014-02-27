@@ -42,6 +42,11 @@ let answer_server_hello_done p bs raw =
      in
      (* TODO: random ;) *)
      let premaster = Cstruct.create 48 in
+     Cstruct.set_uint8 premaster 0 3;
+     Cstruct.set_uint8 premaster 1 1;
+     for i = 2 to 47 do
+       Cstruct.set_uint8 premaster i i;
+     done;
      (* 128 should be size of modulus *)
      let kex = Crypto.padPKCS1_and_encryptRSA 128 (Crypto_utils.get_key "server.key") premaster in (* this is wrong, should use 'cert' *)
      let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
@@ -51,12 +56,12 @@ let answer_server_hello_done p bs raw =
      let to_fin = bs @ [raw; ckex] in
      let checksum = Crypto.finished params.master_secret "client finished" to_fin in
      let fin = Writer.assemble_handshake (Finished checksum) in
-     (`Handshaking (params, to_fin @ [fin]),
+     (`KeysExchanged (`Crypted client_ctx, `Crypted server_ctx, params, to_fin @ [fin]),
       [`Record (Packet.HANDSHAKE, ckex);
        `Record (Packet.CHANGE_CIPHER_SPEC, ccs);
        `Change_enc (`Crypted client_ctx);
        `Record (Packet.HANDSHAKE, fin)],
-      `Change_dec (`Crypted server_ctx))
+      `Pass)
   | _ -> assert false
 
 let answer_server_finished p bs fin =
@@ -84,8 +89,9 @@ let handle_record
        (* actually, we're the client and have already sent the kex! *)
        begin
          match is with
-         | `Established -> Printf.printf "all good, received CCS\n";
-                           (is, [], `Pass)
+         | `KeysExchanged (_, server_ctx, _, _) ->
+              Printf.printf "all good, received CCS\n";
+              (is, [], `Change_dec server_ctx)
          | _ -> assert false
        end
     | Packet.HANDSHAKE ->
@@ -108,7 +114,7 @@ let handle_record
             answer_server_hello_done p bs buf
             (* sends clientkex change ciper spec; finished *)
             (* also maybe certificate/certificateverify *)
-         | `Handshaking (p, bs), Finished fin ->
+         | `KeysExchanged (_, _, p, bs), Finished fin ->
               answer_server_finished p bs fin
 (*         | `Established, HelloRequest ch -> (* key renegotiation *)
               answer_hello_request ch buf *)
@@ -117,3 +123,14 @@ let handle_record
     | _ -> assert false
 
 let handle_tls = handle_tls_int handle_record
+
+let open_connection =
+  let client_hello : client_hello =
+    { version      = (3, 1) ;
+      random       = Cstruct.create 32 ;
+      sessionid    = None ;
+      ciphersuites = [Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
+      extensions   = [] }
+  in
+  let buf = Writer.assemble_handshake (ClientHello client_hello) in
+  Writer.assemble_hdr (Packet.HANDSHAKE, buf)

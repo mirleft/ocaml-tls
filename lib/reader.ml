@@ -146,7 +146,7 @@ let get_extensions buf =
        go (Cstruct.shift buf esize) (extension :: acc)
   in
   let len = Cstruct.BE.get_uint16 buf 0 in
-  (go (Cstruct.sub buf 2 len) [], Cstruct.shift buf (2 + len))
+  (go (Cstruct.sub buf 2 len) [], 2 + len)
 
 
 let get_varlength buf bytes =
@@ -186,7 +186,12 @@ let parse_client_hello buf =
   let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
   let ciphersuites, clen = get_ciphersuites (Cstruct.shift buf (34 + slen)) in
   let _, dlen = get_compression_methods (Cstruct.shift buf (34 + slen + clen)) in
-  let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + clen + dlen)) in
+  let extensions, _ =
+    if Cstruct.len buf > (34 + slen + clen + dlen) then
+      get_extensions (Cstruct.shift buf (34 + slen + clen + dlen))
+    else
+      ([], 0)
+  in
   (* assert that dlen is small *)
   { version ; random ; sessionid ; ciphersuites ; extensions }
 
@@ -198,7 +203,12 @@ let parse_server_hello buf : server_hello =
   let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
   let ciphersuites = get_ciphersuite (Cstruct.shift buf (34 + slen)) in
   let _ = get_compression_method (Cstruct.shift buf (34 + slen + 2)) in
-  let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + 2 + 1)) in
+  let extensions, _ =
+    if Cstruct.len buf > (34 + slen + 2 + 1) then
+      get_extensions (Cstruct.shift buf (34 + slen + 2 + 1))
+    else
+      ([], 0)
+  in
   (* assert that dlen is small *)
   { version ; random ; sessionid ; ciphersuites ; extensions }
 

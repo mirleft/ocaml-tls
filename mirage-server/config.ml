@@ -25,6 +25,6 @@ let () =
   add_to_ocamlfind_libraries
     [ "tls" ];
 
-  register "mirage-tls" [
+  register "mirage-tls-server" [
     main $ default_console $ stack default_console
   ]

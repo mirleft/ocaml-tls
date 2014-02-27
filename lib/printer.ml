@@ -69,7 +69,7 @@ let handshake_to_string = function
   | Finished x -> "Finished"
 
 let alert_to_string (lvl, typ) =
-  alert_level_to_string lvl ^ alert_type_to_string typ
+  alert_level_to_string lvl ^ " " ^ alert_type_to_string typ
 
 let body_to_string = function
   | TLS_ChangeCipherSpec -> "TLS Change Cipher Spec"
