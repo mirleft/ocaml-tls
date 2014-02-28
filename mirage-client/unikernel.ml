@@ -16,19 +16,25 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
             let (tls', ans) = Tls.Client.handle_tls tls buf in
             S.TCPV4.write flow ans >> loop tls'
     in
+    let (dst, dst_port) = S.TCPV4.get_dest flow in
     let (tls', ans) = Tls.Client.handle_tls Tls.Flow.empty_state hello in
-    S.TCPV4.write flow ans >>
+    C.log_s c (green "writing to tcp connection from %s %d (len %d)"
+                     (Ipaddr.V4.to_string dst) dst_port (Cstruct.len ans))
+    >>
+    S.TCPV4.write flow ans
+    >>
     try_lwt loop tls'
     finally S.TCPV4.close flow
 
   let connect_client s c =
     let ip = Ipaddr.V4.make 10 0 0 1 in
+    C.log_s c (green "connecting to host") >>
     S.TCPV4.create_connection (S.tcpv4 s) (ip, 4433) >>= function
      | `Ok flow ->
         let client_hello = Tls.Client.open_connection in
         on_connect client_hello c flow;
-     | `Error e -> assert false
-
+     | `Error e ->
+        C.log_s c (red "received an error while connecting")
 
   let start c s =
     connect_client s c
