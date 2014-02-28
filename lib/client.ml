@@ -90,7 +90,6 @@ let handle_record
        begin
          match is with
          | `KeysExchanged (_, server_ctx, _, _) ->
-              Printf.printf "all good, received CCS\n";
               (is, [], `Change_dec server_ctx)
          | _ -> assert false
        end
