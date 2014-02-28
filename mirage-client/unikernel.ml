@@ -30,26 +30,7 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
      | `Error e -> assert false
 
 
-  let on_server_connect s c flow =
-    let rec loop tls =
-      S.TCPV4.read flow >>= function
-        | `Eof     -> C.log_s c (red "read: eof")
-        | `Error e -> C.log_s c (red "read: error")
-        | `Ok buf  ->
-            let (tls', ans) = Tls.Server.handle_tls tls buf in
-            S.TCPV4.write flow ans >> loop tls'
-    in
-    let (dst, dst_port) = S.TCPV4.get_dest flow in
-    C.log_s c (green "new tcp connection from %s %d"
-                (Ipaddr.V4.to_string dst) dst_port)
-    >>
-      connect_client s c
-    >>
-    try_lwt loop Tls.Flow.empty_state
-    finally S.TCPV4.close flow
-
   let start c s =
-    S.listen_tcpv4 s ~port:80 (on_server_connect s c) ;
-    S.listen s
+    connect_client s c
 
 end
