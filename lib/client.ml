@@ -47,8 +47,9 @@ let answer_server_hello_done p bs raw =
      for i = 2 to 47 do
        Cstruct.set_uint8 premaster i i;
      done;
-     (* 128 should be size of modulus *)
-     let kex = Crypto.padPKCS1_and_encryptRSA 128 (Crypto_utils.get_key "server.key") premaster in (* this is wrong, should use 'cert' *)
+     let pubkey = Asn_grammars.rsa_public_of_cert cert in
+     let msglen = Cryptokit.RSA.(pubkey.size / 8) in
+     let kex = Crypto.padPKCS1_and_encryptRSA msglen pubkey premaster in
      let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
      let ccs = Cstruct.create 1 in
      Cstruct.set_uint8 ccs 0 1;

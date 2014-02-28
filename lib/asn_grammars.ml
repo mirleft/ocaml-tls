@@ -210,3 +210,8 @@ let certificate =
 let (certificate_of_cstruct, certificate_to_cstruct) =
   let c = codec ber certificate in (decode c, encode c)
 
+let rsa_public_of_cert cert =
+  let _, bits = cert.tbs_cert.pk_info in
+  match rsa_public_of_cstruct bits with
+    | Some (k, _) -> k
+    | None -> assert false
