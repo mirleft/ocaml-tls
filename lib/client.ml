@@ -70,6 +70,13 @@ let answer_server_finished p bs fin =
   assert (Utils.cs_eq computed fin);
   (`Established, [], `Pass)
 
+let default_client_hello : client_hello =
+  { version      = (3, 1) ;
+    random       = Cstruct.create 32 ;
+    sessionid    = None ;
+    ciphersuites = [Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
+    extensions   = [] }
+
 let handle_record
     : tls_internal_state -> content_type -> Cstruct.t
       -> (tls_internal_state * rec_resp list * dec_resp)
@@ -116,8 +123,9 @@ let handle_record
             (* also maybe certificate/certificateverify *)
          | `KeysExchanged (_, _, p, bs), Finished fin ->
               answer_server_finished p bs fin
-(*         | `Established, HelloRequest ch -> (* key renegotiation *)
-              answer_hello_request ch buf *)
+         | `Established, HelloRequest -> (* key renegotiation *)
+              let ch = default_client_hello in
+              answer_client_hello ch buf
          | _, _-> assert false
        end
     | _ -> assert false
@@ -125,12 +133,6 @@ let handle_record
 let handle_tls = handle_tls_int handle_record
 
 let open_connection =
-  let client_hello : client_hello =
-    { version      = (3, 1) ;
-      random       = Cstruct.create 32 ;
-      sessionid    = None ;
-      ciphersuites = [Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
-      extensions   = [] }
-  in
-  let buf = Writer.assemble_handshake (ClientHello client_hello) in
+  let ch = default_client_hello in
+  let buf = Writer.assemble_handshake (ClientHello ch) in
   Writer.assemble_hdr (Packet.HANDSHAKE, buf)
