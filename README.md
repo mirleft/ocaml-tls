@@ -8,9 +8,9 @@ status
 
 Client and server are working (mirage-server and mirage-client applications).
 
-The mirage-server uses a tap0 interface 10.0.0.2 and listens on port 80.
+The mirage-server uses a tap0 interface 10.0.0.2 and listens on port 80. Run the server ``sudo ./mir-mirage-tls-server``, and use ``openssl s_client -tls1 -msg -connect 10.0.0.2:80`` to start a secure conversation.
 
-The mirage-client uses a mirage socket_stackv4 (`Socket instead of `Direct due to issues in mirage) and connects to 127.0.0.1 port 4433 (where openssl s_client listens by default).
+The mirage-client uses a mirage socket_stackv4 (`` `Socket`` instead of `` `Direct`` due to issues in mirage) and connects to 127.0.0.1 port 4433. Run ``openssl s_server -tls1 -key server.key -cert server.pem -msg`` before running ``./mir-mirage-tls-client``.
 
 The combined mirage-server-client connects to 10.0.0.1 port 4433 when a connection is made to it (10.0.0.2 port 80).
 
