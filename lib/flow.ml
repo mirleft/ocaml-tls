@@ -32,8 +32,7 @@ type security_parameters = {
   master_secret      : Cstruct.t ;
   client_random      : Cstruct.t ;
   server_random      : Cstruct.t ;
-  dh_p               : Cstruct.t option ;
-  dh_g               : Cstruct.t option ;
+  dh_params          : dh_parameters option ;
   dh_secret          : Cryptokit.DH.private_secret option ;
   server_certificate : Asn_grammars.certificate option ;
   client_verify_data : Cstruct.t ;

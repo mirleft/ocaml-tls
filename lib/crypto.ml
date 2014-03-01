@@ -112,12 +112,15 @@ let generateDH bits =
     let ps = new_parameters bits in
     let priv = private_secret ps in
     let msg = message ps priv in
-    Cstruct.(of_string ps.p, of_string ps.g, of_string msg, priv))
+    Core.(Cstruct.({ dh_p  = of_string ps.p ;
+                     dh_g  = of_string ps.g ;
+                     dh_Ys = of_string msg})), priv)
 
-let computeDH p g secret other =
-  let ps = Cryptokit.DH.({ p = Cstruct.copy p 0 (Cstruct.len p) ;
-                           g = Cstruct.copy g 0 (Cstruct.len g) ;
-                           privlen = 160 })
+let computeDH key secret other =
+  let ps = Cryptokit.DH.(Core.(
+     { p = Cstruct.copy key.dh_p 0 (Cstruct.len key.dh_p) ;
+       g = Cstruct.copy key.dh_g 0 (Cstruct.len key.dh_g) ;
+       privlen = 160 }))
   in
   let shared = Cryptokit.DH.shared_secret ps secret (Cstruct.copy other 0 (Cstruct.len other)) in
   Cstruct.of_string shared

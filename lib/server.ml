@@ -19,11 +19,7 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
        Crypto.decryptRSA_unpadPKCS 48 (Crypto_utils.get_key "server.key") kex
     | Ciphersuite.DHE_RSA ->
        (* we assume explicit communication here, not a client certificate *)
-       let p = match sp.dh_p with
-         | Some x -> x
-         | None -> assert false
-       in
-       let g = match sp.dh_g with
+       let params = match sp.dh_params with
          | Some x -> x
          | None -> assert false
        in
@@ -31,7 +27,7 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
          | Some x -> x
          | None -> assert false
        in
-       Crypto.computeDH p g sec kex
+       Crypto.computeDH params sec kex
     | _ -> assert false
   in
   let client_ctx, server_ctx, params = initialise_crypto_ctx sp premastersecret in
@@ -75,10 +71,9 @@ let answer_client_hello_params sp ch raw =
       begin
         match kex with
         | Ciphersuite.DHE_RSA ->
-           let dh_p, dh_g, dh_Ys, priv = Crypto.generateDH 1024 in
-           let params'' = { params' with dh_p = Some dh_p ; dh_g = Some dh_g ; dh_secret = Some priv } in
-           let dhparams = { dh_p ; dh_g ; dh_Ys } in
-           let written = Writer.assemble_dh_parameters dhparams in
+           let dh_params, priv = Crypto.generateDH 1024 in
+           let params'' = { params' with dh_params = Some dh_params ; dh_secret = Some priv } in
+           let written = Writer.assemble_dh_parameters dh_params in
            Printf.printf "written";
            Cstruct.hexdump written;
            let data = (params''.client_random <> params''.server_random) <> written in
@@ -113,8 +108,7 @@ let answer_client_hello (ch : client_hello) raw =
                  master_secret      = Cstruct.create 0 ;
                  client_random      = Cstruct.create 0 ;
                  server_random      = Cstruct.create 0 ;
-                 dh_p               = None ;
-                 dh_g               = None ;
+                 dh_params          = None ;
                  dh_secret          = None ;
                  server_certificate = None ;
                  client_verify_data = Cstruct.create 0 ;
