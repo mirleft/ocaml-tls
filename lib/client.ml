@@ -2,6 +2,8 @@ open Core
 open Flow
 
 let answer_client_hello_params sp ch raw =
+  Printf.printf "sending client hello";
+  Cstruct.hexdump raw;
   (`Handshaking (sp, [raw]), [`Record (Packet.HANDSHAKE, raw)], `Pass)
 
 let answer_client_hello ch raw =
@@ -84,8 +86,7 @@ let default_client_hello : client_hello =
   { version      = (3, 1) ;
     random       = Cstruct.create 32 ;
     sessionid    = None ;
-    ciphersuites = [Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
-                    Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV] ;
+    ciphersuites = [Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
     extensions   = [] }
 
 let handle_record
@@ -136,7 +137,8 @@ let handle_record
               answer_server_finished p bs fin
          | `Established sp, HelloRequest -> (* key renegotiation *)
               let ch = { default_client_hello with extensions = [SecureRenegotiation sp.client_verify_data] } in
-              answer_client_hello_params sp ch buf
+              let raw = Writer.assemble_handshake (ClientHello ch) in
+              answer_client_hello_params sp ch raw
          | _, _-> assert false
        end
     | _ -> assert false
@@ -144,6 +146,10 @@ let handle_record
 let handle_tls = handle_tls_int handle_record
 
 let open_connection =
-  let ch = default_client_hello in
+  let dch = default_client_hello in
+  let ch = { dch with ciphersuites =
+                        dch.ciphersuites @
+                          [Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV] }
+  in
   let buf = Writer.assemble_handshake (ClientHello ch) in
   Writer.assemble_hdr (Packet.HANDSHAKE, buf)
