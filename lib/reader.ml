@@ -132,6 +132,7 @@ let get_extension buf =
     | Some MAX_FRAGMENT_LENGTH -> MaxFragmentLength (get_fragment_length buf)
     | Some ELLIPTIC_CURVES -> EllipticCurves (get_elliptic_curves buf)
     | Some EC_POINT_FORMATS -> ECPointFormats (get_ec_point_format buf)
+    | Some RENEGOTIATION_INFO -> SecureRenegotiation (Cstruct.shift buf 1)
     | Some x -> Unsupported x
     | None -> assert false
   in

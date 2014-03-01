@@ -1,6 +1,8 @@
 open Packet
 open Core
 
+let (<>) = Utils.cs_append
+
 let assemble_hdr (content_type, payload) =
   let payloadlength = Cstruct.len payload in
   let buf = Cstruct.create (5 + payloadlength) in
@@ -54,13 +56,33 @@ let assemble_named_curve buf nc =
   Cstruct.BE.set_uint16 buf 0 (named_curve_type_to_int nc);
   Cstruct.shift buf 2
 
+let assemble_extension e =
+  let pay, typ = match e with
+    | SecureRenegotiation x ->
+       let buf = Cstruct.create 1 in
+       Cstruct.set_uint8 buf 0 (Cstruct.len x);
+       (buf <> x, RENEGOTIATION_INFO)
+    | _ -> assert false
+  in
+  let buf = Cstruct.create 4 in
+  Cstruct.BE.set_uint16 buf 0 (extension_type_to_int typ);
+  Cstruct.BE.set_uint16 buf 2 (Cstruct.len pay);
+  buf <> pay
+
+let assemble_extensions = function
+  | [] -> Cstruct.create 0
+  | es -> let exts = Utils.cs_appends (List.map assemble_extension es) in
+          let lenbuf = Cstruct.create 2 in
+          Cstruct.BE.set_uint16 lenbuf 0 (Cstruct.len exts);
+          lenbuf <> exts
+
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let slen = match cl.sessionid with
     | None -> 1
     | Some s -> 1 + Cstruct.len s
   in
   let cslen = 2 * List.length cl.ciphersuites in
-  let bbuf = Cstruct.create (2 + 32 + slen + 2 + cslen + 1 + 1) (* TODO : extensions *) in
+  let bbuf = Cstruct.create (2 + 32 + slen + 2 + cslen + 1 + 1) in
   let (major, minor) = cl.version in
   set_c_hello_major_version bbuf major;
   set_c_hello_minor_version bbuf minor;
@@ -82,15 +104,14 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   Cstruct.set_uint8 buf 0 1;
   let buf = Cstruct.shift buf 1 in
   assemble_compression_methods buf [NULL];
-  (* extensions *)
-  bbuf
+  bbuf <> (assemble_extensions cl.extensions)
 
 let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let slen = match sh.sessionid with
     | None -> 1
     | Some s -> 1 + Cstruct.len s
   in
-  let bbuf = Cstruct.create (2 + 32 + slen + 2 + 1) (* extensions *) in
+  let bbuf = Cstruct.create (2 + 32 + slen + 2 + 1) in
   let (major, minor) = sh.version in
   set_c_hello_major_version bbuf major;
   set_c_hello_minor_version bbuf minor;
@@ -105,9 +126,7 @@ let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let buf = assemble_ciphersuite buf sh.ciphersuites in
   (* useless compression method *)
   let _ = assemble_compression_method buf NULL in
-  (* extensions *)
-  (* Cstruct.BE.set_uint16 buf 0 (List.length sh.extensions); *)
-  bbuf
+  bbuf <> (assemble_extensions sh.extensions)
 
 let assemble_ec_prime_parameters buf pp = 0
 

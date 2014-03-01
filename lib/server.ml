@@ -7,7 +7,10 @@ let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list)
   Printf.printf "received good handshake finished\n";
   let my_checksum = Crypto.finished sp.master_secret "server finished" (packets @ [raw]) in
   let send = Writer.assemble_handshake (Finished my_checksum) in
-  (`Established, [`Record (Packet.HANDSHAKE, send)], `Pass)
+  let params = { sp with client_verify_data = computed ;
+                         server_verify_data = my_checksum }
+  in
+  (`Established params, [`Record (Packet.HANDSHAKE, send)], `Pass)
 
 let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
   let premastersecret =
@@ -34,30 +37,27 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
   let client_ctx, server_ctx, params = initialise_crypto_ctx sp premastersecret in
   (`KeysExchanged (`Crypted server_ctx, `Crypted client_ctx, params, packets @ [raw]), [], `Pass)
 
-let answer_client_hello (ch : client_hello) raw =
-(*    let cipher = Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA in *)
-(*    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_MD5 in *)
-(*    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in *)
-  let cipher = Ciphersuite.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA in
+let answer_client_hello_params sp ch raw =
+  let cipher = sp.ciphersuite in
   assert (List.mem cipher ch.ciphersuites);
-  (* TODO : real random *)
-  let r = Cstruct.create 32 in
-  let params = { entity             = Server ;
-                 ciphersuite        = cipher ;
-                 master_secret      = Cstruct.create 0 ;
-                 client_random      = ch.random ;
-                 server_random      = r ;
-                 dh_p               = None ;
-                 dh_g               = None ;
-                 dh_secret          = None ;
-                 server_certificate = None }
-  in
+  List.iter (function
+              | SecureRenegotiation x ->
+                  Printf.printf "got secure renegotiation";
+                  Cstruct.hexdump x;
+                  Printf.printf "thought I'd get";
+                  Cstruct.hexdump sp.client_verify_data;
+                  assert (Utils.cs_eq sp.client_verify_data x)
+              | _ -> ())
+            ch.extensions;
+  let params = { sp with
+                   server_random = Cstruct.create 32 ; (* TODO: more randomness! *)
+                   client_random = ch.random } in
   let server_hello : server_hello =
     { version      = (3, 1) ;
-      random       = r ;
+      random       = params.server_random ;
       sessionid    = None ;
       ciphersuites = cipher ;
-      extensions   = [] } in
+      extensions   = [SecureRenegotiation (params.client_verify_data <> params.server_verify_data)] } in
   let bufs = [Writer.assemble_handshake (ServerHello server_hello)] in
   let kex = Ciphersuite.ciphersuite_kex cipher in
   let bufs', params' =
@@ -102,6 +102,26 @@ let answer_client_hello (ch : client_hello) raw =
    List.map (fun e -> `Record (Packet.HANDSHAKE, e)) packets,
    `Pass)
 
+let answer_client_hello (ch : client_hello) raw =
+  assert (List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch.ciphersuites);
+(*    let cipher = Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA in *)
+(*    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_MD5 in *)
+(*    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in *)
+  let cipher = Ciphersuite.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA in
+  let params = { entity             = Server ;
+                 ciphersuite        = cipher ;
+                 master_secret      = Cstruct.create 0 ;
+                 client_random      = Cstruct.create 0 ;
+                 server_random      = Cstruct.create 0 ;
+                 dh_p               = None ;
+                 dh_g               = None ;
+                 dh_secret          = None ;
+                 server_certificate = None ;
+                 client_verify_data = Cstruct.create 0 ;
+                 server_verify_data = Cstruct.create 0 }
+  in
+  answer_client_hello_params params ch raw
+
 let handle_record
 : tls_internal_state -> content_type -> Cstruct.t
   -> (tls_internal_state * rec_resp list * dec_resp)
@@ -141,8 +161,8 @@ let handle_record
             answer_client_key_exchange p bs kex buf
        | `KeysExchanged (_, _, p, bs), Finished fin ->
             answer_client_finished p bs fin buf
-       | `Established, ClientHello ch -> (* key renegotiation *)
-            answer_client_hello ch buf
+       | `Established sp, ClientHello ch -> (* key renegotiation *)
+            answer_client_hello_params sp ch buf
        | _, _-> assert false
      end
   | _ -> assert false

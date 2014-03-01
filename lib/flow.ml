@@ -35,7 +35,9 @@ type security_parameters = {
   dh_p               : Cstruct.t option ;
   dh_g               : Cstruct.t option ;
   dh_secret          : Cryptokit.DH.private_secret option ;
-  server_certificate : Asn_grammars.certificate option
+  server_certificate : Asn_grammars.certificate option ;
+  client_verify_data : Cstruct.t ;
+  server_verify_data : Cstruct.t ;
 }
 
 (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
@@ -43,14 +45,14 @@ type tls_internal_state = [
   | `Initial
   | `Handshaking of security_parameters * Cstruct.t list
   | `KeysExchanged of crypto_state * crypto_state * security_parameters * Cstruct.t list (* only used in server, client initiates change cipher spec *)
-  | `Established
+  | `Established of security_parameters
 ]
 
 let state_to_string = function
   | `Initial -> "Initial"
   | `Handshaking _ -> "Shaking hands"
   | `KeysExchanged _ -> "Keys are exchanged"
-  | `Established -> "Established"
+  | `Established _ -> "Established"
 
 
 type record = content_type * Cstruct.t
