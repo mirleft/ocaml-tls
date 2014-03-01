@@ -6,7 +6,13 @@ TLS 1.0 support in pure (O)Caml.
 status
 ======
 
-client and server state machine are working (using mirage-server and mirage-client (currently rather mirage-server-client (due to mirage issue in mirage-client), which connects to 10.0.0.1 on port 4433 when a connection is made to 10.0.0.2 on port 80 [where mirage-server listens to]).
+Client and server are working (mirage-server and mirage-client applications).
+
+The mirage-server uses a tap0 interface 10.0.0.2 and listens on port 80.
+
+The mirage-client uses a mirage socket_stackv4 (`Socket instead of `Direct due to issues in mirage) and connects to 127.0.0.1 port 4433 (where openssl s_client listens by default).
+
+The combined mirage-server-client connects to 10.0.0.1 port 4433 when a connection is made to it (10.0.0.2 port 80).
 
 - RFC 2246 - TLS Protocol version 1.0
 - RFC 4366 - TLS extensions
