@@ -68,11 +68,6 @@ type ec_parameters =
   | ExplicitCharParameters of ec_char_parameters
   | NamedCurveParameters of (named_curve_type * Cstruct.t)
 
-type server_key_exchange =
-  | DiffieHellman of Cstruct.t * Cstruct.t
-  | Rsa of rsa_parameters * Cstruct.t
-  | EllipticCurve of ec_parameters * Cstruct.t
-
 type certificate_request = {
   certificate_types       : client_certificate_type list;
   certificate_authorities : string list
@@ -84,7 +79,7 @@ type tls_handshake =
   | ClientHello of client_hello
   | ServerHello of server_hello
   | Certificate of Cstruct.t list
-  | ServerKeyExchange of server_key_exchange
+  | ServerKeyExchange of Cstruct.t
   | CertificateRequest of certificate_request
   | ClientKeyExchange of Cstruct.t
   | Finished of Cstruct.t

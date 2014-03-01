@@ -158,18 +158,14 @@ let assemble_dh_parameters p =
   Cstruct.blit p.dh_Ys 0 buf (6 + plen + glen) yslen;
   buf
 
-let assemble_server_key_exchange = function
-  | DiffieHellman (param, signature) ->
-     let plen = Cstruct.len param in
-     let slen = Cstruct.len signature in
-     let buf = Cstruct.create (2 + plen + slen) in
-     Cstruct.BE.set_uint16 buf plen slen;
-     Cstruct.blit param 0 buf 0 plen;
-     Cstruct.blit signature 0 buf (plen + 2) slen;
-     buf
-  | _ -> assert false
+let assemble_dh_parameters_and_signature pbuf signature =
+  let plen = Cstruct.len pbuf in
+  let buf = Cstruct.create (2 + plen) in
+  Cstruct.BE.set_uint16 buf plen (Cstruct.len signature);
+  Cstruct.blit pbuf 0 buf 0 plen;
+  buf <> signature
 
-let assemble_client_key_exchange kex =
+let assemble_key_exchange kex =
   let len = Cstruct.len kex in
   let buf = Cstruct.create (len + 2) in
   Cstruct.BE.set_uint16 buf 0 len;
@@ -182,8 +178,8 @@ let assemble_handshake hs =
     | ClientHello ch -> (assemble_client_hello ch, CLIENT_HELLO)
     | ServerHello sh -> (assemble_server_hello sh, SERVER_HELLO)
     | Certificate cs -> (assemble_certificates cs, CERTIFICATE)
-    | ServerKeyExchange kex -> (assemble_server_key_exchange kex, SERVER_KEY_EXCHANGE)
-    | ClientKeyExchange kex -> (assemble_client_key_exchange kex, CLIENT_KEY_EXCHANGE)
+    | ServerKeyExchange kex -> (assemble_key_exchange kex, SERVER_KEY_EXCHANGE)
+    | ClientKeyExchange kex -> (assemble_key_exchange kex, CLIENT_KEY_EXCHANGE)
     | ServerHelloDone -> (Cstruct.create 0, SERVER_HELLO_DONE)
     | Finished fs -> (fs, FINISHED)
     | _ -> assert false

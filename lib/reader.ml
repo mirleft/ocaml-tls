@@ -245,7 +245,7 @@ let parse_rsa_parameters buf =
   let rsa_exponent = Cstruct.sub buf 2 elength in
   ({ rsa_modulus ; rsa_exponent }, 4 + mlength + elength)
 
-let parse_dsa_parameters buf =
+let parse_dh_parameters_and_signature buf =
   let plength = Cstruct.BE.get_uint16 buf 0 in
   let dh_p = Cstruct.sub buf 2 plength in
   let buf = Cstruct.shift buf (2 + plength) in
@@ -254,7 +254,9 @@ let parse_dsa_parameters buf =
   let buf = Cstruct.shift buf (2 + plength) in
   let yslength = Cstruct.BE.get_uint16 buf 0 in
   let dh_Ys = Cstruct.sub buf 2 yslength in
-  ({ dh_p ; dh_g; dh_Ys }, 6 + plength + glength + yslength)
+  let buf = Cstruct.shift buf (2 + yslength) in
+  let siglen = Cstruct.BE.get_uint16 buf 0 in
+  ({ dh_p ; dh_g; dh_Ys }, Cstruct.sub buf 2 siglen )
 
 let parse_ec_curve buf =
   let al = Cstruct.get_uint8 buf 0 in

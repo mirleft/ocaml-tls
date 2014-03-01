@@ -53,18 +53,13 @@ let ec_param_to_string = function
   | ExplicitCharParameters cp -> ec_char_parameters_to_string cp
   | NamedCurveParameters (nc, public) -> named_curve_type_to_string nc
 
-let server_key_exchange_to_string = function
-  | DiffieHellman (param, s)-> "DH Server KEX"
-  | Rsa (param, s) -> "RSA Server KEX"
-  | EllipticCurve (param, s) -> "EC Server KEX"
-
 let handshake_to_string = function
   | HelloRequest -> "Hello request"
   | ServerHelloDone -> "Server hello done"
   | ClientHello x -> client_hello_to_string x
   | ServerHello x -> server_hello_to_string x
   | Certificate x -> sprintf "Certificate: %d" (List.length x)
-  | ServerKeyExchange x -> server_key_exchange_to_string x
+  | ServerKeyExchange x -> sprintf "Server KEX: %d" (Cstruct.len x)
   | ClientKeyExchange x -> sprintf "Client KEX: %d" (Cstruct.len x)
   | CertificateRequest x -> certificate_request_to_string x
   | Finished x -> "Finished"

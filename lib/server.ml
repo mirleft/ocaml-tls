@@ -83,7 +83,7 @@ let answer_client_hello_params sp ch raw =
            Printf.printf "signing";
            Cstruct.hexdump signing;
            let sign = Crypto.padPKCS1_and_signRSA 128 (Crypto_utils.get_key "server.key") signing in
-           let kex = DiffieHellman (written, sign) in
+           let kex = Writer.assemble_dh_parameters_and_signature written sign in
            (bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)], params'')
         | _ -> assert false
       end
