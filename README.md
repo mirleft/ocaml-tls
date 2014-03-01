@@ -31,7 +31,7 @@ currently we use the primitives from cryptokit (but are in the process of switch
 
 key exchange
 - RSA
-- DHE_RSA are supported (only server side at the moment)
+- DHE_RSA (currently only server side)
 
 encryption
 - RC4_128
