@@ -8,6 +8,16 @@ status
 
 client and server state machine are working (using mirage-server and mirage-client (currently rather mirage-server-client (due to mirage issue in mirage-client), which connects to 10.0.0.1 on port 4433 when a connection is made to 10.0.0.2 on port 80 [where mirage-server listens to]).
 
+- RFC 2246 - TLS Protocol version 1.0
+- RFC 4366 - TLS extensions
+
+work in progress
+
+- RFC 5746 - TKS Renegotiation Indication Extension
+- RFC 6520 - TLS Heartbeat extension
+- RFC 3268 - AES Ciphersuites for TLS
+- RFC 4492 - Elliptic Curve Cryptography Ciphersuites for TLS
+
 ciphersuites
 ============
 
