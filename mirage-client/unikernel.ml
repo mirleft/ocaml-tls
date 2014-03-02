@@ -27,14 +27,15 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
     finally S.TCPV4.close flow
 
   let start c s =
-    let ip = Ipaddr.V4.make 127 0 0 1 in
+    OS.Time.sleep 5.0 >>= fun () ->
+    let ip = Ipaddr.V4.make 10 0 0 1 in
     C.log_s c (green "connecting to host") >>
-    S.TCPV4.create_connection (S.tcpv4 s) (ip, 4433) >>= function
-     | `Ok flow ->
-        C.log_s c (green "established connection") >>
-        let client_hello = Tls.Client.open_connection in
-        on_connect client_hello c flow;
-     | `Error e ->
-        C.log_s c (red "received an error while connecting")
+      S.TCPV4.create_connection (S.tcpv4 s) (ip, 4433) >>= function
+       | `Ok flow ->
+          C.log_s c (green "established connection") >>
+          let client_hello = Tls.Client.open_connection in
+          on_connect client_hello c flow;
+       | `Error e ->
+          C.log_s c (red "received an error while connecting")
 
 end
