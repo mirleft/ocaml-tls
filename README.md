@@ -18,7 +18,7 @@ implemented
 
 - RFC 2246 - TLS Protocol version 1.0
 - RFC 4366 - TLS extensions
-- RFC 5746 - TKS Renegotiation Indication Extension
+- RFC 5746 - TLS Renegotiation Indication Extension
 
 work in progress
 
