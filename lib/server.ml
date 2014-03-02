@@ -38,11 +38,7 @@ let answer_client_hello_params sp ch raw =
   assert (List.mem cipher ch.ciphersuites);
   List.iter (function
               | SecureRenegotiation x ->
-                  Printf.printf "got secure renegotiation";
-                  Cstruct.hexdump x;
-                  Printf.printf "thought I'd get";
-                  Cstruct.hexdump sp.client_verify_data;
-                  assert (Utils.cs_eq sp.client_verify_data x)
+                 assert (Utils.cs_eq sp.client_verify_data x)
               | _ -> ())
             ch.extensions;
   let params = { sp with
@@ -74,14 +70,10 @@ let answer_client_hello_params sp ch raw =
            let dh_params, priv = Crypto.generateDH 1024 in
            let params'' = { params' with dh_params = Some dh_params ; dh_secret = Some priv } in
            let written = Writer.assemble_dh_parameters dh_params in
-           Printf.printf "written";
-           Cstruct.hexdump written;
            let data = (params''.client_random <> params''.server_random) <> written in
            let md5signature = Crypto.md5 data in
            let shasignature = Crypto.sha data in
            let signing = md5signature <> shasignature in
-           Printf.printf "signing";
-           Cstruct.hexdump signing;
            let sign = Crypto.padPKCS1_and_signRSA 128 (Crypto_utils.get_key "server.key") signing in
            let kex = Writer.assemble_dh_parameters_and_signature written sign in
            (bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)], params'')

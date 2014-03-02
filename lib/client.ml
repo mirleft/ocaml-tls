@@ -2,8 +2,6 @@ open Core
 open Flow
 
 let answer_client_hello_params sp ch raw =
-  Printf.printf "sending client hello";
-  Cstruct.hexdump raw;
   (`Handshaking (sp, [raw]), [`Record (Packet.HANDSHAKE, raw)], `Pass)
 
 let answer_client_hello ch raw =
@@ -99,7 +97,7 @@ let answer_server_key_exchange p bs kex raw =
      let md5 = Crypto.md5 sigdata in
      let sha = Crypto.sha sigdata in
      assert (Utils.cs_eq (md5 <> sha) raw_sig);
-     (`Handshaking ( { p with dh_params = Some dh_params }, [raw] @ bs),
+     (`Handshaking ( { p with dh_params = Some dh_params }, bs @ [raw]),
       [], `Pass)
   | _ -> assert false
 
@@ -112,8 +110,11 @@ let default_client_hello : client_hello =
   { version      = (3, 1) ;
     random       = Cstruct.create 32 ;
     sessionid    = None ;
-    ciphersuites = [Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
-(* DHE_RSA_WITH_3DES_EDE_CBC_SHA  *)
+    ciphersuites =
+      Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+                    TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+                    TLS_RSA_WITH_RC4_128_MD5 ;
+                    TLS_RSA_WITH_RC4_128_SHA]) ;
     extensions   = [] }
 
 let handle_record
