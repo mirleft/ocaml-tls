@@ -74,6 +74,19 @@ let padPKCS1_and_signRSA len key msg =
   Cstruct.blit msg 0 out padlen mlen;
   signRSA key out
 
+let verifyRSA key msg =
+  let input = Cstruct.copy msg 0 (Cstruct.len msg) in
+  let res = Cryptokit.RSA.unwrap_signature key input in
+  Cstruct.of_string res
+
+let verifyRSA_and_unpadPKCS1 explen pubkey data =
+  let dat = verifyRSA pubkey data in
+  let start = (Cstruct.len data) - explen in
+  assert (Cstruct.get_uint8 dat 0 = 0);
+  assert (Cstruct.get_uint8 dat 1 = 1);
+  assert (Cstruct.get_uint8 dat (start - 1) = 0);
+  Cstruct.sub dat start explen
+
 let encryptRSA key msg =
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in
   let res = Cryptokit.RSA.encrypt key input in
@@ -107,6 +120,19 @@ let decryptRSA_unpadPKCS len key msg =
   assert (Cstruct.get_uint8 dec (start - 1) = 0);
   Cstruct.sub dec start len
 
+let dh_param_to_cryptokit key =
+  Cryptokit.DH.(Core.(
+     { p = Cstruct.copy key.dh_p 0 (Cstruct.len key.dh_p) ;
+       g = Cstruct.copy key.dh_g 0 (Cstruct.len key.dh_g) ;
+       privlen = 160 }))
+
+let generateDH_secret_and_msg params =
+  Cryptokit.DH.(
+    let key = dh_param_to_cryptokit params in
+    let secret = private_secret key in
+    let msg = message key secret in
+    (Cstruct.of_string msg, secret))
+
 let generateDH bits =
   Cryptokit.DH.(
     let ps = new_parameters bits in
@@ -117,11 +143,7 @@ let generateDH bits =
                      dh_Ys = of_string msg})), priv)
 
 let computeDH key secret other =
-  let ps = Cryptokit.DH.(Core.(
-     { p = Cstruct.copy key.dh_p 0 (Cstruct.len key.dh_p) ;
-       g = Cstruct.copy key.dh_g 0 (Cstruct.len key.dh_g) ;
-       privlen = 160 }))
-  in
+  let ps = dh_param_to_cryptokit key in
   let shared = Cryptokit.DH.shared_secret ps secret (Cstruct.copy other 0 (Cstruct.len other)) in
   Cstruct.of_string shared
 

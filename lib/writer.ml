@@ -165,7 +165,7 @@ let assemble_dh_parameters_and_signature pbuf signature =
   Cstruct.blit pbuf 0 buf 0 plen;
   buf <> signature
 
-let assemble_key_exchange kex =
+let assemble_client_key_exchange kex =
   let len = Cstruct.len kex in
   let buf = Cstruct.create (len + 2) in
   Cstruct.BE.set_uint16 buf 0 len;
@@ -178,8 +178,8 @@ let assemble_handshake hs =
     | ClientHello ch -> (assemble_client_hello ch, CLIENT_HELLO)
     | ServerHello sh -> (assemble_server_hello sh, SERVER_HELLO)
     | Certificate cs -> (assemble_certificates cs, CERTIFICATE)
-    | ServerKeyExchange kex -> (assemble_key_exchange kex, SERVER_KEY_EXCHANGE)
-    | ClientKeyExchange kex -> (assemble_key_exchange kex, CLIENT_KEY_EXCHANGE)
+    | ServerKeyExchange kex -> (kex, SERVER_KEY_EXCHANGE)
+    | ClientKeyExchange kex -> (assemble_client_key_exchange kex, CLIENT_KEY_EXCHANGE)
     | ServerHelloDone -> (Cstruct.create 0, SERVER_HELLO_DONE)
     | Finished fs -> (fs, FINISHED)
     | _ -> assert false

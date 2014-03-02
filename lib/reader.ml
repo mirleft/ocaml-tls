@@ -245,18 +245,20 @@ let parse_rsa_parameters buf =
   let rsa_exponent = Cstruct.sub buf 2 elength in
   ({ rsa_modulus ; rsa_exponent }, 4 + mlength + elength)
 
-let parse_dh_parameters_and_signature buf =
-  let plength = Cstruct.BE.get_uint16 buf 0 in
-  let dh_p = Cstruct.sub buf 2 plength in
-  let buf = Cstruct.shift buf (2 + plength) in
+let parse_dh_parameters_and_signature raw =
+  let plength = Cstruct.BE.get_uint16 raw 0 in
+  let dh_p = Cstruct.sub raw 2 plength in
+  let buf = Cstruct.shift raw (2 + plength) in
   let glength = Cstruct.BE.get_uint16 buf 0 in
   let dh_g = Cstruct.sub buf 2 glength in
-  let buf = Cstruct.shift buf (2 + plength) in
+  let buf = Cstruct.shift buf (2 + glength) in
   let yslength = Cstruct.BE.get_uint16 buf 0 in
   let dh_Ys = Cstruct.sub buf 2 yslength in
   let buf = Cstruct.shift buf (2 + yslength) in
   let siglen = Cstruct.BE.get_uint16 buf 0 in
-  ({ dh_p ; dh_g; dh_Ys }, Cstruct.sub buf 2 siglen )
+  let sign = Cstruct.sub buf 2 siglen in
+  ({ dh_p ; dh_g; dh_Ys }, sign,
+   Cstruct.sub raw 0 (plength + glength + yslength + 6) )
 
 let parse_ec_curve buf =
   let al = Cstruct.get_uint8 buf 0 in
@@ -356,7 +358,7 @@ let parse_handshake buf =
     | CLIENT_HELLO -> ClientHello (parse_client_hello payload)
     | SERVER_HELLO -> ServerHello (parse_server_hello payload)
     | CERTIFICATE -> Certificate (get_certificates payload)
-(*    | SERVER_KEY_EXCHANGE -> ServerKeyExchange (parse_server_key_exchange payload) *)
+    | SERVER_KEY_EXCHANGE -> ServerKeyExchange payload
     | SERVER_HELLO_DONE -> ServerHelloDone
     | CERTIFICATE_REQUEST -> CertificateRequest (parse_certificate_request payload)
     | CLIENT_KEY_EXCHANGE -> ClientKeyExchange (parse_client_key_exchange payload)

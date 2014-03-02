@@ -45,35 +45,62 @@ let answer_certificate p bs cs raw =
 let answer_server_hello_done p bs raw =
   (* sends clientkex change ciper spec; finished *)
   (* TODO: also maybe certificate/certificateverify *)
+  let kex, premaster =
+    match Ciphersuite.ciphersuite_kex p.ciphersuite with
+    | Ciphersuite.RSA ->
+       (* TODO: random ;) *)
+       let premaster = Cstruct.create 48 in
+       Cstruct.set_uint8 premaster 0 3;
+       Cstruct.set_uint8 premaster 1 1;
+       for i = 2 to 47 do
+         Cstruct.set_uint8 premaster i i;
+       done;
+       let pubkey = match p.server_certificate with
+         | Some x -> Asn_grammars.rsa_public_of_cert x
+         | None -> assert false
+       in
+       let msglen = Cryptokit.RSA.(pubkey.size / 8) in
+       (Crypto.padPKCS1_and_encryptRSA msglen pubkey premaster, premaster)
+    | Ciphersuite.DHE_RSA ->
+       let par = match p.dh_params with
+         | Some x -> x
+         | None -> assert false
+       in
+       let msg, sec = Crypto.generateDH_secret_and_msg par in
+       let shared = Crypto.computeDH par sec par.dh_Ys in
+       (msg, shared)
+    | _ -> assert false
+  in
+  let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
+  let ccs = Cstruct.create 1 in
+  Cstruct.set_uint8 ccs 0 1;
+  let client_ctx, server_ctx, params = initialise_crypto_ctx p premaster in
+  let to_fin = bs @ [raw; ckex] in
+  let checksum = Crypto.finished params.master_secret "client finished" to_fin in
+  let fin = Writer.assemble_handshake (Finished checksum) in
+  (`KeysExchanged (`Crypted client_ctx, `Crypted server_ctx, { params with client_verify_data = checksum }, to_fin @ [fin]),
+   [`Record (Packet.HANDSHAKE, ckex);
+    `Record (Packet.CHANGE_CIPHER_SPEC, ccs);
+    `Change_enc (`Crypted client_ctx);
+    `Record (Packet.HANDSHAKE, fin)],
+   `Pass)
+
+let answer_server_key_exchange p bs kex raw =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
-  | Ciphersuite.RSA ->
-     let cert = match p.server_certificate with
-       | Some x -> x
+  | Ciphersuite.DHE_RSA ->
+     let dh_params, signature, raw_params =
+       Reader.parse_dh_parameters_and_signature kex in
+     let pubkey = match p.server_certificate with
+       | Some x -> Asn_grammars.rsa_public_of_cert x
        | None -> assert false
      in
-     (* TODO: random ;) *)
-     let premaster = Cstruct.create 48 in
-     Cstruct.set_uint8 premaster 0 3;
-     Cstruct.set_uint8 premaster 1 1;
-     for i = 2 to 47 do
-       Cstruct.set_uint8 premaster i i;
-     done;
-     let pubkey = Asn_grammars.rsa_public_of_cert cert in
-     let msglen = Cryptokit.RSA.(pubkey.size / 8) in
-     let kex = Crypto.padPKCS1_and_encryptRSA msglen pubkey premaster in
-     let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
-     let ccs = Cstruct.create 1 in
-     Cstruct.set_uint8 ccs 0 1;
-     let client_ctx, server_ctx, params = initialise_crypto_ctx p premaster in
-     let to_fin = bs @ [raw; ckex] in
-     let checksum = Crypto.finished params.master_secret "client finished" to_fin in
-     let fin = Writer.assemble_handshake (Finished checksum) in
-     (`KeysExchanged (`Crypted client_ctx, `Crypted server_ctx, { params with client_verify_data = checksum }, to_fin @ [fin]),
-      [`Record (Packet.HANDSHAKE, ckex);
-       `Record (Packet.CHANGE_CIPHER_SPEC, ccs);
-       `Change_enc (`Crypted client_ctx);
-       `Record (Packet.HANDSHAKE, fin)],
-      `Pass)
+     let raw_sig = Crypto.verifyRSA_and_unpadPKCS1 36 pubkey signature in
+     let sigdata = (p.client_random <> p.server_random) <> raw_params in
+     let md5 = Crypto.md5 sigdata in
+     let sha = Crypto.sha sigdata in
+     assert (Utils.cs_eq (md5 <> sha) raw_sig);
+     (`Handshaking ( { p with dh_params = Some dh_params }, [raw] @ bs),
+      [], `Pass)
   | _ -> assert false
 
 let answer_server_finished p bs fin =
@@ -86,6 +113,7 @@ let default_client_hello : client_hello =
     random       = Cstruct.create 32 ;
     sessionid    = None ;
     ciphersuites = [Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
+(* DHE_RSA_WITH_3DES_EDE_CBC_SHA  *)
     extensions   = [] }
 
 let handle_record
@@ -126,8 +154,8 @@ let handle_record
             answer_server_hello p bs sh buf (* sends nothing *)
          | `Handshaking (p, bs), Certificate cs ->
             answer_certificate p bs cs buf (* sends nothing *)
-(*         | `Handshaking (p, bs), ServerKeyExchange kex ->
-            answer_server_key_exchange p bs kex buf(* sends nothing *) *)
+         | `Handshaking (p, bs), ServerKeyExchange kex ->
+            answer_server_key_exchange p bs kex buf(* sends nothing *)
          | `Handshaking (p, bs), ServerHelloDone ->
             answer_server_hello_done p bs buf
             (* sends clientkex change ciper spec; finished *)
