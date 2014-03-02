@@ -1,6 +1,18 @@
 open Core
 open Flow
 
+(* server configuration *)
+type server_config = {
+  key_file         : string ;
+  certificate_file : string
+}
+
+let default_server_config = {
+  key_file         = "server.key" ;
+  certificate_file = "server.pem"
+}
+
+
 let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list) (fin : Cstruct.t) (raw : Cstruct.t)  =
   let computed = Crypto.finished sp.master_secret "client finished" packets in
   assert (Utils.cs_eq computed fin);
@@ -16,7 +28,7 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
   let premastersecret =
     match Ciphersuite.ciphersuite_kex sp.ciphersuite with
     | Ciphersuite.RSA ->
-       Crypto.decryptRSA_unpadPKCS 48 (Crypto_utils.get_key "server.key") kex
+       Crypto.decryptRSA_unpadPKCS 48 (Crypto_utils.get_key default_server_config.key_file) kex
     | Ciphersuite.DHE_RSA ->
        (* we assume explicit communication here, not a client certificate *)
        let params = match sp.dh_params with
@@ -42,10 +54,10 @@ let answer_client_hello_params sp ch raw =
               | _ -> ())
             ch.extensions;
   let params = { sp with
-                   server_random = Cstruct.create 32 ; (* TODO: more randomness! *)
+                   server_random = default_config.rng 32 ;
                    client_random = ch.random } in
   let server_hello : server_hello =
-    { version      = (3, 1) ;
+    { version      = default_config.protocol_version ;
       random       = params.server_random ;
       sessionid    = None ;
       ciphersuites = cipher ;
@@ -54,7 +66,7 @@ let answer_client_hello_params sp ch raw =
   let kex = Ciphersuite.ciphersuite_kex cipher in
   let bufs', params' =
     if Ciphersuite.needs_certificate kex then
-      let pem = Crypto_utils.read_pem_file "server.pem" in
+      let pem = Crypto_utils.read_pem_file default_server_config.certificate_file in
       let cert = Crypto_utils.pem_to_cstruct pem in
       let asn = Crypto_utils.pem_to_cert pem in
       (bufs @ [Writer.assemble_handshake (Certificate [cert])],
@@ -74,7 +86,7 @@ let answer_client_hello_params sp ch raw =
            let md5signature = Crypto.md5 data in
            let shasignature = Crypto.sha data in
            let signing = md5signature <> shasignature in
-           let sign = Crypto.padPKCS1_and_signRSA 128 (Crypto_utils.get_key "server.key") signing in
+           let sign = Crypto.padPKCS1_and_signRSA 128 (Crypto_utils.get_key default_server_config.key_file) signing in
            let kex = Writer.assemble_dh_parameters_and_signature written sign in
            (bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)], params'')
         | _ -> assert false
@@ -91,10 +103,9 @@ let answer_client_hello_params sp ch raw =
 
 let answer_client_hello (ch : client_hello) raw =
   assert (List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch.ciphersuites);
-(*    let cipher = Ciphersuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA in *)
-(*    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_MD5 in *)
-(*    let cipher = Ciphersuite.TLS_RSA_WITH_RC4_128_SHA in *)
-  let cipher = Ciphersuite.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA in
+  let issuported = fun x -> List.mem x ch.ciphersuites in
+  assert (List.exists issuported default_config.ciphers);
+  let cipher = List.hd (List.filter issuported default_config.ciphers) in
   let params = { entity             = Server ;
                  ciphersuite        = cipher ;
                  master_secret      = Cstruct.create 0 ;

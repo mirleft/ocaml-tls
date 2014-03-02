@@ -152,14 +152,14 @@ let hmac = function
   | Ciphersuite.SHA -> hmac_sha
   | _               -> assert false
 
-let signature : Ciphersuite.hash_algorithm -> Cstruct.t -> int64 -> Packet.content_type -> Cstruct.t -> Cstruct.t
-  = fun mac secret n ty data ->
+let signature : Ciphersuite.hash_algorithm -> Cstruct.t -> int64 -> Packet.content_type -> (int * int) -> Cstruct.t -> Cstruct.t
+  = fun mac secret n ty (major, minor) data ->
       let prefix = Cstruct.create 13 in
       let len = Cstruct.len data in
       Cstruct.BE.set_uint64 prefix 0 n;
       Cstruct.set_uint8 prefix 8 (Packet.content_type_to_int ty);
-      Cstruct.set_uint8 prefix 9 3; (* version major *)
-      Cstruct.set_uint8 prefix 10 1; (* version minor *)
+      Cstruct.set_uint8 prefix 9 major;
+      Cstruct.set_uint8 prefix 10 minor;
       Cstruct.BE.set_uint16 prefix 11 len;
       let to_sign = prefix <> data in
       let ps = Cstruct.copy to_sign 0 (Cstruct.len to_sign) in

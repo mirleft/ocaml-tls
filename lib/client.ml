@@ -46,10 +46,9 @@ let answer_server_hello_done p bs raw =
   let kex, premaster =
     match Ciphersuite.ciphersuite_kex p.ciphersuite with
     | Ciphersuite.RSA ->
+       let ver = protocol_version_cstruct in
+       let premaster = ver <> (default_config.rng 46) in
        (* TODO: random ;) *)
-       let premaster = Cstruct.create 48 in
-       Cstruct.set_uint8 premaster 0 3;
-       Cstruct.set_uint8 premaster 1 1;
        for i = 2 to 47 do
          Cstruct.set_uint8 premaster i i;
        done;
@@ -107,14 +106,10 @@ let answer_server_finished p bs fin =
   (`Established { p with server_verify_data = computed }, [], `Pass)
 
 let default_client_hello : client_hello =
-  { version      = (3, 1) ;
-    random       = Cstruct.create 32 ;
+  { version      = default_config.protocol_version ;
+    random       = default_config.rng 32 ;
     sessionid    = None ;
-    ciphersuites =
-      Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-                    TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
-                    TLS_RSA_WITH_RC4_128_MD5 ;
-                    TLS_RSA_WITH_RC4_128_SHA]) ;
+    ciphersuites = default_config.ciphers ;
     extensions   = [] }
 
 let handle_record
@@ -180,4 +175,4 @@ let open_connection =
                           [Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV] }
   in
   let buf = Writer.assemble_handshake (ClientHello ch) in
-  Writer.assemble_hdr (Packet.HANDSHAKE, buf)
+  Writer.assemble_hdr default_config.protocol_version (Packet.HANDSHAKE, buf)

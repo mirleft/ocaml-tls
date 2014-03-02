@@ -67,6 +67,28 @@ let empty_state = { machina = `Initial ;
                     decryptor = `Nothing ;
                     encryptor = `Nothing }
 
+(* some config parameters *)
+type config = {
+  ciphers          : Ciphersuite.ciphersuite list ;
+  rng              : int -> Cstruct.t ;
+  protocol_version : int * int
+}
+
+let default_config = {
+  ciphers          = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                   TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                   TLS_RSA_WITH_RC4_128_SHA ;
+                                   TLS_RSA_WITH_RC4_128_MD5]) ;
+  rng              = (fun n -> Cstruct.create n) ; (* TODO: better random *)
+  protocol_version = (3, 1)
+}
+
+let protocol_version_cstruct =
+  let buf = Cstruct.create 2 in
+  let major, minor = default_config.protocol_version in
+  Cstruct.set_uint8 buf 0 major;
+  Cstruct.set_uint8 buf 1 minor;
+  buf
 
 (* well-behaved pure encryptor *)
 let encrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
@@ -74,7 +96,7 @@ let encrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruc
     match s with
     | `Nothing -> (s, buf)
     | `Crypted ctx ->
-       let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty buf in
+       let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version buf in
        let to_encrypt = buf <> sign in
        let enc, next_iv =
          match ctx.stream_cipher with
@@ -98,7 +120,7 @@ let decrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruc
        in
        let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
        let body, mac = Cstruct.split dec macstart in
-       let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty body in
+       let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
        assert (Utils.cs_eq cmac mac);
        (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
                             cipher_iv = next_iv },
@@ -114,7 +136,7 @@ let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list
     (hdr, buf') :: separate_records (Cstruct.shift buf len)
 
 let assemble_records : record list -> Cstruct.t =
-  o Utils.cs_appends @@ List.map @@ Writer.assemble_hdr
+  o Utils.cs_appends @@ List.map @@ (Writer.assemble_hdr default_config.protocol_version)
 
 type rec_resp = [
   | `Change_enc of crypto_state
@@ -201,3 +223,4 @@ let handle_tls_int : (tls_internal_state -> content_type -> Cstruct.t
     loop state in_records in
   let buf' = assemble_records out_records in
   (state', buf')
+
