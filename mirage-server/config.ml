@@ -7,7 +7,7 @@ let net =
     | "direct" -> `Direct
     | "socket" -> `Socket
     | _        -> `Direct
-  with Not_found -> `Direct
+  with Not_found -> `Socket
 
 let dhcp =
   try match Sys.getenv "ADDR" with

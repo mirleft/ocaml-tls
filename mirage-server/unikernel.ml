@@ -22,11 +22,10 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
     C.log_s c (green "new tcp connection from %s %d"
                 (Ipaddr.V4.to_string dst) dst_port)
     >>
-    try_lwt loop Tls.Flow.empty_state
-    finally S.TCPV4.close flow
+      loop Tls.Flow.empty_state
 
   let start c s =
-    S.listen_tcpv4 s ~port:80 (on_connect c) ;
+    S.listen_tcpv4 s ~port:4433 (on_connect c) ;
     S.listen s
 
 end
