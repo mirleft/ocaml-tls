@@ -48,10 +48,6 @@ let answer_server_hello_done p bs raw =
     | Ciphersuite.RSA ->
        let ver = protocol_version_cstruct in
        let premaster = ver <> (default_config.rng 46) in
-       (* TODO: random ;) *)
-       for i = 2 to 47 do
-         Cstruct.set_uint8 premaster i i;
-       done;
        let pubkey = match p.server_certificate with
          | Some x -> Asn_grammars.rsa_public_of_cert x
          | None -> assert false
