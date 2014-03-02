@@ -12,7 +12,7 @@ The mirage-server uses a mirage socket_stackv4 and listens on port 4433. Run the
 
 The mirage-client uses a mirage socket_stackv4 and connects to 127.0.0.1 port 4433. Run ``openssl s_server -tls1 -key server.key -cert server.pem -msg`` before running ``./mir-mirage-tls-client``.
 
-You can pass ``openssl s_server`` a ``-cipher`` parameter (following should work: ``EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA RC4-SHA RC4-MD5``.
+You can pass ``openssl s_server`` a ``-cipher`` argument (following values work at the moment: ``EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA RC4-SHA RC4-MD5``.
 
 implemented
 
