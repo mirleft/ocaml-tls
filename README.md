@@ -46,6 +46,7 @@ mac
 TODO (before any deployment)
 ============================
 
+- address all [security concerns](https://github.com/mirleft/ocaml-tls/issues?labels=security+concern&page=1&state=open) in a convincing way 
 - fix random (currently 0 -- Flow.default_config.rng)
 - fix config (currently Flow.default_config and Server.default_server_config)
 - certificate verification (not even signature is checked)
