@@ -46,6 +46,27 @@ let validate_certificate : certificate -> Cstruct.t -> certificate_verification_
 
 let validate_certificates : certificate list -> Cstruct.t list -> certificate_verification_result =
   fun cs packets ->
+    (* in reality we get a certificate chain, and the first is the server *)
+    (* thus we need to reverse the list
+        - check that the first is signed by some CA we know and trust
+        - check next to be signed by previous (look into issuer)
+
+        - all apart from the last certificate should have CA = true in Basic Constraints
+        - the basic constraints also might contain name constraints
+        - and key usage! good for signing or encryption, dependending on what the selected KEX needs
+        - first look for subjectAltNames, then commonName for backwards compat, and find something matching the expected
+        - might include wildcards, which might be complex regarding international domain names
+        - the emailAddress in subject should match expected values
+
+        - certificate verification lists...
+
+        - alternative approach: interface and implementation for certificate pinning
+
+        - test setup:
+            self-signed cert with requested commonName,
+            self-signed cert with other commonName,
+            valid signed cert with other commonName
+    *)
     let rec go = function
       | []    -> `Ok
       | (c, p)::cs ->
