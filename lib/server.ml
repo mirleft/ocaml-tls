@@ -48,6 +48,11 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
 let answer_client_hello_params sp ch raw =
   let cipher = sp.ciphersuite in
   assert (List.mem cipher ch.ciphersuites);
+  assert (List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch.ciphersuites ||
+            List.exists (function
+                          | SecureRenegotiation x -> true
+                          | _ -> false)
+                        ch.extensions);
   List.iter (function
               | SecureRenegotiation x ->
                  assert (Utils.cs_eq sp.client_verify_data x)

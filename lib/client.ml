@@ -21,6 +21,10 @@ let answer_client_hello ch raw =
   answer_client_hello_params params ch raw
 
 let answer_server_hello (p : security_parameters) bs sh raw =
+  assert (List.exists (function
+                        | SecureRenegotiation x -> true
+                        | _ -> false)
+                      sh.extensions);
   (* sends nothing *)
   List.iter (function
               | SecureRenegotiation x ->
