@@ -29,10 +29,11 @@ let validate_signature : certificate -> Cstruct.t -> certificate_verification_re
          let signature = Crypto.verifyRSA_and_unpadPKCS1 35 pubkey c.signature in
          let algo, hash = Cstruct.split signature 15 in
          assert (Utils.cs_eq algo sha1oid);
-         (* this results in a different encoding than the original certificate *)
-(*         let dat = tbs_certificate_to_cstruct c.tbs_cert in *)
          (* TODO: hardcoded numbers -- for 1024 bit RSA keys... *)
          let to_hash = Cstruct.sub raw 4 ((Cstruct.len raw) - 151) in
+         (* this results in a different encoding than the original certificate *)
+         let dat = tbs_certificate_to_cstruct c.tbs_cert in
+         (* assert (Utils.cs_eq to_hash dat); *) (* david: this fails *)
          let chash = Crypto.sha to_hash in
          assert (Utils.cs_eq chash hash);
          `Ok
