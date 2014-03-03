@@ -36,12 +36,16 @@ let answer_server_hello (p : security_parameters) bs sh raw =
 
 let answer_certificate p bs cs raw =
   (* sends nothing *)
-  let cert = match Asn_grammars.certificate_of_cstruct (List.hd cs) with
+  let getcert = function
     | Some (cert, _) -> cert
     | None -> assert false
   in
-  (* TODO: certificate verification *)
-  let ps = { p with server_certificate = Some cert } in
+  let certs = List.map (o getcert Asn_grammars.certificate_of_cstruct) cs in
+  (* validate whole chain! *)
+  (match Certificate.validate_certificates certs with
+   | `Fail x -> assert false
+   | `Ok -> ());
+  let ps = { p with server_certificate = Some (List.hd certs) } in
   (`Handshaking (ps, bs @ [raw]), [], `Pass)
 
 let answer_server_hello_done p bs raw =

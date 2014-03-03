@@ -14,8 +14,10 @@ BuildTools:  ocamlbuild
 Library tls
   Path: lib/
   Modules:
-   Ciphersuite, Utils, Packet, Core, Printer, Reader, Writer,
-   Crypto, Crypto_utils, Flow, Server, Client
+   Ciphersuite, Utils, Packet, Core, Certificate,
+   Printer, Reader, Writer,
+   Crypto, Crypto_utils,
+   Flow, Server, Client
   InternalModules: Asn_grammars
   Pack: true
   BuildDepends: cstruct, cstruct.syntax, nocrypto, asn1-combinators, cryptokit
