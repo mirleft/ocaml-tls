@@ -192,6 +192,10 @@ let tBSCertificate =
       (* v3 if present *)
    -@ (optional ~label:"extensions"    @@ explicit 3 extensions)
 
+let (tbs_certificate_of_cstruct, tbs_certificate_to_cstruct) =
+  let c = codec ber tBSCertificate in (decode c, encode c)
+
+
 let certificate =
 
   let f (a, b, c) =

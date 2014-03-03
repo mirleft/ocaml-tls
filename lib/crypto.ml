@@ -84,6 +84,9 @@ let verifyRSA_and_unpadPKCS1 explen pubkey data =
   let start = (Cstruct.len data) - explen in
   assert (Cstruct.get_uint8 dat 0 = 0);
   assert (Cstruct.get_uint8 dat 1 = 1);
+  for i = 2 to (start - 2) do
+    assert (Cstruct.get_uint8 dat i = 0xff);
+  done;
   assert (Cstruct.get_uint8 dat (start - 1) = 0);
   Cstruct.sub dat start explen
 

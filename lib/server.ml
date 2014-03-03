@@ -125,7 +125,7 @@ let answer_client_hello (ch : client_hello) raw =
   answer_client_hello_params params ch raw
 
 let handle_record
-: tls_internal_state -> content_type -> Cstruct.t
+: tls_internal_state -> Packet.content_type -> Cstruct.t
   -> (tls_internal_state * rec_resp list * dec_resp)
 = fun is ct buf ->
   Printf.printf "HANDLE_RECORD (in state %s) %s\n"

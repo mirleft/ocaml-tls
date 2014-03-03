@@ -1,13 +1,5 @@
 open Core
 
-let ref _ = raise (Failure "no.")
-
-let o f g x = f (g x)
-
-let (<>) = Utils.cs_append
-
-type content_type = Packet.content_type
-
 type crypto_context = {
   sequence      : int64 ;
   stream_cipher : Cryptokit.Stream.stream_cipher option ; (* XXX *)
@@ -54,7 +46,7 @@ let state_to_string = function
   | `Established _ -> "Established"
 
 
-type record = content_type * Cstruct.t
+type record = Packet.content_type * Cstruct.t
 
 (* this is the externally-visible state somebody will keep track of for us. *)
 type state = {
@@ -91,7 +83,7 @@ let protocol_version_cstruct =
   buf
 
 (* well-behaved pure encryptor *)
-let encrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
+let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
 = fun s ty buf ->
     match s with
     | `Nothing -> (s, buf)
@@ -108,7 +100,7 @@ let encrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruc
         enc)
 
 (* well-behaved pure decryptor *)
-let decrypt : crypto_state -> content_type -> Cstruct.t -> crypto_state * Cstruct.t
+let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
 = fun s ty buf ->
     match s with
     | `Nothing -> (s, buf)
@@ -208,7 +200,7 @@ let handle_raw_record handler state (hdr, buf) =
     | `Pass           -> dec_st in
   ({ machina ; encryptor ; decryptor }, encs)
 
-let handle_tls_int : (tls_internal_state -> content_type -> Cstruct.t
+let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
       -> (tls_internal_state * rec_resp list * dec_resp)) ->
                  state -> Cstruct.t -> state * Cstruct.t
 = fun handler state buf ->

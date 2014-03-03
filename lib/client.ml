@@ -42,7 +42,8 @@ let answer_certificate p bs cs raw =
   in
   let certs = List.map (o getcert Asn_grammars.certificate_of_cstruct) cs in
   (* validate whole chain! *)
-  (match Certificate.validate_certificates certs with
+  Printf.printf "answer cert hash";
+  (match Certificate.validate_certificates certs cs with
    | `Fail x -> assert false
    | `Ok -> ());
   let ps = { p with server_certificate = Some (List.hd certs) } in
@@ -117,7 +118,7 @@ let default_client_hello : client_hello =
     extensions   = [] }
 
 let handle_record
-    : tls_internal_state -> content_type -> Cstruct.t
+    : tls_internal_state -> Packet.content_type -> Cstruct.t
       -> (tls_internal_state * rec_resp list * dec_resp)
  = fun is ct buf ->
     Printf.printf "HANDLE_RECORD (in state %s) %s\n"

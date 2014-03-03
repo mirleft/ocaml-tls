@@ -2,6 +2,10 @@ open Packet
 open Ciphersuite
 open Cstruct
 
+let o f g x = f (g x)
+
+let (<>) = Utils.cs_append
+
 (* well, a client most likely will not have to deal with this *)
 type tls_hdr = {
   content_type : content_type;

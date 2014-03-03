@@ -1,8 +1,6 @@
 open Packet
 open Core
 
-let (<>) = Utils.cs_append
-
 let assemble_hdr (major, minor) (content_type, payload) =
   let payloadlength = Cstruct.len payload in
   let buf = Cstruct.create (5 + payloadlength) in
