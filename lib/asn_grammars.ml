@@ -5,6 +5,10 @@ type bits = Cstruct.t
 let def  x = function None -> x | Some y -> y
 let def' x = fun y -> if y = x then None else Some y
 
+let projections encoding asn =
+  let c = codec encoding asn in
+  (decode c, encode c)
+
 module ID = struct
 
   let sha1 = OID.(base 1 2 <| 3 <| 4)
@@ -72,10 +76,10 @@ let rsa_public_key =
     (required ~label:"publicExponent" nat)
 
 let (rsa_private_of_cstruct, rsa_private_to_cstruct) =
-  let c = codec der rsa_private_key in (decode c, encode c)
+  projections der rsa_private_key
 
 let (rsa_public_of_cstruct, rsa_public_to_cstruct) =
-  let c = codec der rsa_public_key in (decode c, encode c)
+  projections der rsa_public_key
 
 
 (*
@@ -200,7 +204,7 @@ let tBSCertificate =
    -@ (optional ~label:"extensions"    @@ explicit 3 extensions)
 
 let (tbs_certificate_of_cstruct, tbs_certificate_to_cstruct) =
-  let c = codec ber tBSCertificate in (decode c, encode c)
+  projections ber tBSCertificate
 
 
 let certificate =
@@ -218,13 +222,13 @@ let certificate =
     (required ~label:"signatureValue"     bit_string')
 
 let (certificate_of_cstruct, certificate_to_cstruct) =
-  let c = codec ber certificate in (decode c, encode c)
+  projections ber certificate
 
 let rsa_public_of_cert cert =
   let _, bits = cert.tbs_cert.pk_info in
   match rsa_public_of_cstruct bits with
-    | Some (k, _) -> k
-    | None -> assert false
+  | Some (k, _) -> k
+  | None -> assert false
 
 
 let pkcs1_digest_info =
@@ -233,6 +237,5 @@ let pkcs1_digest_info =
     (required ~label:"digest"          octet_string)
 
 let (pkcs1_digest_info_of_cstruct, pkcs1_digest_info_to_cstruct) =
-  let c = codec der pkcs1_digest_info in
-  (decode c, encode c)
+  projections der pkcs1_digest_info
 
