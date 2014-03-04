@@ -119,13 +119,20 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
         body)
 
 (* party time *)
-let rec separate_records : Cstruct.t ->  (tls_hdr * Cstruct.t) list
-= fun buf -> (* we assume no fragmentation here *)
+let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t)
+= fun buf ->
   match Cstruct.len buf with
-  | 0 -> []
-  | _ ->
-    let (hdr, buf', len) = Reader.parse_hdr buf in
-    (hdr, buf') :: separate_records (Cstruct.shift buf len)
+  | 0 -> ([], buf)
+  | x ->
+    if x <= 5 then
+      ([], buf)
+    else
+      let (hdr, buf', len) = Reader.parse_hdr buf in
+      if len > (Cstruct.len buf') then
+        ([], buf)
+      else
+        let tl, frag = separate_records (Cstruct.shift buf' len) in
+        ((hdr, (Cstruct.sub buf' 0 len)) :: tl, frag)
 
 let assemble_records : record list -> Cstruct.t =
   o Utils.cs_appends @@ List.map @@ (Writer.assemble_hdr default_config.protocol_version)
@@ -202,9 +209,9 @@ let handle_raw_record handler state (hdr, buf) =
 
 let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
       -> (tls_internal_state * rec_resp list * dec_resp)) ->
-                 state -> Cstruct.t -> state * Cstruct.t
+                 state -> Cstruct.t -> (state * Cstruct.t * Cstruct.t)
 = fun handler state buf ->
-  let in_records = separate_records buf in
+  let in_records, frag = separate_records buf in
   let (state', out_records) =
     let rec loop st = function
       | []    -> (st, [])
@@ -214,5 +221,5 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
           (st2, raw_rs @ raw_rs') in
     loop state in_records in
   let buf' = assemble_records out_records in
-  (state', buf')
+  (state', buf', frag)
 

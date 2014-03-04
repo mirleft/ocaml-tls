@@ -10,19 +10,19 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
   module TLS = Tls.Server
 
   let on_connect c flow =
-    let rec loop tls =
+    let rec loop tls frag =
       S.TCPV4.read flow >>= function
         | `Eof     -> C.log_s c (red "read: eof")
         | `Error e -> C.log_s c (red "read: error")
         | `Ok buf  ->
-            let (tls', ans) = TLS.handle_tls tls buf in
-            S.TCPV4.write flow ans >> loop tls'
+            let tls', ans, frag' = TLS.handle_tls tls (Tls.Utils.cs_append frag buf) in
+            S.TCPV4.write flow ans >> loop tls' frag'
     in
     let (dst, dst_port) = S.TCPV4.get_dest flow in
     C.log_s c (green "new tcp connection from %s %d"
                 (Ipaddr.V4.to_string dst) dst_port)
     >>
-      loop Tls.Flow.empty_state
+      loop Tls.Flow.empty_state (Cstruct.create 0)
 
   let start c s =
     S.listen_tcpv4 s ~port:4433 (on_connect c) ;

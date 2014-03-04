@@ -10,8 +10,8 @@ let parse_hdr buf =
   let minor = get_tls_h_minor_version buf in
   let version = (major, minor) in
   let len = get_tls_h_length buf in
-  let payload = Cstruct.sub buf 5 len in
-  ( { content_type; version }, payload, len + 5)
+  let payload = Cstruct.shift buf 5 in
+  ( { content_type; version }, payload, len)
 
 let parse_alert buf =
   let level = Cstruct.get_uint8 buf 0 in
