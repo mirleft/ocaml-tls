@@ -22,8 +22,11 @@ let pem_to_cert pem =
   | None           -> failwith "pem decode failed"
   | Some (cert, _) -> cert
 
-let get_cert_from_file filename =
+let cert_cstruct_of_file filename =
   let pem = read_pem_file filename in pem_to_cstruct pem
+
+let cert_of_file filename =
+  let pem = read_pem_file filename in pem_to_cert pem
 
 let get_key filename =
   let pem = read_pem_file filename in
