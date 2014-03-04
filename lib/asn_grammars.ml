@@ -5,6 +5,13 @@ type bits = Cstruct.t
 let def  x = function None -> x | Some y -> y
 let def' x = fun y -> if y = x then None else Some y
 
+module ID = struct
+
+  let sha1 = OID.(base 1 2 <| 3 <| 4)
+
+  let md5  = OID.(base 1 2 <| 3 <| 4)
+end
+
 (*
  * RSA
  *)
