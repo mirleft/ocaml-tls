@@ -225,7 +225,8 @@ let (certificate_of_cstruct, certificate_to_cstruct) =
   projections ber certificate
 
 let rsa_public_of_cert cert =
-  let _, bits = cert.tbs_cert.pk_info in
+  let oid, bits = cert.tbs_cert.pk_info in
+  (* XXX check if oid is actually rsa *)
   match rsa_public_of_cstruct bits with
   | Some (k, _) -> k
   | None -> assert false
