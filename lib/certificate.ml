@@ -134,7 +134,7 @@ let verify_certificates : string -> certificate list -> Cstruct.t list -> verifi
       | []    -> verify_server_certificate trusted now servername (List.hd cs) (List.hd packets)
       | (c, p)::cs ->
          match verify_certificate trusted now servername c p with
-         | `Ok  -> go (c :: trusted) cs
+         | `Ok  -> go [c] cs
          | `Fail x -> `Fail x
     in
     let trusted = find_trusted_certs () in
