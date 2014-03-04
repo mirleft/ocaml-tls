@@ -218,3 +218,14 @@ let rsa_public_of_cert cert =
   match rsa_public_of_cstruct bits with
     | Some (k, _) -> k
     | None -> assert false
+
+
+let pkcs1_digest_info =
+  sequence2
+    (required ~label:"digestAlgorithm" algorithmIdentifier)
+    (required ~label:"digest"          octet_string)
+
+let (pkcs1_digest_info_of_cstruct, pkcs1_digest_info_to_cstruct) =
+  let c = codec der pkcs1_digest_info in
+  (decode c, encode c)
+
