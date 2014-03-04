@@ -223,11 +223,9 @@ let (tbs_certificate_of_cstruct, tbs_certificate_to_cstruct) =
 
 let certificate =
 
-  let f (a, b, c) =
-    { tbs_cert = a ; signature_algo = b ; signature = c }
+  let f (a, b, c) = { tbs_cert = a ; signature_algo = b ; signature = c }
 
-  and g { tbs_cert = a ; signature_algo = b ; signature = c } =
-    (a, b, c) in
+  and g { tbs_cert = a ; signature_algo = b ; signature = c } = (a, b, c) in
 
   map f g @@
   sequence3
