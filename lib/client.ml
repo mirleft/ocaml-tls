@@ -42,8 +42,7 @@ let answer_certificate p bs cs raw =
   in
   let certs = List.map (o getcert Asn_grammars.certificate_of_cstruct) cs in
   (* validate whole chain! *)
-  Printf.printf "answer cert hash";
-  (match Certificate.validate_certificates certs cs with
+  (match Certificate.verify_certificates "jabber.ccc.de" certs cs with
    | `Fail x -> assert false
    | `Ok -> ());
   let ps = { p with server_certificate = Some (List.hd certs) } in

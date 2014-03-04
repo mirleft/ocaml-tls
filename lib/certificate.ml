@@ -1,78 +1,152 @@
-open Core
 open Asn_grammars
 open Asn
 
-type certificate_verification_result = [
-  | `Fail of Packet.alert_type
+open Asn_grammars.ID
+
+type certificate_failure =
+  | InvalidCertificate
+  | InvalidSignature
+
+type verification_result = [
+  | `Fail of certificate_failure
   | `Ok
 ]
 
-let sha1oid =
-  (* that's sha1 object id der encoded in hex *)
-  let nums = [0x30; 0x21; 0x30; 0x09; 0x06; 0x05; 0x2b; 0x0e; 0x03; 0x02; 0x1a; 0x05; 0x00; 0x04; 0x14] in
-  let res = Cstruct.create 15 in
-  for i = 0 to 14 do
-    Cstruct.set_uint8 res i (List.nth nums i)
-  done;
-  res
+let validate_signature : certificate list -> certificate -> Cstruct.t -> bool =
+  fun trusted c raw ->
+    assert (c.signature_algo = c.tbs_cert.signature);
+    (* try to find the public key of the issuer *)
+    (* we'll first try the short way and look up certificate authority key identifier from extensions *)
+    let issuing_key = rsa_public_of_cert (List.hd trusted) (*match __ with
+      | Some x -> x
+      | None ->     (* otherwise we use the issuer field *) *)
+    in
+    (* XXX: this is awful code! *)
+    let siglen = Cstruct.len c.signature in
+    (* not sure whether 128 is what we want here, for sure we just want to translate the certificate to a cstruct ;) *)
+    let off = if siglen > 128 then 1 else 0 in
+    (* 4 is the prefix-seq, 19 the sig oid *)
+    let to_hash = Cstruct.sub raw 4 ((Cstruct.len raw) - (siglen + 4 + 19 + off)) in
+    (* this results in a different encoding than the original certificate *)
+    (* let dat = tbs_certificate_to_cstruct c.tbs_cert in
+       assert (Utils.cs_eq to_hash dat); *) (* david: this fails *)
+    if c.signature_algo = md5WithRSAEncryption then
+      begin
+        let signature = Crypto.verifyRSA_and_unpadPKCS1 34 issuing_key c.signature in
+        let algo, hash = match pkcs1_digest_info_of_cstruct signature with
+          | Some ((a, b), _) -> (a, b)
+          | None -> assert false
+        in
+        assert (algo = id_md5);
+        let chash = Crypto.md5 to_hash in
+        Printf.printf "hash";
+        Cstruct.hexdump hash;
+        Printf.printf "chash";
+        Cstruct.hexdump chash;
+        assert (Utils.cs_eq chash hash);
+        true
+      end
+    else
+      if c.signature_algo = sha1WithRSAEncryption then
+        begin
+          let signature = Crypto.verifyRSA_and_unpadPKCS1 35 issuing_key c.signature in
+          let algo, hash = match pkcs1_digest_info_of_cstruct signature with
+            | Some ((a, b), _) -> (a, b)
+            | None -> assert false
+          in
+          assert (algo = id_sha1);
+          let chash = Crypto.sha to_hash in
+          assert (Utils.cs_eq chash hash);
+          true
+        end
+      else
+        begin
+          Printf.printf "unknown algorithm: %s\n"
+                        (String.concat " " (List.map string_of_int (OID.to_list c.signature_algo)));
+          false
+        end
 
-let validate_signature : certificate -> Cstruct.t -> certificate_verification_result =
-  fun c raw ->
-    let algorithm = OID.to_list c.signature_algo in
-    assert (algorithm = (OID.to_list c.tbs_cert.signature));
-    match algorithm with
-      | [1; 2; 840; 113549; 1; 1; 4] ->
-         Printf.printf "RSA-MD5\n";
-         `Fail Packet.UNSUPPORTED_CERTIFICATE
-      | [1; 2; 840; 113549; 1; 1; 5] ->
-         let pubkey = rsa_public_of_cert c in
-         let signature = Crypto.verifyRSA_and_unpadPKCS1 35 pubkey c.signature in
-         let algo, hash = Cstruct.split signature 15 in
-         assert (Utils.cs_eq algo sha1oid);
-         (* TODO: hardcoded numbers -- for 1024 bit RSA keys... *)
-         let to_hash = Cstruct.sub raw 4 ((Cstruct.len raw) - 151) in
-         (* this results in a different encoding than the original certificate *)
-         let dat = tbs_certificate_to_cstruct c.tbs_cert in
-         (* assert (Utils.cs_eq to_hash dat); *) (* david: this fails *)
-         let chash = Crypto.sha to_hash in
-         assert (Utils.cs_eq chash hash);
-         `Ok
-      | x -> Printf.printf "unknown algorithm: %s\n"
-                           (String.concat " " (List.map string_of_int x));
-             `Fail Packet.UNSUPPORTED_CERTIFICATE
+let validate_time now cert =
+  let from, till = cert.validity in
+(* TODO:  from < now && now < till *)
+  true
 
-let validate_certificate : certificate -> Cstruct.t -> certificate_verification_result =
-  fun c raw ->
-    validate_signature c raw
+let basic_verification now name cert =
+  validate_time now cert
 
-let validate_certificates : certificate list -> Cstruct.t list -> certificate_verification_result =
-  fun cs packets ->
+let verify_certificate : certificate list -> float -> string -> certificate -> Cstruct.t -> verification_result =
+  fun trusted now servername c raw ->
+(*
+ - good for signing
+ - all should have CA = true in Basic Constraints
+ - name constraints should match servername
+ *)
+    if validate_signature trusted c raw then
+      let cert = c.tbs_cert in
+      if basic_verification now servername cert then
+        `Ok
+      else
+        `Fail InvalidCertificate
+    else
+      `Fail InvalidSignature
+
+let find_trusted_certs : unit -> certificate list =
+  fun () ->
+    let ca = Crypto_utils.cert_of_file "../certificates/ca.crt" in
+(*    let ca = Crypto_utils.cert_of_file "../mirage-server/server.pem" in *)
+    [ca]
+
+let verify_server_certificate : certificate list -> float -> string -> certificate -> Cstruct.t -> verification_result =
+  fun trusted now servername c raw ->
+(*
+ - key usage basic constraint: certificate should be good for
+   - signing (DHE_RSA)
+   - encryption (RSA)
+ - there's also extended key usage
+    (TLS web server authentication / TLS web client authentication/...)
+
+ - first look for subjectAltNames, then commonName for backwards compat, and find something matching the expected
+ - might include wildcards
+ - the emailAddress in subject should match expected values ??
+ *)
+  (* first things first: valid signature, unwarp tbscert: validity timestamps,... *)
+  if validate_signature trusted c raw then
+    let cert = c.tbs_cert in
+    if basic_verification now servername cert then
+      `Ok
+    else
+      `Fail InvalidCertificate
+  else
+    `Fail InvalidSignature
+
+(* this is the API for a user (Cstruct.t list will go away) *)
+let verify_certificates : string -> certificate list -> Cstruct.t list -> verification_result =
+  fun servername cs packets ->
     (* in reality we get a certificate chain, and the first is the server *)
     (* thus we need to reverse the list
         - check that the first is signed by some CA we know and trust
         - check next to be signed by previous (look into issuer)
 
-        - all apart from the last certificate should have CA = true in Basic Constraints
-        - the basic constraints also might contain name constraints
-        - and key usage! good for signing or encryption, dependending on what the selected KEX needs
-        - first look for subjectAltNames, then commonName for backwards compat, and find something matching the expected
-        - might include wildcards, which might be complex regarding international domain names
-        - the emailAddress in subject should match expected values
-
         - certificate verification lists...
+    *)
+    let now = Sys.time () in
+    let rec go trusted = function
+      | []    -> verify_server_certificate trusted now servername (List.hd cs) (List.hd packets)
+      | (c, p)::cs ->
+         match verify_certificate trusted now servername c p with
+         | `Ok  -> go (c :: trusted) cs
+         | `Fail x -> `Fail x
+    in
+    let trusted = find_trusted_certs () in
+    go trusted (List.combine (List.rev (List.tl cs)) (List.rev (List.tl packets)))
 
-        - alternative approach: interface and implementation for certificate pinning
-
-        - test setup:
+(* - test setup (ACM CCS'12):
             self-signed cert with requested commonName,
             self-signed cert with other commonName,
             valid signed cert with other commonName
-    *)
-    let rec go = function
-      | []    -> `Ok
-      | (c, p)::cs ->
-         match validate_certificate c p with
-         | `Ok   -> go cs
-         | `Fail x -> `Fail x
-    in
-    go (List.combine cs packets)
+   - also of interest: international domain names, wildcards
+ *)
+
+(* alternative approach: interface and implementation for certificate pinning *)
+(* alternative approach': notary system / perspectives *)
+(* alternative approach'': static list of trusted certificates *)
