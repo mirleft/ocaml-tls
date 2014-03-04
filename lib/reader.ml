@@ -232,7 +232,7 @@ let get_some prs buf =
 let get_certificates buf =
   let rec go buf acc =
             match (Cstruct.len buf) with
-            | 0 -> acc
+            | 0 -> List.rev acc
             | n -> let cert, size = get_certificate buf in
                    go (Cstruct.shift buf size) (cert :: acc)
   in
