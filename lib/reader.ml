@@ -184,12 +184,13 @@ let parse_client_hello buf =
   let minor = get_c_hello_minor_version buf in
   let version = (major, minor) in
   let random = get_c_hello_random buf in
-  let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
-  let ciphersuites, clen = get_ciphersuites (Cstruct.shift buf (34 + slen)) in
-  let _, dlen = get_compression_methods (Cstruct.shift buf (34 + slen + clen)) in
+  let slen = Cstruct.get_uint8 buf 34 in
+  let sessionid = if slen = 0 then None else Some (Cstruct.sub buf 35 slen) in
+  let ciphersuites, clen = get_ciphersuites (Cstruct.shift buf (35 + slen)) in
+  let _, dlen = get_compression_methods (Cstruct.shift buf (35 + slen + clen)) in
   let extensions, _ =
-    if Cstruct.len buf > (34 + slen + clen + dlen) then
-      get_extensions (Cstruct.shift buf (34 + slen + clen + dlen))
+    if Cstruct.len buf > (35 + slen + clen + dlen) then
+      get_extensions (Cstruct.shift buf (35 + slen + clen + dlen))
     else
       ([], 0)
   in
@@ -201,12 +202,13 @@ let parse_server_hello buf : server_hello =
   let minor = get_c_hello_minor_version buf in
   let version = (major, minor) in
   let random = get_c_hello_random buf in
-  let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
-  let ciphersuites = get_ciphersuite (Cstruct.shift buf (34 + slen)) in
-  let _ = get_compression_method (Cstruct.shift buf (34 + slen + 2)) in
+  let slen = Cstruct.get_uint8 buf 34 in
+  let sessionid = if slen = 0 then None else Some (Cstruct.sub buf 35 slen) in
+  let ciphersuites = get_ciphersuite (Cstruct.shift buf (35 + slen)) in
+  let _ = get_compression_method (Cstruct.shift buf (35 + slen + 2)) in
   let extensions, _ =
-    if Cstruct.len buf > (34 + slen + 2 + 1) then
-      get_extensions (Cstruct.shift buf (34 + slen + 2 + 1))
+    if Cstruct.len buf > (35 + slen + 2 + 1) then
+      get_extensions (Cstruct.shift buf (35 + slen + 2 + 1))
     else
       ([], 0)
   in
