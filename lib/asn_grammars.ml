@@ -11,9 +11,23 @@ let projections encoding asn =
 
 module ID = struct
 
-  let sha1 = OID.(base 1 2 <| 3 <| 4)
+  (* That's all from RFC 3447 *)
+  let pkcs1 = OID.(base 1 2 <| 840 <| 113549 <| 1)
 
-  let md5  = OID.(base 1 2 <| 3 <| 4)
+  let rsaEncryption = OID.(pkcs1 <| 1)
+
+  let md2WithRSAEncryption    = OID.(rsaEncryption <| 2)
+  let md5WithRSAEncryption    = OID.(rsaEncryption <| 4)
+  let sha1WithRSAEncryption   = OID.(rsaEncryption <| 5)
+  let sha256WithRSAEncryption = OID.(rsaEncryption <| 11)
+  let sha384WithRSAEncryption = OID.(rsaEncryption <| 12)
+  let sha512WithRSAEncryption = OID.(rsaEncryption <| 13)
+
+
+  let id_sha1 = OID.(base 1 3 <| 14 <| 3 <| 2 <| 26)
+  let id_md2  = OID.(base 1 2 <| 840 <| 113549 <| 2 <| 2)
+  let id_md5  = OID.(base 1 2 <| 840 <| 113549 <| 2 <| 5)
+
 end
 
 (*
