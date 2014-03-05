@@ -45,19 +45,9 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
   let client_ctx, server_ctx, params = initialise_crypto_ctx sp premastersecret in
   (`KeysExchanged (`Crypted server_ctx, `Crypted client_ctx, params, packets @ [raw]), [], `Pass)
 
-let answer_client_hello_params sp ch raw =
+let answer_client_hello_params_int sp ch raw =
   let cipher = sp.ciphersuite in
   assert (List.mem cipher ch.ciphersuites);
-  assert (List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch.ciphersuites ||
-            List.exists (function
-                          | SecureRenegotiation x -> true
-                          | _ -> false)
-                        ch.extensions);
-  List.iter (function
-              | SecureRenegotiation x ->
-                 assert (Utils.cs_eq sp.client_verify_data x)
-              | _ -> ())
-            ch.extensions;
   let params = { sp with
                    server_random = default_config.rng 32 ;
                    client_random = ch.random } in
@@ -106,6 +96,18 @@ let answer_client_hello_params sp ch raw =
    List.map (fun e -> `Record (Packet.HANDSHAKE, e)) packets,
    `Pass)
 
+let answer_client_hello_params sp ch raw =
+  assert (List.exists (function
+                        | SecureRenegotiation x -> true
+                        | _ -> false)
+                      ch.extensions);
+  List.iter (function
+              | SecureRenegotiation x ->
+                 assert (Utils.cs_eq sp.client_verify_data x)
+              | _ -> ())
+            ch.extensions;
+  answer_client_hello_params_int sp ch raw
+
 let answer_client_hello (ch : client_hello) raw =
   assert (List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch.ciphersuites);
   let issuported = fun x -> List.mem x ch.ciphersuites in
@@ -122,7 +124,7 @@ let answer_client_hello (ch : client_hello) raw =
                  client_verify_data = Cstruct.create 0 ;
                  server_verify_data = Cstruct.create 0 }
   in
-  answer_client_hello_params params ch raw
+  answer_client_hello_params_int params ch raw
 
 let handle_record
 : tls_internal_state -> Packet.content_type -> Cstruct.t
