@@ -109,6 +109,8 @@ let (rsa_public_of_cstruct, rsa_public_to_cstruct) =
  * X509 certs
  *)
 
+type x509_algo = [
+
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
   serial     : Num.num ;
@@ -127,6 +129,24 @@ type certificate = {
   signature_algo : oid ;
   signature      : bits
 }
+
+(* XXX
+ *
+ * PKCS1/RFC5280 allows params to be `ANY', depending on the algorithm.  I don't
+ * know of one that uses anything other than NULL, however, so we accept only
+ * that. Other param types should be encoded as an explicit choice here.
+ *
+ * In addition, all the algorithms I checked specify their NULL OPTIONAL
+ * explicitly, thus we encode it as such. If any algos are encoded without their
+ * NULL params, as permitted by the grammar, re-encode won't reconstruct the
+ * byte sequence.
+ *)
+let algorithmIdentifier =
+  let f (oid, _) = oid and g oid = (oid, Some ()) in
+  map f g @@
+  sequence2
+    (required ~label:"algorithm" oid)
+    (optional ~label:"params"    null)
 
 let extensions =
   let extension =
@@ -161,14 +181,6 @@ let name =
   let rd_name      = set_of attribute_tv in
   let rdn_sequence = sequence_of rd_name in
   rdn_sequence (* A vacuous choice, in the standard. *)
-
-let algorithmIdentifier =
-  map (fun (oid, _) -> oid) (fun oid -> (oid, None))
-  @@
-  sequence2
-    (required ~label:"algorithm" oid)
-    (* This is ANY according to rfc5280 *)
-    (optional ~label:"params"    null)
 
 let version =
   map (function 2 -> `V2 | 3 -> `V3 | _ -> `V1)
