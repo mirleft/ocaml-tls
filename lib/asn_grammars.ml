@@ -12,21 +12,30 @@ let projections encoding asn =
 module ID = struct
 
   (* That's all from RFC 3447 *)
-  let pkcs1 = OID.(base 1 2 <| 840 <| 113549 <| 1)
+  let usa    = OID.(base 1 2 <| 840)
+  let rsadsi = OID.(usa <| 113549)
+  let pkcs   = OID.(rsadsi <| 1)
+  let pkcs1  = OID.(pkcs <| 1)
 
-  let rsaEncryption = OID.(pkcs1 <| 1)
+  let rsa_encryption           = OID.(pkcs1 <| 1)
+  let md2_rsa_encryption       = OID.(pkcs1 <| 2)
+  let md4_rsa_encryption       = OID.(pkcs1 <| 3)
+  let md5_rsa_encryption       = OID.(pkcs1 <| 4)
+  let sha1_rsa_encryption      = OID.(pkcs1 <| 5)
+  let ripemd160_rsa_encryption = OID.(pkcs1 <| 6)
+  (* hole? *)
+  let sha256_rsa_encryption    = OID.(pkcs1 <| 11)
+  let sha384_rsa_encryption    = OID.(pkcs1 <| 12)
+  let sha512_rsa_encryption    = OID.(pkcs1 <| 13)
+  let sha224_rsa_encryption    = OID.(pkcs1 <| 14)
 
-  let md2WithRSAEncryption    = OID.(rsaEncryption <| 2)
-  let md5WithRSAEncryption    = OID.(rsaEncryption <| 4)
-  let sha1WithRSAEncryption   = OID.(rsaEncryption <| 5)
-  let sha256WithRSAEncryption = OID.(rsaEncryption <| 11)
-  let sha384WithRSAEncryption = OID.(rsaEncryption <| 12)
-  let sha512WithRSAEncryption = OID.(rsaEncryption <| 13)
-
-
-  let id_sha1 = OID.(base 1 3 <| 14 <| 3 <| 2 <| 26)
-  let id_md2  = OID.(base 1 2 <| 840 <| 113549 <| 2 <| 2)
-  let id_md5  = OID.(base 1 2 <| 840 <| 113549 <| 2 <| 5)
+  let md2   = OID.(rsadsi <| 2 <| 2)
+  let md5   = OID.(rsadsi <| 2 <| 5)
+  let sha1  = OID.(base 1 3 <| 14 <| 3 <| 2 <| 26)
+  let sha256, sha384, sha512, sha224, sha512_224, sha512_256 =
+    let pre =
+      OID.(base 2 16 <| 840 <| 1 <| 101 <| 3 <| 4 <| 2) in
+    OID.( pre <| 1, pre <| 2, pre <| 3, pre <| 4, pre <| 5, pre <| 6 )
 
 end
 
