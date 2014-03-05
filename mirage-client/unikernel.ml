@@ -8,22 +8,22 @@ let blue fmt   = Printf.sprintf ("\027[36m"^^fmt^^"\027[m")
 module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
 
   let on_connect hello c (flow : S.TCPV4.flow) =
-    let rec loop tls frag =
+    let rec loop tls =
       S.TCPV4.read flow >>= function
         | `Eof     -> C.log_s c (red "read: eof")
         | `Error e -> C.log_s c (red "read: error")
         | `Ok buf  ->
-            let tls', ans, frag' = Tls.Client.handle_tls tls (Tls.Utils.cs_append frag buf) in
-            S.TCPV4.write flow ans >> loop tls' frag'
+            let tls', ans = Tls.Client.handle_tls tls buf in
+            S.TCPV4.write flow ans >> loop tls'
     in
     let (dst, dst_port) = S.TCPV4.get_dest flow in
-    let (tls', ans, frag') = Tls.Client.handle_tls Tls.Flow.empty_state hello in
+    let (tls', ans) = Tls.Client.handle_tls Tls.Flow.empty_state hello in
     C.log_s c (green "writing to tcp connection from %s %d (len %d)"
                      (Ipaddr.V4.to_string dst) dst_port (Cstruct.len ans))
     >>
     S.TCPV4.write flow ans
     >>
-    loop tls' frag'
+    loop tls'
 
   let start c s =
 (*    OS.Time.sleep 5.0 >>= fun () -> *)

@@ -53,11 +53,14 @@ type state = {
   machina   : tls_internal_state ;
   decryptor : crypto_state ;
   encryptor : crypto_state ;
+  fragment  : Cstruct.t ;
 }
 
-let empty_state = { machina = `Initial ;
+let empty_state = { machina   = `Initial ;
                     decryptor = `Nothing ;
-                    encryptor = `Nothing }
+                    encryptor = `Nothing ;
+                    fragment  = Cstruct.create 0
+                  }
 
 (* some config parameters *)
 type config = {
@@ -205,13 +208,13 @@ let handle_raw_record handler state (hdr, buf) =
   let decryptor = match dec_cmd with
     | `Change_dec dec -> dec
     | `Pass           -> dec_st in
-  ({ machina ; encryptor ; decryptor }, encs)
+  ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
 
 let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
       -> (tls_internal_state * rec_resp list * dec_resp)) ->
-                 state -> Cstruct.t -> (state * Cstruct.t * Cstruct.t)
+                 state -> Cstruct.t -> (state * Cstruct.t)
 = fun handler state buf ->
-  let in_records, frag = separate_records buf in
+  let in_records, frag = separate_records (state.fragment <> buf) in
   let (state', out_records) =
     let rec loop st = function
       | []    -> (st, [])
@@ -221,5 +224,5 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
           (st2, raw_rs @ raw_rs') in
     loop state in_records in
   let buf' = assemble_records out_records in
-  (state', buf', frag)
+  ({ state' with fragment = frag }, buf')
 
