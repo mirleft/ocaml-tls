@@ -6,6 +6,7 @@ type certificate_failure =
   | InvalidCertificate
   | InvalidSignature
   | InvalidServerName
+  | SelfSigned
 
 type verification_result = [
   | `Fail of certificate_failure
@@ -303,7 +304,7 @@ let verify_certificates : string -> certificate list -> Cstruct.t list -> verifi
     (* short-path for self-signed certificate  *)
     if (List.length cs = 1) && is_self_signed (List.hd cs) then
       (Printf.printf "DANGER: self-signed certificate\n";
-       `Ok)
+       `Fail SelfSigned)
     else
       let now = Sys.time () in
       let rec go t = function
