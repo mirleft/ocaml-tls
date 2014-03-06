@@ -68,13 +68,8 @@ do not forget about 'authority information access' (private internet extension -
    than one instance of a particular extension.
 *)
 
-let names_eq : name_component list -> name_component list -> bool =
-  fun a b ->
-    (List.length a = List.length b) &&
-      List.for_all (fun e -> List.exists (fun n -> e = n) b) a
-
 let issuer_matches_subject_tbs : tBSCertificate -> tBSCertificate -> bool =
-  fun p c -> names_eq p.subject c.issuer
+  fun p c -> Name.equal p.subject c.issuer
 
 let issuer_matches_subject : certificate -> certificate -> bool =
   fun p c -> issuer_matches_subject_tbs p.tbs_cert c.tbs_cert
@@ -114,6 +109,7 @@ let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
       Cstruct.hexdump chash;
       Utils.cs_eq chash hash in
 
+    let open Algorithm in
     match (c.signature_algo, algo) with
     | (MD5_RSA, MD5)   -> comparing_hash Crypto.md5
     | (SHA1_RSA, SHA1) -> comparing_hash Crypto.sha
@@ -201,7 +197,7 @@ let find_trusted_certs : unit -> certificate list =
 
 let get_cn cert =
   find_by cert.subject
-    ~f:(function Common_name n -> Some n | _ -> None)
+    ~f:Name.(function Common_name n -> Some n | _ -> None)
 
 let hostname_matches : tBSCertificate -> string -> bool =
 (* - might include wildcards and international domain names *)
