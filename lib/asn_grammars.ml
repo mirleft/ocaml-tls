@@ -122,7 +122,24 @@ module General_name = struct
 
   (* GeneralName is also pretty pervasive. *)
 
-  let other_name = null (* OID x ANY. Hunt down the alternatives.... *)
+  (* OID x ANY. Hunt down the alternatives.... *)
+  let another_name =
+    let open Registry.Name_extn in
+    let f = function
+      | (oid, `C1 n) when oid = venezuela_1 || oid = venezuela_2 -> n
+      | (oid, _    ) -> parse_error @@
+          Printf.sprintf "AnotherName: unrecognized oid (%s)"
+                         (OID.to_string oid)
+    and g = fun _ ->
+      invalid_arg "can't encode AnotherName extentions, yet."
+    in
+    map f g @@
+    sequence2
+      (required ~label:"type-id" oid)
+      (required ~label:"value" @@
+        explicit 0
+          (choice2 utf8_string null))
+
   and or_address = null (* Horrible crap, need to fill it. *)
 
   let edi_party_name =
@@ -131,7 +148,7 @@ module General_name = struct
       (required ~label:"partyName"    @@ implicit 1 Name.directory_name)
 
   type t =
-    | Other         of unit      (* other_name *)
+    | Other         of string    (* another_name *)
     | Rfc_822       of string
     | DNS           of string
     | X400_address  of unit      (* or_address *)
@@ -169,17 +186,17 @@ module General_name = struct
     map f g @@
     choice2
       (choice6
-        (implicit 0 other_name)
+        (implicit 0 another_name)
         (implicit 1 ia5_string)
         (implicit 2 ia5_string)
         (implicit 3 or_address)
-        (implicit 4 Name.name)
+        (* Everybody uses this as explicit, contrary to x509 (?) *)
+        (explicit 4 Name.name)
         (implicit 5 edi_party_name))
       (choice3
         (implicit 6 ia5_string)
         (implicit 7 octet_string)
         (implicit 8 oid))
-
 end
 
 module Algorithm = struct
@@ -341,8 +358,10 @@ module Extension = struct
   let reparse_extension_exn = function
     | (oid, cs) when oid = ID.subject_alternative_name ->
         Subject_alt_name (general_names_of_cs cs)
+
     | (oid, cs) when oid = ID.issuer_alternative_name ->
-        Issuer_alt_name (general_names_of_cs cs)
+         Issuer_alt_name (general_names_of_cs cs)
+
     | (oid, cs) -> Unsupported (oid, cs)
 
   let unparse_extension = function
@@ -352,12 +371,12 @@ module Extension = struct
 
   let extensions_der =
     let extension =
-      map (fun (oid, b, cs) ->
-            (def false b, reparse_extension_exn (oid, cs)))
-          (fun (b, ext) ->
-            let (oid, cs) = unparse_extension ext in
-            (oid, def' false b, cs))
-      @@
+      let f (oid, b, cs) =
+        (def false b, reparse_extension_exn (oid, cs))
+      and g (b, ext) =
+        let (oid, cs) = unparse_extension ext in (oid, def' false b, cs)
+      in
+      map f g @@
       sequence3
         (required ~label:"id"       oid)
         (optional ~label:"critical" bool) (* default false *)

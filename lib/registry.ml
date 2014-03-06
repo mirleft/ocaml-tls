@@ -222,3 +222,13 @@ module Cert_extn = struct
   and inhibit_any_policy            = ce <| 54
 end
 
+module Name_extn = struct
+
+  (* For the rarely-used feature of GeneralName: AnotherName.
+   * (Thank you, Venezuela's certificate authority.)
+   *)
+
+  let venezuela   = base 2 16 <| 862
+  let venezuela_1 = venezuela <| 2 <| 1
+  and venezuela_2 = venezuela <| 2 <| 2
+end
