@@ -119,7 +119,7 @@ type tBSCertificate = {
   pk_info    : algorithm * bits ;
   issuer_id  : bits option ;
   subject_id : bits option ;
-  extensions : (oid * bool * Cstruct.t) list option
+  extensions : (oid * bool * Cstruct.t) list
 }
 
 type certificate = {
@@ -249,11 +249,13 @@ let uniqueIdentifier = bit_string'
 
 let tBSCertificate =
   let f = fun (a, (b, (c, (d, (e, (f, (g, (h, (i, j))))))))) ->
+    let extn = match j with None -> [] | Some xs -> xs
+    in
     { version    = def `V1 a ; serial     = b ;
       signature  = c         ; issuer     = d ;
       validity   = e         ; subject    = f ;
       pk_info    = g         ; issuer_id  = h ;
-      subject_id = i         ; extensions = j }
+      subject_id = i         ; extensions = extn }
 
   and g = fun
     { version    = a ; serial     = b ;
@@ -261,7 +263,9 @@ let tBSCertificate =
       validity   = e ; subject    = f ;
       pk_info    = g ; issuer_id  = h ;
       subject_id = i ; extensions = j } ->
-    (def' `V1 a, (b, (c, (d, (e, (f, (g, (h, (i, j)))))))))
+    let extn = match j with [] -> None | xs -> Some xs
+    in
+    (def' `V1 a, (b, (c, (d, (e, (f, (g, (h, (i, extn)))))))))
   in
 
   map f g @@
