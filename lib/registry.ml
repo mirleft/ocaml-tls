@@ -185,3 +185,7 @@ module X520 = struct
   and pseudonym                     = x520 <| 65
 end
 
+(* The single rfc4519 OID RFC5280 required us to be aware of.... *)
+let domain_component =
+  base 0 9 <| 2342 <| 19200300 <| 100 <| 1 <| 25
+

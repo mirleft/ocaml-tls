@@ -98,13 +98,31 @@ type algorithm =
   | ECDSA_SHA384
   | ECDSA_SHA512
 
+type name_component =
+  | Common_name      of string
+  | Surname          of string
+  | Serial           of string
+  | Country          of string
+  | Locality         of string
+  | Province         of string
+  | Org              of string
+  | Org_unit         of string
+  | Title            of string
+  | Given_name       of string
+  | Initials         of string
+  | Generation       of string
+  | DN_qualifier     of string
+  | Pseudonym        of string
+  | Domain_component of string
+  | Other            of OID.t * string
+
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
   serial     : Num.num ;
   signature  : algorithm ;
-  issuer     : (oid * string) list list ;
+  issuer     : name_component list ;
   validity   : time * time ;
-  subject    : (oid * string) list list ;
+  subject    : name_component list ;
   pk_info    : algorithm * bits ;
   issuer_id  : bits option ;
   subject_id : bits option ;
@@ -200,14 +218,63 @@ let directory_name =
     utf8_string printable_string
     ia5_string universal_string teletex_string bmp_string
 
+
+(* We flatten the sequence-of-set-of-tuple here into a single list.
+ * This means that we can't write non-singleton sets back.
+ * Does anyone need that, ever?
+ *)
+
 let name =
+  let open Registry in
+
+  let a_f = function
+    | (oid, x) when oid = X520.common_name              -> Common_name  x
+    | (oid, x) when oid = X520.surname                  -> Surname      x
+    | (oid, x) when oid = X520.serial_number            -> Serial       x
+    | (oid, x) when oid = X520.country_name             -> Country      x
+    | (oid, x) when oid = X520.locality_name            -> Locality     x
+    | (oid, x) when oid = X520.state_or_province_name   -> Province     x
+    | (oid, x) when oid = X520.organization_name        -> Org          x
+    | (oid, x) when oid = X520.organizational_unit_name -> Org_unit     x
+    | (oid, x) when oid = X520.title                    -> Title        x
+    | (oid, x) when oid = X520.given_name               -> Given_name   x
+    | (oid, x) when oid = X520.initials                 -> Initials     x
+    | (oid, x) when oid = X520.generation_qualifier     -> Generation   x
+    | (oid, x) when oid = X520.dn_qualifier             -> DN_qualifier x
+    | (oid, x) when oid = X520.pseudonym                -> Pseudonym    x
+    | (oid, x) when oid = domain_component              -> Domain_component x
+    | (oid, x) -> Other (oid, x)
+
+  and a_g = function
+    | Common_name      x -> (X520.common_name              , x)
+    | Surname          x -> (X520.surname                  , x)
+    | Serial           x -> (X520.serial_number            , x)
+    | Country          x -> (X520.country_name             , x)
+    | Locality         x -> (X520.locality_name            , x)
+    | Province         x -> (X520.state_or_province_name   , x)
+    | Org              x -> (X520.organization_name        , x)
+    | Org_unit         x -> (X520.organizational_unit_name , x)
+    | Title            x -> (X520.title                    , x)
+    | Given_name       x -> (X520.given_name               , x)
+    | Initials         x -> (X520.initials                 , x)
+    | Generation       x -> (X520.generation_qualifier     , x)
+    | DN_qualifier     x -> (X520.dn_qualifier             , x)
+    | Pseudonym        x -> (X520.pseudonym                , x)
+    | Domain_component x -> (domain_component              , x)
+    | Other (oid, x)     -> (oid, x)
+  in
+
   let attribute_tv =
-   sequence2
+    map a_f a_g @@
+    sequence2
       (required ~label:"attr type"  oid)
       (* This is ANY according to rfc5280. *)
       (required ~label:"attr value" directory_name) in
   let rd_name      = set_of attribute_tv in
-  let rdn_sequence = sequence_of rd_name in
+  let rdn_sequence =
+    map List.concat (List.map (fun x -> [x]))
+    @@
+    sequence_of rd_name in
   rdn_sequence (* A vacuous choice, in the standard. *)
 
 (* XXX really default other versions to V1 or bail out? *)
