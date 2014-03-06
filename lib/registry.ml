@@ -19,9 +19,9 @@ let hash_algs = nist_alg <| 2
 (* PKCS1 *)
 
 let md2  = rsadsi <| 2 <| 2
-let md4  = rsadsi <| 2 <| 4
-let md5  = rsadsi <| 2 <| 5
-let sha1 = base 1 3 <| 14 <| 3 <| 2 <| 26
+and md4  = rsadsi <| 2 <| 4
+and md5  = rsadsi <| 2 <| 5
+and sha1 = base 1 3 <| 14 <| 3 <| 2 <| 26
 
 (* rfc5758 *)
 
@@ -38,19 +38,19 @@ module ANSI_X9_62 = struct
 
   let ecdsa_sha1             = ansi_x9_62 <| 1
   let prime_field            = ecdsa_sha1 <| 1
-  let characteristic_2_field = ecdsa_sha1 <| 2
+  and characteristic_2_field = ecdsa_sha1 <| 2
 
   let key_type   = ansi_x9_62 <| 2
   let ec_pub_key = key_type <| 1
 
   let signatures = ansi_x9_62 <| 4
   let field_type = signatures <| 1
-  let ecdsa_sha2 = signatures <| 3
+  and ecdsa_sha2 = signatures <| 3
 
   let ecdsa_sha224 = ecdsa_sha2 <| 1
-  let ecdsa_sha256 = ecdsa_sha2 <| 2
-  let ecdsa_sha384 = ecdsa_sha2 <| 3
-  let ecdsa_sha512 = ecdsa_sha2 <| 4
+  and ecdsa_sha256 = ecdsa_sha2 <| 2
+  and ecdsa_sha384 = ecdsa_sha2 <| 3
+  and ecdsa_sha512 = ecdsa_sha2 <| 4
 end
 
 module PKCS1 = struct
@@ -189,4 +189,36 @@ end
 (* The single rfc4519 oid rfc5280 requires us to be aware of.... *)
 let domain_component =
   base 0 9 <| 2342 <| 19200300 <| 100 <| 1 <| 25
+
+module Cert_extn = struct
+  let ce = base 2 5 <| 29
+
+  let authority_key_identifier_old  = ce <| 1
+  and primary_key_attributes_old    = ce <| 2
+  and certificate_policies_1        = ce <| 3
+  and primary_key_usage_restriction = ce <| 4
+  and subject_directory_attributes  = ce <| 9
+  and subject_key_identifier        = ce <| 14
+  and key_usage                     = ce <| 15
+  and private_key_usage_period      = ce <| 16
+  and subject_alternative_name      = ce <| 17
+  and issuer_alternative_name       = ce <| 18
+  and basic_constraints             = ce <| 19
+  and crl_number                    = ce <| 20
+  and reason_code                   = ce <| 21
+  and hold_instruction_code         = ce <| 23
+  and invalidity_date               = ce <| 24
+  and delta_crl_indicator           = ce <| 27
+  and issuing_distribution_point    = ce <| 28
+  and certificate_issuer            = ce <| 29
+  and name_constraints              = ce <| 30
+  and crl_distribution_points       = ce <| 31
+  and certificate_policies_2        = ce <| 32
+  and policy_mappings               = ce <| 33
+  and authority_key_identifier      = ce <| 35
+  and policy_constraints            = ce <| 36
+  and extended_key_usage            = ce <| 37
+  and freshestcrl                   = ce <| 46
+  and inhibit_any_policy            = ce <| 54
+end
 
