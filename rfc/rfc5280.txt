@@ -1,9 +1,3 @@
-
-
-
-
-
-
 Network Working Group                                          D. Cooper
 Request for Comments: 5280                                          NIST
 Obsoletes: 3280, 4325, 4630                                 S. Santesson
@@ -44,21 +38,6 @@ Abstract
    extensions.  An algorithm for X.509 certification path validation is
    described.  An ASN.1 module and examples are provided in the
    appendices.
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                     [Page 1]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 Table of Contents
 
@@ -108,14 +87,6 @@ Table of Contents
                   4.2.1.12. Extended Key Usage .......................44
                   4.2.1.13. CRL Distribution Points ..................45
                   4.2.1.14. Inhibit anyPolicy ........................48
-
-
-
-Cooper, et al.              Standards Track                     [Page 2]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
                   4.2.1.15. Freshest CRL (a.k.a. Delta CRL
                             Distribution Point) ......................48
            4.2.2. Private Internet Extensions ........................49
@@ -164,14 +135,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    7. Processing Rules for Internationalized Names ...................95
       7.1. Internationalized Names in Distinguished Names ............96
       7.2. Internationalized Domain Names in GeneralName .............97
-
-
-
-Cooper, et al.              Standards Track                     [Page 3]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       7.3. Internationalized Domain Names in Distinguished Names .....98
       7.4. Internationalized Resource Identifiers ....................98
       7.5. Internationalized Electronic Mail Addresses ..............100
@@ -220,13 +183,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    procedures are based upon the ISO/IEC/ITU-T definition.
    Implementations are REQUIRED to derive the same results but are not
    required to use the specified procedures.
-
-
-
-Cooper, et al.              Standards Track                     [Page 4]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    Procedures for identification and encoding of public key materials
    and digital signatures are defined in [RFC3279], [RFC4055], and
@@ -277,13 +233,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
       * The Authority Information Access (AIA) CRL extension, as
         specified in [RFC4325], was added as Section 5.2.7.
 
-
-
-Cooper, et al.              Standards Track                     [Page 5]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       * Sections 5.2 and 5.3 clarify the rules for handling unrecognized
         CRL extensions and CRL entry extensions, respectively.
 
@@ -330,16 +279,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    domains or environments with additional authorization, assurance, or
    operational requirements.  However, for basic applications, common
    representations of frequently used attributes are defined so that
-
-
-
-
-
-Cooper, et al.              Standards Track                     [Page 6]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    application developers can obtain necessary information without
    regard to the issuer of a particular certificate or certificate
    revocation list (CRL).
@@ -388,14 +327,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    include readers and writers of electronic mail, the clients for WWW
    browsers, WWW servers, and the key manager for IPsec within a router.
    This profile recognizes the limitations of the platforms these users
-
-
-
-Cooper, et al.              Standards Track                     [Page 7]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    employ and the limitations in sophistication and attentiveness of the
    users themselves.  This manifests itself in minimal user
    configuration responsibility (e.g., trusted CA keys, rules), explicit
@@ -445,13 +376,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    Note that an Attribute Authority (AA) might also choose to delegate
    the publication of CRLs to a CRL issuer.
 
-
-
-Cooper, et al.              Standards Track                     [Page 8]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    +---+
    | C |                       +------------+
    | e | <-------------------->| End entity |
@@ -500,14 +424,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    lifetime, which is indicated in its signed contents.  Because a
    certificate's signature and timeliness can be independently checked
    by a certificate-using client, certificates can be distributed via
-
-
-
-Cooper, et al.              Standards Track                     [Page 9]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    untrusted communications and server systems, and can be cached in
    unsecured storage in certificate-using systems.
 
@@ -556,14 +472,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    the CA's name, and related information (such as the validity period
    or name constraints), then it might need an additional certificate to
    obtain that public key.  In general, a chain of multiple certificates
-
-
-
-Cooper, et al.              Standards Track                    [Page 10]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    may be needed, comprising a certificate of the public key owner (the
    end entity) signed by one CA, and zero or more additional
    certificates of CAs signed by other CAs.  Such chains, called
@@ -610,15 +518,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    in that organization's name tree).  Certificate user systems are able
    to mechanically check that the name subordination rule has been
    followed.
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 11]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    RFC 1422 uses the X.509 v1 certificate format.  The limitations of
    X.509 v1 required imposition of several structural restrictions to
@@ -668,14 +567,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    This specification covers two classes of certificates: CA
    certificates and end entity certificates.  CA certificates may be
    further divided into three classes: cross-certificates, self-issued
-
-
-
-Cooper, et al.              Standards Track                    [Page 12]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    certificates, and self-signed certificates.  Cross-certificates are
    CA certificates in which the issuer and subject are different
    entities.  Cross-certificates describe a trust relationship between
@@ -724,14 +615,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    One limitation of the CRL revocation method, using untrusted
    communications and servers, is that the time granularity of
    revocation is limited to the CRL issue period.  For example, if a
-
-
-
-Cooper, et al.              Standards Track                    [Page 13]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    revocation is reported now, that revocation will not be reliably
    notified to certificate-using systems until all currently issued CRLs
    are scheduled to be updated -- this may be up to one hour, one day,
@@ -780,14 +663,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            itself known to a CA (directly, or through an RA), prior to
            that CA issuing a certificate or certificates for that user.
 
-
-
-
-Cooper, et al.              Standards Track                    [Page 14]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       (b)  initialization:  Before a client system can operate securely,
            it is necessary to install key materials that have the
            appropriate relationship with keys stored elsewhere in the
@@ -832,17 +707,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    combined into one protocol exchange.  In particular, two or more of
    the registration, initialization, and certification functions can be
    combined into one protocol exchange.
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 15]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    The PKIX series of specifications defines a set of standard message
    formats supporting the above functions.  The protocols for conveying
@@ -891,15 +755,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
         subjectPublicKeyInfo SubjectPublicKeyInfo,
         issuerUniqueID  [1]  IMPLICIT UniqueIdentifier OPTIONAL,
                              -- If present, version MUST be v2 or v3
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 16]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
         subjectUniqueID [2]  IMPLICIT UniqueIdentifier OPTIONAL,
                              -- If present, version MUST be v2 or v3
         extensions      [3]  EXPLICIT Extensions OPTIONAL
@@ -942,19 +797,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
    The Certificate is a SEQUENCE of three required fields.  The fields
    are described in detail in the following subsections.
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 17]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 4.1.1.1.  tbsCertificate
 
@@ -1004,14 +846,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    The sequence TBSCertificate contains information associated with the
    subject of the certificate and the CA that issued it.  Every
    TBSCertificate contains the names of the subject and issuer, a public
-
-
-
-Cooper, et al.              Standards Track                    [Page 18]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    key associated with the subject, a validity period, a version number,
    and a serial number; some MAY contain optional unique identifier
    fields.  The remainder of this section describes the syntax and
@@ -1060,14 +894,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
    This field MUST contain the same algorithm identifier as the
    signatureAlgorithm field in the sequence Certificate (Section
-
-
-
-Cooper, et al.              Standards Track                    [Page 19]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    4.1.1.2).  The contents of the optional parameters field will vary
    according to the algorithm identified.  [RFC3279], [RFC4055], and
    [RFC4491] list supported signature algorithms, but other signature
@@ -1116,14 +942,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    attributes encoded using TeletexString, BMPString, or
    UniversalString, then the CA MAY continue to use these encodings of
    the DirectoryString to preserve backward compatibility.  Also, new
-
-
-
-Cooper, et al.              Standards Track                    [Page 20]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    CAs that are added to a domain where existing CAs issue certificates
    with issuer fields with attributes encoded using TeletexString,
    BMPString, or UniversalString MAY encode attributes that they share
@@ -1172,14 +990,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    organizations that wish to use DNs that parallel their DNS names.
    This is not a replacement for the dNSName component of the
    alternative name extensions.  Implementations are not required to
-
-
-
-Cooper, et al.              Standards Track                    [Page 21]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    convert such names into DNS names.  The syntax and associated OID for
    this attribute type are provided in the ASN.1 modules in Appendix A.
    Rules for encoding internationalized domain names for use with the
@@ -1228,14 +1038,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    the notAfter date (including when the notAfter date is
    99991231235959Z), the issuer MUST ensure that no valid certification
    path exists for the certificate after maintenance of status
-
-
-
-Cooper, et al.              Standards Track                    [Page 22]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    information is terminated.  This may be accomplished by expiration or
    revocation of all CA certificates containing the public key used to
    verify the signature on the certificate and discontinuing use of the
@@ -1284,14 +1086,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    4.1.2.4) in all certificates issued by the subject CA.  If the
    subject is a CRL issuer (e.g., the key usage extension, as discussed
    in Section 4.2.1.3, is present and the value of cRLSign is TRUE),
-
-
-
-Cooper, et al.              Standards Track                    [Page 23]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    then the subject field MUST be populated with a non-empty
    distinguished name matching the contents of the issuer field (Section
    5.1.2.3) in all CRLs issued by the subject CRL issuer.  If subject
@@ -1341,13 +1135,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            encoded in the issuer field (Section 5.1.2.3) in all CRLs
            issued by the subject CRL issuer.
 
-
-
-Cooper, et al.              Standards Track                    [Page 24]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       (c)  TeletexString, BMPString, and UniversalString are included
            for backward compatibility, and SHOULD NOT be used for
            certificates for new subjects.  However, these types MAY be
@@ -1394,16 +1181,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    different entities and that Internet certificates not make use of
    unique identifiers.  CAs conforming to this profile MUST NOT generate
    certificates with unique identifiers.  Applications conforming to
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 25]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    this profile SHOULD be capable of parsing certificates that include
    unique identifiers, but there are no processing requirements
    associated with the unique identifiers.
@@ -1452,14 +1229,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    field, the CA MUST support the subject alternative name extension
    (Section 4.2.1.6).  Support for the remaining extensions is OPTIONAL.
    Conforming CAs MAY support extensions that are not identified within
-
-
-
-Cooper, et al.              Standards Track                    [Page 26]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    this specification; certificate issuers are cautioned that marking
    such extensions as critical may inhibit interoperability.
 
@@ -1508,14 +1277,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
    The value of the keyIdentifier field SHOULD be derived from the
    public key used to verify the certificate's signature or a method
-
-
-
-Cooper, et al.              Standards Track                    [Page 27]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    that generates unique values.  Two common methods for generating key
    identifiers from the public key are described in Section 4.2.1.2.
    Where a key identifier has not been previously established, this
@@ -1561,17 +1322,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            value of the BIT STRING subjectPublicKey (excluding the tag,
            length, and number of unused bits).
 
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 28]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       (2) The keyIdentifier is composed of a four-bit type field with
            the value 0100 followed by the least significant 60 bits of
            the SHA-1 hash of the value of the BIT STRING
@@ -1616,17 +1366,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    digitalSignature and/or nonRepudiation bits would be asserted.
    Likewise, when an RSA key should be used only for key management, the
    keyEncipherment bit would be asserted.
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 29]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    Conforming CAs MUST include this extension in certificates that
    contain public keys that are used to validate digital signatures on
@@ -1676,14 +1415,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
       is extremely uncommon; almost all applications use key transport
       or key agreement to establish a symmetric key.
 
-
-
-
-Cooper, et al.              Standards Track                    [Page 30]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       The keyAgreement bit is asserted when the subject public key is
       used for key agreement.  For example, when a Diffie-Hellman key is
       to be used for key management, then this bit is set.
@@ -1729,16 +1460,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    are specified in [RFC3279], [RFC4055], and [RFC4491].  When the
    keyUsage extension appears in a certificate, at least one of the bits
    MUST be set to 1.
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 31]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 4.2.1.4.  Certificate Policies
 
@@ -1786,16 +1507,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    User notice is intended for display to a relying party when a
    certificate is used.  Only user notices returned as a result of path
    validation are intended for display to the user.  If a notice is
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 32]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    duplicated, only one copy need be displayed.  To prevent such
    duplication, this qualifier SHOULD only be present in end entity
    certificates and CA certificates issued to other organizations.
@@ -1833,24 +1544,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    some non-conforming CAs exceed this limit.  Therefore, certificate
    users SHOULD gracefully handle explicitText with more than 200
    characters.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 33]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    id-ce-certificatePolicies OBJECT IDENTIFIER ::=  { id-ce 32 }
 
@@ -1896,17 +1589,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
         visibleString    VisibleString  (SIZE (1..200)),
         bmpString        BMPString      (SIZE (1..200)),
         utf8String       UTF8String     (SIZE (1..200)) }
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 34]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 4.2.1.5.  Policy Mappings
 
@@ -1956,14 +1638,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    to the subject of the certificate.  These identities may be included
    in addition to or in place of the identity in the subject field of
    the certificate.  Defined options include an Internet electronic mail
-
-
-
-Cooper, et al.              Standards Track                    [Page 35]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    address, a DNS name, an IP address, and a Uniform Resource Identifier
    (URI).  Other options exist, including completely local definitions.
    Multiple name forms, and multiple instances of each name form, MAY be
@@ -2012,14 +1686,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    Section 3.5 of [RFC1034] and as modified by Section 2.1 of
    [RFC1123].  Note that while uppercase and lowercase letters are
    allowed in domain names, no significance is attached to the case.  In
-
-
-
-Cooper, et al.              Standards Track                    [Page 36]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    addition, while the string " " is a legal domain name, subjectAltName
    extensions with a dNSName of " " MUST NOT be used.  Finally, the use
    of the DNS representation for Internet mail addresses
@@ -2068,14 +1734,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    GeneralName fields.  For example, an rfc822Name is represented as an
    IA5String.  While an empty string is a valid IA5String, such an
    rfc822Name is not permitted by this profile.  The behavior of clients
-
-
-
-Cooper, et al.              Standards Track                    [Page 37]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    that encounter such a certificate when processing a certification
    path is not defined by this profile.
 
@@ -2125,13 +1783,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
    IssuerAltName ::= GeneralNames
 
-
-
-Cooper, et al.              Standards Track                    [Page 38]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 4.2.1.8.  Subject Directory Attributes
 
    The subject directory attributes extension is used to convey
@@ -2180,14 +1831,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    certificates.  Such CA certificates include ones that contain public
    keys used exclusively for validating digital signatures on CRLs and
    ones that contain key management public keys used with certificate
-
-
-
-Cooper, et al.              Standards Track                    [Page 39]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    enrollment protocols.  This extension MAY appear as a critical or
    non-critical extension in end entity certificates.
 
@@ -2235,14 +1878,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    that name form appears in the subject field or subjectAltName
    extension of a subsequent certificate, then the application MUST
    either process the constraint or reject the certificate.
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 40]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    Within this profile, the minimum and maximum fields are not used with
    any name forms, thus, the minimum MUST be zero, and maximum MUST be
@@ -2292,14 +1927,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    Legacy implementations exist where an electronic mail address is
    embedded in the subject distinguished name in an attribute of type
    emailAddress (Section 4.1.2.6).  When constraints are imposed on the
-
-
-
-Cooper, et al.              Standards Track                    [Page 41]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    rfc822Name name form, but the certificate does not include a subject
    alternative name, the rfc822Name constraint MUST be applied to the
    attribute of type emailAddress in the subject distinguished name.
@@ -2347,14 +1974,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            excludedSubtrees        [1]     GeneralSubtrees OPTIONAL }
 
       GeneralSubtrees ::= SEQUENCE SIZE (1..MAX) OF GeneralSubtree
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 42]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
       GeneralSubtree ::= SEQUENCE {
            base                    GeneralName,
@@ -2405,13 +2024,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
    Conforming CAs MUST mark this extension as critical.
 
-
-
-Cooper, et al.              Standards Track                    [Page 43]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    id-ce-policyConstraints OBJECT IDENTIFIER ::=  { id-ce 36 }
 
    PolicyConstraints ::= SEQUENCE {
@@ -2458,15 +2070,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    particular purpose MAY reject certificates that include the
    anyExtendedKeyUsage OID but not the particular OID expected for the
    application.
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 44]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    If a certificate contains both a key usage extension and an extended
    key usage extension, then both extensions MUST be processed
@@ -2517,13 +2120,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    RECOMMENDS support for this extension by CAs and applications.
    Further discussion of CRL management is contained in Section 5.
 
-
-
-Cooper, et al.              Standards Track                    [Page 45]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    The cRLDistributionPoints extension is a SEQUENCE of
    DistributionPoint.  A DistributionPoint consists of three fields,
    each of which is optional: distributionPoint, reasons, and cRLIssuer.
@@ -2572,14 +2168,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
    If the DistributionPointName contains the single value
    nameRelativeToCRLIssuer, the value provides a distinguished name
-
-
-
-Cooper, et al.              Standards Track                    [Page 46]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    fragment.  The fragment is appended to the X.500 distinguished name
    of the CRL issuer to obtain the distribution point name.  If the
    cRLIssuer field in the DistributionPoint is present, then the name
@@ -2618,23 +2206,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    DistributionPointName ::= CHOICE {
         fullName                [0]     GeneralNames,
         nameRelativeToCRLIssuer [1]     RelativeDistinguishedName }
-
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 47]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    ReasonFlags ::= BIT STRING {
         unused                  (0),
@@ -2681,16 +2252,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    id-ce-freshestCRL OBJECT IDENTIFIER ::=  { id-ce 46 }
 
    FreshestCRL ::= CRLDistributionPoints
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 48]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 4.2.2.  Private Internet Extensions
 
@@ -2741,13 +2302,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
    id-ad-ocsp OBJECT IDENTIFIER ::= { id-ad 1 }
 
-
-
-Cooper, et al.              Standards Track                    [Page 49]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    Each entry in the sequence AuthorityInfoAccessSyntax describes the
    format and location of additional information provided by the issuer
    of the certificate in which this extension appears.  The type and
@@ -2796,14 +2350,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    collection of certificates in a BER or DER encoded "certs-only" CMS
    message as specified in [RFC2797].
 
-
-
-
-Cooper, et al.              Standards Track                    [Page 50]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    Conforming applications that support HTTP or FTP for accessing
    certificates MUST be able to accept individual DER encoded
    certificates and SHOULD be able to accept "certs-only" CMS messages.
@@ -2851,15 +2397,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    data.  When the subject is an end entity, the information describes
    the type of services offered and how to access them.  In this case,
    the contents of this extension are defined in the protocol
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 51]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    specifications for the supported services.  This extension may be
    included in end entity or CA certificates.  Conforming CAs MUST mark
    this extension as non-critical.
@@ -2906,16 +2443,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    the DER encoded certificates or cross-certificate pairs [RFC4523],
    and SHOULD include a <host> (e.g., <ldap://ldap.example.com/cn=CA,
    dc=example,dc=com?cACertificate;binary,crossCertificatePair;binary>).
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 52]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    Omitting the <host> (e.g., <ldap:///cn=exampleCA,dc=example,dc=com?
    cACertificate;binary>) has the effect of relying on whatever a priori
    knowledge the client might have to contact an appropriate server.
@@ -2963,14 +2490,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    be used.  The semantics of other name forms of accessLocation (when
    accessMethod is id-ad-timeStamping) are not defined by this
    specification.
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 53]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    Additional access descriptors may be defined in other PKIX
    specifications.
@@ -3021,13 +2540,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    scope of a CRL is not affected by the key used to sign the CRL or the
    key(s) used to sign certificates.)
 
-
-
-Cooper, et al.              Standards Track                    [Page 54]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    If the scope of the CRL includes one or more certificates issued by
    an entity other than the CRL issuer, then it is an indirect CRL.  The
    scope of an indirect CRL may be limited to certificates issued by a
@@ -3064,25 +2576,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    The X.509 v2 CRL syntax is as follows.  For signature calculation,
    the data that is to be signed is ASN.1 DER encoded.  ASN.1 DER
    encoding is a tag, length, value encoding system for each element.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 55]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    CertificateList  ::=  SEQUENCE  {
         tbsCertList          TBSCertList,
@@ -3130,16 +2623,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    list is defined by a sequence of user certificate serial number,
    revocation date, and optional CRL entry extensions.
 
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 56]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 5.1.1.2.  signatureAlgorithm
 
    The signatureAlgorithm field contains the algorithm identifier for
@@ -3183,18 +2666,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    applications SHOULD support certification path validation when
    certificates and CRLs are digitally signed with different CA private
    keys.
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 57]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 5.1.2.  Certificate List "To Be Signed"
 
@@ -3244,14 +2715,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
    CRL issuers conforming to this profile MUST encode thisUpdate as
    UTCTime for dates through the year 2049.  CRL issuers conforming to
-
-
-
-Cooper, et al.              Standards Track                    [Page 58]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    this profile MUST encode thisUpdate as GeneralizedTime for dates in
    the year 2050 or later.  Conforming applications MUST be able to
    process dates that are encoded in either UTCTime or GeneralizedTime.
@@ -3296,17 +2759,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    be expressed as described in Section 5.1.2.4.  Additional information
    may be supplied in CRL entry extensions; CRL entry extensions are
    discussed in Section 5.3.
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 59]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 5.1.2.7.  Extensions
 
@@ -3356,14 +2808,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    be associated with the issuer of the CRL.  Defined options include an
    electronic mail address (rfc822Name), a DNS name, an IP address, and
    a URI.  Multiple instances of a name form and multiple name forms may
-
-
-
-Cooper, et al.              Standards Track                    [Page 60]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    be included.  Whenever such identities are used, the issuer
    alternative name extension MUST be used; however, a DNS name MAY be
    represented in the issuer field using the domainComponent attribute
@@ -3408,17 +2852,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    id-ce-cRLNumber OBJECT IDENTIFIER ::= { id-ce 20 }
 
    CRLNumber ::= INTEGER (0..MAX)
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 61]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 5.2.4.  Delta CRL Indicator
 
@@ -3466,16 +2899,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    number specified in the CRL number extension found in the delta CRL
    used in its construction.  In addition, the resulting locally
    constructed CRL has the thisUpdate and nextUpdate times specified in
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 62]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    the corresponding fields of the delta CRL used in its construction.
    In addition, the locally constructed CRL inherits the issuing
    distribution point from the delta CRL.
@@ -3520,17 +2943,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            certificateHold, and the reason code certificateHold is
            included in the scope of the CRL, list the certificate with
            the reason code removeFromCRL.
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 63]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
       (c)  If the certificate is revoked for a reason outside the scope
            of the CRL, but the certificate was listed on the referenced
@@ -3581,13 +2993,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    scope is encountered, the application SHOULD consider the one with
    the latest value in thisUpdate to be the most current one.
 
-
-
-Cooper, et al.              Standards Track                    [Page 64]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    id-ce-deltaCRLIndicator OBJECT IDENTIFIER ::= { id-ce 27 }
 
    BaseCRLNumber ::= CRLNumber
@@ -3634,16 +3039,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    extension (Section 4.2.1.13).  If the distributionPoint field is
    present, then it MUST include at least one of names from the
    corresponding distributionPoint field of the cRLDistributionPoints
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 65]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    extension of every certificate that is within the scope of this CRL.
    The identical encoding MUST be used in the distributionPoint fields
    of the certificate and the CRL.
@@ -3687,18 +3082,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
         -- at most one of onlyContainsUserCerts, onlyContainsCACerts,
         -- and onlyContainsAttributeCerts may be set to TRUE.
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 66]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 5.2.6.  Freshest CRL (a.k.a. Delta CRL Distribution Point)
 
@@ -3744,17 +3127,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    than id-ad-caIssuers MUST NOT be included.  At least one instance of
    AccessDescription SHOULD specify an accessLocation that is an HTTP
    [RFC2616] or LDAP [RFC4516] URI.
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 67]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    Where the information is available via HTTP or FTP, accessLocation
    MUST be a uniformResourceIdentifier and the URI MUST point to either
@@ -3804,14 +3176,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    cACertificate;binary>) has the effect of relying on whatever a priori
    knowledge the client might have to contact an appropriate server.
 
-
-
-
-Cooper, et al.              Standards Track                    [Page 68]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 5.3.  CRL Entry Extensions
 
    The CRL entry extensions defined by ISO/IEC, ITU-T, and ANSI X9 for
@@ -3849,24 +3213,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    either the certificate expired or was removed from hold.  All other
    reason codes may appear in any CRL and indicate that the specified
    certificate should be considered revoked.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 69]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    id-ce-cRLReasons OBJECT IDENTIFIER ::= { id-ce 21 }
 
@@ -3916,14 +3262,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    alternative name extension of the certificate that corresponds to the
    CRL entry.  If this extension is not present on the first entry in an
    indirect CRL, the certificate issuer defaults to the CRL issuer.  On
-
-
-
-Cooper, et al.              Standards Track                    [Page 70]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    subsequent entries in an indirect CRL, if this extension is not
    present, the certificate issuer for the entry is the same as that for
    the preceding entry.  This field is defined as follows:
@@ -3970,16 +3308,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    The selection of a trust anchor is a matter of policy: it could be
    the top CA in a hierarchical PKI, the CA that issued the verifier's
    own certificate(s), or any other CA in a network PKI.  The path
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 71]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    validation procedure is the same regardless of the choice of trust
    anchor.  In addition, different applications may rely on different
    trust anchors, or may accept paths that begin with any of a set of
@@ -4026,15 +3354,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    in the past.  Note that mechanisms are not available for validating a
    certificate with respect to a time outside the certificate validity
    period.
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 72]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    The trust anchor is an input to the algorithm.  There is no
    requirement that the same trust anchor be used to validate all
@@ -4084,14 +3403,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    that are valid for this path, based on the certificate policies
    extension, policy mappings extension, policy constraints extension,
    and inhibit anyPolicy extension.  To achieve this, the path
-
-
-
-Cooper, et al.              Standards Track                    [Page 73]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    validation algorithm constructs a valid policy tree.  If the set of
    certificate policies that are valid for this path is not empty, then
    the result will be a valid policy tree of depth n, otherwise the
@@ -4113,40 +3424,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    in the path.  Step (3) is performed for all certificates in the path
    except the final certificate.  Figure 2 provides a high-level
    flowchart of this algorithm.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 74]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
                            +-------+
                            | START |
@@ -4191,18 +3468,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
       (a)  a prospective certification path of length n.
 
       (b)  the current date/time.
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 75]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
       (c)  user-initial-policy-set:  A set of certificate policy
            identifiers naming the policies that are acceptable to the
@@ -4252,14 +3517,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            in every certificate in the certification path MUST fall.
            The initial-permitted-subtrees input includes a set for each
            name type.  For each name type, the set may consist of a
-
-
-
-Cooper, et al.              Standards Track                    [Page 76]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
            single subtree that includes all names of that name type or
            one or more subtrees that each specifies a subset of the
            names of that name type, or the set may be empty.  If the set
@@ -4306,15 +3563,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
          (1)  The valid_policy is a single policy OID representing a
               valid policy for the path of length x.
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 77]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
          (2)  The qualifier_set is a set of policy qualifiers associated
               with the valid policy in certificate x.
@@ -4365,13 +3613,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            requirement.  If initial-explicit-policy is set, then the
            initial value is 0, otherwise the initial value is n+1.
 
-
-
-Cooper, et al.              Standards Track                    [Page 78]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       (e)  inhibit_anyPolicy:  an integer that indicates whether the
            anyPolicy policy identifier is considered a match.  The
            integer indicates the number of non-self-issued certificates
@@ -4416,17 +3657,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            in the next certificate in the chain.  The
            working_issuer_name is initialized to the trusted issuer name
            provided in the trust anchor information.
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 79]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
       (k)  max_path_length:  this integer is initialized to n, is
            decremented for each non-self-issued certificate in the path,
@@ -4474,16 +3704,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            subjectAltName extension (critical or non-critical) is not
            within any of the excluded_subtrees for that name type.
 
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 80]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       (d)  If the certificate policies extension is present in the
            certificate and the valid_policy_tree is not NULL, process
            the policy information by performing the following steps in
@@ -4530,15 +3750,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
                              +-----------------+
 
                     Figure 4.  Processing an Exact Match
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 81]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
             (ii)  If there was no match in step (i) and the
                   valid_policy_tree includes a node of depth i-1 with
@@ -4588,14 +3799,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
               each value in the expected_policy_set (including
               anyPolicy) that does not appear in a child node, create a
               child node with the following values: set the valid_policy
-
-
-
-Cooper, et al.              Standards Track                    [Page 82]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
               to the value from the expected_policy_set in the parent
               node, set the qualifier_set to AP-Q, and set the
               expected_policy_set to the value in the valid_policy from
@@ -4643,14 +3846,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
               node at depth i-2 that is marked with a 'Y' to be deleted.
               In the resulting tree, there are no nodes of depth i-1 or
               less without children, and this step is complete.
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 83]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
       (e)  If the certificate policies extension is not present, set the
            valid_policy_tree to NULL.
@@ -4701,13 +3896,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
       (b)  If a policy mappings extension is present, then for each
            issuerDomainPolicy ID-P in the policy mappings extension:
 
-
-
-Cooper, et al.              Standards Track                    [Page 84]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
          (1)  If the policy_mapping variable is greater than 0, for each
               node in the valid_policy_tree of depth i where ID-P is the
               valid_policy, set expected_policy_set to the set of
@@ -4756,13 +3944,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            subjectPublicKey algorithm and the
            working_public_key_algorithm are different, set the
            working_public_key_parameters to null.
-
-
-
-Cooper, et al.              Standards Track                    [Page 85]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
       (f)  Assign the certificate subjectPublicKey algorithm to the
            working_public_key_algorithm variable.
@@ -4813,13 +3994,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
               policy_mapping, set policy_mapping to the value of
               inhibitPolicyMapping.
 
-
-
-Cooper, et al.              Standards Track                    [Page 86]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       (j)  If the inhibitAnyPolicy extension is included in the
            certificate and is less than inhibit_anyPolicy, set
            inhibit_anyPolicy to the value of inhibitAnyPolicy.
@@ -4867,15 +4041,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            certificate and requireExplicitPolicy is present and has a
            value of 0, set the explicit_policy state variable to 0.
 
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 87]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       (c)  Assign the certificate subjectPublicKey to
            working_public_key.
 
@@ -4922,15 +4087,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
                  valid_policy_node_set is not in the user-initial-
                  policy-set and is not anyPolicy, delete this node and
                  all its children.
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 88]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
              3.  If the valid_policy_tree includes a node of depth n
                  with the valid_policy anyPolicy and the user-initial-
@@ -4980,14 +4136,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    validation algorithm may be different for each path.  The inputs used
    to process a path may reflect application-specific requirements or
    limitations in the trust accorded a particular trust anchor.  For
-
-
-
-Cooper, et al.              Standards Track                    [Page 89]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    example, a trusted CA may only be trusted for a particular
    certificate policy.  This restriction can be expressed through the
    inputs to the path validation procedure.
@@ -5033,16 +4181,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    local cache.  Further, if the next update time of a CRL has passed,
    the algorithm assumes a mechanism to fetch a current CRL and place it
    in the local CRL cache.
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 90]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    This algorithm defines a set of inputs, a set of state variables, and
    processing steps that are performed for each certificate in the path.
@@ -5091,15 +4229,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            reasons supported by the CRL or delta CRL currently being
            processed.
 
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 91]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    Note: In some environments, it is not necessary to check all reason
    codes.  For example, some environments are only concerned with
    cACompromise and keyCompromise for CA certificates.  This algorithm
@@ -5145,16 +4274,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
               the CRL contains the freshest CRL extension, then obtain
               the current delta CRL that can be used to update the
               locally cached complete CRL as specified in Section 5.2.4.
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 92]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
       (b)  Verify the issuer and scope of the complete CRL as follows:
 
@@ -5203,15 +4322,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
               IDP CRL extension, verify that the delta CRL also omits an
               IDP CRL extension.
 
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 93]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
          (3)  Verify that the delta CRL authority key identifier
               extension matches the complete CRL authority key
               identifier extension.
@@ -5257,16 +4367,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
            issuer and serial number as described in Section 5.3.3, then
            set the cert_status variable to the indicated reason as
            follows:
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 94]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
          (1)  If the reason code CRL entry extension is present, set the
               cert_status variable to the value of the reason code CRL
@@ -5314,15 +4414,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    establishes conformance requirements for storage or comparison of
    each of these name forms.  Informative guidance on presentation is
    provided for some of these name forms.
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 95]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 7.1.  Internationalized Names in Distinguished Names
 
@@ -5372,14 +4463,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    have the same number of RDNs, for each RDN in DN1 there is a matching
    RDN in DN2, and the matching RDNs appear in the same order in both
    DNs.  A distinguished name DN1 is within the subtree defined by the
-
-
-
-Cooper, et al.              Standards Track                    [Page 96]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    distinguished name DN2 if DN1 contains at least as many RDNs as DN2,
    and DN1 and DN2 are a match when trailing RDNs in DN1 are ignored.
 
@@ -5428,13 +4511,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
          string".  That is, the AllowUnassigned flag SHALL NOT be set;
 
       *  in step 3, set the flag called "UseSTD3ASCIIRules";
-
-
-
-Cooper, et al.              Standards Track                    [Page 97]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
       *  in step 4, process each label with the "ToUnicode" operation;
          and
@@ -5485,13 +4561,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    uniformResourceIdentifier field in GeneralName, which is defined as
    type IA5String.
 
-
-
-Cooper, et al.              Standards Track                    [Page 98]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    To accommodate IRIs in the current structure, conforming
    implementations MUST map IRIs to URIs as specified in Section 3.1 of
    [RFC3987], with the following clarifications:
@@ -5536,17 +4605,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    Implementations should convert URIs to Unicode before display.
    Specifically, conforming implementations should perform the
    conversion operation specified in Section 3.2 of [RFC3987].
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                    [Page 99]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 7.5.  Internationalized Electronic Mail Addresses
 
@@ -5596,14 +4654,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    The procedures performed by CAs and RAs to validate the binding of
    the subject's identity to their public key greatly affect the
    assurance that ought to be placed in the certificate.  Relying
-
-
-
-Cooper, et al.              Standards Track                   [Page 100]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    parties might wish to review the CA's certification practice
    statement.  This is particularly important when issuing certificates
    to other CAs.
@@ -5652,14 +4702,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    extensions, particularly if support for those extensions is not
    mandated by this profile.  For example, if revocation information is
    supplied using a combination of delta CRLs and full CRLs, and the
-
-
-
-Cooper, et al.              Standards Track                   [Page 101]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    delta CRLs are issued more frequently than the full CRLs, then
    relying parties that cannot handle the critical extensions related to
    delta CRL processing will not be able to obtain the most recent
@@ -5706,16 +4748,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    acceptance of invalid X.509 certification paths or rejection of valid
    ones.  The X.500 series of specifications defines rules for comparing
    distinguished names that require comparison of strings without regard
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 102]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    to case, character set, multi-character white space substring, or
    leading and trailing white space.  This specification relaxes these
    requirements, requiring support for binary comparison at a minimum.
@@ -5764,14 +4796,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
 
    Implementers should be aware of risks involved if the CRL
    distribution points or authority information access extensions of
-
-
-
-Cooper, et al.              Standards Track                   [Page 103]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    corrupted certificates or CRLs contain links to malicious code.
    Implementers should always take the steps of validating the retrieved
    data to ensure that the data is properly formed.
@@ -5820,14 +4844,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    representations, sometimes two different strings will have the same
    or similar visual representations.  This can happen for many
    different reasons, including use of similar glyphs and use of
-
-
-
-Cooper, et al.              Standards Track                   [Page 104]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    composed characters (such as e + ' equaling U+00E9, the Korean
    composed characters, and vowels above consonant clusters in certain
    languages).  As a result of this situation, people doing visual
@@ -5873,16 +4889,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    [RFC2585]  Housley, R. and P. Hoffman, "Internet X.509 Public Key
               Infrastructure: Operational Protocols: FTP and HTTP", RFC
               2585, May 1999.
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 105]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    [RFC2616]  Fielding, R., Gettys, J., Mogul, J., Frystyk, H.,
               Masinter, L., Leach, P., and T. Berners-Lee, "Hypertext
@@ -5933,13 +4939,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
               Information technology - Abstract Syntax Notation One
               (ASN.1):  Specification of basic notation.
 
-
-
-Cooper, et al.              Standards Track                   [Page 106]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    [X.690]    ITU-T Recommendation X.690 (2002) | ISO/IEC 8825-1:2002,
               Information technology - ASN.1 encoding rules:
               Specification of Basic Encoding Rules (BER), Canonical
@@ -5987,15 +4986,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
               Infrastructure Certificate and Certificate Revocation List
               (CRL) Profile", RFC 3279, April 2002.
 
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 107]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    [RFC3280]  Housley, R., Polk, W., Ford, W., and D. Solo, "Internet
               X.509 Public Key Infrastructure Certificate and
               Certificate Revocation List (CRL) Profile", RFC 3280,
@@ -6041,17 +5031,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
               (LDAP): Schema for User Applications", RFC 4519, June
               2006.
 
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 108]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    [RFC4630]  Housley, R. and S. Santesson, "Update to DirectoryString
               Processing in the Internet X.509 Public Key Infrastructure
               Certificate and Certificate Revocation List (CRL)
@@ -6087,26 +5066,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    [X9.55]    ANSI X9.55-1997, Public Key Cryptography for the Financial
               Services Industry: Extensions to Public Key Certificates
               and Certificate Revocation Lists, January 1997.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 109]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 Appendix A.  Pseudo-ASN.1 Structures and OIDs
 
@@ -6156,14 +5115,6 @@ id-pkix  OBJECT IDENTIFIER  ::=
          { iso(1) identified-organization(3) dod(6) internet(1)
                     security(5) mechanisms(5) pkix(7) }
 
-
-
-
-Cooper, et al.              Standards Track                   [Page 110]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 -- PKIX arcs
 
 id-pe OBJECT IDENTIFIER ::= { id-pkix 1 }
@@ -6211,15 +5162,6 @@ AttributeTypeAndValue   ::= SEQUENCE {
 -- presented in pairs: the AttributeType followed by the
 --   type definition for the corresponding AttributeValue
 
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 111]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 -- Arc for standard naming attributes
 
 id-at OBJECT IDENTIFIER ::= { joint-iso-ccitt(2) ds(5) 4 }
@@ -6258,24 +5200,6 @@ X520CommonName ::= CHOICE {
       utf8String        UTF8String      (SIZE (1..ub-common-name)),
       bmpString         BMPString       (SIZE (1..ub-common-name)) }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 112]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 -- Naming attributes of type X520LocalityName
 
 id-at-localityName      AttributeType ::= { id-at 7 }
@@ -6305,32 +5229,6 @@ X520StateOrProvinceName ::= CHOICE {
       universalString   UniversalString (SIZE (1..ub-state-name)),
       utf8String        UTF8String      (SIZE (1..ub-state-name)),
       bmpString         BMPString       (SIZE (1..ub-state-name)) }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 113]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 -- Naming attributes of type X520OrganizationName
 
@@ -6373,20 +5271,6 @@ X520OrganizationalUnitName ::= CHOICE {
                           (SIZE (1..ub-organizational-unit-name)),
       bmpString         BMPString
                           (SIZE (1..ub-organizational-unit-name)) }
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 114]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 -- Naming attributes of type X520Title
 
@@ -6436,14 +5320,6 @@ X520Pseudonym ::= CHOICE {
    utf8String        UTF8String      (SIZE (1..ub-pseudonym)),
    bmpString         BMPString       (SIZE (1..ub-pseudonym)) }
 
-
-
-
-Cooper, et al.              Standards Track                   [Page 115]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 -- Naming attributes of type DomainComponent (from RFC 4519)
 
 id-domainComponent   AttributeType ::= { 0 9 2342 19200300 100 1 25 }
@@ -6485,20 +5361,6 @@ Certificate  ::=  SEQUENCE  {
      tbsCertificate       TBSCertificate,
      signatureAlgorithm   AlgorithmIdentifier,
      signature            BIT STRING  }
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 116]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 TBSCertificate  ::=  SEQUENCE  {
      version         [0]  Version DEFAULT v1,
@@ -6544,18 +5406,6 @@ Extension  ::=  SEQUENCE  {
                  -- by extnID
      }
 
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 117]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 -- CRL structures
 
 CertificateList  ::=  SEQUENCE  {
@@ -6597,20 +5447,6 @@ ORAddress ::= SEQUENCE {
                    BuiltInDomainDefinedAttributes OPTIONAL,
    -- see also teletex-domain-defined-attributes
    extension-attributes ExtensionAttributes OPTIONAL }
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 118]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 -- Built-in Standard Attributes
 
@@ -6657,16 +5493,6 @@ OrganizationName ::= PrintableString
 
 NumericUserIdentifier ::= NumericString
                             (SIZE (1..ub-numeric-user-id-length))
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 119]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 PersonalName ::= SET {
    surname     [0] IMPLICIT PrintableString
@@ -6715,14 +5541,6 @@ ExtensionAttribute ::=  SEQUENCE {
 common-name INTEGER ::= 1
 
 CommonName ::= PrintableString (SIZE (1..ub-common-name-length))
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 120]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 teletex-common-name INTEGER ::= 2
 
@@ -6773,13 +5591,6 @@ PostalCode ::= CHOICE {
 
 physical-delivery-office-name INTEGER ::= 10
 
-
-
-Cooper, et al.              Standards Track                   [Page 121]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 PhysicalDeliveryOfficeName ::= PDSParameter
 
 physical-delivery-office-number INTEGER ::= 11
@@ -6827,14 +5638,6 @@ unique-postal-name INTEGER ::= 20
 UniquePostalName ::= PDSParameter
 
 local-postal-attributes INTEGER ::= 21
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 122]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 LocalPostalAttributes ::= PDSParameter
 
@@ -6884,14 +5687,6 @@ TeletexDomainDefinedAttribute ::= SEQUENCE {
         value TeletexString
                (SIZE (1..ub-domain-defined-attribute-value-length)) }
 
-
-
-
-Cooper, et al.              Standards Track                   [Page 123]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 --  specifications of Upper Bounds MUST be regarded as mandatory
 --  from Annex B of ITU-T X.411 Reference Definition of MTS Parameter
 --  Upper Bounds
@@ -6940,14 +5735,6 @@ ub-x121-address-length INTEGER ::= 16
 -- significantly greater number of octets will be required to hold
 -- such a value.  As a minimum, 16 octets, or twice the specified
 -- upper bound, whichever is the larger, should be allowed for
-
-
-
-Cooper, et al.              Standards Track                   [Page 124]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 -- TeletexString.  For UTF8String or UniversalString at least four
 -- times the upper bound should be allowed.
 
@@ -6990,19 +5777,6 @@ AuthorityKeyIdentifier ::= SEQUENCE {
     -- be present or both be absent
 
 KeyIdentifier ::= OCTET STRING
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 125]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 -- subject key identifier OID and syntax
 
@@ -7050,16 +5824,6 @@ PolicyInformation ::= SEQUENCE {
 
 CertPolicyId ::= OBJECT IDENTIFIER
 
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 126]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 PolicyQualifierInfo ::= SEQUENCE {
      policyQualifierId  PolicyQualifierId,
      qualifier          ANY DEFINED BY policyQualifierId }
@@ -7105,17 +5869,6 @@ SubjectAltName ::= GeneralNames
 
 GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName
 
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 127]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 GeneralName ::= CHOICE {
      otherName                 [0]  AnotherName,
      rfc822Name                [1]  IA5String,
@@ -7155,22 +5908,6 @@ id-ce-basicConstraints OBJECT IDENTIFIER ::=  { id-ce 19 }
 BasicConstraints ::= SEQUENCE {
      cA                      BOOLEAN DEFAULT FALSE,
      pathLenConstraint       INTEGER (0..MAX) OPTIONAL }
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 128]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 -- name constraints extension OID and syntax
 
@@ -7213,20 +5950,6 @@ DistributionPoint ::= SEQUENCE {
 DistributionPointName ::= CHOICE {
      fullName                [0]     GeneralNames,
      nameRelativeToCRLIssuer [1]     RelativeDistinguishedName }
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 129]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 ReasonFlags ::= BIT STRING {
      unused                  (0),
@@ -7272,18 +5995,6 @@ id-ce-freshestCRL OBJECT IDENTIFIER ::=  { id-ce 46 }
 
 FreshestCRL ::= CRLDistributionPoints
 
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 130]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 -- authority info access
 
 id-pe-authorityInfoAccess OBJECT IDENTIFIER ::= { id-pe 1 }
@@ -7326,20 +6037,6 @@ id-ce-deltaCRLIndicator OBJECT IDENTIFIER ::= { id-ce 27 }
 
 BaseCRLNumber ::= CRLNumber
 
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 131]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 -- reason code extension OID and syntax
 
 id-ce-cRLReasons OBJECT IDENTIFIER ::= { id-ce 21 }
@@ -7381,20 +6078,6 @@ id-holdinstruction-none OBJECT IDENTIFIER  ::=
 id-holdinstruction-callissuer OBJECT IDENTIFIER ::= {holdInstruction 2}
 
 id-holdinstruction-reject OBJECT IDENTIFIER ::= {holdInstruction 3}
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 132]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 -- invalidity date CRL entry extension OID and syntax
 
@@ -7443,15 +6126,6 @@ Appendix B.  ASN.1 Notes
    Conforming implementations MUST NOT encode strings that include
    either the at sign or underscore character as PrintableString.
 
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 133]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    The character string type TeletexString is a superset of
    PrintableString.  TeletexString supports a fairly standard (ASCII-
    like) Latin character set: Latin characters with non-spacing accents
@@ -7498,15 +6172,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    UTF8String, and BMPString, with the appropriate constraints on the
    string length applied to each of the types in the CHOICE, rather than
    using the ASN.1 type DirectoryString to describe the syntax.
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 134]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    Implementers should note that the DER encoding of the SET OF values
    requires ordering of the encodings of the values.  In particular,
@@ -7556,14 +6221,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
    extension, and the extension is not marked as critical, those unknown
    elements ought to be ignored, as follows:
 
-
-
-
-Cooper, et al.              Standards Track                   [Page 135]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
       (a)  ignore all unknown bit name assignments within a bit string;
 
       (b)  ignore all unknown named numbers in an ENUMERATED type or
@@ -7610,15 +6267,6 @@ Appendix C.  Examples
    is available at <http://www.cs.auckland.ac.nz/~pgut001/dumpasn1.c>.
    The binaries for the certificates and CRLs are available at
    http://csrc.nist.gov/groups/ST/crypto_apps_infra/documents/pkixtools.
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 136]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    In places in this appendix where a distinguished name is specified
    using a string representation, the strings are formatted using the
@@ -7668,14 +6316,6 @@ C.1.  RSA Self-Signed Certificate
          :             domainComponent (0 9 2342 19200300 100 1 25)
   70    7:           IA5String 'example'
          :           }
-
-
-
-Cooper, et al.              Standards Track                   [Page 137]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
          :         }
   79   19:       SET {
   81   17:         SEQUENCE {
@@ -7724,14 +6364,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
          :             EF 80 E9 CA 30 8C 00 C4 9A 6E 5B 45 B4 6E A5 E6
          :             6C 94 0D FA 91 E9 40 FC 25 9D C7 B7 68 19 56 8F
          :             11 70 6A D7 F1 C9 11 4F 3A 7E 3F 99 8D 6E 76 A5
-
-
-
-Cooper, et al.              Standards Track                   [Page 138]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
          :             74 5F 5E A4 55 53 E5 C7 68 36 53 C7 1D 3B 12 A6
          :             85 FE BD 6E A1 CA DF 35 50 AC 08 D7 B9 B4 7E 5C
          :             FE E2 A3 2C D1 23 84 AA 98 C0 9B 66 18 9A 68 47
@@ -7780,14 +6412,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
          :     3C 47 FB F6 65 13 A9 85 90 33 EA 76 A3 26 D9 FC
          :     D1 0E 15 5F 28 B7 EF 93 BF 3C F3 E2 3E 7C B9 52
          :     FC 16 6E 29 AA E1 F4 7A 6F D5 7F EF B3 95 CA F3
-
-
-
-Cooper, et al.              Standards Track                   [Page 139]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
          :     66 88 83 4E A1 35 45 84 CB BC 9B B8 C8 AD C5 5E
          :     46 D9 0B 0E 8D 80 E1 33 2B DC BE 2B 92 7E 4A 43
          :     A9 6A EF 8A 63 61 B3 6E 47 38 BE E8 0D A3 67 5D
@@ -7836,14 +6460,6 @@ C.2.  End Entity Certificate Using RSA
          :           }
          :         }
   54   23:       SET {
-
-
-
-Cooper, et al.              Standards Track                   [Page 140]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
   56   21:         SEQUENCE {
   58   10:           OBJECT IDENTIFIER
          :             domainComponent (0 9 2342 19200300 100 1 25)
@@ -7892,14 +6508,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
  219  141:       BIT STRING, encapsulates {
  223  137:         SEQUENCE {
  226  129:           INTEGER
-
-
-
-Cooper, et al.              Standards Track                   [Page 141]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
          :             00 E1 6A E4 03 30 97 02 3C F4 10 F3 B5 1E 4D 7F
          :             14 7B F6 F5 D0 78 E9 A4 8A F0 A3 75 EC ED B6 56
          :             96 7F 88 99 85 9A F2 3E 68 77 87 EB 9E D1 9F C0
@@ -7948,14 +6556,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
  476    4:           OCTET STRING, encapsulates {
  478    2:             BIT STRING 6 unused bits
          :               '11'B
-
-
-
-Cooper, et al.              Standards Track                   [Page 142]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
          :             }
          :           }
          :         }
@@ -8005,13 +6605,6 @@ C.3.  End Entity Certificate Using DSA
         "<http://www.example.com/users/DSAendentity.html>" and an issuer
         alternative name of "<http://www.example.com>" -- both are URLs;
 
-
-
-Cooper, et al.              Standards Track                   [Page 143]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
    (i)  the certificate includes an authority key identifier extension
         and a certificate policies extension specifying the policy OID
         2.16.840.1.101.3.2.1.48.9; and
@@ -8060,14 +6653,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
  137   17:         SEQUENCE {
  139   10:           OBJECT IDENTIFIER
          :             domainComponent (0 9 2342 19200300 100 1 25)
-
-
-
-Cooper, et al.              Standards Track                   [Page 144]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
  151    3:           IA5String 'com'
          :           }
          :         }
@@ -8116,14 +6701,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
          :         }
  514  132:       BIT STRING, encapsulates {
  518  128:         INTEGER
-
-
-
-Cooper, et al.              Standards Track                   [Page 145]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
          :           30 B6 75 F7 7C 20 31 AE 38 BB 7E 0D 2B AB A0 9C
          :           4B DF 20 D5 24 13 3C CD 98 E5 5F 6C B7 C1 BA 4A
          :           BA A9 95 80 53 F0 0D 72 DC 33 37 F4 01 0B F5 04
@@ -8172,14 +6749,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
          :                 29 49 F4 86 56
          :               }
          :             }
-
-
-
-Cooper, et al.              Standards Track                   [Page 146]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
          :           }
  813   23:         SEQUENCE {
  815    3:           OBJECT IDENTIFIER certificatePolicies (2 5 29 32)
@@ -8226,15 +6795,6 @@ C.4.  Certificate Revocation List
    revoked certificate: serial number 18, which was revoked on November
    19, 2004 due to keyCompromise.  The CRL itself is number 12, and it
    was signed with RSA and SHA-1.
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 147]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
    0  352: SEQUENCE {
    4  202:   SEQUENCE {
@@ -8284,14 +6844,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
          :       }
  160   47:     [0] {
  162   45:       SEQUENCE {
-
-
-
-Cooper, et al.              Standards Track                   [Page 148]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
  164   31:         SEQUENCE {
  166    3:           OBJECT IDENTIFIER
          :             authorityKeyIdentifier (2 5 29 35)
@@ -8327,26 +6879,6 @@ RFC 5280            PKIX Certificate and CRL Profile            May 2008
          :     72 6A CB CE 7A ED 67 99 8B 6E 70 81 7D 43 42 74
          :     C1 A6 AF C1 55 17 A2 33 4C D6 06 98 2B A4 FC 2E
          :   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 149]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
 
 Authors' Addresses
 
@@ -8392,18 +6924,6 @@ Authors' Addresses
    USA
    EMail: wpolk@nist.gov
 
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 150]
-
-RFC 5280            PKIX Certificate and CRL Profile            May 2008
-
-
 Full Copyright Statement
 
    Copyright (C) The IETF Trust (2008).
@@ -8443,17 +6963,3 @@ Intellectual Property
    rights that may cover technology that may be required to implement
    this standard.  Please address the information to the IETF at
    ietf-ipr@ietf.org.
-
-
-
-
-
-
-
-
-
-
-
-
-Cooper, et al.              Standards Track                   [Page 151]
-

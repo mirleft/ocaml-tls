@@ -37,23 +37,6 @@ Abstract
    between TLS clients that support the extensions and TLS servers that
    do not support the extensions, and vice versa.
 
-
-
-
-
-
-
-
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                     [Page 1]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
 Table of Contents
 
    1. Introduction ....................................................3
@@ -84,31 +67,6 @@ Table of Contents
    9. Acknowledgements ...............................................27
    10. Normative References ..........................................27
    11. Informative References ........................................28
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                     [Page 2]
-
-RFC 4366                     TLS Extensions                   April 2006
-
 
 1.  Introduction
 
@@ -158,14 +116,6 @@ RFC 4366                     TLS Extensions                   April 2006
       MACs.  This functionality is desirable in order to conserve
       bandwidth in constrained access networks.
 
-
-
-
-Blake-Wilson, et al.        Standards Track                     [Page 3]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    -  Allow TLS clients and servers to negotiate that the server sends
       the client certificate status information (e.g., an Online
       Certificate Status Protocol (OCSP) [OCSP] response) during a TLS
@@ -213,15 +163,6 @@ RFC 4366                     TLS Extensions                   April 2006
    describes general extension mechanisms for the client hello and
    server hello handshake messages.  Section 3 describes specific
    extensions to TLS.  Section 4 describes new error alerts for use with
-
-
-
-
-Blake-Wilson, et al.        Standards Track                     [Page 4]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    the TLS extensions.  The final sections of the document address IPR,
    security considerations, registration of the application/pkix-pkipath
    MIME type, acknowledgements, and references.
@@ -270,14 +211,6 @@ RFC 4366                     TLS Extensions                   April 2006
    the extended client hello, and this functionality is not supplied by
    the server, the client MAY abort the handshake.
 
-
-
-
-Blake-Wilson, et al.        Standards Track                     [Page 5]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    Note that [TLS], Section 7.4.1.2, allows additional information to be
    added to the client hello message.  Thus, the use of the extended
    client hello defined above should not "break" existing TLS servers.
@@ -322,17 +255,6 @@ RFC 4366                     TLS Extensions                   April 2006
           ExtensionType extension_type;
           opaque extension_data<0..2^16-1>;
       } Extension;
-
-
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                     [Page 6]
-
-RFC 4366                     TLS Extensions                   April 2006
-
 
    Here:
 
@@ -383,13 +305,6 @@ RFC 4366                     TLS Extensions                   April 2006
    each extension type must include a discussion of the effect of the
    extension both during new sessions and during resumed sessions.
 
-
-
-Blake-Wilson, et al.        Standards Track                     [Page 7]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
 2.4.  Extensions to the Handshake Protocol
 
    This document suggests the use of two new handshake messages,
@@ -438,13 +353,6 @@ RFC 4366                     TLS Extensions                   April 2006
    relevant only when a session is initiated.  When a client includes
    one or more of the defined extension types in an extended client
    hello while requesting session resumption:
-
-
-
-Blake-Wilson, et al.        Standards Track                     [Page 8]
-
-RFC 4366                     TLS Extensions                   April 2006
-
 
    -  If the resumption request is denied, the use of the extensions is
       negotiated as normal.
@@ -495,13 +403,6 @@ RFC 4366                     TLS Extensions                   April 2006
           ServerName server_name_list<1..2^16-1>
       } ServerNameList;
 
-
-
-Blake-Wilson, et al.        Standards Track                     [Page 9]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    Currently, the only server names supported are DNS hostnames;
    however, this does not imply any dependency of TLS on DNS, and other
    name types may be added in the future (by an RFC that updates this
@@ -551,13 +452,6 @@ RFC 4366                     TLS Extensions                   April 2006
    established in the TLS session handshake, the client SHOULD NOT
    attempt to request a different server name at the application layer.
 
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 10]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
 3.2.  Maximum Fragment Length Negotiation
 
    Without this extension, TLS specifies a fixed maximum plaintext
@@ -606,14 +500,6 @@ RFC 4366                     TLS Extensions                   April 2006
    process without fragmentation (that is, the maximum value of
    TLSPlaintext.length; see [TLS], Section 6.2.1).  Note that the output
    of the record layer may be larger.  For example, if the negotiated
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 11]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    length is 2^9=512, then for currently defined cipher suites (those
    defined in [TLS], [KERB], and [AESSUITES]), and when null compression
    is used, the record layer output can be at most 793 bytes: 5 bytes of
@@ -658,17 +544,6 @@ RFC 4366                     TLS Extensions                   April 2006
       enum {
           false(0), true(1)
       } Boolean;
-
-
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 12]
-
-RFC 4366                     TLS Extensions                   April 2006
-
 
       struct {
           CertChainType type;
@@ -717,15 +592,6 @@ RFC 4366                     TLS Extensions                   April 2006
    assumption that the server must already possess it in order to
    validate it.
 
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 13]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    Servers receiving "CertificateURL" SHALL attempt to retrieve the
    client's certificate chain from the URLs and then process the
    certificate chain as usual.  A cached copy of the content of any URL
@@ -769,18 +635,6 @@ RFC 4366                     TLS Extensions                   April 2006
    If a server encounters an unreasonable delay in obtaining
    certificates in a given CertificateURL, it SHOULD time out and signal
    a "certificate_unobtainable" error alert.
-
-
-
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 14]
-
-RFC 4366                     TLS Extensions                   April 2006
-
 
 3.4.  Trusted CA Indication
 
@@ -829,15 +683,6 @@ RFC 4366                     TLS Extensions                   April 2006
       initial 0-valued bytes.  (This copies the key hash formats
       deployed in other environments.)
 
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 15]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    -  "x509_name": contains the DER-encoded X.509 DistinguishedName of
       the CA.
 
@@ -884,16 +729,6 @@ RFC 4366                     TLS Extensions                   April 2006
    Note that if new cipher suites are added that do not use HMAC, and
    the session negotiates one of these cipher suites, this extension
    will have no effect.  It is strongly recommended that any new cipher
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 16]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    suites using other MACs consider the MAC size an integral part of the
    cipher suite definition, taking into account both security and
    bandwidth considerations.
@@ -943,13 +778,6 @@ RFC 4366                     TLS Extensions                   April 2006
       opaque ResponderID<1..2^16-1>;
       opaque Extensions<0..2^16-1>;
 
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 17]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    In the OCSPStatusRequest, the "ResponderIDs" provides a list of OCSP
    responders that the client trusts.  A zero-length "responder_id_list"
    sequence has the special meaning that the responders are implicitly
@@ -996,15 +824,6 @@ RFC 4366                     TLS Extensions                   April 2006
    An "ocsp_response" contains a complete, DER-encoded OCSP response
    (using the ASN.1 type OCSPResponse defined in [OCSP]).  Note that
    only one OCSP response may be sent.
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 18]
-
-RFC 4366                     TLS Extensions                   April 2006
-
 
    The "CertificateStatus" message is conveyed using the handshake
    message type "certificate_status".
@@ -1055,13 +874,6 @@ RFC 4366                     TLS Extensions                   April 2006
       certificate hash does not match a client-provided
       certificate_hash.  This message is always fatal.
 
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 19]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    These error alerts are conveyed using the following syntax:
 
       enum {
@@ -1110,13 +922,6 @@ RFC 4366                     TLS Extensions                   April 2006
 
    (This means that new assignments can be made only via RFCs approved
    by the IESG.)
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 20]
-
-RFC 4366                     TLS Extensions                   April 2006
-
 
    The following considerations should be taken into account when
    designing new extensions:
@@ -1167,13 +972,6 @@ RFC 4366                     TLS Extensions                   April 2006
    Additional security considerations are described in the TLS 1.0 RFC
    [TLS] and the TLS 1.1 RFC [TLSbis].
 
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 21]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
 6.1.  Security of server_name
 
    If a single server hosts several domains, then clearly it is
@@ -1221,15 +1019,6 @@ RFC 4366                     TLS Extensions                   April 2006
    i.e., that all of the information in the certificate chain retrieved
    by the server is as the client intended.
 
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 22]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    On the other hand, omitting certificate hashes enables functionality
    that is desirable in some circumstances; for example, clients can be
    issued daily certificates that are stored at a fixed URL and need not
@@ -1276,16 +1065,6 @@ RFC 4366                     TLS Extensions                   April 2006
    enabled.  Unusual protocols that offer limited security or whose
    security is not well-understood SHOULD be avoided.
 
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 23]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    As discussed in [URI], URLs that specify ports other than the default
    may cause problems, as may very long URLs (which are more likely to
    be useful in exploiting buffer overflow bugs).
@@ -1327,20 +1106,6 @@ RFC 4366                     TLS Extensions                   April 2006
    problem were found with truncated HMAC in the future, if either the
    client or the server for a given session were updated to take the
    problem into account, it would be able to veto use of this extension.
-
-
-
-
-
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 24]
-
-RFC 4366                     TLS Extensions                   April 2006
-
 
 6.6.  Security of status_request
 
@@ -1389,15 +1154,6 @@ RFC 4366                     TLS Extensions                   April 2006
         the first certificate is the issuer of the second certificate,
         etc.
 
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 25]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
       This is identical to the definition published in [X509-4th-TC1];
       note that it is different from that in [X509-4th].
 
@@ -1444,16 +1200,6 @@ RFC 4366                     TLS Extensions                   April 2006
       Magnus Nystrom <magnus@rsasecurity.com>
 
    Intended usage: COMMON
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 26]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    Change controller:
       IESG <iesg@ietf.org>
 
@@ -1501,15 +1247,6 @@ RFC 4366                     TLS Extensions                   April 2006
    [TLS]          Dierks, T. and C. Allen, "The TLS Protocol Version
                   1.0", RFC 2246, January 1999.
 
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 27]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
    [TLSbis]       Dierks, T. and E. Rescorla, "The Transport Layer
                   Security (TLS) Protocol Version 1.1", RFC 4346, April
                   2006.
@@ -1548,24 +1285,6 @@ RFC 4366                     TLS Extensions                   April 2006
                   J., and T. Wright, "Transport Layer Security (TLS)
                   Extensions", RFC 3546, June 2003.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 28]
-
-RFC 4366                     TLS Extensions                   April 2006
-
-
 Authors' Addresses
 
    Simon Blake-Wilson
@@ -1596,31 +1315,6 @@ Authors' Addresses
    Vodafone
 
    EMail: timothy.wright@vodafone.com
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 29]
-
-RFC 4366                     TLS Extensions                   April 2006
-
 
 Full Copyright Statement
 
@@ -1666,12 +1360,3 @@ Acknowledgement
 
    Funding for the RFC Editor function is provided by the IETF
    Administrative Support Activity (IASA).
-
-
-
-
-
-
-
-Blake-Wilson, et al.        Standards Track                    [Page 30]
-
