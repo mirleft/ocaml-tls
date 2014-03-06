@@ -121,13 +121,13 @@ let validate_time now cert =
 (* TODO:  from < now && now < till *)
   true
 
-let get_extension cert oid =
-  match
+let get_extension cert oid = assert false
+(*   match
     List.filter (fun (o, _, _) -> o = oid) cert.extensions
   with
   | [(_, crit, value)] -> Some (value, crit)
   | [] -> None
-  | _  -> invalid_arg "Hodie Natus Est Radici Frater"
+  | _  -> invalid_arg "Hodie Natus Est Radici Frater" *)
 
 let rec find_by ~f = function
   | x::xs ->
@@ -156,7 +156,7 @@ let validate_extensions trusted cert =
       (n)  If a key usage extension is present, verify that the
            keyCertSign bit is set.
  *)
-  (match cert.extensions with
+(*   (match cert.extensions with
    | [] -> Printf.printf "no extensions\n"
    | xs ->
       List.iter (fun i ->
@@ -166,7 +166,7 @@ let validate_extensions trusted cert =
                                  (String.concat "." (List.map string_of_int (OID.to_list id)))
                                  (string_of_bool x);
                    Cstruct.hexdump r)
-                xs );
+                xs ); *)
   (match cert.issuer_id with
    | Some x -> Printf.printf "issuer id"; Cstruct.hexdump x
    | None -> Printf.printf "no issuer id\n");
@@ -206,17 +206,18 @@ let find_trusted_certs : unit -> certificate list =
     cas
 
 let hostname_matches : tBSCertificate -> string -> bool =
+  assert false
 (* - might include wildcards and international domain names *)
-  fun c servername ->
+(*   fun c servername ->
     let subaltname = OID.(base 2 5 <| 29 <| 17) in
     (match get_extension c subaltname with
-    | None -> (* use common name *)
+    | None -> |+ use common name +|
        (match get_cn c with
         | None -> Printf.printf "did not find a CN\n"
         | Some cn -> Printf.printf "COMMON NAME %s\n" cn)
     | Some (names, _) -> Printf.printf "found subaltname"; Cstruct.hexdump names);
-    (* that's now a choice -- http://www.alvestrand.no/objectid/2.5.29.17.html *)
-    true
+    |+ that's now a choice -- http://www.alvestrand.no/objectid/2.5.29.17.html +|
+    true *)
 
 let verify_server_certificate : certificate -> float -> string -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
