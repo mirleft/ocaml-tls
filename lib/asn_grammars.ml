@@ -11,23 +11,16 @@ let projections encoding asn =
 
 module ID = struct
 
-  (* That's all from RFC 3447 *)
+  (*
+   * Object Identifiers: magic numbers with a tie. Some OIDs also have an MBA.
+   *
+   * http://www.alvestrand.no/objectid/
+   * http://oid-info.com/
+   *)
+
   let usa    = OID.(base 1 2 <| 840)
   let rsadsi = OID.(usa <| 113549)
   let pkcs   = OID.(rsadsi <| 1)
-  let pkcs1  = OID.(pkcs <| 1)
-
-  let rsa_encryption           = OID.(pkcs1 <| 1)
-  let md2_rsa_encryption       = OID.(pkcs1 <| 2)
-  let md4_rsa_encryption       = OID.(pkcs1 <| 3)
-  let md5_rsa_encryption       = OID.(pkcs1 <| 4)
-  let sha1_rsa_encryption      = OID.(pkcs1 <| 5)
-  let ripemd160_rsa_encryption = OID.(pkcs1 <| 6)
-  (* hole? *)
-  let sha256_rsa_encryption    = OID.(pkcs1 <| 11)
-  let sha384_rsa_encryption    = OID.(pkcs1 <| 12)
-  let sha512_rsa_encryption    = OID.(pkcs1 <| 13)
-  let sha224_rsa_encryption    = OID.(pkcs1 <| 14)
 
   let md2   = OID.(rsadsi <| 2 <| 2)
   let md5   = OID.(rsadsi <| 2 <| 5)
@@ -36,6 +29,128 @@ module ID = struct
     let pre =
       OID.(base 2 16 <| 840 <| 1 <| 101 <| 3 <| 4 <| 2) in
     OID.( pre <| 1, pre <| 2, pre <| 3, pre <| 4, pre <| 5, pre <| 6 )
+
+  module PKCS1 = struct
+    let pkcs1 = OID.(pkcs <| 1)
+
+    let rsa_encryption           = OID.(pkcs1 <| 1 )
+    and md2_rsa_encryption       = OID.(pkcs1 <| 2 )
+    and md4_rsa_encryption       = OID.(pkcs1 <| 3 )
+    and md5_rsa_encryption       = OID.(pkcs1 <| 4 )
+    and sha1_rsa_encryption      = OID.(pkcs1 <| 5 )
+    and ripemd160_rsa_encryption = OID.(pkcs1 <| 6 )
+    and rsaes_oaep               = OID.(pkcs1 <| 7 )
+    and rsassa_pss               = OID.(pkcs1 <| 10)
+    and sha256_rsa_encryption    = OID.(pkcs1 <| 11)
+    and sha384_rsa_encryption    = OID.(pkcs1 <| 12)
+    and sha512_rsa_encryption    = OID.(pkcs1 <| 13)
+    and sha224_rsa_encryption    = OID.(pkcs1 <| 14)
+  end
+
+  module PKCS5 = struct
+    let pkcs5 = OID.(pkcs <| 5)
+
+    let pbe_md2_des_cbc  = OID.(pkcs5 <| 1 )
+    and pbe_md5_des_cbc  = OID.(pkcs5 <| 3 )
+    and pbe_md2_rc2_cbc  = OID.(pkcs5 <| 4 )
+    and pbe_md5_rc2_cbc  = OID.(pkcs5 <| 6 )
+    and pbe_md5_xor      = OID.(pkcs5 <| 9 )
+    and pbe_sha1_des_cbc = OID.(pkcs5 <| 10)
+    and pbe_sha1_rc2_cbc = OID.(pkcs5 <| 11)
+    and pbkdf2           = OID.(pkcs5 <| 12)
+    and pbes2            = OID.(pkcs5 <| 13)
+    and pbmac1           = OID.(pkcs5 <| 14)
+  end
+
+  module PKCS7 = struct
+    let pkcs7 = OID.(pkcs <| 7)
+
+    let data                   = OID.(pkcs7 <| 1)
+    and signedData             = OID.(pkcs7 <| 2)
+    and envelopedData          = OID.(pkcs7 <| 3)
+    and signedAndEnvelopedData = OID.(pkcs7 <| 4)
+    and digestedData           = OID.(pkcs7 <| 5)
+    and encryptedData          = OID.(pkcs7 <| 6)
+  end
+
+  module PKCS9 = struct
+    let pkcs9 = OID.(pkcs <| 9)
+
+    let email                = OID.(pkcs9 <| 1 )
+    and unstructured_name    = OID.(pkcs9 <| 2 )
+    and content_type         = OID.(pkcs9 <| 3 )
+    and message_digest       = OID.(pkcs9 <| 4 )
+    and signing_time         = OID.(pkcs9 <| 5 )
+    and challenge_password   = OID.(pkcs9 <| 7 )
+    and unstructured_address = OID.(pkcs9 <| 8 )
+    and signing_description  = OID.(pkcs9 <| 13)
+    and extension_request    = OID.(pkcs9 <| 14)
+    and smime_capabilities   = OID.(pkcs9 <| 15)
+    and smime_oid_registry   = OID.(pkcs9 <| 16)
+    and friendly_name        = OID.(pkcs9 <| 20)
+    and cert_types           = OID.(pkcs9 <| 22)
+  end
+
+  module X500_at = struct
+    let x500_at = OID.(base 2 5 <| 4)
+
+    let object_class                  = OID.(x500_at <| 0 )
+    and aliased_entry_name            = OID.(x500_at <| 1 )
+    and knowldgeinformation           = OID.(x500_at <| 2 )
+    and common_name                   = OID.(x500_at <| 3 )
+    and surname                       = OID.(x500_at <| 4 )
+    and serial_number                 = OID.(x500_at <| 5 )
+    and country_name                  = OID.(x500_at <| 6 )
+    and locality_name                 = OID.(x500_at <| 7 )
+    and state_or_province_name        = OID.(x500_at <| 8 )
+    and street_address                = OID.(x500_at <| 9 )
+    and organization_name             = OID.(x500_at <| 10)
+    and organizational_unit_name      = OID.(x500_at <| 11)
+    and title                         = OID.(x500_at <| 12)
+    and description                   = OID.(x500_at <| 13)
+    and search_guide                  = OID.(x500_at <| 14)
+    and business_category             = OID.(x500_at <| 15)
+    and postal_address                = OID.(x500_at <| 16)
+    and postal_code                   = OID.(x500_at <| 17)
+    and post_office_box               = OID.(x500_at <| 18)
+    and physical_delivery_office_name = OID.(x500_at <| 19)
+    and telephone_number              = OID.(x500_at <| 20)
+    and telex_number                  = OID.(x500_at <| 21)
+    and teletex_terminal_identifier   = OID.(x500_at <| 22)
+    and facsimile_telephone_number    = OID.(x500_at <| 23)
+    and x121_address                  = OID.(x500_at <| 24)
+    and internationa_isdn_number      = OID.(x500_at <| 25)
+    and registered_address            = OID.(x500_at <| 26)
+    and destination_indicator         = OID.(x500_at <| 27)
+    and preferred_delivery_method     = OID.(x500_at <| 28)
+    and presentation_address          = OID.(x500_at <| 29)
+    and supported_application_context = OID.(x500_at <| 30)
+    and member                        = OID.(x500_at <| 31)
+    and owner                         = OID.(x500_at <| 32)
+    and role_occupant                 = OID.(x500_at <| 33)
+    and see_also                      = OID.(x500_at <| 34)
+    and user_password                 = OID.(x500_at <| 35)
+    and user_certificate              = OID.(x500_at <| 36)
+    and ca_certificate                = OID.(x500_at <| 37)
+    and authority_revocation_list     = OID.(x500_at <| 38)
+    and certificate_revocation_list   = OID.(x500_at <| 39)
+    and cross_certificate_pair        = OID.(x500_at <| 40)
+    and name                          = OID.(x500_at <| 41)
+    and given_name                    = OID.(x500_at <| 42)
+    and initials                      = OID.(x500_at <| 43)
+    and generation_qualifier          = OID.(x500_at <| 44)
+    and unique_identifier             = OID.(x500_at <| 45)
+    and dn_qualifier                  = OID.(x500_at <| 46)
+    and enhanced_search_guide         = OID.(x500_at <| 47)
+    and protocol_information          = OID.(x500_at <| 48)
+    and distinguished_name            = OID.(x500_at <| 49)
+    and unique_member                 = OID.(x500_at <| 50)
+    and house_identifier              = OID.(x500_at <| 51)
+    and supported_algorithms          = OID.(x500_at <| 52)
+    and delta_revocation_list         = OID.(x500_at <| 53)
+    and attribute_certificate         = OID.(x500_at <| 58)
+    and pseudonym                     = OID.(x500_at <| 65)
+  end
 
 end
 
