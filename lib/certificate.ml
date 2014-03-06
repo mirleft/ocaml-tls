@@ -71,6 +71,17 @@ do not forget about 'authority information access' (private internet extension -
    than one instance of a particular extension.
 *)
 
+let names_eq : name_component list -> name_component list -> bool =
+  fun a b ->
+    (List.length a = List.length b) &&
+      List.for_all (fun e -> List.exists (fun n -> e = n) b) a
+
+let is_self_signed_tbs : tBSCertificate -> bool =
+  fun c -> names_eq c.subject c.issuer
+
+let is_self_signed : certificate -> bool =
+  fun c -> is_self_signed_tbs c.tbs_cert
+
 let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
   fun trusted c raw ->
     assert (c.signature_algo = c.tbs_cert.signature);
@@ -78,46 +89,7 @@ let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
     let issuing_key = rsa_public_of_cert trusted in
     (* we have to check that issuing_key was really the one used to sign this certificate *)
     (* issuer of c should be subject of trusted! *)
-(*
-      * country,
-      * organization,
-      * organizational unit,
-      * distinguished name qualifier,
-      * state or province name,
-      * common name (e.g., "Susan Housley"), and
-      * serial number.
-
-   In addition, implementations of this specification SHOULD be prepared
-   to receive the following standard attribute types in issuer and
-   subject names:
-
-      * locality,
-      * title,
-      * surname,
-      * given name,
-      * initials,
-      * pseudonym, and
-      * generation qualifier (e.g., "Jr.", "3rd", or "IV").
-
-   In addition, implementations of this specification MUST be prepared
-   to receive the domainComponent attribute, as defined in [RFC4519].
-
- *)
-
-(*
-ISSUER outer loop
- inner loop
-  oid 2.5.4.10 val Root CA
-ISSUER outer loop
- inner loop
-  oid 2.5.4.11 val http://www.cacert.org
-ISSUER outer loop
- inner loop
-  oid 2.5.4.3 val CA Cert Signing Authority
-ISSUER outer loop
- inner loop
-  oid 1.2.840.113549.1.9.1 val support@cacert.org *)
-
+    assert (names_eq trusted.tbs_cert.subject c.tbs_cert.issuer);
 
     (* if c.extensions contains 2.5.29.35 - Authority Key Identifier check
        that it is the same as
@@ -328,23 +300,28 @@ let verify_certificates : string -> certificate list -> Cstruct.t list -> verifi
         - check next to be signed by previous (look into issuer)
         - certificate verification lists...
     *)
-    let now = Sys.time () in
-    let rec go t = function
-      | []    -> (`Ok, t)
-      | (c, p)::cs -> (* check that x is signed by x - 1 *)
-         match verify_certificate t now servername c p with
-         | `Ok  -> go c cs
-         | `Fail x -> (`Fail x, c)
-    in
-    let trusted = find_trusted_certs () in
-    let reversed = List.combine (List.rev (List.tl cs)) (List.rev (List.tl packets)) in
-    let topc, topr = List.hd reversed in
-    (* check that top one is signed by a trust anchor *)
-    match verify_top_certificate trusted now servername topc topr with
-    | `Ok -> (match go topc (List.tl reversed) (* checking rest of chain *) with
-              | (`Ok, t) -> verify_server_certificate t now servername (List.hd cs) (List.hd packets) (* check server certificate *)
-              | (`Fail x, _) -> `Fail x)
-    | `Fail x -> `Fail x
+    (* short-path for self-signed certificate  *)
+    if (List.length cs = 1) && is_self_signed (List.hd cs) then
+      (Printf.printf "DANGER: self-signed certificate\n";
+       `Ok)
+    else
+      let now = Sys.time () in
+      let rec go t = function
+        | []    -> (`Ok, t)
+        | (c, p)::cs -> (* check that x is signed by x - 1 *)
+           match verify_certificate t now servername c p with
+           | `Ok  -> go c cs
+           | `Fail x -> (`Fail x, c)
+      in
+      let trusted = find_trusted_certs () in
+      let reversed = List.combine (List.rev (List.tl cs)) (List.rev (List.tl packets)) in
+      let topc, topr = List.hd reversed in
+      (* check that top one is signed by a trust anchor *)
+      match verify_top_certificate trusted now servername topc topr with
+      | `Ok -> (match go topc (List.tl reversed) (* checking rest of chain *) with
+                | (`Ok, t) -> verify_server_certificate t now servername (List.hd cs) (List.hd packets) (* check server certificate *)
+                | (`Fail x, _) -> `Fail x)
+      | `Fail x -> `Fail x
 
 (* - test setup (ACM CCS'12):
             self-signed cert with requested commonName,

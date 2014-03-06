@@ -124,6 +124,7 @@ type name_component =
   | Generation       of string
   | DN_qualifier     of string
   | Pseudonym        of string
+  | Email            of string
   | Domain_component of string
   | Other            of OID.t * string
 
@@ -260,20 +261,21 @@ let name =
   let open Registry in
 
   let a_f = function
-    | (oid, x) when oid = X520.common_name              -> Common_name  x
-    | (oid, x) when oid = X520.surname                  -> Surname      x
-    | (oid, x) when oid = X520.serial_number            -> Serial       x
-    | (oid, x) when oid = X520.country_name             -> Country      x
-    | (oid, x) when oid = X520.locality_name            -> Locality     x
-    | (oid, x) when oid = X520.state_or_province_name   -> Province     x
-    | (oid, x) when oid = X520.organization_name        -> Org          x
-    | (oid, x) when oid = X520.organizational_unit_name -> Org_unit     x
-    | (oid, x) when oid = X520.title                    -> Title        x
-    | (oid, x) when oid = X520.given_name               -> Given_name   x
-    | (oid, x) when oid = X520.initials                 -> Initials     x
-    | (oid, x) when oid = X520.generation_qualifier     -> Generation   x
-    | (oid, x) when oid = X520.dn_qualifier             -> DN_qualifier x
-    | (oid, x) when oid = X520.pseudonym                -> Pseudonym    x
+    | (oid, x) when oid = X520.common_name              -> Common_name      x
+    | (oid, x) when oid = X520.surname                  -> Surname          x
+    | (oid, x) when oid = X520.serial_number            -> Serial           x
+    | (oid, x) when oid = X520.country_name             -> Country          x
+    | (oid, x) when oid = X520.locality_name            -> Locality         x
+    | (oid, x) when oid = X520.state_or_province_name   -> Province         x
+    | (oid, x) when oid = X520.organization_name        -> Org              x
+    | (oid, x) when oid = X520.organizational_unit_name -> Org_unit         x
+    | (oid, x) when oid = X520.title                    -> Title            x
+    | (oid, x) when oid = X520.given_name               -> Given_name       x
+    | (oid, x) when oid = X520.initials                 -> Initials         x
+    | (oid, x) when oid = X520.generation_qualifier     -> Generation       x
+    | (oid, x) when oid = X520.dn_qualifier             -> DN_qualifier     x
+    | (oid, x) when oid = X520.pseudonym                -> Pseudonym        x
+    | (oid, x) when oid = PKCS9.email                   -> Email            x
     | (oid, x) when oid = domain_component              -> Domain_component x
     | (oid, x) -> Other (oid, x)
 
@@ -292,6 +294,7 @@ let name =
     | Generation       x -> (X520.generation_qualifier     , x)
     | DN_qualifier     x -> (X520.dn_qualifier             , x)
     | Pseudonym        x -> (X520.pseudonym                , x)
+    | Email            x -> (PKCS9.email                   , x)
     | Domain_component x -> (domain_component              , x)
     | Other (oid, x)     -> (oid, x)
   in
