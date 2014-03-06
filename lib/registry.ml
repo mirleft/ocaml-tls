@@ -19,6 +19,7 @@ let hash_algs = nist_alg <| 2
 (* PKCS1 *)
 
 let md2  = rsadsi <| 2 <| 2
+let md4  = rsadsi <| 2 <| 4
 let md5  = rsadsi <| 2 <| 5
 let sha1 = base 1 3 <| 14 <| 3 <| 2 <| 26
 

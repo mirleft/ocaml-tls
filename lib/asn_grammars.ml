@@ -97,6 +97,17 @@ type algorithm =
   | ECDSA_SHA256
   | ECDSA_SHA384
   | ECDSA_SHA512
+  (* digest algorithms *)
+  | MD2
+  | MD4
+  | MD5
+  | SHA1
+  | SHA256
+  | SHA384
+  | SHA512
+  | SHA224
+  | SHA512_224
+  | SHA512_256
 
 type name_component =
   | Common_name      of string
@@ -167,6 +178,17 @@ let algorithm_identifier =
     | (oid, _) when oid = ANSI_X9_62.ecdsa_sha384 -> ECDSA_SHA384
     | (oid, _) when oid = ANSI_X9_62.ecdsa_sha512 -> ECDSA_SHA512
 
+    | (oid, _) when oid = md2        -> MD2
+    | (oid, _) when oid = md4        -> MD4
+    | (oid, _) when oid = md5        -> MD5
+    | (oid, _) when oid = sha1       -> SHA1
+    | (oid, _) when oid = sha256     -> SHA256
+    | (oid, _) when oid = sha384     -> SHA384
+    | (oid, _) when oid = sha512     -> SHA512
+    | (oid, _) when oid = sha224     -> SHA224
+    | (oid, _) when oid = sha512_224 -> SHA512_224
+    | (oid, _) when oid = sha512_256 -> SHA512_256
+
     | (oid, _) -> parse_error @@
         Printf.sprintf "unknown algorithm (%s) or unexpected params"
                        (OID.to_string oid)
@@ -188,6 +210,16 @@ let algorithm_identifier =
     | ECDSA_SHA256  -> (ANSI_X9_62.ecdsa_sha256        , unit)
     | ECDSA_SHA384  -> (ANSI_X9_62.ecdsa_sha384        , unit)
     | ECDSA_SHA512  -> (ANSI_X9_62.ecdsa_sha512        , unit)
+    | MD2           -> (md2                            , unit)
+    | MD4           -> (md4                            , unit)
+    | MD5           -> (md5                            , unit)
+    | SHA1          -> (sha1                           , unit)
+    | SHA256        -> (sha256                         , unit)
+    | SHA384        -> (sha384                         , unit)
+    | SHA512        -> (sha512                         , unit)
+    | SHA224        -> (sha224                         , unit)
+    | SHA512_224    -> (sha512_224                     , unit)
+    | SHA512_256    -> (sha512_256                     , unit)
   in
 
   map f g @@

@@ -146,10 +146,10 @@ ISSUER outer loop
       Cstruct.hexdump chash;
       Utils.cs_eq chash hash in
 
-    match c.signature_algo with
-    | MD5_RSA  -> comparing_hash Crypto.md5
-    | SHA1_RSA -> comparing_hash Crypto.sha
-    | _        -> false
+    match (c.signature_algo, algo) with
+    | (MD5_RSA, MD5)   -> comparing_hash Crypto.md5
+    | (SHA1_RSA, SHA1) -> comparing_hash Crypto.sha
+    | _                -> false
 
 
 let validate_time now cert =
