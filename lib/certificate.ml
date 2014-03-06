@@ -1,3 +1,4 @@
+open Registry
 open Asn_grammars
 open Asn
 
@@ -131,14 +132,14 @@ ISSUER outer loop
     (* this results in a different encoding than the original certificate *)
     (* let dat = tbs_certificate_to_cstruct c.tbs_cert in
        assert (Utils.cs_eq to_hash dat); *) (* david: this fails *)
-    let signature = Crypto.verifyRSA_and_unpadPKCS1 issuing_key c.signature in
+    let signature = Crypto.verifyRSA_and_unpadPKCS1 issuing_key c.signature_val in
     let algo, hash = match pkcs1_digest_info_of_cstruct signature with
       | Some ((a, b), _) -> (a, b)
       | None -> assert false
     in
-    if c.signature_algo = PKCS1.md5_rsa_encryption then
+(*     if c.signature_algo = PKCS1.md5_rsa_encryption then *)
+    if c.signature_algo = assert false then
       begin
-        assert (algo = md5);
         let chash = Crypto.md5 to_hash in
         Printf.printf "comparing md5";
         Cstruct.hexdump hash;
@@ -147,9 +148,9 @@ ISSUER outer loop
         true
       end
     else
-      if c.signature_algo = PKCS1.sha1_rsa_encryption then
+(*       if c.signature_algo = PKCS1.sha1_rsa_encryption then *)
+      if c.signature_algo = assert false then
         begin
-          assert (algo = sha1);
           let chash = Crypto.sha to_hash in
           Printf.printf "comparing sha1";
           Cstruct.hexdump hash;
@@ -171,10 +172,14 @@ let validate_time now cert =
 
 let basic_verification now name cert =
   Printf.printf "basic verify certificate\n";
+                                      (* w *)
   List.iter (fun i -> Printf.printf "ISSUER outer loop\n";
+                                                                                                                                            (* t *)
                       List.iter (fun j -> Printf.printf " inner loop\n";
                                           let id, name = j in
                                           Printf.printf "  oid %s val %s\n"
+
+                                                                                                                                                                                                                                                                                                                                                            (* f *)
                                                         (String.concat "." (List.map string_of_int (OID.to_list id)))
                                                         name)
                                 i)

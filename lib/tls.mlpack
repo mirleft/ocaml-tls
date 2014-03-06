@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c58f5bfe957993d0b23cc9e4a6856c0b)
+# DO NOT EDIT (digest: a2cf72705add5ee85515ab775122bd12)
 Ciphersuite
 Utils
 Packet
@@ -13,5 +13,6 @@ Crypto_utils
 Flow
 Server
 Client
+Registry
 Asn_grammars
 # OASIS_STOP
