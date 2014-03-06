@@ -166,7 +166,11 @@ let handle_record
          | `KeysExchanged (_, _, p, bs), Finished fin ->
               answer_server_finished p bs fin
          | `Established sp, HelloRequest -> (* key renegotiation *)
-              let ch = { default_client_hello with extensions = [SecureRenegotiation sp.client_verify_data] } in
+              let host = match sp.server_name with
+                | None -> []
+                | Some x -> [Hostname x]
+              in
+              let ch = { default_client_hello with extensions = SecureRenegotiation sp.client_verify_data :: host } in
               let raw = Writer.assemble_handshake (ClientHello ch) in
               answer_client_hello_params sp ch raw
          | _, _-> assert false
@@ -184,7 +188,7 @@ let open_connection server =
   let ch = { dch with ciphersuites =
                         dch.ciphersuites @
                           [Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV];
-                      extensions   = dch.extensions @ hostname
+                      extensions   = hostname
            }
   in
   let buf = Writer.assemble_handshake (ClientHello ch) in
