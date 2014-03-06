@@ -73,6 +73,17 @@ module ID = struct
     and sha224_rsa_encryption    = OID.(pkcs1 <| 14)
   end
 
+  module PKCS2 = struct
+    let pkcs2 = OID.(rsadsi <| 2)
+
+    let md4         = OID.(pkcs2 <| 4 )
+    and hmac_sha1   = OID.(pkcs2 <| 7 )
+    and hmac_sha224 = OID.(pkcs2 <| 8 )
+    and hmac_sha256 = OID.(pkcs2 <| 9 )
+    and hmac_sha384 = OID.(pkcs2 <| 10)
+    and hmac_sha512 = OID.(pkcs2 <| 11)
+  end
+
   module PKCS5 = struct
     let pkcs5 = OID.(pkcs <| 5)
 
@@ -178,15 +189,6 @@ module ID = struct
     and pseudonym                     = OID.(x520 <| 65)
   end
 
-
-(*
-1.2.840.113549.2.4 - iso(1) member-body(2) US(840) rsadsi(113549) digestAlgorithm(2) md4(4)
-1.2.840.113549.2.7 - HMAC-SHA-1 pseudorandom function
-1.2.840.113549.2.8 - PBKDF2 id-hmacWithSHA224
-1.2.840.113549.2.9 - PBKDF2 id-hmacWithSHA256
-1.2.840.113549.2.10 - PBKDF2 id-hmacWithSHA384
-1.2.840.113549.2.11 - PBKDF2 id-hmacWithSHA512
- *)
 end
 
 
