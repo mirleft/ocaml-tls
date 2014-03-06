@@ -22,13 +22,39 @@ module ID = struct
   let rsadsi = OID.(usa <| 113549)
   let pkcs   = OID.(rsadsi <| 1)
 
+  (* PKCS1 *)
+
   let md2   = OID.(rsadsi <| 2 <| 2)
   let md5   = OID.(rsadsi <| 2 <| 5)
   let sha1  = OID.(base 1 3 <| 14 <| 3 <| 2 <| 26)
+
+  (* rfc5758 *)
+
   let sha256, sha384, sha512, sha224, sha512_224, sha512_256 =
     let pre =
       OID.(base 2 16 <| 840 <| 1 <| 101 <| 3 <| 4 <| 2) in
     OID.( pre <| 1, pre <| 2, pre <| 3, pre <| 4, pre <| 5, pre <| 6 )
+
+  module ANSI_X9_62 = struct
+
+    let ansi_x9_62 = OID.(usa <| 10045)
+
+    let ecdsa_sha1             = OID.(ansi_x9_62 <| 1)
+    let prime_field            = OID.(ecdsa_sha1 <| 1)
+    let characteristic_2_field = OID.(ecdsa_sha1 <| 2)
+
+    let key_type   = OID.(ansi_x9_62 <| 2)
+    let ec_pub_key = OID.(key_type <| 1)
+
+    let signatures = OID.(ansi_x9_62 <| 4)
+    let field_type = OID.(signatures <| 1)
+    let ecdsa_sha2 = OID.(signatures <| 3)
+
+    let ecdsa_sha224 = OID.(ecdsa_sha2 <| 1)
+    let ecdsa_sha256 = OID.(ecdsa_sha2 <| 2)
+    let ecdsa_sha384 = OID.(ecdsa_sha2 <| 3)
+    let ecdsa_sha512 = OID.(ecdsa_sha2 <| 4)
+  end
 
   module PKCS1 = struct
     let pkcs1 = OID.(pkcs <| 1)
@@ -91,65 +117,65 @@ module ID = struct
     and cert_types           = OID.(pkcs9 <| 22)
   end
 
-  module X500_at = struct
-    let x500_at = OID.(base 2 5 <| 4)
+  module X520 = struct
+    let x520 = OID.(base 2 5 <| 4)
 
-    let object_class                  = OID.(x500_at <| 0 )
-    and aliased_entry_name            = OID.(x500_at <| 1 )
-    and knowldgeinformation           = OID.(x500_at <| 2 )
-    and common_name                   = OID.(x500_at <| 3 )
-    and surname                       = OID.(x500_at <| 4 )
-    and serial_number                 = OID.(x500_at <| 5 )
-    and country_name                  = OID.(x500_at <| 6 )
-    and locality_name                 = OID.(x500_at <| 7 )
-    and state_or_province_name        = OID.(x500_at <| 8 )
-    and street_address                = OID.(x500_at <| 9 )
-    and organization_name             = OID.(x500_at <| 10)
-    and organizational_unit_name      = OID.(x500_at <| 11)
-    and title                         = OID.(x500_at <| 12)
-    and description                   = OID.(x500_at <| 13)
-    and search_guide                  = OID.(x500_at <| 14)
-    and business_category             = OID.(x500_at <| 15)
-    and postal_address                = OID.(x500_at <| 16)
-    and postal_code                   = OID.(x500_at <| 17)
-    and post_office_box               = OID.(x500_at <| 18)
-    and physical_delivery_office_name = OID.(x500_at <| 19)
-    and telephone_number              = OID.(x500_at <| 20)
-    and telex_number                  = OID.(x500_at <| 21)
-    and teletex_terminal_identifier   = OID.(x500_at <| 22)
-    and facsimile_telephone_number    = OID.(x500_at <| 23)
-    and x121_address                  = OID.(x500_at <| 24)
-    and internationa_isdn_number      = OID.(x500_at <| 25)
-    and registered_address            = OID.(x500_at <| 26)
-    and destination_indicator         = OID.(x500_at <| 27)
-    and preferred_delivery_method     = OID.(x500_at <| 28)
-    and presentation_address          = OID.(x500_at <| 29)
-    and supported_application_context = OID.(x500_at <| 30)
-    and member                        = OID.(x500_at <| 31)
-    and owner                         = OID.(x500_at <| 32)
-    and role_occupant                 = OID.(x500_at <| 33)
-    and see_also                      = OID.(x500_at <| 34)
-    and user_password                 = OID.(x500_at <| 35)
-    and user_certificate              = OID.(x500_at <| 36)
-    and ca_certificate                = OID.(x500_at <| 37)
-    and authority_revocation_list     = OID.(x500_at <| 38)
-    and certificate_revocation_list   = OID.(x500_at <| 39)
-    and cross_certificate_pair        = OID.(x500_at <| 40)
-    and name                          = OID.(x500_at <| 41)
-    and given_name                    = OID.(x500_at <| 42)
-    and initials                      = OID.(x500_at <| 43)
-    and generation_qualifier          = OID.(x500_at <| 44)
-    and unique_identifier             = OID.(x500_at <| 45)
-    and dn_qualifier                  = OID.(x500_at <| 46)
-    and enhanced_search_guide         = OID.(x500_at <| 47)
-    and protocol_information          = OID.(x500_at <| 48)
-    and distinguished_name            = OID.(x500_at <| 49)
-    and unique_member                 = OID.(x500_at <| 50)
-    and house_identifier              = OID.(x500_at <| 51)
-    and supported_algorithms          = OID.(x500_at <| 52)
-    and delta_revocation_list         = OID.(x500_at <| 53)
-    and attribute_certificate         = OID.(x500_at <| 58)
-    and pseudonym                     = OID.(x500_at <| 65)
+    let object_class                  = OID.(x520 <| 0 )
+    and aliased_entry_name            = OID.(x520 <| 1 )
+    and knowldgeinformation           = OID.(x520 <| 2 )
+    and common_name                   = OID.(x520 <| 3 )
+    and surname                       = OID.(x520 <| 4 )
+    and serial_number                 = OID.(x520 <| 5 )
+    and country_name                  = OID.(x520 <| 6 )
+    and locality_name                 = OID.(x520 <| 7 )
+    and state_or_province_name        = OID.(x520 <| 8 )
+    and street_address                = OID.(x520 <| 9 )
+    and organization_name             = OID.(x520 <| 10)
+    and organizational_unit_name      = OID.(x520 <| 11)
+    and title                         = OID.(x520 <| 12)
+    and description                   = OID.(x520 <| 13)
+    and search_guide                  = OID.(x520 <| 14)
+    and business_category             = OID.(x520 <| 15)
+    and postal_address                = OID.(x520 <| 16)
+    and postal_code                   = OID.(x520 <| 17)
+    and post_office_box               = OID.(x520 <| 18)
+    and physical_delivery_office_name = OID.(x520 <| 19)
+    and telephone_number              = OID.(x520 <| 20)
+    and telex_number                  = OID.(x520 <| 21)
+    and teletex_terminal_identifier   = OID.(x520 <| 22)
+    and facsimile_telephone_number    = OID.(x520 <| 23)
+    and x121_address                  = OID.(x520 <| 24)
+    and internationa_isdn_number      = OID.(x520 <| 25)
+    and registered_address            = OID.(x520 <| 26)
+    and destination_indicator         = OID.(x520 <| 27)
+    and preferred_delivery_method     = OID.(x520 <| 28)
+    and presentation_address          = OID.(x520 <| 29)
+    and supported_application_context = OID.(x520 <| 30)
+    and member                        = OID.(x520 <| 31)
+    and owner                         = OID.(x520 <| 32)
+    and role_occupant                 = OID.(x520 <| 33)
+    and see_also                      = OID.(x520 <| 34)
+    and user_password                 = OID.(x520 <| 35)
+    and user_certificate              = OID.(x520 <| 36)
+    and ca_certificate                = OID.(x520 <| 37)
+    and authority_revocation_list     = OID.(x520 <| 38)
+    and certificate_revocation_list   = OID.(x520 <| 39)
+    and cross_certificate_pair        = OID.(x520 <| 40)
+    and name                          = OID.(x520 <| 41)
+    and given_name                    = OID.(x520 <| 42)
+    and initials                      = OID.(x520 <| 43)
+    and generation_qualifier          = OID.(x520 <| 44)
+    and unique_identifier             = OID.(x520 <| 45)
+    and dn_qualifier                  = OID.(x520 <| 46)
+    and enhanced_search_guide         = OID.(x520 <| 47)
+    and protocol_information          = OID.(x520 <| 48)
+    and distinguished_name            = OID.(x520 <| 49)
+    and unique_member                 = OID.(x520 <| 50)
+    and house_identifier              = OID.(x520 <| 51)
+    and supported_algorithms          = OID.(x520 <| 52)
+    and delta_revocation_list         = OID.(x520 <| 53)
+    and attribute_certificate         = OID.(x520 <| 58)
+    and pseudonym                     = OID.(x520 <| 65)
   end
 
 
@@ -162,6 +188,7 @@ module ID = struct
 1.2.840.113549.2.11 - PBKDF2 id-hmacWithSHA512
  *)
 end
+
 
 (*
  * RSA
@@ -233,14 +260,34 @@ let (rsa_public_of_cstruct, rsa_public_to_cstruct) =
  * X509 certs
  *)
 
+type algorithm =
+  (* pk algos *)
+  | RSA
+  | EC_pub_key of OID.t (* should translate the oid too *)
+  (* sig algos *)
+  | MD2_RSA
+  | MD4_RSA
+  | MD5_RSA
+  | RIPEMD160_RSA
+  | SHA1_RSA
+  | SHA256_RSA
+  | SHA384_RSA
+  | SHA512_RSA
+  | SHA224_RSA
+  | ECDSA_SHA1
+  | ECDSA_SHA224
+  | ECDSA_SHA256
+  | ECDSA_SHA384
+  | ECDSA_SHA512
+
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
   serial     : Num.num ;
-  signature  : oid ;
+  signature  : algorithm ;
   issuer     : (oid * string) list list ;
   validity   : time * time ;
   subject    : (oid * string) list list ;
-  pk_info    : oid * bits ;
+  pk_info    : algorithm * bits ;
   issuer_id  : bits option ;
   subject_id : bits option ;
   extensions : (oid * bool * Cstruct.t) list option
@@ -248,27 +295,70 @@ type tBSCertificate = {
 
 type certificate = {
   tbs_cert       : tBSCertificate ;
-  signature_algo : oid ;
-  signature      : bits
+  signature_algo : algorithm ;
+  signature_val  : bits
 }
 
 (* XXX
  *
  * PKCS1/RFC5280 allows params to be `ANY', depending on the algorithm.  I don't
- * know of one that uses anything other than NULL, however, so we accept only
- * that. Other param types should be encoded as an explicit choice here.
- *
- * In addition, all the algorithms I checked specify their NULL OPTIONAL
- * explicitly, thus we encode it as such. If any algos are encoded without their
- * NULL params, as permitted by the grammar, re-encode won't reconstruct the
- * byte sequence.
+ * know of one that uses anything other than NULL and OID, however, so we accept
+ * only that.
  *)
+
 let algorithmIdentifier =
-  let f (oid, _) = oid and g oid = (oid, Some ()) in
+  let open ID in
+
+  let unit = Some (`C1 ()) in
+
+  let f = function
+    | (oid, Some (`C2 oid')) when oid = ANSI_X9_62.ec_pub_key -> EC_pub_key oid'
+    | (oid, _) when oid = PKCS1.rsa_encryption  -> RSA
+
+    | (oid, _) when oid = PKCS1.md2_rsa_encryption       -> MD2_RSA
+    | (oid, _) when oid = PKCS1.md4_rsa_encryption       -> MD4_RSA
+    | (oid, _) when oid = PKCS1.md5_rsa_encryption       -> MD5_RSA
+    | (oid, _) when oid = PKCS1.ripemd160_rsa_encryption -> RIPEMD160_RSA
+    | (oid, _) when oid = PKCS1.sha1_rsa_encryption      -> SHA1_RSA
+    | (oid, _) when oid = PKCS1.sha256_rsa_encryption    -> SHA256_RSA
+    | (oid, _) when oid = PKCS1.sha384_rsa_encryption    -> SHA384_RSA
+    | (oid, _) when oid = PKCS1.sha512_rsa_encryption    -> SHA512_RSA
+    | (oid, _) when oid = PKCS1.sha224_rsa_encryption    -> SHA224_RSA
+
+    | (oid, _) when oid = ANSI_X9_62.ecdsa_sha1   -> ECDSA_SHA1
+    | (oid, _) when oid = ANSI_X9_62.ecdsa_sha224 -> ECDSA_SHA224
+    | (oid, _) when oid = ANSI_X9_62.ecdsa_sha256 -> ECDSA_SHA256
+    | (oid, _) when oid = ANSI_X9_62.ecdsa_sha384 -> ECDSA_SHA384
+    | (oid, _) when oid = ANSI_X9_62.ecdsa_sha512 -> ECDSA_SHA512
+
+    | (oid, _) -> parse_error @@
+        Printf.sprintf "unknown algorithm (%s) or unexpected params"
+                       (OID.to_string oid)
+
+  and g = function
+    | EC_pub_key id -> (ANSI_X9_62.ec_pub_key, Some (`C2 id))
+    | RSA           -> (PKCS1.rsa_encryption           , unit)
+    | MD2_RSA       -> (PKCS1.md2_rsa_encryption       , unit)
+    | MD4_RSA       -> (PKCS1.md4_rsa_encryption       , unit)
+    | MD5_RSA       -> (PKCS1.md5_rsa_encryption       , unit)
+    | RIPEMD160_RSA -> (PKCS1.ripemd160_rsa_encryption , unit)
+    | SHA1_RSA      -> (PKCS1.sha1_rsa_encryption      , unit)
+    | SHA256_RSA    -> (PKCS1.sha256_rsa_encryption    , unit)
+    | SHA384_RSA    -> (PKCS1.sha384_rsa_encryption    , unit)
+    | SHA512_RSA    -> (PKCS1.sha512_rsa_encryption    , unit)
+    | SHA224_RSA    -> (PKCS1.sha224_rsa_encryption    , unit)
+    | ECDSA_SHA1    -> (ANSI_X9_62.ecdsa_sha1          , unit)
+    | ECDSA_SHA224  -> (ANSI_X9_62.ecdsa_sha224        , unit)
+    | ECDSA_SHA256  -> (ANSI_X9_62.ecdsa_sha256        , unit)
+    | ECDSA_SHA384  -> (ANSI_X9_62.ecdsa_sha384        , unit)
+    | ECDSA_SHA512  -> (ANSI_X9_62.ecdsa_sha512        , unit)
+  in
+
   map f g @@
   sequence2
     (required ~label:"algorithm" oid)
-    (optional ~label:"params"    null)
+    (optional ~label:"params"
+      (choice2 null oid))
 
 let extensions =
   let extension =
@@ -281,16 +371,17 @@ let extensions =
   in
   sequence_of extension
 
+
 let directory_name =
-  map (function | `C1 s -> s | `C2 s -> s | `C3 s -> s
-                | `C4 s -> s | `C5 s -> s | `C6 s -> s)
-      (function s -> `C1 s)
-  @@
+  let f = function | `C1 s -> s | `C2 s -> s | `C3 s -> s
+                   | `C4 s -> s | `C5 s -> s | `C6 s -> s
+  and g s = `C1 s in
+  map f g @@
   choice6
-    printable_string utf8_string
+    utf8_string printable_string
     (* The following three could probably be ommited.
       * See rfc5280 section 4.1.2.4. *)
-    teletex_string universal_string bmp_string
+    universal_string teletex_string bmp_string
     (* is this standard? *)
     ia5_string
 
@@ -366,9 +457,13 @@ let (tbs_certificate_of_cstruct, tbs_certificate_to_cstruct) =
 
 let certificate =
 
-  let f (a, b, c) = { tbs_cert = a ; signature_algo = b ; signature = c }
+  let f (a, b, c) =
+    if a.signature <> b then
+      parse_error "signatureAlgorithm != tbsCertificate.signature"
+    else
+      { tbs_cert = a; signature_algo = b; signature_val = c }
 
-  and g { tbs_cert = a ; signature_algo = b ; signature = c } = (a, b, c) in
+  and g { tbs_cert = a; signature_algo = b; signature_val = c } = (a, b, c) in
 
   map f g @@
   sequence3

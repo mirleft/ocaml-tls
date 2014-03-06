@@ -1,8 +1,6 @@
 open Asn_grammars
 open Asn
 
-open Asn_grammars.ID
-
 type certificate_failure =
   | InvalidCertificate
   | InvalidSignature
@@ -125,7 +123,7 @@ ISSUER outer loop
        trusted.extensions 2.5.29.14 - Subject Key Identifier *)
 
     (* XXX: this is awful code! *)
-    let siglen = Cstruct.len c.signature in
+    let siglen = Cstruct.len c.signature_val in
     (* not sure whether 128 is what we want here, for sure we just want to translate the certificate to a cstruct ;) *)
     let off = if siglen > 128 then 1 else 0 in
     (* 4 is the prefix-seq, 19 the sig oid *)
@@ -161,8 +159,8 @@ ISSUER outer loop
         end
       else
         begin
-          Printf.printf "unknown algorithm: %s\n"
-                        (String.concat " " (List.map string_of_int (OID.to_list c.signature_algo)));
+(*           Printf.printf "unknown algorithm: %s\n"
+                        (String.concat " " (List.map string_of_int (OID.to_list c.signature_algo))); *)
           false
         end
 
