@@ -142,7 +142,7 @@ type certificate = {
  * only that.
  *)
 
-let algorithmIdentifier =
+let algorithm_identifier =
   let open Registry in
 
   let unit = Some (`C1 ()) in
@@ -274,7 +274,8 @@ let name =
   let rdn_sequence =
     map List.concat (List.map (fun x -> [x]))
     @@
-    sequence_of rd_name in
+    sequence_of rd_name
+  in
   rdn_sequence (* A vacuous choice, in the standard. *)
 
 (* XXX really default other versions to V1 or bail out? *)
@@ -283,7 +284,7 @@ let version =
       (function `V2 -> 2 | `V3 -> 3 | _ -> 1)
   int
 
-let certificateSerialNumber = integer
+let certificate_sn = integer
 
 let time =
   map (function `C1 t -> t | `C2 t -> t) (fun t -> `C2 t)
@@ -294,12 +295,12 @@ let validity =
     (required ~label:"not before" time)
     (required ~label:"not after"  time)
 
-let subjectPublicKeyInfo =
+let subject_pk_info =
   sequence2
-    (required ~label:"algorithm" algorithmIdentifier)
+    (required ~label:"algorithm" algorithm_identifier)
     (required ~label:"subjectPK" bit_string')
 
-let uniqueIdentifier = bit_string'
+let unique_identifier = bit_string'
 
 let tBSCertificate =
   let f = fun (a, (b, (c, (d, (e, (f, (g, (h, (i, j))))))))) ->
@@ -325,16 +326,16 @@ let tBSCertificate =
   map f g @@
   sequence @@
       (optional ~label:"version"       @@ explicit 0 version) (* default v1 *)
-    @ (required ~label:"serialNumber"  @@ certificateSerialNumber)
-    @ (required ~label:"signature"     @@ algorithmIdentifier)
+    @ (required ~label:"serialNumber"  @@ certificate_sn)
+    @ (required ~label:"signature"     @@ algorithm_identifier)
     @ (required ~label:"issuer"        @@ name)
     @ (required ~label:"validity"      @@ validity)
     @ (required ~label:"subject"       @@ name)
-    @ (required ~label:"subjectPKInfo" @@ subjectPublicKeyInfo)
+    @ (required ~label:"subjectPKInfo" @@ subject_pk_info)
       (* if present, version is v2 or v3 *)
-    @ (optional ~label:"issuerUID"     @@ implicit 1 uniqueIdentifier)
+    @ (optional ~label:"issuerUID"     @@ implicit 1 unique_identifier)
       (* if present, version is v2 or v3 *)
-    @ (optional ~label:"subjectUID"    @@ implicit 2 uniqueIdentifier)
+    @ (optional ~label:"subjectUID"    @@ implicit 2 unique_identifier)
       (* v3 if present *)
    -@ (optional ~label:"extensions"    @@ explicit 3 extensions)
 
@@ -355,7 +356,7 @@ let certificate =
   map f g @@
   sequence3
     (required ~label:"tbsCertificate"     tBSCertificate)
-    (required ~label:"signatureAlgorithm" algorithmIdentifier)
+    (required ~label:"signatureAlgorithm" algorithm_identifier)
     (required ~label:"signatureValue"     bit_string')
 
 let (certificate_of_cstruct, certificate_to_cstruct) =
@@ -375,7 +376,7 @@ let rsa_public_of_cert cert =
 
 let pkcs1_digest_info =
   sequence2
-    (required ~label:"digestAlgorithm" algorithmIdentifier)
+    (required ~label:"digestAlgorithm" algorithm_identifier)
     (required ~label:"digest"          octet_string)
 
 let (pkcs1_digest_info_of_cstruct, pkcs1_digest_info_to_cstruct) =

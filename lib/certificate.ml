@@ -158,15 +158,15 @@ let validate_time now cert =
   true
 
 let basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we_all_got_new_retina_displays_and_use_terminals_with_much_much_more_than_80_characters now name cert =
-  Printf.printf "basic verify certificate\n";
-                                      (* w *)
+(*   Printf.printf "basic verify certificate\n";
+                                      |+ w +|
   List.iter (fun i -> Printf.printf "ISSUER outer loop\n";
-                                                                                                                                            (* t *)
+                                                                                                                                            |+ t +|
                       List.iter (fun j -> Printf.printf " inner loop\n";
                                           let id, name = j in
                                           Printf.printf "  oid %s val %s\n"
 
-                                                                                                                                                                                                                                                                                                                                                            (* f *)
+                                                                                                                                                                                                                                                                                                                                                            |+ f +|
                                                         (String.concat "." (List.map string_of_int (OID.to_list id)))
                                                         name)
                                 i)
@@ -178,7 +178,7 @@ let basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we
                                                         (String.concat "." (List.map string_of_int (OID.to_list id)))
                                                         name)
                                 i)
-            cert.subject;
+            cert.subject; *)
   (match cert.extensions with
    | [] -> Printf.printf "no extensions\n"
    | xs ->
@@ -236,18 +236,28 @@ let get_extension cert oid =
   | [] -> None
   | _  -> invalid_arg "Hodie Natus Est Radici Frater"
 
-let get_subject_oid c oid =
+(* let get_subject_oid c oid =
   let rec go = function
     | (id, va)::_ when id = oid -> Some va
     | _ ::xs -> go xs
     | [] -> None in
-  go (List.concat c.subject)
+  go (List.concat c.subject) *)
 
+let rec find_by ~f = function
+  | x::xs ->
+    ( match f x with
+      | None   -> find_by ~f xs
+      | Some a -> Some a )
+  | [] -> None
 
-let get_cn : tBSCertificate -> string option =
+let get_cn cert =
+  find_by cert.subject
+    ~f:(function Common_name n -> Some n | _ -> None)
+
+(* let get_cn : tBSCertificate -> string option =
   fun c ->
     let oid = OID.(base 2 5 <| 4 <| 3) in
-    get_subject_oid c oid
+    get_subject_oid c oid *)
 
 let hostname_matches : tBSCertificate -> string -> bool =
 (* - might include wildcards and international domain names *)
