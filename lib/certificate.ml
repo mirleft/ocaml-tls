@@ -6,21 +6,123 @@ open Asn_grammars.ID
 type certificate_failure =
   | InvalidCertificate
   | InvalidSignature
+  | InvalidServerName
 
 type verification_result = [
   | `Fail of certificate_failure
   | `Ok
 ]
 
+(* more X509v3 extensions fun:
+
+  - basicconstraints - ca bool - pathlenconstraint int option (verification depth limited - not counting the server cert, only intermediate)
+
+ *)
+(* stuff from 4366 (TLS extensions):
+  - hostname extension [list of hostnames] (generally known as SNI)
+    (send from _client_ to _server_,
+     server may then choose a suitable certificate)
+    "HostName" contains the fully qualified DNS hostname of the server,
+    as understood by the client.  The hostname is represented as a byte
+    string using UTF-8 encoding [UTF8], without a trailing dot.
+
+  - OCSP [rfc 6520]
+  - root CAs
+  - client cert url
+
+*)
+
+(* CRL
+2.16.840.1.113730.1.2 - Base URL
+2.16.840.1.113730.1.3 - Revocation URL
+2.16.840.1.113730.1.4 - CA Revocation URL
+2.16.840.1.113730.1.7 - Renewal URL
+2.16.840.1.113730.1.8 - Netscape CA policy URL
+
+2.5.4.38 - id-at-authorityRevocationList
+2.5.4.39 - id-at-certificateRevocationList
+
+2.5.29.20 - CRL Number
+2.5.29.21 - reason code
+2.5.29.27 - Delta CRL indicator
+2.5.29.28 - Issuing Distribution Point
+2.5.29.31 - CRL Distribution Points
+2.5.29.46 - FreshestCRL
+
+do not forget about 'authority information access' (private internet extension -- 4.2.2 of 5280)
+ *)
+
+(*
+2.5.29.32 - Certificate Policies
+2.5.29.33 - Policy Mappings
+2.5.29.36 - Policy Constraints
+ *)
+(*    2.16.840.1.113730.1.1 - Netscape certificate type
+    2.16.840.1.113730.1.12 - SSL server name *)
+(*    2.16.840.1.113730.1.13 - Netscape certificate comment *)
+
+(* 5280::
+   A certificate-using system MUST reject the certificate if it encounters
+   a critical extension it does not recognize or a critical extension
+   that contains information that it cannot process.  A non-critical
+   extension MAY be ignored if it is not recognized, but MUST be
+   processed if it is recognized.
+
+   A certificate MUST NOT include more
+   than one instance of a particular extension.
+*)
+
 let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
   fun trusted c raw ->
     assert (c.signature_algo = c.tbs_cert.signature);
     (* we'll first try the short way and look up certificate authority key identifier from extensions *)
-    let issuing_key = rsa_public_of_cert trusted (*match __ with
-      | Some x -> x
-      | None ->     (* otherwise we use the issuer field *) *)
-    in
+    let issuing_key = rsa_public_of_cert trusted in
     (* we have to check that issuing_key was really the one used to sign this certificate *)
+    (* issuer of c should be subject of trusted! *)
+(*
+      * country,
+      * organization,
+      * organizational unit,
+      * distinguished name qualifier,
+      * state or province name,
+      * common name (e.g., "Susan Housley"), and
+      * serial number.
+
+   In addition, implementations of this specification SHOULD be prepared
+   to receive the following standard attribute types in issuer and
+   subject names:
+
+      * locality,
+      * title,
+      * surname,
+      * given name,
+      * initials,
+      * pseudonym, and
+      * generation qualifier (e.g., "Jr.", "3rd", or "IV").
+
+   In addition, implementations of this specification MUST be prepared
+   to receive the domainComponent attribute, as defined in [RFC4519].
+
+ *)
+
+(*
+ISSUER outer loop
+ inner loop
+  oid 2.5.4.10 val Root CA
+ISSUER outer loop
+ inner loop
+  oid 2.5.4.11 val http://www.cacert.org
+ISSUER outer loop
+ inner loop
+  oid 2.5.4.3 val CA Cert Signing Authority
+ISSUER outer loop
+ inner loop
+  oid 1.2.840.113549.1.9.1 val support@cacert.org *)
+
+
+    (* if c.extensions contains 2.5.29.35 - Authority Key Identifier check
+       that it is the same as
+       trusted.extensions 2.5.29.14 - Subject Key Identifier *)
 
     (* XXX: this is awful code! *)
     let siglen = Cstruct.len c.signature in
@@ -115,9 +217,16 @@ let verify_certificate : certificate -> float -> string -> certificate -> Cstruc
   fun trusted now servername c raw ->
   Printf.printf "verify certificate\n";
 (*
+2.5.29.15 - Key Usage
+2.5.29.19 - Basic Constraints
+2.5.29.30 - Name Constraints
+2.5.29.37 - Extended key usage
  - good for signing
  - all should have CA = true in Basic Constraints
  - name constraints should match servername
+
+      (n)  If a key usage extension is present, verify that the
+           keyCertSign bit is set.
  *)
     if validate_signature trusted c raw then
       let cert = c.tbs_cert in
@@ -134,6 +243,55 @@ let find_trusted_certs : unit -> certificate list =
 (*    let ca = Crypto_utils.cert_of_file "../mirage-server/server.pem" in *)
     [ca]
 
+let get_extension : tBSCertificate -> oid -> (Cstruct.t * bool) option =
+  fun cert oid ->
+    match cert.extensions with
+    | Some x -> let vals = List.filter (fun e -> let o, _, _ = e in o = oid) x in
+                if List.length vals = 0 then
+                  None
+                else
+                  (assert (List.length vals = 1);
+                   let _, critical, value = (List.hd vals) in
+                   Some (value, critical))
+    | None -> None
+
+let get_subject_oid : tBSCertificate -> oid -> string option =
+  fun c oid ->
+    let rec go = function
+      | x::xs -> let id, va = x in
+                 if id = oid then
+                   Some va
+                 else
+                   go xs
+      | [] -> None
+    in
+    let rec goo = function
+      | x::xs -> (match go x with
+                  | None -> goo xs
+                  | Some x -> Some x)
+      | [] -> None
+    in
+    goo c.subject
+
+
+let get_cn : tBSCertificate -> string option =
+  fun c ->
+    let oid = OID.(base 2 5 <| 4 <| 3) in
+    get_subject_oid c oid
+
+let hostname_matches : tBSCertificate -> string -> bool =
+(* - might include wildcards and international domain names *)
+  fun c servername ->
+    let subaltname = OID.(base 2 5 <| 29 <| 17) in
+    (match get_extension c subaltname with
+    | None -> (* use common name *)
+       (match get_cn c with
+        | None -> Printf.printf "did not find a CN\n"
+        | Some cn -> Printf.printf "COMMON NAME %s\n" cn)
+    | Some (names, _) -> Printf.printf "found subaltname"; Cstruct.hexdump names);
+    (* that's now a choice -- http://www.alvestrand.no/objectid/2.5.29.17.html *)
+    true
+
 let verify_server_certificate : certificate -> float -> string -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
 (*
@@ -143,7 +301,11 @@ let verify_server_certificate : certificate -> float -> string -> certificate ->
  - there's also extended key usage
     (TLS web server authentication / TLS web client authentication/...)
 
- - first look for subjectAltNames, then commonName for backwards compat, and find something matching the expected
+2.5.29.15 - Key Usage
+2.5.29.19 - Basic Constraints
+2.5.29.30 - Name Constraints
+2.5.29.37 - Extended key usage
+
  - might include wildcards
  - the emailAddress in subject should match expected values ??
  *)
@@ -152,7 +314,10 @@ let verify_server_certificate : certificate -> float -> string -> certificate ->
   if validate_signature trusted c raw then
     let cert = c.tbs_cert in
     if basic_verification now servername cert then
-      `Ok
+      if hostname_matches cert servername then
+        `Ok
+      else
+        `Fail InvalidServerName
     else
       `Fail InvalidCertificate
   else
