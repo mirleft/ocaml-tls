@@ -5,6 +5,7 @@ let answer_client_hello_params sp ch raw =
   (`Handshaking (sp, [raw]), [`Record (Packet.HANDSHAKE, raw)], `Pass)
 
 let answer_client_hello ch raw =
+  let server_name = find_hostname ch in
   let params =
     { entity             = Client ;
       ciphersuite        = List.hd ch.ciphersuites ;
@@ -15,7 +16,8 @@ let answer_client_hello ch raw =
       dh_secret          = None ;
       server_certificate = None ;
       client_verify_data = Cstruct.create 0 ;
-      server_verify_data = Cstruct.create 0
+      server_verify_data = Cstruct.create 0 ;
+      server_name
     }
   in
   answer_client_hello_params params ch raw
@@ -42,7 +44,7 @@ let answer_certificate p bs cs raw =
   in
   let certs = List.map (o getcert Asn_grammars.certificate_of_cstruct) cs in
   (* validate whole chain! *)
-  (match Certificate.verify_certificates "jabber.ccc.de" certs cs with
+  (match Certificate.verify_certificates p.server_name certs cs with
    | `Fail x -> assert false
    | `Ok -> ());
   let ps = { p with server_certificate = Some (List.hd certs) } in
@@ -173,11 +175,17 @@ let handle_record
 
 let handle_tls = handle_tls_int handle_record
 
-let open_connection =
+let open_connection server =
   let dch = default_client_hello in
+  let hostname = match server with
+    | None -> []
+    | Some name -> [Hostname name]
+  in
   let ch = { dch with ciphersuites =
                         dch.ciphersuites @
-                          [Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV] }
+                          [Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV];
+                      extensions   = dch.extensions @ hostname
+           }
   in
   let buf = Writer.assemble_handshake (ClientHello ch) in
   Writer.assemble_hdr default_config.protocol_version (Packet.HANDSHAKE, buf)

@@ -48,6 +48,10 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
 let answer_client_hello_params_int sp ch raw =
   let cipher = sp.ciphersuite in
   assert (List.mem cipher ch.ciphersuites);
+  (* now we can provide a certificate with any of the given hostnames *)
+  Printf.printf "was asked for hostname %s\n" (match sp.server_name with
+                                               | None -> "NONE"
+                                               | Some x -> x);
   let params = { sp with
                    server_random = default_config.rng 32 ;
                    client_random = ch.random } in
@@ -106,6 +110,8 @@ let answer_client_hello_params sp ch raw =
                  assert (Utils.cs_eq sp.client_verify_data x)
               | _ -> ())
             ch.extensions;
+  let host = find_hostname ch in
+  assert (sp.server_name = host);
   answer_client_hello_params_int sp ch raw
 
 let answer_client_hello (ch : client_hello) raw =
@@ -113,6 +119,7 @@ let answer_client_hello (ch : client_hello) raw =
   let issuported = fun x -> List.mem x ch.ciphersuites in
   assert (List.exists issuported default_config.ciphers);
   let cipher = List.hd (List.filter issuported default_config.ciphers) in
+  let server_name = find_hostname ch in
   let params = { entity             = Server ;
                  ciphersuite        = cipher ;
                  master_secret      = Cstruct.create 0 ;
@@ -122,7 +129,8 @@ let answer_client_hello (ch : client_hello) raw =
                  dh_secret          = None ;
                  server_certificate = None ;
                  client_verify_data = Cstruct.create 0 ;
-                 server_verify_data = Cstruct.create 0 }
+                 server_verify_data = Cstruct.create 0 ;
+                 server_name }
   in
   answer_client_hello_params_int params ch raw
 

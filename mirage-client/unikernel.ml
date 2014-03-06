@@ -32,7 +32,7 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
       S.TCPV4.create_connection (S.tcpv4 s) (ip, (* 4433 *) 5223) >>= function
        | `Ok flow ->
           C.log_s c (green "established connection") >>
-          let client_hello = Tls.Client.open_connection in
+          let client_hello = Tls.Client.open_connection (Some "jabber.ccc.de") in
           on_connect client_hello c flow;
        | `Error e ->
           C.log_s c (red "received an error while connecting")

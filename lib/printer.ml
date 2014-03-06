@@ -11,7 +11,7 @@ let certificate_request_to_string cr =
   "FOOO"
 
 let extension_to_string = function
-  | Hostname hosts -> "Hostnames: " ^ (String.concat ", " hosts)
+  | Hostname host -> "Hostname: " ^ host
   | MaxFragmentLength mfl -> (match mfl with
                               | None -> "unknown max_fragment_length"
                               | Some x -> "Maximum fragment length: " ^ (max_fragment_length_to_string x))

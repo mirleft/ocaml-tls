@@ -29,6 +29,7 @@ type security_parameters = {
   server_certificate : Asn_grammars.certificate option ;
   client_verify_data : Cstruct.t ;
   server_verify_data : Cstruct.t ;
+  server_name        : string option
 }
 
 (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
@@ -226,3 +227,13 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
   let buf' = assemble_records out_records in
   ({ state' with fragment = frag }, buf')
 
+let find_hostname : 'a hello -> string option =
+  fun h ->
+    let hexts = List.filter (function
+                               | Hostname names -> true
+                               | _              -> false)
+                             h.extensions
+    in
+    match hexts with
+    | [Hostname name] -> Some name
+    | _ -> None

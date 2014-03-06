@@ -53,12 +53,29 @@ let assemble_named_curve buf nc =
   Cstruct.BE.set_uint16 buf 0 (named_curve_type_to_int nc);
   Cstruct.shift buf 2
 
+let assemble_hostname host =
+  (* 8 bit hostname type; 16 bit length; value *)
+  let vallength = String.length host in
+  let buf = Cstruct.create 3 in
+  Cstruct.set_uint8 buf 0 0; (* type, only 0 registered *)
+  Cstruct.BE.set_uint16 buf 1 vallength;
+  buf <> (Cstruct.of_string host)
+
+let assemble_hostnames hosts =
+  (* it should 16 bit length of list followed by the items *)
+  let names = Utils.cs_appends (List.map assemble_hostname hosts) in
+  let buf = Cstruct.create 2 in
+  Cstruct.BE.set_uint16 buf 0 (Cstruct.len names);
+  buf <> names
+
 let assemble_extension e =
   let pay, typ = match e with
     | SecureRenegotiation x ->
        let buf = Cstruct.create 1 in
        Cstruct.set_uint8 buf 0 (Cstruct.len x);
        (buf <> x, RENEGOTIATION_INFO)
+    | Hostname name ->
+       (assemble_hostnames [name], SERVER_NAME)
     | _ -> assert false
   in
   let buf = Cstruct.create 4 in

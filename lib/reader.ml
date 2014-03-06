@@ -84,19 +84,22 @@ let get_ciphersuites buf =
   (List.rev suites, len + 2)
 
 let get_hostnames buf =
-  let list_length = Cstruct.BE.get_uint16 buf 0 in
-  let rec go buf acc =
-    match (Cstruct.len buf) with
-    | 0 -> acc
-    | n ->
-       let name_type = Cstruct.get_uint8 buf 0 in
-       match name_type with
-       | 0 ->
-          let hostname_length = Cstruct.BE.get_uint16 buf 1 in
-          go (Cstruct.shift buf (3 + hostname_length)) ((Cstruct.copy buf 3 hostname_length) :: acc)
-       | _ -> assert false
-  in
-  go (Cstruct.sub buf 2 list_length) []
+  if Cstruct.len buf > 1 then
+    let list_length = Cstruct.BE.get_uint16 buf 0 in
+    let rec go buf acc =
+      match (Cstruct.len buf) with
+      | 0 -> acc
+      | n ->
+         let name_type = Cstruct.get_uint8 buf 0 in
+         match name_type with
+         | 0 ->
+            let hostname_length = Cstruct.BE.get_uint16 buf 1 in
+            go (Cstruct.shift buf (3 + hostname_length)) ((Cstruct.copy buf 3 hostname_length) :: acc)
+         | _ -> assert false
+    in
+    go (Cstruct.sub buf 2 list_length) []
+  else
+    []
 
 let get_fragment_length buf =
   int_to_max_fragment_length (Cstruct.get_uint8 buf 0)
@@ -132,7 +135,10 @@ let get_extension buf =
   let len = Cstruct.BE.get_uint16 buf 2 in
   let buf = Cstruct.sub buf 4 len in
   let data = match (int_to_extension_type etype) with
-    | Some SERVER_NAME -> Hostname (get_hostnames buf)
+    | Some SERVER_NAME ->
+       let names = get_hostnames buf in
+       assert (List.length names = 1);
+       Hostname (List.hd names)
     | Some MAX_FRAGMENT_LENGTH -> MaxFragmentLength (get_fragment_length buf)
     | Some ELLIPTIC_CURVES -> EllipticCurves (get_elliptic_curves buf)
     | Some EC_POINT_FORMATS -> ECPointFormats (get_ec_point_format buf)

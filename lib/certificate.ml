@@ -9,6 +9,7 @@ type certificate_failure =
   | SelfSigned
   | MultipleRootCA
   | NoTrustAnchor
+  | NoServerName
 
 type verification_result = [
   | `Fail of certificate_failure
@@ -178,9 +179,9 @@ let validate_extensions trusted cert =
 let validate_server_extensions trusted cert =
   validate_extensions trusted cert
 
-let verify_certificate : certificate -> float -> string -> certificate -> Cstruct.t -> verification_result =
+let verify_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
-  Printf.printf "verify certificate\n";
+    Printf.printf "verify certificate\n";
     if validate_signature trusted c raw then
       let cert = c.tbs_cert in
       if (validate_time now cert) && (validate_extensions trusted.tbs_cert cert) then
@@ -197,8 +198,8 @@ let get_cn cert =
 let find_trusted_certs : unit -> certificate list =
   fun () ->
     let cacert = Crypto_utils.cert_of_file "../certificates/cacert.crt" in
-    let nss = Crypto_utils.certs_of_file "../certificates/ca-root-nss.crt" in
-    let cas = cacert :: nss in
+(*    let nss = Crypto_utils.certs_of_file "../certificates/ca-root-nss.crt" in *)
+    let cas = [cacert] (* :: nss *) in
     List.iter (fun c -> match get_cn c.tbs_cert with
                         | None   -> Printf.printf "no common name found\n";
                         | Some x -> Printf.printf "inserted cert with CN %s\n" x)
@@ -206,7 +207,8 @@ let find_trusted_certs : unit -> certificate list =
     cas
 
 let hostname_matches : tBSCertificate -> string -> bool =
-  assert false
+  fun _ _ -> true
+(*  assert false *)
 (* - might include wildcards and international domain names *)
 (*   fun c servername ->
     let subaltname = OID.(base 2 5 <| 29 <| 17) in
@@ -219,7 +221,7 @@ let hostname_matches : tBSCertificate -> string -> bool =
     |+ that's now a choice -- http://www.alvestrand.no/objectid/2.5.29.17.html +|
     true *)
 
-let verify_server_certificate : certificate -> float -> string -> certificate -> Cstruct.t -> verification_result =
+let verify_server_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
 (*
  - key usage basic constraint: certificate should be good for
@@ -241,17 +243,21 @@ let verify_server_certificate : certificate -> float -> string -> certificate ->
   if validate_signature trusted c raw then
     let cert = c.tbs_cert in
     if validate_time now cert && validate_server_extensions trusted.tbs_cert cert then
-      if hostname_matches cert servername then
-        (Printf.printf "successfully verified server certificate\n";
-         `Ok)
-      else
-        `Fail InvalidServerName
+      match servername with
+      | None -> Printf.printf "NO Server Name to verify\n";
+                `Fail NoServerName
+      | Some n ->
+         (if hostname_matches cert n then
+            (Printf.printf "successfully verified server certificate\n";
+             `Ok)
+          else
+            `Fail InvalidServerName)
     else
       `Fail InvalidCertificate
   else
     `Fail InvalidSignature
 
-let verify_top_certificate : certificate list -> float -> string -> certificate -> Cstruct.t -> verification_result =
+let verify_top_certificate : certificate list -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
   (* first have to find issuer of ``c`` in ``trusted`` *)
     Printf.printf "verify top certificate\n";
@@ -261,7 +267,7 @@ let verify_top_certificate : certificate list -> float -> string -> certificate 
      | _   -> Printf.printf "found multiple root CAs\n"; `Fail MultipleRootCA
 
 (* this is the API for a user (Cstruct.t list will go away) *)
-let verify_certificates : string -> certificate list -> Cstruct.t list -> verification_result =
+let verify_certificates : string option -> certificate list -> Cstruct.t list -> verification_result =
   fun servername cs packets ->
     (* we get a certificate chain, and the first is the server certificate *)
     (* thus we need to reverse the list
