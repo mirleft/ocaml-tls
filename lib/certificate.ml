@@ -7,17 +7,14 @@ type certificate_failure =
   | InvalidSignature
   | InvalidServerName
   | SelfSigned
+  | MultipleRootCA
+  | NoTrustAnchor
 
 type verification_result = [
   | `Fail of certificate_failure
   | `Ok
 ]
 
-(* more X509v3 extensions fun:
-
-  - basicconstraints - ca bool - pathlenconstraint int option (verification depth limited - not counting the server cert, only intermediate)
-
- *)
 (* stuff from 4366 (TLS extensions):
   - hostname extension [list of hostnames] (generally known as SNI)
     (send from _client_ to _server_,
@@ -26,13 +23,12 @@ type verification_result = [
     as understood by the client.  The hostname is represented as a byte
     string using UTF-8 encoding [UTF8], without a trailing dot.
 
-  - OCSP [rfc 6520]
   - root CAs
   - client cert url
 
 *)
 
-(* CRL
+(* Future TODO Certificate Revocation Lists and OCSP (RFC6520)
 2.16.840.1.113730.1.2 - Base URL
 2.16.840.1.113730.1.3 - Revocation URL
 2.16.840.1.113730.1.4 - CA Revocation URL
@@ -49,14 +45,14 @@ type verification_result = [
 2.5.29.31 - CRL Distribution Points
 2.5.29.46 - FreshestCRL
 
-do not forget about 'authority information access' (private internet extension -- 4.2.2 of 5280)
- *)
+do not forget about 'authority information access' (private internet extension -- 4.2.2 of 5280) *)
 
-(*
+(* Future TODO: Policies
 2.5.29.32 - Certificate Policies
 2.5.29.33 - Policy Mappings
 2.5.29.36 - Policy Constraints
  *)
+
 (*    2.16.840.1.113730.1.1 - Netscape certificate type
     2.16.840.1.113730.1.12 - SSL server name *)
 (*    2.16.840.1.113730.1.13 - Netscape certificate comment *)
@@ -77,24 +73,23 @@ let names_eq : name_component list -> name_component list -> bool =
     (List.length a = List.length b) &&
       List.for_all (fun e -> List.exists (fun n -> e = n) b) a
 
-let is_self_signed_tbs : tBSCertificate -> bool =
-  fun c -> names_eq c.subject c.issuer
+let issuer_matches_subject_tbs : tBSCertificate -> tBSCertificate -> bool =
+  fun p c -> names_eq p.subject c.issuer
+
+let issuer_matches_subject : certificate -> certificate -> bool =
+  fun p c -> issuer_matches_subject_tbs p.tbs_cert c.tbs_cert
 
 let is_self_signed : certificate -> bool =
-  fun c -> is_self_signed_tbs c.tbs_cert
+  fun c -> issuer_matches_subject c c
 
 let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
   fun trusted c raw ->
+    (* already done in asn_grammars!? *)
     assert (c.signature_algo = c.tbs_cert.signature);
-    (* we'll first try the short way and look up certificate authority key identifier from extensions *)
     let issuing_key = rsa_public_of_cert trusted in
-    (* we have to check that issuing_key was really the one used to sign this certificate *)
-    (* issuer of c should be subject of trusted! *)
-    assert (names_eq trusted.tbs_cert.subject c.tbs_cert.issuer);
 
-    (* if c.extensions contains 2.5.29.35 - Authority Key Identifier check
-       that it is the same as
-       trusted.extensions 2.5.29.14 - Subject Key Identifier *)
+    (* issuer of c should be subject of trusted! *)
+    assert (issuer_matches_subject trusted c);
 
     (* XXX: this is awful code! *)
     let siglen = Cstruct.len c.signature_val in
@@ -130,28 +125,41 @@ let validate_time now cert =
 (* TODO:  from < now && now < till *)
   true
 
-let basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we_all_got_new_retina_displays_and_use_terminals_with_much_much_more_than_80_characters now name cert =
-(*   Printf.printf "basic verify certificate\n";
-                                      |+ w +|
-  List.iter (fun i -> Printf.printf "ISSUER outer loop\n";
-                                                                                                                                            |+ t +|
-                      List.iter (fun j -> Printf.printf " inner loop\n";
-                                          let id, name = j in
-                                          Printf.printf "  oid %s val %s\n"
+let get_extension cert oid =
+  match
+    List.filter (fun (o, _, _) -> o = oid) cert.extensions
+  with
+  | [(_, crit, value)] -> Some (value, crit)
+  | [] -> None
+  | _  -> invalid_arg "Hodie Natus Est Radici Frater"
 
-                                                                                                                                                                                                                                                                                                                                                            |+ f +|
-                                                        (String.concat "." (List.map string_of_int (OID.to_list id)))
-                                                        name)
-                                i)
-            cert.issuer;
-  List.iter (fun i -> Printf.printf "SUBJECT outer loop\n";
-                      List.iter (fun j -> Printf.printf " inner loop\n";
-                                          let id, name = j in
-                                          Printf.printf "  oid %s val %s\n"
-                                                        (String.concat "." (List.map string_of_int (OID.to_list id)))
-                                                        name)
-                                i)
-            cert.subject; *)
+let rec find_by ~f = function
+  | x::xs ->
+    ( match f x with
+      | None   -> find_by ~f xs
+      | Some a -> Some a )
+  | [] -> None
+
+let validate_extensions trusted cert =
+  (*  - basicconstraints - ca bool - pathlenconstraint int option (verification depth limited - not counting the server cert, only intermediate)
+
+ *)
+    (* if c.extensions contains 2.5.29.35 - Authority Key Identifier check
+       that it is the same as
+       trusted.extensions 2.5.29.14 - Subject Key Identifier *)
+
+(*
+2.5.29.15 - Key Usage
+2.5.29.19 - Basic Constraints
+2.5.29.30 - Name Constraints
+2.5.29.37 - Extended key usage
+ - good for signing
+ - all should have CA = true in Basic Constraints
+ - name constraints should match servername
+
+      (n)  If a key usage extension is present, verify that the
+           keyCertSign bit is set.
+ *)
   (match cert.extensions with
    | [] -> Printf.printf "no extensions\n"
    | xs ->
@@ -169,26 +177,17 @@ let basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we
   (match cert.subject_id with
    | Some x -> Printf.printf "subject id"; Cstruct.hexdump x
    | None -> Printf.printf "no subject id\n");
-  validate_time now cert
+  true
+
+let validate_server_extensions trusted cert =
+  validate_extensions trusted cert
 
 let verify_certificate : certificate -> float -> string -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
   Printf.printf "verify certificate\n";
-(*
-2.5.29.15 - Key Usage
-2.5.29.19 - Basic Constraints
-2.5.29.30 - Name Constraints
-2.5.29.37 - Extended key usage
- - good for signing
- - all should have CA = true in Basic Constraints
- - name constraints should match servername
-
-      (n)  If a key usage extension is present, verify that the
-           keyCertSign bit is set.
- *)
     if validate_signature trusted c raw then
       let cert = c.tbs_cert in
-      if basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we_all_got_new_retina_displays_and_use_terminals_with_much_much_more_than_80_characters now servername cert then
+      if (validate_time now cert) && (validate_extensions trusted.tbs_cert cert) then
         `Ok
       else
         `Fail InvalidCertificate
@@ -198,39 +197,11 @@ let verify_certificate : certificate -> float -> string -> certificate -> Cstruc
 let find_trusted_certs : unit -> certificate list =
   fun () ->
     let ca = Crypto_utils.cert_of_file "../certificates/ca.crt" in
-(*    let ca = Crypto_utils.cert_of_file "../mirage-server/server.pem" in *)
     [ca]
-
-let get_extension cert oid =
-  match
-    List.filter (fun (o, _, _) -> o = oid) cert.extensions
-  with
-  | [(_, crit, value)] -> Some (value, crit)
-  | [] -> None
-  | _  -> invalid_arg "Hodie Natus Est Radici Frater"
-
-(* let get_subject_oid c oid =
-  let rec go = function
-    | (id, va)::_ when id = oid -> Some va
-    | _ ::xs -> go xs
-    | [] -> None in
-  go (List.concat c.subject) *)
-
-let rec find_by ~f = function
-  | x::xs ->
-    ( match f x with
-      | None   -> find_by ~f xs
-      | Some a -> Some a )
-  | [] -> None
 
 let get_cn cert =
   find_by cert.subject
     ~f:(function Common_name n -> Some n | _ -> None)
-
-(* let get_cn : tBSCertificate -> string option =
-  fun c ->
-    let oid = OID.(base 2 5 <| 4 <| 3) in
-    get_subject_oid c oid *)
 
 let hostname_matches : tBSCertificate -> string -> bool =
 (* - might include wildcards and international domain names *)
@@ -266,9 +237,10 @@ let verify_server_certificate : certificate -> float -> string -> certificate ->
   Printf.printf "verify server certificate\n";
   if validate_signature trusted c raw then
     let cert = c.tbs_cert in
-    if basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we_all_got_new_retina_displays_and_use_terminals_with_much_much_more_than_80_characters now servername cert then
+    if validate_time now cert && validate_server_extensions trusted.tbs_cert cert then
       if hostname_matches cert servername then
-        `Ok
+        (Printf.printf "successfully verified server certificate\n";
+         `Ok)
       else
         `Fail InvalidServerName
     else
@@ -280,29 +252,23 @@ let verify_top_certificate : certificate list -> float -> string -> certificate 
   fun trusted now servername c raw ->
   (* first have to find issuer of ``c`` in ``trusted`` *)
     Printf.printf "verify top certificate\n";
-    let issuer = List.hd trusted in
-    if validate_signature issuer c raw then
-      let cert = c.tbs_cert in
-      if basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we_all_got_new_retina_displays_and_use_terminals_with_much_much_more_than_80_characters now servername cert then
-        `Ok
-      else
-        `Fail InvalidCertificate
-    else
-      `Fail InvalidSignature
-
+    match List.filter (fun p -> issuer_matches_subject p c) trusted with
+     | []  -> Printf.printf "couldn't find trusted CA cert\n"; `Fail NoTrustAnchor
+     | [t] -> verify_certificate t now servername c raw
+     | _   -> Printf.printf "found multiple root CAs\n"; `Fail MultipleRootCA
 
 (* this is the API for a user (Cstruct.t list will go away) *)
 let verify_certificates : string -> certificate list -> Cstruct.t list -> verification_result =
   fun servername cs packets ->
-    (* we get a certificate chain, and the first is the server *)
+    (* we get a certificate chain, and the first is the server certificate *)
     (* thus we need to reverse the list
         - check that the first is signed by some CA we know and trust
-
-        - check next to be signed by previous (look into issuer)
-        - certificate verification lists...
-    *)
+        - check next to be signed by previous (look into issuer) *)
     (* short-path for self-signed certificate  *)
     if (List.length cs = 1) && is_self_signed (List.hd cs) then
+      (* further verification of a self-signed certificate does not make sense:
+         why should anyone handle a properly self-signed and valid certificate
+         different from a badly signed invalid certificate? *)
       (Printf.printf "DANGER: self-signed certificate\n";
        `Fail SelfSigned)
     else
