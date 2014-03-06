@@ -95,7 +95,8 @@ let answer_server_key_exchange p bs kex raw =
        | Some x -> Asn_grammars.rsa_public_of_cert x
        | None -> assert false
      in
-     let raw_sig = Crypto.verifyRSA_and_unpadPKCS1 36 pubkey signature in
+     let raw_sig = Crypto.verifyRSA_and_unpadPKCS1 pubkey signature in
+     assert (Cstruct.len raw_sig = 36);
      let sigdata = (p.client_random <> p.server_random) <> raw_params in
      let md5 = Crypto.md5 sigdata in
      let sha = Crypto.sha sigdata in

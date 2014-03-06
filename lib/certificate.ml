@@ -133,14 +133,14 @@ ISSUER outer loop
     (* this results in a different encoding than the original certificate *)
     (* let dat = tbs_certificate_to_cstruct c.tbs_cert in
        assert (Utils.cs_eq to_hash dat); *) (* david: this fails *)
-    if c.signature_algo = md5WithRSAEncryption then
+    let signature = Crypto.verifyRSA_and_unpadPKCS1 issuing_key c.signature in
+    let algo, hash = match pkcs1_digest_info_of_cstruct signature with
+      | Some ((a, b), _) -> (a, b)
+      | None -> assert false
+    in
+    if c.signature_algo = PKCS1.md5_rsa_encryption then
       begin
-        let signature = Crypto.verifyRSA_and_unpadPKCS1 34 issuing_key c.signature in
-        let algo, hash = match pkcs1_digest_info_of_cstruct signature with
-          | Some ((a, b), _) -> (a, b)
-          | None -> assert false
-        in
-        assert (algo = id_md5);
+        assert (algo = md5);
         let chash = Crypto.md5 to_hash in
         Printf.printf "comparing md5";
         Cstruct.hexdump hash;
@@ -149,14 +149,9 @@ ISSUER outer loop
         true
       end
     else
-      if c.signature_algo = sha1WithRSAEncryption then
+      if c.signature_algo = PKCS1.sha1_rsa_encryption then
         begin
-          let signature = Crypto.verifyRSA_and_unpadPKCS1 35 issuing_key c.signature in
-          let algo, hash = match pkcs1_digest_info_of_cstruct signature with
-            | Some ((a, b), _) -> (a, b)
-            | None -> assert false
-          in
-          assert (algo = id_sha1);
+          assert (algo = sha1);
           let chash = Crypto.sha to_hash in
           Printf.printf "comparing sha1";
           Cstruct.hexdump hash;

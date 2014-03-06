@@ -79,16 +79,18 @@ let verifyRSA key msg =
   let res = Cryptokit.RSA.unwrap_signature key input in
   Cstruct.of_string res
 
-let verifyRSA_and_unpadPKCS1 explen pubkey data =
+let verifyRSA_and_unpadPKCS1 pubkey data =
   let dat = verifyRSA pubkey data in
-  let start = (Cstruct.len data) - explen in
   assert (Cstruct.get_uint8 dat 0 = 0);
   assert (Cstruct.get_uint8 dat 1 = 1);
-  for i = 2 to (start - 2) do
-    assert (Cstruct.get_uint8 dat i = 0xff);
-  done;
-  assert (Cstruct.get_uint8 dat (start - 1) = 0);
-  Cstruct.sub dat start explen
+  let rec ff idx =
+    match Cstruct.get_uint8 dat idx with
+    | 0    -> idx + 1
+    | 0xff -> ff (idx + 1)
+    | _    -> assert false
+  in
+  let start = ff 2 in
+  Cstruct.shift dat start
 
 let encryptRSA key msg =
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in

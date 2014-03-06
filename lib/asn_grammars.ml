@@ -152,6 +152,15 @@ module ID = struct
     and pseudonym                     = OID.(x500_at <| 65)
   end
 
+
+(*
+1.2.840.113549.2.4 - iso(1) member-body(2) US(840) rsadsi(113549) digestAlgorithm(2) md4(4)
+1.2.840.113549.2.7 - HMAC-SHA-1 pseudorandom function
+1.2.840.113549.2.8 - PBKDF2 id-hmacWithSHA224
+1.2.840.113549.2.9 - PBKDF2 id-hmacWithSHA256
+1.2.840.113549.2.10 - PBKDF2 id-hmacWithSHA384
+1.2.840.113549.2.11 - PBKDF2 id-hmacWithSHA512
+ *)
 end
 
 (*
@@ -223,8 +232,6 @@ let (rsa_public_of_cstruct, rsa_public_to_cstruct) =
 (*
  * X509 certs
  *)
-
-type x509_algo = [
 
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
