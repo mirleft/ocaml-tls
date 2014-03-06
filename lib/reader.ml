@@ -53,13 +53,15 @@ let parse_certificate_request buf =
 let get_compression_method buf =
   let cm = Cstruct.get_uint8 buf 0 in
   match int_to_compression_method cm with
-  | Some x -> x
+  | Some x -> (x, 1)
   | None   -> failwith @@ "unsupported compression method: " ^ string_of_int cm
 
 let get_compression_methods buf =
   let rec go buf acc = function
     | 0 -> acc
-    | n -> go (Cstruct.shift buf 1) (get_compression_method buf :: acc) (n - 1)
+    | n ->
+       let cm, b = get_compression_method buf in
+       go (Cstruct.shift buf b) (cm :: acc) (n - 1)
   in
   let len = Cstruct.get_uint8 buf 0 in
   let methods = go (Cstruct.shift buf 1) [] len in
@@ -67,13 +69,15 @@ let get_compression_methods buf =
 
 let get_ciphersuite buf =
   match Ciphersuite.int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0) with
-  | Some x -> x
+  | Some x -> (x, 2)
   | None -> assert false
 
 let get_ciphersuites buf =
   let rec go buf acc = function
     | 0 -> acc
-    | n -> go (Cstruct.shift buf 2) ((get_ciphersuite buf) :: acc) (n - 1)
+    | n ->
+       let suite, l = get_ciphersuite buf in
+       go (Cstruct.shift buf l) (suite :: acc) (n - 1)
   in
   let len = Cstruct.BE.get_uint16 buf 0 in
   let suites = go (Cstruct.shift buf 2) [] (len / 2) in
@@ -161,59 +165,28 @@ let get_varlength buf bytes =
   | n -> let total = n + bytes in
          (Some (Cstruct.sub buf n total), total)
 
-(* let parse_hello get_compression get_cipher buf =
-  let major = get_c_hello_major_version buf in
-  let minor = get_c_hello_minor_version buf in
-  let version = (major, minor) in
-  let random = get_c_hello_random buf in
-  let sessionid, slen = get_varlength (Cstruct.shift buf 34) 1 in
-  let ciphersuites, clen = get_cipher (Cstruct.shift buf (34 + slen)) in
-  let _, dlen = get_compression (Cstruct.shift buf (34 + slen + clen)) in
-  let extensions, elen = get_extensions (Cstruct.shift buf (34 + slen + clen + dlen)) in
-  |+ assert that dlen is small +|
-  { version ; random ; sessionid ; ciphersuites ; extensions }
-
-let parse_client_hello =
-  parse_hello get_compression_methods get_ciphersuites
-
-let parse_server_hello =
-  parse_hello get_compression_method get_ciphersuite *)
-
-let parse_client_hello buf =
+let parse_hello get_compression get_cipher buf =
   let major = get_c_hello_major_version buf in
   let minor = get_c_hello_minor_version buf in
   let version = (major, minor) in
   let random = get_c_hello_random buf in
   let slen = Cstruct.get_uint8 buf 34 in
   let sessionid = if slen = 0 then None else Some (Cstruct.sub buf 35 slen) in
-  let ciphersuites, clen = get_ciphersuites (Cstruct.shift buf (35 + slen)) in
-  let _, dlen = get_compression_methods (Cstruct.shift buf (35 + slen + clen)) in
+  let ciphersuites, clen = get_cipher (Cstruct.shift buf (35 + slen)) in
+  let _, dlen = get_compression (Cstruct.shift buf (35 + slen + clen)) in
   let extensions, _ =
     if Cstruct.len buf > (35 + slen + clen + dlen) then
       get_extensions (Cstruct.shift buf (35 + slen + clen + dlen))
     else
       ([], 0)
   in
-  (* assert that dlen is small *)
   { version ; random ; sessionid ; ciphersuites ; extensions }
 
-let parse_server_hello buf : server_hello =
-  let major = get_c_hello_major_version buf in
-  let minor = get_c_hello_minor_version buf in
-  let version = (major, minor) in
-  let random = get_c_hello_random buf in
-  let slen = Cstruct.get_uint8 buf 34 in
-  let sessionid = if slen = 0 then None else Some (Cstruct.sub buf 35 slen) in
-  let ciphersuites = get_ciphersuite (Cstruct.shift buf (35 + slen)) in
-  let _ = get_compression_method (Cstruct.shift buf (35 + slen + 2)) in
-  let extensions, _ =
-    if Cstruct.len buf > (35 + slen + 2 + 1) then
-      get_extensions (Cstruct.shift buf (35 + slen + 2 + 1))
-    else
-      ([], 0)
-  in
-  (* assert that dlen is small *)
-  { version ; random ; sessionid ; ciphersuites ; extensions }
+let parse_client_hello =
+  parse_hello get_compression_methods get_ciphersuites
+
+let parse_server_hello =
+  parse_hello get_compression_method get_ciphersuite
 
 let get_certificate buf =
   let len = get_uint24_len buf in
