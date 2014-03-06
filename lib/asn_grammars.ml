@@ -13,22 +13,12 @@ let projections encoding asn =
  * RSA
  *)
 
-(* the no-decode integer, assuming >= 0 and DER. *)
-let nat =
-  let f cs =
-    Cstruct.(to_string @@
-              if get_uint8 cs 0 = 0x00 then shift cs 1 else cs)
-  and g str =
-    assert false in
-  map f g @@
-    implicit ~cls:`Universal 0x02 octet_string
-
 let other_prime_infos =
   sequence_of @@
     (sequence3
-      (required ~label:"prime"       nat)
-      (required ~label:"exponent"    nat)
-      (required ~label:"coefficient" nat))
+      (required ~label:"prime"       big_natural)
+      (required ~label:"exponent"    big_natural)
+      (required ~label:"coefficient" big_natural))
 
 let rsa_private_key =
   let open Cryptokit.RSA in
@@ -43,14 +33,14 @@ let rsa_private_key =
   map f g @@
   sequence @@
       (required ~label:"version"         int)
-    @ (required ~label:"modulus"         nat)       (* n    *)
-    @ (required ~label:"publicExponent"  nat)       (* e    *)
-    @ (required ~label:"privateExponent" nat)       (* d    *)
-    @ (required ~label:"prime1"          nat)       (* p    *)
-    @ (required ~label:"prime2"          nat)       (* q    *)
-    @ (required ~label:"exponent1"       nat)       (* dp   *)
-    @ (required ~label:"exponent2"       nat)       (* dq   *)
-    @ (required ~label:"coefficient"     nat)       (* qinv *)
+    @ (required ~label:"modulus"         big_natural)  (* n    *)
+    @ (required ~label:"publicExponent"  big_natural)  (* e    *)
+    @ (required ~label:"privateExponent" big_natural)  (* d    *)
+    @ (required ~label:"prime1"          big_natural)  (* p    *)
+    @ (required ~label:"prime2"          big_natural)  (* q    *)
+    @ (required ~label:"exponent1"       big_natural)  (* dp   *)
+    @ (required ~label:"exponent2"       big_natural)  (* dq   *)
+    @ (required ~label:"coefficient"     big_natural)  (* qinv *)
    -@ (optional ~label:"otherPrimeInfos" other_prime_infos)
 
 
@@ -65,8 +55,8 @@ let rsa_public_key =
 
   map f g @@
   sequence2
-    (required ~label:"modulus"        nat)
-    (required ~label:"publicExponent" nat)
+    (required ~label:"modulus"        big_natural)
+    (required ~label:"publicExponent" big_natural)
 
 let (rsa_private_of_cstruct, rsa_private_to_cstruct) =
   projections der rsa_private_key
