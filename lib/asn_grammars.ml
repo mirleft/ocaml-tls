@@ -190,6 +190,7 @@ let extensions =
   sequence_of extension
 
 
+(* See rfc5280 section 4.1.2.4. *)
 let directory_name =
   let f = function | `C1 s -> s | `C2 s -> s | `C3 s -> s
                    | `C4 s -> s | `C5 s -> s | `C6 s -> s
@@ -197,11 +198,7 @@ let directory_name =
   map f g @@
   choice6
     utf8_string printable_string
-    (* The following three could probably be ommited.
-      * See rfc5280 section 4.1.2.4. *)
-    universal_string teletex_string bmp_string
-    (* is this standard? *)
-    ia5_string
+    ia5_string universal_string teletex_string bmp_string
 
 let name =
   let attribute_tv =
@@ -213,6 +210,7 @@ let name =
   let rdn_sequence = sequence_of rd_name in
   rdn_sequence (* A vacuous choice, in the standard. *)
 
+(* XXX really default other versions to V1 or bail out? *)
 let version =
   map (function 2 -> `V2 | 3 -> `V3 | _ -> `V1)
       (function `V2 -> 2 | `V3 -> 3 | _ -> 1)
@@ -296,13 +294,17 @@ let certificate =
 let (certificate_of_cstruct, certificate_to_cstruct) =
   projections ber certificate
 
-let rsa_public_of_cert cert =
-  let oid, bits = cert.tbs_cert.pk_info in
-  (* XXX check if oid is actually rsa *)
-  match rsa_public_of_cstruct bits with
-  | Some (k, _) -> k
-  | None -> assert false
+(* XXX this should really be pushed into certificate decode proper, instead of
+ * being called as a separate function on it, after we fish out the relevant
+ * oids and the corresponding public key grammars. *)
 
+let rsa_public_of_cert cert =
+  match cert.tbs_cert.pk_info with
+  | (RSA, bits) ->
+    ( match rsa_public_of_cstruct bits with
+      | Some (k, _) -> k
+      | None -> assert false )
+  | _ -> assert false
 
 let pkcs1_digest_info =
   sequence2
