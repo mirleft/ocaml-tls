@@ -312,6 +312,60 @@ module Algorithm = struct
 
 end
 
+module Extension = struct
+
+  module ID = Registry.Cert_extn
+
+  type t =
+    | Unsupported      of OID.t * Cstruct.t
+    | Subject_alt_name of General_name.t list
+    | Issuer_alt_name  of General_name.t list
+
+  let gn_seq = sequence_of General_name.general_name
+
+  (* All extns are DER? *)
+  (* We propagate (and contribute to) exceptions here, so those can be handled
+   * higher up in a single place. *)
+
+  let project_exn asn =
+    let c = codec der asn in
+    let dec cs =
+      let (res, cs') = decode_exn c cs in
+      if Cstruct.len cs' = 0 then res
+      else parse_error "leftovers in extension"
+    in
+    (dec, encode c)
+
+  let general_names_of_cs, general_names_to_cs = project_exn gn_seq
+
+  let reparse_extension_exn = function
+    | (oid, cs) when oid = ID.subject_alternative_name ->
+        Subject_alt_name (general_names_of_cs cs)
+    | (oid, cs) when oid = ID.issuer_alternative_name ->
+        Issuer_alt_name (general_names_of_cs cs)
+    | (oid, cs) -> Unsupported (oid, cs)
+
+  let unparse_extension = function
+    | Unsupported (oid, cs) -> (oid, cs)
+    | Subject_alt_name gn   -> (ID.subject_alternative_name, general_names_to_cs gn)
+    | Issuer_alt_name  gn   -> (ID.issuer_alternative_name, general_names_to_cs gn)
+
+  let extensions_der =
+    let extension =
+      map (fun (oid, b, cs) ->
+            (def false b, reparse_extension_exn (oid, cs)))
+          (fun (b, ext) ->
+            let (oid, cs) = unparse_extension ext in
+            (oid, def' false b, cs))
+      @@
+      sequence3
+        (required ~label:"id"       oid)
+        (optional ~label:"critical" bool) (* default false *)
+        (required ~label:"value"    octet_string)
+    in
+    sequence_of extension
+end
+
 
 (*
  * RSA
@@ -373,8 +427,6 @@ let (rsa_public_of_cstruct, rsa_public_to_cstruct) =
  *)
 
 
-(* type cert_extension = *)
-
 type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
   serial     : Num.num ;
@@ -385,7 +437,7 @@ type tBSCertificate = {
   pk_info    : Algorithm.t * bits ;
   issuer_id  : bits option ;
   subject_id : bits option ;
-  extensions : (oid * bool * Cstruct.t) list
+  extensions : (bool * Extension.t) list
 }
 
 type certificate = {
@@ -393,17 +445,6 @@ type certificate = {
   signature_algo : Algorithm.t ;
   signature_val  : bits
 }
-
-let extensions =
-  let extension =
-    map (fun (oid, b, v) -> (oid, def  false b, v))
-        (fun (oid, b, v) -> (oid, def' false b, v)) @@
-    sequence3
-      (required ~label:"id"       oid)
-      (optional ~label:"critical" bool) (* default false *)
-      (required ~label:"value"    octet_string)
-  in
-  sequence_of extension
 
 
 (* XXX really default other versions to V1 or bail out? *)
@@ -465,7 +506,7 @@ let tBSCertificate =
       (* if present, version is v2 or v3 *)
     @ (optional ~label:"subjectUID"    @@ implicit 2 unique_identifier)
       (* v3 if present *)
-   -@ (optional ~label:"extensions"    @@ explicit 3 extensions)
+   -@ (optional ~label:"extensions"    @@ explicit 3 Extension.extensions_der)
 
 let (tbs_certificate_of_cstruct, tbs_certificate_to_cstruct) =
   projections ber tBSCertificate
