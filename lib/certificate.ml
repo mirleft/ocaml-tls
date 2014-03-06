@@ -137,40 +137,27 @@ ISSUER outer loop
       | Some ((a, b), _) -> (a, b)
       | None -> assert false
     in
-(*     if c.signature_algo = PKCS1.md5_rsa_encryption then *)
-    if c.signature_algo = assert false then
-      begin
-        let chash = Crypto.md5 to_hash in
-        Printf.printf "comparing md5";
-        Cstruct.hexdump hash;
-        Cstruct.hexdump chash;
-        assert (Utils.cs_eq chash hash);
-        true
-      end
-    else
-(*       if c.signature_algo = PKCS1.sha1_rsa_encryption then *)
-      if c.signature_algo = assert false then
-        begin
-          let chash = Crypto.sha to_hash in
-          Printf.printf "comparing sha1";
-          Cstruct.hexdump hash;
-          Cstruct.hexdump chash;
-          assert (Utils.cs_eq chash hash);
-          true
-        end
-      else
-        begin
-(*           Printf.printf "unknown algorithm: %s\n"
-                        (String.concat " " (List.map string_of_int (OID.to_list c.signature_algo))); *)
-          false
-        end
+
+    (* XXX move me outside of that comment up there? *)
+    let comparing_hash hashfn =
+      let chash = hashfn to_hash in
+      Printf.printf "comparing hash";
+      Cstruct.hexdump hash;
+      Cstruct.hexdump chash;
+      Utils.cs_eq chash hash in
+
+    match c.signature_algo with
+    | MD5_RSA  -> comparing_hash Crypto.md5
+    | SHA1_RSA -> comparing_hash Crypto.sha
+    | _        -> false
+
 
 let validate_time now cert =
   let from, till = cert.validity in
 (* TODO:  from < now && now < till *)
   true
 
-let basic_verification now name cert =
+let basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we_all_got_new_retina_displays_and_use_terminals_with_much_much_more_than_80_characters now name cert =
   Printf.printf "basic verify certificate\n";
                                       (* w *)
   List.iter (fun i -> Printf.printf "ISSUER outer loop\n";
@@ -193,7 +180,8 @@ let basic_verification now name cert =
                                 i)
             cert.subject;
   (match cert.extensions with
-   | Some x ->
+   | [] -> Printf.printf "no extensions\n"
+   | xs ->
       List.iter (fun i ->
                    Printf.printf "EXTENSION\n";
                    let id, x, r = i in
@@ -201,8 +189,7 @@ let basic_verification now name cert =
                                  (String.concat "." (List.map string_of_int (OID.to_list id)))
                                  (string_of_bool x);
                    Cstruct.hexdump r)
-                x;
-   | None -> Printf.printf "no extensions\n");
+                xs );
   (match cert.issuer_id with
    | Some x -> Printf.printf "issuer id"; Cstruct.hexdump x
    | None -> Printf.printf "no issuer id\n");
@@ -228,7 +215,7 @@ let verify_certificate : certificate -> float -> string -> certificate -> Cstruc
  *)
     if validate_signature trusted c raw then
       let cert = c.tbs_cert in
-      if basic_verification now servername cert then
+      if basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we_all_got_new_retina_displays_and_use_terminals_with_much_much_more_than_80_characters now servername cert then
         `Ok
       else
         `Fail InvalidCertificate
@@ -241,35 +228,20 @@ let find_trusted_certs : unit -> certificate list =
 (*    let ca = Crypto_utils.cert_of_file "../mirage-server/server.pem" in *)
     [ca]
 
-let get_extension : tBSCertificate -> oid -> (Cstruct.t * bool) option =
-  fun cert oid ->
-    match cert.extensions with
-    | Some x -> let vals = List.filter (fun e -> let o, _, _ = e in o = oid) x in
-                if List.length vals = 0 then
-                  None
-                else
-                  (assert (List.length vals = 1);
-                   let _, critical, value = (List.hd vals) in
-                   Some (value, critical))
-    | None -> None
+let get_extension cert oid =
+  match
+    List.filter (fun (o, _, _) -> o = oid) cert.extensions
+  with
+  | [(_, crit, value)] -> Some (value, crit)
+  | [] -> None
+  | _  -> invalid_arg "Hodie Natus Est Radici Frater"
 
-let get_subject_oid : tBSCertificate -> oid -> string option =
-  fun c oid ->
-    let rec go = function
-      | x::xs -> let id, va = x in
-                 if id = oid then
-                   Some va
-                 else
-                   go xs
-      | [] -> None
-    in
-    let rec goo = function
-      | x::xs -> (match go x with
-                  | None -> goo xs
-                  | Some x -> Some x)
-      | [] -> None
-    in
-    goo c.subject
+let get_subject_oid c oid =
+  let rec go = function
+    | (id, va)::_ when id = oid -> Some va
+    | _ ::xs -> go xs
+    | [] -> None in
+  go (List.concat c.subject)
 
 
 let get_cn : tBSCertificate -> string option =
@@ -311,7 +283,7 @@ let verify_server_certificate : certificate -> float -> string -> certificate ->
   Printf.printf "verify server certificate\n";
   if validate_signature trusted c raw then
     let cert = c.tbs_cert in
-    if basic_verification now servername cert then
+    if basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we_all_got_new_retina_displays_and_use_terminals_with_much_much_more_than_80_characters now servername cert then
       if hostname_matches cert servername then
         `Ok
       else
@@ -328,7 +300,7 @@ let verify_top_certificate : certificate list -> float -> string -> certificate 
     let issuer = List.hd trusted in
     if validate_signature issuer c raw then
       let cert = c.tbs_cert in
-      if basic_verification now servername cert then
+      if basic_verification_with_a_really_long_name_which_fits_the_bill_ever_since_we_all_got_new_retina_displays_and_use_terminals_with_much_much_more_than_80_characters now servername cert then
         `Ok
       else
         `Fail InvalidCertificate
