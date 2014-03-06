@@ -6,8 +6,7 @@ let def  x = function None -> x | Some y -> y
 let def' x = fun y -> if y = x then None else Some y
 
 let projections encoding asn =
-  let c = codec encoding asn in
-  (decode c, encode c)
+  let c = codec encoding asn in (decode c, encode c)
 
 
 (*
