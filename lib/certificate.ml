@@ -190,14 +190,20 @@ let verify_certificate : certificate -> float -> string -> certificate -> Cstruc
     else
       `Fail InvalidSignature
 
-let find_trusted_certs : unit -> certificate list =
-  fun () ->
-    let ca = Crypto_utils.cert_of_file "../certificates/ca.crt" in
-    [ca]
-
 let get_cn cert =
   find_by cert.subject
     ~f:Name.(function Common_name n -> Some n | _ -> None)
+
+let find_trusted_certs : unit -> certificate list =
+  fun () ->
+    let cacert = Crypto_utils.cert_of_file "../certificates/cacert.crt" in
+    let nss = Crypto_utils.certs_of_file "../certificates/ca-root-nss.crt" in
+    let cas = cacert :: nss in
+    List.iter (fun c -> match get_cn c.tbs_cert with
+                        | None   -> Printf.printf "no common name found\n";
+                        | Some x -> Printf.printf "inserted cert with CN %s\n" x)
+              cas;
+    cas
 
 let hostname_matches : tBSCertificate -> string -> bool =
 (* - might include wildcards and international domain names *)

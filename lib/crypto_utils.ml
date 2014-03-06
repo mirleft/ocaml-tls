@@ -25,8 +25,27 @@ let pem_to_cert pem =
 let cert_cstruct_of_file filename =
   let pem = read_pem_file filename in pem_to_cstruct pem
 
-let cert_of_file filename =
-  let pem = read_pem_file filename in pem_to_cert pem
+let certs_of_file : string -> Asn_grammars.certificate list =
+  fun filename ->
+    let lines = read_lines filename in
+    let rec consume_cert acc = function
+      | c::cs when c = "-----END CERTIFICATE-----" -> (acc, cs)
+      | c::cs -> consume_cert (acc @ [c]) cs
+      | _ -> assert false
+    in
+    let rec go cs = function
+      | [] -> cs
+      | l::ls when l = "-----BEGIN CERTIFICATE-----" ->
+         let certlines, rt = consume_cert [] ls in
+         go ((String.concat "" certlines) :: cs) rt
+      | l::ls -> go cs ls
+    in
+    let certificates = go [] lines in
+    List.map pem_to_cert certificates
+
+let cert_of_file : string -> Asn_grammars.certificate =
+  fun filename ->
+    let pem = read_pem_file filename in pem_to_cert pem
 
 let get_key filename =
   let pem = read_pem_file filename in
