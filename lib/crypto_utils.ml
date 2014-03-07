@@ -34,7 +34,7 @@ let certs_of_file : string -> (Asn_grammars.certificate * Cstruct.t) list =
       | _ -> assert false
     in
     let rec go cs = function
-      | [] -> cs
+      | [] -> List.rev cs
       | l::ls when l = "-----BEGIN CERTIFICATE-----" ->
          let certlines, rt = consume_cert [] ls in
          go ((String.concat "" certlines) :: cs) rt
