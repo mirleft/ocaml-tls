@@ -51,3 +51,13 @@ let rec map_find ~f = function
       match f x with
       | None         -> map_find ~f xs
       | Some _ as x' -> x'
+
+let option none some = function
+  | None   -> none
+  | Some x -> some x
+
+let const a _ = a
+
+let id a = a
+
+let o f g x = f (g x)
