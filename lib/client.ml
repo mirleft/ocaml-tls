@@ -188,10 +188,14 @@ let handle_tls = handle_tls_int handle_record
 
 let open_connection server =
   let dch = default_client_hello in
+  let host = match server with
+    | None   -> []
+    | Some _ -> [Hostname server]
+  in
   let ch = { dch with ciphersuites =
                         dch.ciphersuites @
                           [Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV];
-                      extensions   = [Hostname server]
+                      extensions   = host
            }
   in
   let buf = Writer.assemble_handshake (ClientHello ch) in

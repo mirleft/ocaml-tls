@@ -27,14 +27,14 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
 
   let start c s =
 (*    OS.Time.sleep 5.0 >>= fun () -> *)
-    let google, gport = ((Ipaddr.V4.make 173 194 41 148), 443) in
-    let jabberccc, jport = ((Ipaddr.V4.make 173 194 41 148), 5223) in
-    let localssl, lport = ((Ipaddr.V4.make 127 0 0 1), 4433) in
+    let google, gport, gname = ((Ipaddr.V4.make 173 194 41 148), 443, Some "www.google.com") in
+    let jabberccc, jport, jname = ((Ipaddr.V4.make 173 194 41 148), 5223, Some "jabber.ccc.de") in
+    let localssl, lport, lname = ((Ipaddr.V4.make 127 0 0 1), 4433, None) in
     C.log_s c (green "connecting to host") >>
       S.TCPV4.create_connection (S.tcpv4 s) (google, gport) >>= function
        | `Ok flow ->
           C.log_s c (green "established connection") >>
-          let client_hello = Tls.Client.open_connection (Some "jabber.ccc.de") in
+          let client_hello = Tls.Client.open_connection gname in
           on_connect client_hello c flow;
        | `Error e ->
           C.log_s c (red "received an error while connecting")

@@ -156,40 +156,65 @@ let validate_ca_extensions cert =
     in
     assert (List.exists ku cert.extensions);
 
+    (* Name Constraints   - name constraints should match servername *)
+
     (* we've to deal with _all_ extensions marked critical! *)
     let rec ver_ext =
       function
       | []                                 -> true
       | (true,  Key_usage _)         :: xs -> ver_ext xs
       | (true,  Basic_constraints _) :: xs -> ver_ext xs
-      | (true,  e)                   :: xs -> false
-      | (false, e)                   :: xs -> ver_ext xs
+      | (true,  _)                   :: xs -> false
+      | (false, _)                   :: xs -> ver_ext xs
     in
     ver_ext cert.extensions) with
   | _ -> false
 
-(* 2.5.29.30 - Name Constraints   - name constraints should match servername
-   2.5.29.37 - Extended key usage *)
+
+let ext_authority_matches_subject trusted cert =
+  let open Extension in
+  match List.filter (function
+                      | (_, Authority_key_id (Some _, _, _)) -> true
+                      | _ -> false)
+                    cert.extensions with
+  | [] -> true (* it's not mandatory *)
+  | [(_, Authority_key_id (Some auth, _, _))] ->
+     List.exists (function
+                   | (_, Subject_key_id au) ->
+                      let res = Utils.cs_eq auth au in
+                      Printf.printf "SUB KEY ID and AUTH KEY ID matches? %s" (string_of_bool res);
+                      Cstruct.hexdump auth;
+                      Cstruct.hexdump au;
+                      res
+                   | _                 -> false)
+                 trusted.extensions
+  | _ -> false (* shouldn't happen *)
 
 let validate_intermediate_extensions trusted cert =
-  validate_ca_extensions cert
-(* if c.extensions contains 2.5.29.35 - Authority Key Identifier check
-   that it is the same as
-   trusted.extensions 2.5.29.14 - Subject Key Identifier *)
+  (validate_ca_extensions cert) && (ext_authority_matches_subject trusted cert)
 
 let validate_server_extensions trusted cert =
-(*
- - key usage basic constraint: certificate should be good for
-   - signing (DHE_RSA)
-   - encryption (RSA)
- - there's also extended key usage
-    (TLS web server authentication / TLS web client authentication/...)
-
-2.5.29.15 - Key Usage
-2.5.29.19 - Basic Constraints
-2.5.29.37 - Extended key usage
- *)
-  true
+  let open Extension in
+  let rec ver_ext =
+    function
+    | []                                        -> true
+    | (_,     Basic_constraints (Some x)) :: xs -> false
+    | (_,     Key_usage us)               :: xs ->
+       List.exists (function
+                     (* key_encipherment (RSA) *)
+                     (* signing (DHE_RSA) *)
+                     | Key_encipherment -> true
+                     | _                -> false)
+                   us
+    | (_,     Ext_key_usage us)           :: xs ->
+       List.exists (function
+                     | Server_auth      -> true
+                     | _                -> false)
+                   us
+    | (false, _)                          :: xs -> ver_ext xs
+    | (true,  _)                          :: xs -> false
+  in
+  (ver_ext cert.extensions) && (ext_authority_matches_subject trusted cert)
 
 let get_cn cert =
   find_by cert.subject
@@ -236,18 +261,28 @@ let find_trusted_certs : float -> certificate list =
     certs
 
 let hostname_matches : tBSCertificate -> string -> bool =
-  fun _ _ -> true
-(* - might include wildcards and international domain names *)
-(*   fun c servername ->
-    let subaltname = OID.(base 2 5 <| 29 <| 17) in
-    (match get_extension c subaltname with
-    | None -> |+ use common name +|
-       (match get_cn c with
-        | None -> Printf.printf "did not find a CN\n"
-        | Some cn -> Printf.printf "COMMON NAME %s\n" cn)
-    | Some (names, _) -> Printf.printf "found subaltname"; Cstruct.hexdump names);
-    |+ that's now a choice -- http://www.alvestrand.no/objectid/2.5.29.17.html +|
-    true *)
+  fun cert name ->
+  try (
+    let open Extension in
+    (* - might include wildcards and international domain names *)
+    let rec ver_sn = function
+      | []                                -> false
+      | (_, Subject_alt_name names) :: xs ->
+         let open General_name in
+         assert (List.exists (function
+                               | DNS x -> x = name
+                               | _     -> false)
+                             names);
+         true
+      | _                           :: xs -> ver_sn xs
+    in
+    let cn_eq = match get_cn cert with
+      | None   -> false
+      | Some x -> x = name
+    in
+    (ver_sn cert.extensions) || cn_eq
+  ) with
+  | _ -> false
 
 let verify_server_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
