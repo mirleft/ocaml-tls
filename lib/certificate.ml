@@ -29,48 +29,33 @@ let issuer_matches_subject : certificate -> certificate -> bool =
 let is_self_signed : certificate -> bool =
   fun c -> issuer_matches_subject c c
 
-let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
-  fun trusted c raw ->
-   try (
+(* XXX should return the tbc_cert blob from the parser, this is insane *)
+let raw_cert_hack cert raw =
+  let siglen = Cstruct.len cert.signature_val in
+  let off    = if siglen > 128 then 1 else 0 in
+  Cstruct.(sub raw 4 (len raw - (siglen + 4 + 19 + off)))
 
-     (* How could a silent exception be better than a compiler warning on
-      * non-exhaustiveness!? *)
-(*     let issuing_key = match trusted.tbs_cert.pk_info with
-      | PK.RSA key -> key
-      |  _         -> assert false
-    in *)
-    let (PK.RSA issuing_key) = trusted.tbs_cert.pk_info in
+let validate_signature trusted cert raw =
+  ( issuer_matches_subject trusted cert ) &&
 
-    (* issuer of c should be subject of trusted! *)
-    assert (issuer_matches_subject trusted c);
+  let tbs_raw = raw_cert_hack cert raw in
+  match trusted.tbs_cert.pk_info with
 
-    (* XXX: this is awful code! *)
-    let siglen = Cstruct.len c.signature_val in
-    (* not sure whether 128 is what we want here, for sure we just want to translate the certificate to a cstruct ;) *)
-    let off = if siglen > 128 then 1 else 0 in
-    (* 4 is the prefix-seq, 19 the sig oid *)
-    let to_hash = Cstruct.sub raw 4 ((Cstruct.len raw) - (siglen + 4 + 19 + off)) in
-    (* this results in a different encoding than the original certificate *)
-    (* let dat = tbs_certificate_to_cstruct c.tbs_cert in
-       assert (Utils.cs_eq to_hash dat); *) (* david: this fails *)
-    let signature = Crypto.verifyRSA_and_unpadPKCS1 issuing_key c.signature_val in
-    let algo, hash = match pkcs1_digest_info_of_cstruct signature with
-      | Some ((a, b), _) -> (a, b)
-      | None -> assert false
-    in
+  | PK.RSA issuing_key ->
 
-    (* XXX move me outside of that comment up there? *)
-    let comparing_hash hashfn =
-      let chash = hashfn to_hash in
-      Utils.cs_eq chash hash in
+      let signature = 
+        Crypto.verifyRSA_and_unpadPKCS1 issuing_key cert.signature_val in
 
-    let open Algorithm in
-    match (c.signature_algo, algo) with
-    | (MD5_RSA, MD5)   -> comparing_hash Crypto.md5
-    | (SHA1_RSA, SHA1) -> comparing_hash Crypto.sha
-    | _                -> false)
-   with
-   | _ -> false
+      match pkcs1_digest_info_of_cstruct signature with
+      | None                   -> false
+      | Some ((algo, hash), _) ->
+          let compare_hashes hashfn = Utils.cs_eq hash (hashfn tbs_raw) in
+          match (cert.signature_algo, algo) with
+          | (MD5_RSA , MD5 ) -> compare_hashes Crypto.md5
+          | (SHA1_RSA, SHA1) -> compare_hashes Crypto.sha
+          | _ -> false
+
+  | _ -> false
 
 
 let validate_time now cert =
