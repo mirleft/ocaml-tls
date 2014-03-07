@@ -225,8 +225,8 @@ let verify_top_certificate : certificate list -> float -> string option -> certi
      | _   -> Printf.printf "found multiple root CAs\n"; `Fail MultipleRootCA
 
 (* this is the API for a user (Cstruct.t list might go away) *)
-let verify_certificates : string option -> certificate list -> Cstruct.t list -> verification_result =
-  fun servername cs packets ->
+let verify_certificates : string option -> (certificate * Cstruct.t) list -> verification_result =
+  fun servername -> function
     (* we get the certificate chain cs:
         [c0; c1; c2; ... ; cn]
         let server = c0
@@ -239,15 +239,15 @@ let verify_certificates : string option -> certificate list -> Cstruct.t list ->
         3. verify server certificate was signed by c1 and
              server certificate has required servername *)
     (* short-path for self-signed certificate  *)
-
-  match cs with
-  | [ cert ] when is_self_signed cert ->
+  | [] -> assert false (* NO, return the right error *)
+  | [(cert, _)] when is_self_signed cert ->
       (* further verification of a self-signed certificate does not make sense:
          why should anyone handle a properly self-signed and valid certificate
          different from a badly signed invalid certificate? *)
       (Printf.printf "DANGER: self-signed certificate\n";
        `Fail SelfSigned)
-  | _ ->
+
+  | (server, server_raw) :: certs_and_raw ->
       let now = Sys.time () in
       (* :( this is soooo foldr in a lazy setting... *)
       let rec go t = function
@@ -258,10 +258,8 @@ let verify_certificates : string option -> certificate list -> Cstruct.t list ->
            | `Fail x -> (`Fail x, c)
       in
       let trusted = find_trusted_certs now in
-      (* server certificate *)
-      let server, serverraw = (List.hd cs, List.hd packets) in
       (* intermediate certificates *)
-      let reversed = List.combine (List.rev (List.tl cs)) (List.rev (List.tl packets)) in
+      let reversed = List.rev certs_and_raw in
       let topc, topr = List.hd reversed in
       (* step 1 *)
       match verify_top_certificate trusted now servername topc topr with
@@ -270,7 +268,7 @@ let verify_certificates : string option -> certificate list -> Cstruct.t list ->
          (match go topc (List.tl reversed) with
           | (`Ok, t) ->
              (* step 3 *)
-             verify_server_certificate t now servername server serverraw
+             verify_server_certificate t now servername server server_raw
           | (`Fail x, _) -> `Fail x)
       | `Fail x -> `Fail x
 
