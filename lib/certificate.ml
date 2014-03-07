@@ -121,6 +121,7 @@ let validate_server_extensions trusted cert =
   let open Extension in
   ( List.for_all (function
       | (_, Basic_constraints (Some _)) -> false
+      | (_, Basic_constraints None) -> true
         (* key_encipherment (RSA) *)
         (* signing (DHE_RSA) *)
       | (_, Key_usage usage) -> List.mem Key_encipherment usage
@@ -143,7 +144,7 @@ let common_name_to_string cert =
      "NO commonName " ^ hex
   | Some x -> x
 
-let verify_certificate ?servername trusted now cert raw_cert =
+let verify_certificate trusted now cert raw_cert =
     Printf.printf "verify certificate %s -> %s\n"
                   (common_name_to_string trusted)
                   (common_name_to_string cert);
@@ -256,7 +257,7 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
       let rec go trustanchor = function
         | []              -> (`Ok, trustanchor)
         | (cert, raw)::cs ->
-           match verify_certificate ?servername trustanchor now cert raw with
+           match verify_certificate trustanchor now cert raw with
            | `Ok     -> go cert cs
            | `Fail x -> (`Fail x, cert)
       in
