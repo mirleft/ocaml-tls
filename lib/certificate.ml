@@ -122,7 +122,9 @@ let validate_server_extensions trusted cert =
         (* key_encipherment (RSA) *)
         (* signing (DHE_RSA) *)
       | (_, Key_usage usage) -> List.mem Key_encipherment usage
-      | (_, Ext_key_usage usage) -> List.mem Server_auth usage )
+      | (_, Ext_key_usage usage) -> List.mem Server_auth usage
+      | (true,  _) -> false (* we've to deal with _all_ extensions marked critical! *)
+      | (false, _) -> true )
     cert.tbs_cert.extensions ) &&
   ext_authority_matches_subject trusted cert
 
