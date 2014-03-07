@@ -179,15 +179,15 @@ let find_trusted_certs now =
 
 let hostname_matches cert name =
   let open Extension in
-  ( match extn_subject_alt_name cert with
-    | Some (_, Subject_alt_name names) ->
-        List.exists
-          (function General_name.DNS x -> x = name | _ -> false)
-          names
-    | _  -> false ) ||
-  ( match get_cn cert.tbs_cert with
-    | None   -> false
-    | Some x -> x = name )
+  match extn_subject_alt_name cert with
+  | Some (_, Subject_alt_name names) ->
+      List.exists
+        (function General_name.DNS x -> x = name | _ -> false)
+        names
+  | _  ->
+      match get_cn cert.tbs_cert with
+      | None   -> false
+      | Some x -> x = name
 
 let verify_server_certificate ?servername trusted now cert raw_cert =
   Printf.printf "verify server certificate %s -> %s\n"
