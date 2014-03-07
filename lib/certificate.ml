@@ -182,30 +182,28 @@ let find_trusted_certs : float -> certificate list = fun now ->
 let hostname_matches cert name =
   let open Extension in
   ( match extn_subject_alt_name cert with
-    | None            -> false
-    | Some (_, names) ->
+    | Some (_, Subject_alt_name names) ->
         List.exists
           (function General_name.DNS x -> x = name | _ -> false)
-          names ) ||
-  ( match get_cn cert with
+          names
+    | _  -> false ) ||
+  ( match get_cn cert.tbs_cert with
     | None   -> false
     | Some x -> x = name )
 
 let verify_server_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
-  fun trusted now servername c raw ->
+  fun trusted now servername cert raw ->
   Printf.printf "verify server certificate %s -> %s\n"
                 (get_common_name trusted)
-                (get_common_name c);
-  let cert = c.tbs_cert in
-  let smatches = fun name c ->
-    match name with
+                (get_common_name cert);
+  let smatches name cert = match name with
     | None   -> false
-    | Some x -> hostname_matches c x
+    | Some x -> hostname_matches cert x
   in
   match
-    validate_signature trusted c raw                 &&
-    validate_time now cert                           &&
-    validate_server_extensions trusted.tbs_cert cert &&
+    validate_signature trusted cert raw     &&
+    validate_time now cert                  &&
+    validate_server_extensions trusted cert &&
     smatches servername cert
   with
   | true ->
