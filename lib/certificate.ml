@@ -16,51 +16,8 @@ type verification_result = [
   | `Ok
 ]
 
-(* stuff from 4366 (TLS extensions):
-  - root CAs
-  - client cert url *)
 
-(* Future TODO Certificate Revocation Lists and OCSP (RFC6520)
-2.16.840.1.113730.1.2 - Base URL
-2.16.840.1.113730.1.3 - Revocation URL
-2.16.840.1.113730.1.4 - CA Revocation URL
-2.16.840.1.113730.1.7 - Renewal URL
-2.16.840.1.113730.1.8 - Netscape CA policy URL
-
-2.5.4.38 - id-at-authorityRevocationList
-2.5.4.39 - id-at-certificateRevocationList
-
-2.5.29.20 - CRL Number
-2.5.29.21 - reason code
-2.5.29.27 - Delta CRL indicator
-2.5.29.28 - Issuing Distribution Point
-2.5.29.31 - CRL Distribution Points
-2.5.29.46 - FreshestCRL
-
-do not forget about 'authority information access' (private internet extension -- 4.2.2 of 5280) *)
-
-(* Future TODO: Policies
-2.5.29.32 - Certificate Policies
-2.5.29.33 - Policy Mappings
-2.5.29.36 - Policy Constraints
- *)
-
-(* Future TODO: anything with subject_id and issuer_id ? seems to be not used by anybody *)
-
-(*    2.16.840.1.113730.1.1 - Netscape certificate type
-    2.16.840.1.113730.1.12 - SSL server name *)
-(*    2.16.840.1.113730.1.13 - Netscape certificate comment *)
-
-(* 5280::
-   A certificate-using system MUST reject the certificate if it encounters
-   a critical extension it does not recognize or a critical extension
-   that contains information that it cannot process.  A non-critical
-   extension MAY be ignored if it is not recognized, but MUST be
-   processed if it is recognized.
-
-   A certificate MUST NOT include more
-   than one instance of a particular extension.
-*)
+(* 5280 A certificate MUST NOT include more than one instance of a particular extension. *)
 
 let issuer_matches_subject_tbs : tBSCertificate -> tBSCertificate -> bool =
   fun p c -> Name.equal p.subject c.issuer
@@ -158,12 +115,12 @@ let validate_ca_extensions cert =
 
     (* Name Constraints   - name constraints should match servername *)
 
-    (* we've to deal with _all_ extensions marked critical! *)
     let rec ver_ext =
       function
       | []                                 -> true
       | (true,  Key_usage _)         :: xs -> ver_ext xs
       | (true,  Basic_constraints _) :: xs -> ver_ext xs
+      (* we've to deal with _all_ extensions marked critical! *)
       | (true,  _)                   :: xs -> false
       | (false, _)                   :: xs -> ver_ext xs
     in
@@ -212,6 +169,7 @@ let validate_server_extensions trusted cert =
                      | _                -> false)
                    us
     | (false, _)                          :: xs -> ver_ext xs
+    (* we've to deal with _all_ extensions marked critical! *)
     | (true,  _)                          :: xs -> false
   in
   (ver_ext cert.extensions) && (ext_authority_matches_subject trusted cert)
@@ -286,7 +244,6 @@ let hostname_matches : tBSCertificate -> string -> bool =
 
 let verify_server_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
-  (* first things first: valid signature, unwarp tbscert: validity timestamps,... *)
   Printf.printf "verify server certificate %s -> %s\n"
                 (get_common_name trusted)
                 (get_common_name c);
@@ -309,7 +266,7 @@ let verify_server_certificate : certificate -> float -> string option -> certifi
 
 let verify_top_certificate : certificate list -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
-  (* first have to find issuer of ``c`` in ``trusted`` *)
+    (* first have to find issuer of ``c`` in ``trusted`` *)
     Printf.printf "verify top certificate %s (%d CAs)\n"
                   (get_common_name c)
                   (List.length trusted);
@@ -318,13 +275,20 @@ let verify_top_certificate : certificate list -> float -> string option -> certi
      | [t] -> verify_certificate t now servername c raw
      | _   -> Printf.printf "found multiple root CAs\n"; `Fail MultipleRootCA
 
-(* this is the API for a user (Cstruct.t list will go away) *)
+(* this is the API for a user (Cstruct.t list might go away) *)
 let verify_certificates : string option -> certificate list -> Cstruct.t list -> verification_result =
   fun servername cs packets ->
-    (* we get a certificate chain, and the first is the server certificate *)
-    (* thus we need to reverse the list
-        - check that the first is signed by some CA we know and trust
-        - check next to be signed by previous (look into issuer) *)
+    (* we get the certificate chain cs:
+        [c0; c1; c2; ... ; cn]
+        let server = c0
+        let top = cn
+       strategy:
+        1. find a trusted CA for top and
+             verify that trusted signed top
+        2. verify intermediate certificates:
+             verify that [cn .. c2] signed [cn-1 .. c1]
+        3. verify server certificate was signed by c1 and
+             server certificate has required servername *)
     (* short-path for self-signed certificate  *)
     if (List.length cs = 1) && is_self_signed (List.hd cs) then
       (* further verification of a self-signed certificate does not make sense:
@@ -336,20 +300,64 @@ let verify_certificates : string option -> certificate list -> Cstruct.t list ->
       let now = Sys.time () in
       let rec go t = function
         | []    -> (`Ok, t)
-        | (c, p)::cs -> (* check that x is signed by x - 1 *)
+        | (c, p)::cs -> (* step 2 *)
            match verify_certificate t now servername c p with
            | `Ok  -> go c cs
            | `Fail x -> (`Fail x, c)
       in
       let trusted = find_trusted_certs now in
+      (* server certificate *)
+      let server, serverraw = (List.hd cs, List.hd packets) in
+      (* intermediate certificates *)
       let reversed = List.combine (List.rev (List.tl cs)) (List.rev (List.tl packets)) in
       let topc, topr = List.hd reversed in
-      (* check that top one is signed by a trust anchor *)
+      (* step 1 *)
       match verify_top_certificate trusted now servername topc topr with
-      | `Ok -> (match go topc (List.tl reversed) (* checking rest of chain *) with
-                | (`Ok, t) -> verify_server_certificate t now servername (List.hd cs) (List.hd packets) (* check server certificate *)
-                | (`Fail x, _) -> `Fail x)
+      | `Ok ->
+         (* call step 2 *)
+         (match go topc (List.tl reversed) with
+          | (`Ok, t) ->
+             (* step 3 *)
+             verify_server_certificate t now servername server serverraw
+          | (`Fail x, _) -> `Fail x)
       | `Fail x -> `Fail x
+
+
+(* TODO: how to deal with
+    2.16.840.1.113730.1.1 - Netscape certificate type
+    2.16.840.1.113730.1.12 - SSL server name
+    2.16.840.1.113730.1.13 - Netscape certificate comment *)
+
+(* stuff from 4366 (TLS extensions):
+  - root CAs
+  - client cert url *)
+
+(* Future TODO Certificate Revocation Lists and OCSP (RFC6520)
+2.16.840.1.113730.1.2 - Base URL
+2.16.840.1.113730.1.3 - Revocation URL
+2.16.840.1.113730.1.4 - CA Revocation URL
+2.16.840.1.113730.1.7 - Renewal URL
+2.16.840.1.113730.1.8 - Netscape CA policy URL
+
+2.5.4.38 - id-at-authorityRevocationList
+2.5.4.39 - id-at-certificateRevocationList
+
+2.5.29.20 - CRL Number
+2.5.29.21 - reason code
+2.5.29.27 - Delta CRL indicator
+2.5.29.28 - Issuing Distribution Point
+2.5.29.31 - CRL Distribution Points
+2.5.29.46 - FreshestCRL
+
+do not forget about 'authority information access' (private internet extension -- 4.2.2 of 5280) *)
+
+(* Future TODO: Policies
+2.5.29.32 - Certificate Policies
+2.5.29.33 - Policy Mappings
+2.5.29.36 - Policy Constraints
+ *)
+
+(* Future TODO: anything with subject_id and issuer_id ? seems to be not used by anybody *)
 
 (* - test setup (ACM CCS'12):
             self-signed cert with requested commonName,
