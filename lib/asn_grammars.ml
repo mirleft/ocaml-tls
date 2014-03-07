@@ -17,6 +17,9 @@ let compare_unordered_lists cmp l1 l2 =
   in
   loop List.(sort cmp l1, sort cmp l2)
 
+let parse_error_oid msg oid =
+  parse_error @@ msg ^ ": " ^ OID.to_string oid
+
 module Name = struct
 
   (* ASN `Name' fragmet appears all over. *)
@@ -127,9 +130,7 @@ module General_name = struct
     let open Registry.Name_extn in
     let f = function
       | (oid, `C1 n) when oid = venezuela_1 || oid = venezuela_2 -> n
-      | (oid, _    ) -> parse_error @@
-          Printf.sprintf "AnotherName: unrecognized oid (%s)"
-                         (OID.to_string oid)
+      | (oid, _    ) -> parse_error_oid "AnotherName: unrecognized oid" oid
     and g = fun _ ->
       invalid_arg "can't encode AnotherName extentions, yet."
     in
@@ -288,9 +289,7 @@ module Algorithm = struct
       | (oid, _) when oid = sha512_224 -> SHA512_224
       | (oid, _) when oid = sha512_256 -> SHA512_256
 
-      | (oid, _) -> parse_error @@
-          Printf.sprintf "unknown algorithm (%s) or unexpected params"
-                        (OID.to_string oid)
+      | (oid, _) -> parse_error_oid "unexpected params or unknown algorithm" oid
 
     and g = function
       | EC_pub_key id -> (ANSI_X9_62.ec_pub_key, Some (`C2 id))
