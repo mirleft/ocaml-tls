@@ -184,10 +184,7 @@ let hostname_matches cert name =
       List.exists
         (function General_name.DNS x -> x = name | _ -> false)
         names
-  | _  ->
-      match get_cn cert.tbs_cert with
-      | None   -> false
-      | Some x -> x = name
+  | _ -> match get_cn cert.tbs_cert with None -> false | Some x -> x = name
 
 let verify_server_certificate ?servername trusted now cert raw_cert =
   Printf.printf "verify server certificate %s -> %s\n"
