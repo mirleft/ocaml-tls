@@ -24,7 +24,7 @@ let answer_client_hello ch raw =
 
 let answer_server_hello (p : security_parameters) bs sh raw =
   assert (List.exists (function
-                        | SecureRenegotiation x -> true
+                        | SecureRenegotiation _ -> true
                         | _ -> false)
                       sh.extensions);
   (* sends nothing *)
@@ -33,8 +33,17 @@ let answer_server_hello (p : security_parameters) bs sh raw =
                  assert (Utils.cs_eq (p.client_verify_data <> p.server_verify_data) x)
               | _ -> ())
             sh.extensions;
-  let ps = { p with ciphersuite = sh.ciphersuites ; server_random = sh.random } in
-  (`Handshaking (ps, bs @ [raw]), [], `Pass)
+  let sp =
+    if List.exists (function
+                     | Hostname _ -> true
+                     | _ -> false) sh.extensions then
+      p
+    else
+      { p with server_name = None }
+  in
+  let sp' = { sp with ciphersuite   = sh.ciphersuites ;
+                      server_random = sh.random } in
+  (`Handshaking (sp', bs @ [raw]), [], `Pass)
 
 let answer_certificate p bs cs raw =
   (* sends nothing *)
@@ -167,10 +176,12 @@ let handle_record
               answer_server_finished p bs fin
          | `Established sp, HelloRequest -> (* key renegotiation *)
               let host = match sp.server_name with
-                | None -> []
-                | Some x -> [Hostname x]
+                | None   -> []
+                | Some x -> [Hostname (Some x)]
               in
-              let ch = { default_client_hello with extensions = SecureRenegotiation sp.client_verify_data :: host } in
+              let securereneg = SecureRenegotiation sp.client_verify_data in
+              let ch = { default_client_hello with
+                         extensions = securereneg :: host } in
               let raw = Writer.assemble_handshake (ClientHello ch) in
               answer_client_hello_params sp ch raw
          | _, _-> assert false
@@ -181,14 +192,10 @@ let handle_tls = handle_tls_int handle_record
 
 let open_connection server =
   let dch = default_client_hello in
-  let hostname = match server with
-    | None -> []
-    | Some name -> [Hostname name]
-  in
   let ch = { dch with ciphersuites =
                         dch.ciphersuites @
                           [Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV];
-                      extensions   = hostname
+                      extensions   = [Hostname server]
            }
   in
   let buf = Writer.assemble_handshake (ClientHello ch) in

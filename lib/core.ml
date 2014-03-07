@@ -13,7 +13,7 @@ type tls_hdr = {
 }
 
 type extension =
-  | Hostname of string
+  | Hostname of string option
   | MaxFragmentLength of max_fragment_length option
   | EllipticCurves of named_curve_type list
   | ECPointFormats of ec_point_format list

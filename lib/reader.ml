@@ -136,9 +136,10 @@ let get_extension buf =
   let buf = Cstruct.sub buf 4 len in
   let data = match (int_to_extension_type etype) with
     | Some SERVER_NAME ->
-       let names = get_hostnames buf in
-       assert (List.length names = 1);
-       Hostname (List.hd names)
+       (match get_hostnames buf with
+        | [] -> Hostname None
+        | [name] -> Hostname (Some name)
+        | _ -> assert false)
     | Some MAX_FRAGMENT_LENGTH -> MaxFragmentLength (get_fragment_length buf)
     | Some ELLIPTIC_CURVES -> EllipticCurves (get_elliptic_curves buf)
     | Some EC_POINT_FORMATS -> ECPointFormats (get_ec_point_format buf)

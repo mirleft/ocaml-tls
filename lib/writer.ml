@@ -74,8 +74,10 @@ let assemble_extension e =
        let buf = Cstruct.create 1 in
        Cstruct.set_uint8 buf 0 (Cstruct.len x);
        (buf <> x, RENEGOTIATION_INFO)
-    | Hostname name ->
+    | Hostname (Some name) ->
        (assemble_hostnames [name], SERVER_NAME)
+    | Hostname None ->
+       (Cstruct.create 0, SERVER_NAME)
     | _ -> assert false
   in
   let buf = Cstruct.create 4 in
@@ -203,6 +205,4 @@ let assemble_handshake hs =
   Cstruct.blit payload 0 buf 4 pay_len;
   Cstruct.set_uint8 buf 0 (handshake_type_to_int payload_type);
   set_uint24_len (Cstruct.shift buf 1) pay_len;
-  Printf.printf "assembled %s into a buf of size %d\n" (handshake_type_to_string payload_type) pay_len;
-  Cstruct.hexdump buf;
   buf

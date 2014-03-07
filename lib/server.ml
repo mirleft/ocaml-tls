@@ -55,12 +55,20 @@ let answer_client_hello_params_int sp ch raw =
   let params = { sp with
                    server_random = default_config.rng 32 ;
                    client_random = ch.random } in
+  (* RFC 4366: server shall reply with an empty hostname extension *)
+  let host = match sp.server_name with
+    | None   -> []
+    | Some x -> [Hostname None]
+  in
+  let secren = SecureRenegotiation
+                 (params.client_verify_data <> params.server_verify_data)
+  in
   let server_hello : server_hello =
     { version      = default_config.protocol_version ;
       random       = params.server_random ;
       sessionid    = None ;
       ciphersuites = cipher ;
-      extensions   = [SecureRenegotiation (params.client_verify_data <> params.server_verify_data)] } in
+      extensions   = secren :: host } in
   let bufs = [Writer.assemble_handshake (ServerHello server_hello)] in
   let kex = Ciphersuite.ciphersuite_kex cipher in
   let bufs', params' =

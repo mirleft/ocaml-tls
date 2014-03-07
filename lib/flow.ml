@@ -235,5 +235,5 @@ let find_hostname : 'a hello -> string option =
                              h.extensions
     in
     match hexts with
-    | [Hostname name] -> Some name
+    | [Hostname name] -> name
     | _ -> None

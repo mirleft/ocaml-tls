@@ -11,9 +11,11 @@ let certificate_request_to_string cr =
   "FOOO"
 
 let extension_to_string = function
-  | Hostname host -> "Hostname: " ^ host
+  | Hostname host -> "Hostname: " ^ (match host with
+                                     | None   -> "NONE"
+                                     | Some x -> x)
   | MaxFragmentLength mfl -> (match mfl with
-                              | None -> "unknown max_fragment_length"
+                              | None   -> "unknown max_fragment_length"
                               | Some x -> "Maximum fragment length: " ^ (max_fragment_length_to_string x))
   | EllipticCurves curves -> "Elliptic curves: " ^
                                (String.concat ", " (List.map named_curve_type_to_string curves))
