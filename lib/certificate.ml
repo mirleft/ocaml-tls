@@ -80,8 +80,6 @@ let is_self_signed : certificate -> bool =
 
 let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
   fun trusted c raw ->
-    (* already done in asn_grammars!? *)
-    assert (c.signature_algo = c.tbs_cert.signature);
     let issuing_key = rsa_public_of_cert trusted in
 
     (* issuer of c should be subject of trusted! *)
