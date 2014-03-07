@@ -20,14 +20,13 @@ type verification_result = [
 
 (* 5280 A certificate MUST NOT include more than one instance of a particular extension. *)
 
-let issuer_matches_subject_tbs : tBSCertificate -> tBSCertificate -> bool =
-  fun p c -> Name.equal p.subject c.issuer
+let issuer_matches_subject_tbs parent cert =
+  Name.equal parent.subject cert.issuer
 
-let issuer_matches_subject : certificate -> certificate -> bool =
-  fun p c -> issuer_matches_subject_tbs p.tbs_cert c.tbs_cert
+let issuer_matches_subject parent cert =
+  issuer_matches_subject_tbs parent.tbs_cert cert.tbs_cert
 
-let is_self_signed : certificate -> bool =
-  fun c -> issuer_matches_subject c c
+let is_self_signed cert = issuer_matches_subject cert cert
 
 (* XXX should return the tbc_cert blob from the parser, this is insane *)
 let raw_cert_hack cert raw =
@@ -59,56 +58,42 @@ let validate_signature trusted cert raw =
 
 
 let validate_time now cert =
-  let from, till = cert.validity in
+(*   let from, till = cert.validity in *)
 (* TODO:  from < now && now < till *)
   true
 
+let extn_exists getter cert =
+  match getter cert with None -> false | Some _ -> true
+
 let validate_ca_extensions cert =
-  try (
-    let open Extension in
-    (* comments from RFC5280 *)
-    (* 4.2.1.9 Basic Constraints *)
-    (* Conforming CAs MUST include this extension in all CA certificates used *)
-    (* to validate digital signatures on certificates and MUST mark the *)
-    (* extension as critical in such certificates *)
-    let bc =
-      function
-        (* unfortunately, there are 12 CA certs (including the one which
-           signed google.com) which are _NOT_ marked as critical *)
-      | (_, Basic_constraints _) -> true
-      | _                        -> false
-    in
-    assert (List.exists bc cert.extensions);
+  let open Extension in
+  (* comments from RFC5280 *)
+  (* 4.2.1.9 Basic Constraints *)
+  (* Conforming CAs MUST include this extension in all CA certificates used *)
+  (* to validate digital signatures on certificates and MUST mark the *)
+  (* extension as critical in such certificates *)
+  (* unfortunately, there are 12 CA certs (including the one which
+      signed google.com) which are _NOT_ marked as critical *)
+  ( extn_exists extn_basic_constr cert ) &&
 
-    (* 4.2.1.3 Key Usage *)
-    (* Conforming CAs MUST include key usage extension *)
-    (* CA Cert (cacert.org) does not *)
-    let ku =
-      function
-      | (_, Key_usage k) ->
-         (* When present, conforming CAs SHOULD mark this extension as critical *)
-         (* yeah, you wish... *)
-         List.exists (function
-                       | Key_cert_sign -> true
-                       | _             -> false)
-                     k
-      | _ -> false
-    in
-    assert (List.exists ku cert.extensions);
+  (* 4.2.1.3 Key Usage *)
+  (* Conforming CAs MUST include key usage extension *)
+  (* CA Cert (cacert.org) does not *)
+  ( match extn_key_usage cert with
+    (* When present, conforming CAs SHOULD mark this extension as critical *)
+    (* yeah, you wish... *)
+    | Some (crit, Key_usage usage) -> List.mem Key_cert_sign usage 
+    | _                            -> false ) &&
 
-    (* Name Constraints   - name constraints should match servername *)
+  (* Name Constraints   - name constraints should match servername *)
 
-    let rec ver_ext =
-      function
-      | []                                 -> true
-      | (true,  Key_usage _)         :: xs -> ver_ext xs
-      | (true,  Basic_constraints _) :: xs -> ver_ext xs
-      (* we've to deal with _all_ extensions marked critical! *)
-      | (true,  _)                   :: xs -> false
-      | (false, _)                   :: xs -> ver_ext xs
-    in
-    ver_ext cert.extensions) with
-  | _ -> false
+  (* check criticality *)
+  List.for_all
+    (function | (true,  Key_usage _)         -> true
+              | (true,  Basic_constraints _) -> true
+              | (true,  _)                   -> false
+              | (false, _)                   -> true )
+    cert.tbs_cert.extensions
 
 
 let ext_authority_matches_subject trusted cert =
