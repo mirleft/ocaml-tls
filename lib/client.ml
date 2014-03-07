@@ -45,9 +45,13 @@ let answer_certificate p bs cs raw =
   in
   let certs = List.map (o getcert Asn_grammars.certificate_of_cstruct) cs in
   (* validate whole chain! *)
-  (match Certificate.verify_certificates p.server_name certs cs with
-   | `Fail x -> assert false
-   | `Ok -> ());
+  ( match
+      Certificate.verify_certificates
+        ?servername:p.server_name
+        List.(combine certs cs)
+    with
+    | `Fail x -> assert false
+    | `Ok     -> () );
   let ps = { p with server_certificate = Some (List.hd certs) } in
   (`Handshaking (ps, bs @ [raw]), [], `Pass)
 
