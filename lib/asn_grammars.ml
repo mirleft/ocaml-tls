@@ -332,17 +332,105 @@ module Extension = struct
 
   module ID = Registry.Cert_extn
 
+  type gen_names = General_name.t list
+
+  let gen_names = sequence_of General_name.general_name
+
+  type key_usage =
+    [ `Digital_signature
+    | `Content_commitment
+    | `Key_encipherment
+    | `Data_encipherment
+    | `Key_agreement
+    | `Key_cert_sign
+    | `CRL_sign
+    | `Encipher_only
+    | `Decipher_only
+    ]
+
+  let key_usage = flags [
+      0, `Digital_signature
+    ; 1, `Content_commitment
+    ; 2, `Key_encipherment
+    ; 3, `Data_encipherment
+    ; 4, `Key_agreement
+    ; 5, `Key_cert_sign
+    ; 6, `CRL_sign
+    ; 7, `Encipher_only
+    ; 8, `Decipher_only
+    ]
+
+  type extended_key_usage =
+    [ `Any
+    | `Server_auth
+    | `Client_auth
+    | `Code_signing
+    | `Email_protection
+    | `Ipsec_end
+    | `Ipsec_tunnel
+    | `Ipsec_user
+    | `Time_stamping
+    | `Ocsp_signing
+    | `Other of OID.t
+    ]
+
+  let ext_key_usage =
+    let open ID.Extended_usage in
+    let f = function
+      | oid when oid = any              -> `Any
+      | oid when oid = server_auth      -> `Server_auth
+      | oid when oid = client_auth      -> `Client_auth
+      | oid when oid = code_signing     -> `Code_signing
+      | oid when oid = email_protection -> `Email_protection
+      | oid when oid = ipsec_end_system -> `Ipsec_end
+      | oid when oid = ipsec_tunnel     -> `Ipsec_tunnel
+      | oid when oid = ipsec_user       -> `Ipsec_user
+      | oid when oid = time_stamping    -> `Time_stamping
+      | oid when oid = ocsp_signing     -> `Ocsp_signing
+      | oid                             -> `Other oid
+    and g = function
+      | `Any              -> any
+      | `Server_auth      -> server_auth
+      | `Client_auth      -> client_auth
+      | `Code_signing     -> code_signing
+      | `Email_protection -> email_protection
+      | `Ipsec_end        -> ipsec_end_system
+      | `Ipsec_tunnel     -> ipsec_tunnel
+      | `Ipsec_user       -> ipsec_user
+      | `Time_stamping    -> time_stamping
+      | `Ocsp_signing     -> ocsp_signing
+      | `Other oid        -> oid
+    in
+    map (List.map f) (List.map g) @@ sequence_of oid
+
+  let basic_constraints =
+    map (function (Some true, Some n) -> Some n | _ -> None)
+        (function Some n -> (Some true, Some n) | _ -> (None, None))
+    @@
+    sequence2
+      (optional ~label:"cA"      bool)
+      (optional ~label:"pathLen" int)
+
+  let authority_key_id =
+    sequence3
+      (optional ~label:"keyIdentifier"  @@ implicit 0 octet_string)
+      (optional ~label:"authCertIssuer" @@ implicit 1 gen_names)
+      (optional ~label:"authCertSN"     @@ implicit 2 integer)
+
+
   type t =
-    | Unsupported      of OID.t * Cstruct.t
-    | Subject_alt_name of General_name.t list
-    | Issuer_alt_name  of General_name.t list
+    | Unsupported        of OID.t * Cstruct.t
+    | Subject_alt_name   of gen_names
+    | Authority_key_id   of (Cstruct.t option * gen_names option * Num.num option)
+    | Subject_key_id     of Cstruct.t
+    | Issuer_alt_name    of gen_names
+    | Key_usage          of key_usage list
+    | Ext_key_usage      of extended_key_usage list
+    | Basic_constraints  of int option
 
-  let gn_seq = sequence_of General_name.general_name
 
-  (* All extns are DER? *)
   (* We propagate (and contribute to) exceptions here, so those can be handled
    * higher up in a single place. *)
-
   let project_exn asn =
     let c = codec der asn in
     let dec cs =
@@ -352,21 +440,48 @@ module Extension = struct
     in
     (dec, encode c)
 
-  let general_names_of_cs, general_names_to_cs = project_exn gn_seq
+  let gen_names_of_cs, gen_names_to_cs       = project_exn gen_names
+  and auth_key_id_of_cs, auth_key_id_to_cs   = project_exn authority_key_id
+  and subj_key_id_of_cs, subj_key_id_to_cs   = project_exn octet_string
+  and key_usage_of_cs, key_usage_to_cs       = project_exn key_usage
+  and e_key_usage_of_cs, e_key_usage_to_cs   = project_exn ext_key_usage
+  and basic_constr_of_cs, basic_constr_to_cs = project_exn basic_constraints
+
+  (* XXX 4.2.1.4. - cert policies! ( and other x509 extensions ) *)
 
   let reparse_extension_exn = function
     | (oid, cs) when oid = ID.subject_alternative_name ->
-        Subject_alt_name (general_names_of_cs cs)
+        Subject_alt_name (gen_names_of_cs cs)
 
     | (oid, cs) when oid = ID.issuer_alternative_name ->
-         Issuer_alt_name (general_names_of_cs cs)
+        Issuer_alt_name (gen_names_of_cs cs)
+
+    | (oid, cs) when oid = ID.authority_key_identifier ->
+        Authority_key_id (auth_key_id_of_cs cs)
+
+    | (oid, cs) when oid = ID.subject_key_identifier ->
+        Subject_key_id (subj_key_id_of_cs cs)
+
+    | (oid, cs) when oid = ID.key_usage ->
+        Key_usage (key_usage_of_cs cs)
+
+    | (oid, cs) when oid = ID.basic_constraints ->
+        Basic_constraints (basic_constr_of_cs cs)
+
+    | (oid, cs) when oid = ID.extended_key_usage ->
+        Ext_key_usage (e_key_usage_of_cs cs)
 
     | (oid, cs) -> Unsupported (oid, cs)
 
   let unparse_extension = function
+    | Subject_alt_name  x -> (ID.subject_alternative_name, gen_names_to_cs    x)
+    | Issuer_alt_name   x -> (ID.issuer_alternative_name , gen_names_to_cs    x)
+    | Authority_key_id  x -> (ID.authority_key_identifier, auth_key_id_to_cs  x)
+    | Subject_key_id    x -> (ID.subject_key_identifier  , subj_key_id_to_cs  x)
+    | Key_usage         x -> (ID.key_usage               , key_usage_to_cs    x)
+    | Basic_constraints x -> (ID.basic_constraints       , basic_constr_to_cs x)
+    | Ext_key_usage     x -> (ID.extended_key_usage      , e_key_usage_to_cs  x)
     | Unsupported (oid, cs) -> (oid, cs)
-    | Subject_alt_name gn   -> (ID.subject_alternative_name, general_names_to_cs gn)
-    | Issuer_alt_name  gn   -> (ID.issuer_alternative_name, general_names_to_cs gn)
 
   let extensions_der =
     let extension =
@@ -382,6 +497,7 @@ module Extension = struct
         (required ~label:"value"    octet_string)
     in
     sequence_of extension
+
 end
 
 

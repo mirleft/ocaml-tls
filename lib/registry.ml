@@ -218,8 +218,24 @@ module Cert_extn = struct
   and authority_key_identifier      = ce <| 35
   and policy_constraints            = ce <| 36
   and extended_key_usage            = ce <| 37
-  and freshestcrl                   = ce <| 46
+  and freshest_crl                  = ce <| 46
   and inhibit_any_policy            = ce <| 54
+
+  let pkix = base 1 3 <| 6 <| 1 <| 5 <| 5 <| 7
+
+  module Extended_usage = struct
+    let any              = extended_key_usage <| 0
+    let key_purpose      = pkix <| 3
+    let server_auth      = key_purpose <| 1
+    and client_auth      = key_purpose <| 2
+    and code_signing     = key_purpose <| 3
+    and email_protection = key_purpose <| 4
+    and ipsec_end_system = key_purpose <| 5
+    and ipsec_tunnel     = key_purpose <| 6
+    and ipsec_user       = key_purpose <| 7
+    and time_stamping    = key_purpose <| 8
+    and ocsp_signing     = key_purpose <| 9
+  end
 end
 
 module Name_extn = struct
