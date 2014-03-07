@@ -159,11 +159,11 @@ let validate_ca_extensions cert =
     (* we've to deal with _all_ extensions marked critical! *)
     let rec ver_ext =
       function
-      | []                                -> true
+      | []                                 -> true
       | (true,  Key_usage _)         :: xs -> ver_ext xs
       | (true,  Basic_constraints _) :: xs -> ver_ext xs
       | (true,  e)                   :: xs -> false
-      | (false, e)                  :: xs -> ver_ext xs
+      | (false, e)                   :: xs -> ver_ext xs
     in
     ver_ext cert.extensions) with
   | _ -> false
