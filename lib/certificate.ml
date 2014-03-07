@@ -1,6 +1,7 @@
 open Registry
 open Asn_grammars
 open Asn
+open Utils
 
 type certificate_failure =
   | InvalidCertificate
@@ -31,10 +32,14 @@ let is_self_signed : certificate -> bool =
 let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
   fun trusted c raw ->
    try (
-    let issuing_key = match trusted.tbs_cert.pk_info with
+
+     (* How could a silent exception be better than a compiler warning on
+      * non-exhaustiveness!? *)
+(*     let issuing_key = match trusted.tbs_cert.pk_info with
       | PK.RSA key -> key
       |  _         -> assert false
-    in
+    in *)
+    let (PK.RSA issuing_key) = trusted.tbs_cert.pk_info in
 
     (* issuer of c should be subject of trusted! *)
     assert (issuer_matches_subject trusted c);
@@ -72,13 +77,6 @@ let validate_time now cert =
   let from, till = cert.validity in
 (* TODO:  from < now && now < till *)
   true
-
-let rec find_by ~f = function
-  | x::xs ->
-    ( match f x with
-      | None   -> find_by ~f xs
-      | Some a -> Some a )
-  | [] -> None
 
 let validate_ca_extensions cert =
   try (
@@ -175,7 +173,7 @@ let validate_server_extensions trusted cert =
   (ver_ext cert.extensions) && (ext_authority_matches_subject trusted cert)
 
 let get_cn cert =
-  find_by cert.subject
+  map_find cert.subject
     ~f:Name.(function Common_name n -> Some n | _ -> None)
 
 let get_common_name cert =
@@ -193,20 +191,24 @@ let verify_certificate : certificate -> float -> string option -> certificate ->
                   (get_common_name trusted)
                   (get_common_name c);
     let cert = c.tbs_cert in
-    match (validate_signature trusted c raw,
-           validate_time now cert,
-           validate_intermediate_extensions trusted.tbs_cert cert) with
-    | (true, true, true) -> `Ok
-    | _                  -> `Fail InvalidCertificate
+    match
+      validate_signature trusted c raw &&
+      validate_time now cert           &&
+      validate_intermediate_extensions trusted.tbs_cert cert
+    with
+    | true -> `Ok
+    | _    -> `Fail InvalidCertificate
 
 let verify_ca_cert now cert raw =
   Printf.printf "verifying CA cert %s: " (get_common_name cert);
   let tbs = cert.tbs_cert in
-  match (validate_signature cert cert raw,
-         validate_time now tbs,
-         validate_ca_extensions tbs) with
-  | (true, true, true) -> Printf.printf "ok\n";     true
-  | (_, _, _)          -> Printf.printf "failed\n"; false
+  match
+    validate_signature cert cert raw &&
+    validate_time now tbs            &&
+    validate_ca_extensions tbs
+  with
+  | true -> Printf.printf "ok\n";     true
+  | _    -> Printf.printf "failed\n"; false
 
 let find_trusted_certs : float -> certificate list =
   fun now ->
@@ -253,16 +255,18 @@ let verify_server_certificate : certificate -> float -> string option -> certifi
     | None   -> false
     | Some x -> hostname_matches c x
   in
-  match (validate_signature trusted c raw,
-         validate_time now cert,
-         validate_server_extensions trusted.tbs_cert cert,
-         smatches servername cert) with
-      | (true, true, true, true) ->
-         Printf.printf "successfully verified server certificate\n";
-         `Ok
-      | (_, _, _, _) ->
-         Printf.printf "could not verify server certificate\n";
-         `Fail InvalidCertificate
+  match
+    validate_signature trusted c raw                 &&
+    validate_time now cert                           &&
+    validate_server_extensions trusted.tbs_cert cert &&
+    smatches servername cert
+  with
+  | true ->
+      Printf.printf "successfully verified server certificate\n";
+      `Ok
+  | _ ->
+      Printf.printf "could not verify server certificate\n";
+      `Fail InvalidCertificate
 
 let verify_top_certificate : certificate list -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
