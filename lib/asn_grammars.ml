@@ -20,6 +20,20 @@ let compare_unordered_lists cmp l1 l2 =
 let parse_error_oid msg oid =
   parse_error @@ msg ^ ": " ^ OID.to_string oid
 
+(*
+ * A way to parse by propagating (and contributing to) exceptions, so those can
+ * be handles up in a single place. Meant for parsing embedded structures.
+ *
+ * XXX Would be nicer if combinators could handle embedded structures.
+ *)
+let project_exn asn =
+  let c = codec der asn in
+  let dec cs =
+    let (res, cs') = decode_exn c cs in
+    if Cstruct.len cs' = 0 then res else parse_error "embed: leftovers"
+  in
+  (dec, encode c)
+
 module Name = struct
 
   (* ASN `Name' fragmet appears all over. *)
@@ -215,8 +229,9 @@ module Algorithm = struct
   type t =
 
     (* pk algos *)
+    (* any more? is the universe big enough? ramsey's theorem for pk cyphers? *)
     | RSA
-    | EC_pub_key of OID.t (* should translate the oid too *)
+    | EC_pub of OID.t (* should translate the oid too *)
 
     (* sig algos *)
     | MD2_RSA
@@ -259,7 +274,7 @@ module Algorithm = struct
     let unit = Some (`C1 ()) in
 
     let f = function
-      | (oid, Some (`C2 oid')) when oid = ANSI_X9_62.ec_pub_key -> EC_pub_key oid'
+      | (oid, Some (`C2 oid')) when oid = ANSI_X9_62.ec_pub_key -> EC_pub oid'
       | (oid, _) when oid = PKCS1.rsa_encryption  -> RSA
 
       | (oid, _) when oid = PKCS1.md2_rsa_encryption       -> MD2_RSA
@@ -292,7 +307,7 @@ module Algorithm = struct
       | (oid, _) -> parse_error_oid "unexpected params or unknown algorithm" oid
 
     and g = function
-      | EC_pub_key id -> (ANSI_X9_62.ec_pub_key, Some (`C2 id))
+      | EC_pub id     -> (ANSI_X9_62.ec_pub_key, Some (`C2 id))
       | RSA           -> (PKCS1.rsa_encryption           , unit)
       | MD2_RSA       -> (PKCS1.md2_rsa_encryption       , unit)
       | MD4_RSA       -> (PKCS1.md4_rsa_encryption       , unit)
@@ -429,17 +444,6 @@ module Extension = struct
     | Basic_constraints  of int option
 
 
-  (* We propagate (and contribute to) exceptions here, so those can be handled
-   * higher up in a single place. *)
-  let project_exn asn =
-    let c = codec der asn in
-    let dec cs =
-      let (res, cs') = decode_exn c cs in
-      if Cstruct.len cs' = 0 then res
-      else parse_error "leftovers in extension"
-    in
-    (dec, encode c)
-
   let gen_names_of_cs, gen_names_to_cs       = project_exn gen_names
   and auth_key_id_of_cs, auth_key_id_to_cs   = project_exn authority_key_id
   and subj_key_id_of_cs, subj_key_id_to_cs   = project_exn octet_string
@@ -500,61 +504,89 @@ module Extension = struct
 
 end
 
+module PK = struct
 
-(*
- * RSA
- *)
+  (* RSA *)
 
-let other_prime_infos =
-  sequence_of @@
-    (sequence3
-      (required ~label:"prime"       big_natural)
-      (required ~label:"exponent"    big_natural)
-      (required ~label:"coefficient" big_natural))
+  let other_prime_infos =
+    sequence_of @@
+      (sequence3
+        (required ~label:"prime"       big_natural)
+        (required ~label:"exponent"    big_natural)
+        (required ~label:"coefficient" big_natural))
 
-let rsa_private_key =
-  let open Cryptokit.RSA in
+  let rsa_private_key =
+    let open Cryptokit.RSA in
 
-  let f (_, (n, (e, (d, (p, (q, (dp, (dq, (qinv, _))))))))) =
-    let size = String.length n * 8 in
-    { size; n; e; d; p; q; dp; dq; qinv }
+    let f (_, (n, (e, (d, (p, (q, (dp, (dq, (qinv, _))))))))) =
+      let size = String.length n * 8 in
+      { size; n; e; d; p; q; dp; dq; qinv }
 
-  and g { size; n; e; d; p; q; dp; dq; qinv } =
-    (0, (n, (e, (d, (p, (q, (dp, (dq, (qinv, None))))))))) in
+    and g { size; n; e; d; p; q; dp; dq; qinv } =
+      (0, (n, (e, (d, (p, (q, (dp, (dq, (qinv, None))))))))) in
 
-  map f g @@
-  sequence @@
-      (required ~label:"version"         int)
-    @ (required ~label:"modulus"         big_natural)  (* n    *)
-    @ (required ~label:"publicExponent"  big_natural)  (* e    *)
-    @ (required ~label:"privateExponent" big_natural)  (* d    *)
-    @ (required ~label:"prime1"          big_natural)  (* p    *)
-    @ (required ~label:"prime2"          big_natural)  (* q    *)
-    @ (required ~label:"exponent1"       big_natural)  (* dp   *)
-    @ (required ~label:"exponent2"       big_natural)  (* dq   *)
-    @ (required ~label:"coefficient"     big_natural)  (* qinv *)
-   -@ (optional ~label:"otherPrimeInfos" other_prime_infos)
+    map f g @@
+    sequence @@
+        (required ~label:"version"         int)
+      @ (required ~label:"modulus"         big_natural)  (* n    *)
+      @ (required ~label:"publicExponent"  big_natural)  (* e    *)
+      @ (required ~label:"privateExponent" big_natural)  (* d    *)
+      @ (required ~label:"prime1"          big_natural)  (* p    *)
+      @ (required ~label:"prime2"          big_natural)  (* q    *)
+      @ (required ~label:"exponent1"       big_natural)  (* dp   *)
+      @ (required ~label:"exponent2"       big_natural)  (* dq   *)
+      @ (required ~label:"coefficient"     big_natural)  (* qinv *)
+     -@ (optional ~label:"otherPrimeInfos" other_prime_infos)
 
 
-let rsa_public_key =
-  let open Cryptokit.RSA in
+  let rsa_public_key =
+    let open Cryptokit.RSA in
 
-  let f (n, e) =
-    let size = String.length n * 8 in
-    { size; n; e; d = ""; p = ""; q = ""; dp = ""; dq = ""; qinv = "" }
+    let f (n, e) =
+      let size = String.length n * 8 in
+      { size; n; e; d = ""; p = ""; q = ""; dp = ""; dq = ""; qinv = "" }
 
-  and g { n; e } = (n, e) in
+    and g { n; e } = (n, e) in
 
-  map f g @@
-  sequence2
-    (required ~label:"modulus"        big_natural)
-    (required ~label:"publicExponent" big_natural)
+    map f g @@
+    sequence2
+      (required ~label:"modulus"        big_natural)
+      (required ~label:"publicExponent" big_natural)
 
-let (rsa_private_of_cstruct, rsa_private_to_cstruct) =
-  projections der rsa_private_key
+  (* For outside uses. *)
+  let (rsa_private_of_cstruct, rsa_private_to_cstruct) =
+    projections der rsa_private_key
+  and (rsa_public_of_cstruct, rsa_public_to_cstruct) =
+    projections der rsa_public_key
 
-let (rsa_public_of_cstruct, rsa_public_to_cstruct) =
-  projections der rsa_public_key
+  (* ECs go here *)
+  (* ... *)
+
+  type t =
+    | RSA    of Cryptokit.RSA.key
+    | EC_pub of unit
+
+  let rsa_pub_of_cs, rsa_pub_to_cs = project_exn rsa_public_key
+
+  let reparse_pk = function
+    | (Algorithm.RSA     , cs) -> RSA (rsa_pub_of_cs cs)
+    | (Algorithm.EC_pub _, cs) -> EC_pub ()
+    | _ -> parse_error "unknown public key algorithm"
+
+  let unparse_pk = function
+    | RSA pk    -> (Algorithm.RSA, rsa_pub_to_cs pk)
+    | EC_pub () ->
+        let nooid = OID.(base 1 2) and nocs = Cstruct.create 0 in
+        (Algorithm.EC_pub nooid, nocs)
+
+  let pk_info_der =
+    map reparse_pk unparse_pk @@
+    sequence2
+      (required ~label:"algorithm" Algorithm.identifier)
+      (required ~label:"subjectPK" bit_string')
+
+end
+
 
 (*
  * X509 certs
@@ -568,7 +600,7 @@ type tBSCertificate = {
   issuer     : Name.t ;
   validity   : time * time ;
   subject    : Name.t ;
-  pk_info    : Algorithm.t * bits ;
+  pk_info    : PK.t ;
   issuer_id  : bits option ;
   subject_id : bits option ;
   extensions : (bool * Extension.t) list
@@ -597,11 +629,6 @@ let validity =
   sequence2
     (required ~label:"not before" time)
     (required ~label:"not after"  time)
-
-let subject_pk_info =
-  sequence2
-    (required ~label:"algorithm" Algorithm.identifier)
-    (required ~label:"subjectPK" bit_string')
 
 let unique_identifier = bit_string'
 
@@ -634,7 +661,7 @@ let tBSCertificate =
     @ (required ~label:"issuer"        @@ Name.name)
     @ (required ~label:"validity"      @@ validity)
     @ (required ~label:"subject"       @@ Name.name)
-    @ (required ~label:"subjectPKInfo" @@ subject_pk_info)
+    @ (required ~label:"subjectPKInfo" @@ PK.pk_info_der)
       (* if present, version is v2 or v3 *)
     @ (optional ~label:"issuerUID"     @@ implicit 1 unique_identifier)
       (* if present, version is v2 or v3 *)
@@ -644,7 +671,6 @@ let tBSCertificate =
 
 let (tbs_certificate_of_cstruct, tbs_certificate_to_cstruct) =
   projections ber tBSCertificate
-
 
 let certificate =
 
@@ -665,18 +691,6 @@ let certificate =
 let (certificate_of_cstruct, certificate_to_cstruct) =
   projections ber certificate
 
-(* XXX this should really be pushed into certificate decode proper, instead of
- * being called as a separate function on it, after we fish out the relevant
- * oids and the corresponding public key grammars. *)
-
-let rsa_public_of_cert cert =
-  let open Algorithm in
-  match cert.tbs_cert.pk_info with
-  | (RSA, bits) ->
-    ( match rsa_public_of_cstruct bits with
-      | Some (k, _) -> k
-      | None -> assert false )
-  | _ -> assert false
 
 let pkcs1_digest_info =
   sequence2
