@@ -239,16 +239,19 @@ let verify_certificates : string option -> certificate list -> Cstruct.t list ->
         3. verify server certificate was signed by c1 and
              server certificate has required servername *)
     (* short-path for self-signed certificate  *)
-    if (List.length cs = 1) && is_self_signed (List.hd cs) then
+
+  match cs with
+  | [ cert ] when is_self_signed cert ->
       (* further verification of a self-signed certificate does not make sense:
          why should anyone handle a properly self-signed and valid certificate
          different from a badly signed invalid certificate? *)
       (Printf.printf "DANGER: self-signed certificate\n";
        `Fail SelfSigned)
-    else
+  | _ ->
       let now = Sys.time () in
+      (* :( this is soooo foldr in a lazy setting... *)
       let rec go t = function
-        | []    -> (`Ok, t)
+        | []         -> (`Ok, t)
         | (c, p)::cs -> (* step 2 *)
            match verify_certificate t now servername c p with
            | `Ok  -> go c cs
