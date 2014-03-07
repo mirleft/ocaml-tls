@@ -117,27 +117,14 @@ let validate_intermediate_extensions trusted cert =
 
 let validate_server_extensions trusted cert =
   let open Extension in
-  let rec ver_ext =
-    function
-    | []                                        -> true
-    | (_,     Basic_constraints (Some x)) :: xs -> false
-    | (_,     Key_usage us)               :: xs ->
-       List.exists (function
-                     (* key_encipherment (RSA) *)
-                     (* signing (DHE_RSA) *)
-                     | Key_encipherment -> true
-                     | _                -> false)
-                   us
-    | (_,     Ext_key_usage us)           :: xs ->
-       List.exists (function
-                     | Server_auth      -> true
-                     | _                -> false)
-                   us
-    | (false, _)                          :: xs -> ver_ext xs
-    (* we've to deal with _all_ extensions marked critical! *)
-    | (true,  _)                          :: xs -> false
-  in
-  (ver_ext cert.extensions) && (ext_authority_matches_subject trusted cert)
+  ( List.for_all (function
+      | (_, Basic_constraints (Some _)) -> false
+        (* key_encipherment (RSA) *)
+        (* signing (DHE_RSA) *)
+      | (_, Key_usage usage) -> List.mem Key_encipherment usage
+      | (_, Ext_key_usage usage) -> List.mem Server_auth usage )
+    cert.tbs_cert.extensions ) &&
+  ext_authority_matches_subject trusted cert
 
 let get_cn cert =
   map_find cert.subject
