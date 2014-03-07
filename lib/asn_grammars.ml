@@ -698,3 +698,31 @@ let pkcs1_digest_info =
 let (pkcs1_digest_info_of_cstruct, pkcs1_digest_info_to_cstruct) =
   projections der pkcs1_digest_info
 
+(* A bit of accessors for tree-diving. *)
+(*
+ * XXX We re-traverse the list over 9000 times. Abstract out the extensions in a
+ * cert into sth more efficient at the cost of losing the printer during
+ * debugging?
+ *)
+let  extn_subject_alt_name
+   , extn_issuer_alt_name
+   , extn_authority_key_id
+   , extn_subject_key_id
+   , extn_key_usage
+   , extn_ext_key_usage
+   , extn_basic_constr
+=
+  let f pred cert =
+    Utils.map_find cert.tbs_cert.extensions
+      ~f:(fun (crit, ext) ->
+            match pred ext with None -> None | Some x -> Some (crit, x))
+  in
+  let open Extension in
+  (f @@ function Subject_alt_name  _ as x -> Some x | _ -> None),
+  (f @@ function Issuer_alt_name   _ as x -> Some x | _ -> None),
+  (f @@ function Authority_key_id  _ as x -> Some x | _ -> None),
+  (f @@ function Subject_key_id    _ as x -> Some x | _ -> None),
+  (f @@ function Key_usage         _ as x -> Some x | _ -> None),
+  (f @@ function Ext_key_usage     _ as x -> Some x | _ -> None),
+  (f @@ function Basic_constraints _ as x -> Some x | _ -> None)
+
