@@ -666,7 +666,7 @@ let tBSCertificate =
    -@ (optional ~label:"extensions"    @@ explicit 3 Extension.extensions_der)
 
 let (tbs_certificate_of_cstruct, tbs_certificate_to_cstruct) =
-  projections ber tBSCertificate
+  projections der tBSCertificate
 
 let certificate =
 
@@ -685,7 +685,7 @@ let certificate =
     (required ~label:"signatureValue"     bit_string')
 
 let (certificate_of_cstruct, certificate_to_cstruct) =
-  projections ber certificate
+  projections der certificate
 
 
 let pkcs1_digest_info =
