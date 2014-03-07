@@ -157,48 +157,39 @@ let verify_certificate : certificate -> float -> string option -> certificate ->
 
 let verify_ca_cert now cert raw =
   Printf.printf "verifying CA cert %s: " (get_common_name cert);
-  let tbs = cert.tbs_cert in
   match
     validate_signature cert cert raw &&
-    validate_time now tbs            &&
-    validate_ca_extensions tbs
+    validate_time now cert           &&
+    validate_ca_extensions cert
   with
   | true -> Printf.printf "ok\n";     true
   | _    -> Printf.printf "failed\n"; false
 
-let find_trusted_certs : float -> certificate list =
-  fun now ->
-    let cacert, raw = Crypto_utils.cert_of_file "../certificates/cacert.crt" in
-    let nss = Crypto_utils.certs_of_file "../certificates/ca-root-nss.crt" in
-    let cas = List.append nss [(cacert, raw)] in
-    let valid = List.filter (fun (cert, raw) -> verify_ca_cert now cert raw) cas in
-    Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
-    let certs, _ = List.split valid in
-    certs
+(* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
+let find_trusted_certs : float -> certificate list = fun now ->
 
-let hostname_matches : tBSCertificate -> string -> bool =
-  fun cert name ->
-  try (
-    let open Extension in
-    (* - might include wildcards and international domain names *)
-    let rec ver_sn = function
-      | []                                -> false
-      | (_, Subject_alt_name names) :: xs ->
-         let open General_name in
-         assert (List.exists (function
-                               | DNS x -> x = name
-                               | _     -> false)
-                             names);
-         true
-      | _                           :: xs -> ver_sn xs
-    in
-    let cn_eq = match get_cn cert with
-      | None   -> false
-      | Some x -> x = name
-    in
-    (ver_sn cert.extensions) || cn_eq
-  ) with
-  | _ -> false
+  let cacert_file, ca_nss_file =
+    ("../certificates/cacert.crt", "../certificates/ca-root-nss.crt") in
+  let ((cacert, raw), nss) =
+    Crypto_utils.(cert_of_file cacert_file, certs_of_file ca_nss_file) in
+
+  let cas   = List.append nss [(cacert, raw)] in
+  let valid = List.filter (fun (cert, raw) -> verify_ca_cert now cert raw) cas in
+  Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
+  let certs, _ = List.split valid in
+  certs
+
+let hostname_matches cert name =
+  let open Extension in
+  ( match extn_subject_alt_name cert with
+    | None            -> false
+    | Some (_, names) ->
+        List.exists
+          (function General_name.DNS x -> x = name | _ -> false)
+          names ) ||
+  ( match get_cn cert with
+    | None   -> false
+    | Some x -> x = name )
 
 let verify_server_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
