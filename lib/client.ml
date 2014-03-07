@@ -60,8 +60,10 @@ let answer_server_hello_done p bs raw =
        let ver = protocol_version_cstruct in
        let premaster = ver <> (default_config.rng 46) in
        let pubkey = match p.server_certificate with
-(*          | Some x -> Asn_grammars.rsa_public_of_cert x *)
-         | None -> assert false
+         | Some x -> Asn_grammars.(match x.tbs_cert.pk_info with
+                                   | PK.RSA key -> key
+                                   | _          -> assert false)
+         | None   -> assert false
        in
        let msglen = Cryptokit.RSA.(pubkey.size / 8) in
        (Crypto.padPKCS1_and_encryptRSA msglen pubkey premaster, premaster)
@@ -95,8 +97,10 @@ let answer_server_key_exchange p bs kex raw =
      let dh_params, signature, raw_params =
        Reader.parse_dh_parameters_and_signature kex in
      let pubkey = match p.server_certificate with
-(*        | Some x -> Asn_grammars.rsa_public_of_cert x *)
-       | None -> assert false
+       | Some x -> Asn_grammars.(match x.tbs_cert.pk_info with
+                                 | PK.RSA key -> key
+                                 | _       -> assert false)
+       | None   -> assert false
      in
      let raw_sig = Crypto.verifyRSA_and_unpadPKCS1 pubkey signature in
      assert (Cstruct.len raw_sig = 36);
