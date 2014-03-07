@@ -133,13 +133,16 @@ let validate_ca_extensions cert =
     (* extension as critical in such certificates *)
     let bc =
       function
+        (* unfortunately, there are 12 CA certs (including the one which
+           signed google.com) which are _NOT_ marked as critical *)
       | (_, Basic_constraints _) -> true
-      | _ -> false
+      | _                        -> false
     in
     assert (List.exists bc cert.extensions);
 
     (* 4.2.1.3 Key Usage *)
     (* Conforming CAs MUST include key usage extension *)
+    (* CA Cert (cacert.org) does not *)
     let ku =
       function
       | (_, Key_usage k) ->
@@ -147,7 +150,8 @@ let validate_ca_extensions cert =
          (* yeah, you wish... *)
          List.exists (function
                        | Key_cert_sign -> true
-                       | _ -> false) k
+                       | _             -> false)
+                     k
       | _ -> false
     in
     assert (List.exists ku cert.extensions);
@@ -155,11 +159,11 @@ let validate_ca_extensions cert =
     (* we've to deal with _all_ extensions marked critical! *)
     let rec ver_ext =
       function
-      | [] -> true
-      | (true, Key_usage _)::xs         -> ver_ext xs
-      | (true, Basic_constraints _)::xs -> ver_ext xs
-      | (true, e)::xs                   -> false
-      | (false, e)::xs                  -> ver_ext xs
+      | []                                -> true
+      | (true,  Key_usage _)         :: xs -> ver_ext xs
+      | (true,  Basic_constraints _) :: xs -> ver_ext xs
+      | (true,  e)                   :: xs -> false
+      | (false, e)                  :: xs -> ver_ext xs
     in
     ver_ext cert.extensions) with
   | _ -> false
@@ -187,44 +191,46 @@ let validate_server_extensions trusted cert =
  *)
   true
 
+let get_cn cert =
+  find_by cert.subject
+    ~f:Name.(function Common_name n -> Some n | _ -> None)
+
+let get_common_name cert =
+  match get_cn cert.tbs_cert with
+  | None   ->
+     let sigl = Cstruct.len cert.signature_val in
+     let sign = Cstruct.copy cert.signature_val 0 sigl in
+     let hex = Cryptokit.(transform_string (Hexa.encode ()) sign) in
+     "NO commonName " ^ hex
+  | Some x -> x
+
 let verify_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
-    Printf.printf "verify certificate\n";
+    Printf.printf "verify certificate %s -> %s\n"
+                  (get_common_name trusted)
+                  (get_common_name c);
     let cert = c.tbs_cert in
     match (validate_signature trusted c raw,
            validate_time now cert,
            validate_intermediate_extensions trusted.tbs_cert cert) with
     | (true, true, true) -> `Ok
-    | _ -> `Fail InvalidCertificate
-
-let get_cn cert =
-  find_by cert.subject
-    ~f:Name.(function Common_name n -> Some n | _ -> None)
+    | _                  -> `Fail InvalidCertificate
 
 let verify_ca_cert now cert raw =
+  Printf.printf "verifying CA cert %s: " (get_common_name cert);
   let tbs = cert.tbs_cert in
-  (validate_signature cert cert raw) &&
-    (validate_time now tbs) &&
-      (validate_ca_extensions tbs)
+  match (validate_signature cert cert raw,
+         validate_time now tbs,
+         validate_ca_extensions tbs) with
+  | (true, true, true) -> Printf.printf "ok\n";     true
+  | (_, _, _)          -> Printf.printf "failed\n"; false
 
 let find_trusted_certs : float -> certificate list =
   fun now ->
     let cacert, raw = Crypto_utils.cert_of_file "../certificates/cacert.crt" in
     let nss = Crypto_utils.certs_of_file "../certificates/ca-root-nss.crt" in
     let cas = List.append nss [(cacert, raw)] in
-    let valid =
-      List.filter (fun (cert, raw) ->
-                   (match get_cn cert.tbs_cert with
-                    | None   -> Printf.printf "no common name found ";
-                    | Some x -> Printf.printf "inserted cert with CN %s " x);
-                   if verify_ca_cert now cert raw then
-                     (Printf.printf "validated signature\n";
-                      true)
-                   else
-                     (Printf.printf "couldn't validate signature\n";
-                      false))
-                  cas;
-    in
+    let valid = List.filter (fun (cert, raw) -> verify_ca_cert now cert raw) cas in
     Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
     let certs, _ = List.split valid in
     certs
@@ -246,7 +252,9 @@ let hostname_matches : tBSCertificate -> string -> bool =
 let verify_server_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
   (* first things first: valid signature, unwarp tbscert: validity timestamps,... *)
-  Printf.printf "verify server certificate\n";
+  Printf.printf "verify server certificate %s -> %s\n"
+                (get_common_name trusted)
+                (get_common_name c);
   let cert = c.tbs_cert in
   let smatches = fun name c ->
     match name with
@@ -267,7 +275,9 @@ let verify_server_certificate : certificate -> float -> string option -> certifi
 let verify_top_certificate : certificate list -> float -> string option -> certificate -> Cstruct.t -> verification_result =
   fun trusted now servername c raw ->
   (* first have to find issuer of ``c`` in ``trusted`` *)
-    Printf.printf "verify top certificate\n";
+    Printf.printf "verify top certificate %s (%d CAs)\n"
+                  (get_common_name c)
+                  (List.length trusted);
     match List.filter (fun p -> issuer_matches_subject p c) trusted with
      | []  -> Printf.printf "couldn't find trusted CA cert\n"; `Fail NoTrustAnchor
      | [t] -> verify_certificate t now servername c raw
