@@ -23,32 +23,26 @@ let cs_appends csn =
 
 let cs_append cs1 cs2 = cs_appends [ cs1; cs2 ]
 
-let cs_canonicalize cs =
+(* let cs_canonicalize cs =
   if cs.Cstruct.off = 0 then cs else
     Cstruct.(of_bigarray @@
-                Bigarray.Array1.sub cs.buffer cs.off cs.len)
+                Bigarray.Array1.sub cs.buffer cs.off cs.len) *)
 
 (* let cs_eq cs1 cs2 = cs_canonicalize cs1 = cs_canonicalize cs2 *)
 
 let cs_eq cs1 cs2 =
-  let len = Cstruct.len cs1 in
-  if len = Cstruct.len cs2 then
-    let rec cmp a b = function
-      | 0 -> true
-      | n -> if (Cstruct.get_uint8 a (n - 1)) = (Cstruct.get_uint8 b (n - 1)) then
-               cmp a b (n - 1)
-             else
-               false
-    in
-    cmp cs1 cs2 len
-  else
-    false
+  let (len1, len2) = Cstruct.(len cs1, len cs2) in
+  let rec cmp = function
+    | -1 -> true
+    |  i -> Cstruct.(get_uint8 cs1 i = get_uint8 cs2 i) && cmp (pred i)
+  in
+  (len1 = len2) && cmp (len1 - 1)
 
 let rec filter_map ~f = function
   | []    -> []
   | x::xs ->
       match f x with
-      | None    -> filter_map ~f xs
+      | None    ->       filter_map ~f xs
       | Some x' -> x' :: filter_map ~f xs
 
 let rec map_find ~f = function
