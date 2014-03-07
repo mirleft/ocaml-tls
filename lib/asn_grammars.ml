@@ -352,69 +352,67 @@ module Extension = struct
   let gen_names = sequence_of General_name.general_name
 
   type key_usage =
-    [ `Digital_signature
-    | `Content_commitment
-    | `Key_encipherment
-    | `Data_encipherment
-    | `Key_agreement
-    | `Key_cert_sign
-    | `CRL_sign
-    | `Encipher_only
-    | `Decipher_only
-    ]
+    | Digital_signature
+    | Content_commitment
+    | Key_encipherment
+    | Data_encipherment
+    | Key_agreement
+    | Key_cert_sign
+    | CRL_sign
+    | Encipher_only
+    | Decipher_only
 
   let key_usage = flags [
-      0, `Digital_signature
-    ; 1, `Content_commitment
-    ; 2, `Key_encipherment
-    ; 3, `Data_encipherment
-    ; 4, `Key_agreement
-    ; 5, `Key_cert_sign
-    ; 6, `CRL_sign
-    ; 7, `Encipher_only
-    ; 8, `Decipher_only
+      0, Digital_signature
+    ; 1, Content_commitment
+    ; 2, Key_encipherment
+    ; 3, Data_encipherment
+    ; 4, Key_agreement
+    ; 5, Key_cert_sign
+    ; 6, CRL_sign
+    ; 7, Encipher_only
+    ; 8, Decipher_only
     ]
 
   type extended_key_usage =
-    [ `Any
-    | `Server_auth
-    | `Client_auth
-    | `Code_signing
-    | `Email_protection
-    | `Ipsec_end
-    | `Ipsec_tunnel
-    | `Ipsec_user
-    | `Time_stamping
-    | `Ocsp_signing
-    | `Other of OID.t
-    ]
+    | Any
+    | Server_auth
+    | Client_auth
+    | Code_signing
+    | Email_protection
+    | Ipsec_end
+    | Ipsec_tunnel
+    | Ipsec_user
+    | Time_stamping
+    | Ocsp_signing
+    | Other of OID.t
 
   let ext_key_usage =
     let open ID.Extended_usage in
     let f = function
-      | oid when oid = any              -> `Any
-      | oid when oid = server_auth      -> `Server_auth
-      | oid when oid = client_auth      -> `Client_auth
-      | oid when oid = code_signing     -> `Code_signing
-      | oid when oid = email_protection -> `Email_protection
-      | oid when oid = ipsec_end_system -> `Ipsec_end
-      | oid when oid = ipsec_tunnel     -> `Ipsec_tunnel
-      | oid when oid = ipsec_user       -> `Ipsec_user
-      | oid when oid = time_stamping    -> `Time_stamping
-      | oid when oid = ocsp_signing     -> `Ocsp_signing
-      | oid                             -> `Other oid
+      | oid when oid = any              -> Any
+      | oid when oid = server_auth      -> Server_auth
+      | oid when oid = client_auth      -> Client_auth
+      | oid when oid = code_signing     -> Code_signing
+      | oid when oid = email_protection -> Email_protection
+      | oid when oid = ipsec_end_system -> Ipsec_end
+      | oid when oid = ipsec_tunnel     -> Ipsec_tunnel
+      | oid when oid = ipsec_user       -> Ipsec_user
+      | oid when oid = time_stamping    -> Time_stamping
+      | oid when oid = ocsp_signing     -> Ocsp_signing
+      | oid                             -> Other oid
     and g = function
-      | `Any              -> any
-      | `Server_auth      -> server_auth
-      | `Client_auth      -> client_auth
-      | `Code_signing     -> code_signing
-      | `Email_protection -> email_protection
-      | `Ipsec_end        -> ipsec_end_system
-      | `Ipsec_tunnel     -> ipsec_tunnel
-      | `Ipsec_user       -> ipsec_user
-      | `Time_stamping    -> time_stamping
-      | `Ocsp_signing     -> ocsp_signing
-      | `Other oid        -> oid
+      | Any              -> any
+      | Server_auth      -> server_auth
+      | Client_auth      -> client_auth
+      | Code_signing     -> code_signing
+      | Email_protection -> email_protection
+      | Ipsec_end        -> ipsec_end_system
+      | Ipsec_tunnel     -> ipsec_tunnel
+      | Ipsec_user       -> ipsec_user
+      | Time_stamping    -> time_stamping
+      | Ocsp_signing     -> ocsp_signing
+      | Other oid        -> oid
     in
     map (List.map f) (List.map g) @@ sequence_of oid
 
