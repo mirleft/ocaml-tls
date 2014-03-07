@@ -240,6 +240,7 @@ let verify_certificates : string option -> (certificate * Cstruct.t) list -> ver
              server certificate has required servername *)
     (* short-path for self-signed certificate  *)
   | [] -> assert false (* NO, return the right error *)
+
   | [(cert, _)] when is_self_signed cert ->
       (* further verification of a self-signed certificate does not make sense:
          why should anyone handle a properly self-signed and valid certificate
@@ -259,18 +260,19 @@ let verify_certificates : string option -> (certificate * Cstruct.t) list -> ver
       in
       let trusted = find_trusted_certs now in
       (* intermediate certificates *)
-      let reversed = List.rev certs_and_raw in
-      let topc, topr = List.hd reversed in
-      (* step 1 *)
-      match verify_top_certificate trusted now servername topc topr with
-      | `Ok ->
-         (* call step 2 *)
-         (match go topc (List.tl reversed) with
-          | (`Ok, t) ->
-             (* step 3 *)
-             verify_server_certificate t now servername server server_raw
-          | (`Fail x, _) -> `Fail x)
-      | `Fail x -> `Fail x
+      match List.rev certs_and_raw with
+      | (topc, topr) :: reversed ->
+        (* step 1 *)
+        ( match verify_top_certificate trusted now servername topc topr with
+          | `Ok ->
+            (* call step 2 *)
+            (match go topc reversed with
+              | (`Ok, t) ->
+                (* step 3 *)
+                verify_server_certificate t now servername server server_raw
+              | (`Fail x, _) -> `Fail x)
+          | `Fail x -> `Fail x )
+      | _ -> assert false (* single cert, not self-signed case *)
 
 
 (* TODO: how to deal with
