@@ -25,7 +25,7 @@ let pem_to_cert pem =
 let cert_cstruct_of_file filename =
   let pem = read_pem_file filename in pem_to_cstruct pem
 
-let certs_of_file : string -> Asn_grammars.certificate list =
+let certs_of_file : string -> (Asn_grammars.certificate * Cstruct.t) list =
   fun filename ->
     let lines = read_lines filename in
     let rec consume_cert acc = function
@@ -41,11 +41,13 @@ let certs_of_file : string -> Asn_grammars.certificate list =
       | l::ls -> go cs ls
     in
     let certificates = go [] lines in
-    List.map pem_to_cert certificates
+    List.combine (List.map pem_to_cert certificates)
+                 (List.map pem_to_cstruct certificates)
 
-let cert_of_file : string -> Asn_grammars.certificate =
+let cert_of_file : string -> (Asn_grammars.certificate * Cstruct.t) =
   fun filename ->
-    let pem = read_pem_file filename in pem_to_cert pem
+    let pem = read_pem_file filename in
+    (pem_to_cert pem, pem_to_cstruct pem)
 
 let get_key filename =
   let pem = read_pem_file filename in

@@ -17,17 +17,8 @@ type verification_result = [
 ]
 
 (* stuff from 4366 (TLS extensions):
-  - hostname extension [list of hostnames] (generally known as SNI)
-    (send from _client_ to _server_,
-     server may then choose a suitable certificate)
-    "HostName" contains the fully qualified DNS hostname of the server,
-    as understood by the client.  The hostname is represented as a byte
-    string using UTF-8 encoding [UTF8], without a trailing dot.
-
   - root CAs
-  - client cert url
-
-*)
+  - client cert url *)
 
 (* Future TODO Certificate Revocation Lists and OCSP (RFC6520)
 2.16.840.1.113730.1.2 - Base URL
@@ -53,6 +44,8 @@ do not forget about 'authority information access' (private internet extension -
 2.5.29.33 - Policy Mappings
 2.5.29.36 - Policy Constraints
  *)
+
+(* Future TODO: anything with subject_id and issuer_id ? seems to be not used by anybody *)
 
 (*    2.16.840.1.113730.1.1 - Netscape certificate type
     2.16.840.1.113730.1.12 - SSL server name *)
@@ -80,7 +73,11 @@ let is_self_signed : certificate -> bool =
 
 let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
   fun trusted c raw ->
-    let (PK.RSA issuing_key) = trusted.tbs_cert.pk_info in
+   try (
+    let issuing_key = match trusted.tbs_cert.pk_info with
+      | PK.RSA key -> key
+      |  _         -> assert false
+    in
 
     (* issuer of c should be subject of trusted! *)
     assert (issuer_matches_subject trusted c);
@@ -103,16 +100,15 @@ let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
     (* XXX move me outside of that comment up there? *)
     let comparing_hash hashfn =
       let chash = hashfn to_hash in
-      Printf.printf "comparing hash";
-      Cstruct.hexdump hash;
-      Cstruct.hexdump chash;
       Utils.cs_eq chash hash in
 
     let open Algorithm in
     match (c.signature_algo, algo) with
     | (MD5_RSA, MD5)   -> comparing_hash Crypto.md5
     | (SHA1_RSA, SHA1) -> comparing_hash Crypto.sha
-    | _                -> false
+    | _                -> false)
+   with
+   | _ -> false
 
 
 let validate_time now cert =
@@ -166,12 +162,6 @@ let validate_extensions trusted cert =
                                  (string_of_bool x);
                    Cstruct.hexdump r)
                 xs ); *)
-  (match cert.issuer_id with
-   | Some x -> Printf.printf "issuer id"; Cstruct.hexdump x
-   | None -> Printf.printf "no issuer id\n");
-  (match cert.subject_id with
-   | Some x -> Printf.printf "subject id"; Cstruct.hexdump x
-   | None -> Printf.printf "no subject id\n");
   true
 
 let validate_server_extensions trusted cert =
@@ -195,14 +185,24 @@ let get_cn cert =
 
 let find_trusted_certs : unit -> certificate list =
   fun () ->
-    let cacert = Crypto_utils.cert_of_file "../certificates/cacert.crt" in
-(*    let nss = Crypto_utils.certs_of_file "../certificates/ca-root-nss.crt" in *)
-    let cas = [cacert] (* :: nss *) in
-    List.iter (fun c -> match get_cn c.tbs_cert with
-                        | None   -> Printf.printf "no common name found\n";
-                        | Some x -> Printf.printf "inserted cert with CN %s\n" x)
-              cas;
-    cas
+    let cacert, raw = Crypto_utils.cert_of_file "../certificates/cacert.crt" in
+    let nss = Crypto_utils.certs_of_file "../certificates/ca-root-nss.crt" in
+    let cas = List.append nss [(cacert, raw)] in
+    let vs =
+      List.map (fun (cert, raw) -> (match get_cn cert.tbs_cert with
+                                     | None   -> Printf.printf "no common name found ";
+                                     | Some x -> Printf.printf "inserted cert with CN %s " x);
+                                    if validate_signature cert cert raw then
+                                      (Printf.printf "validated signature\n";
+                                       [cert])
+                                    else
+                                      (Printf.printf "couldn't validate signature\n";
+                                       []))
+                cas;
+    in
+    let valid = List.flatten vs in
+    Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
+    valid
 
 let hostname_matches : tBSCertificate -> string -> bool =
   fun _ _ -> true
