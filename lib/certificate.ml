@@ -98,22 +98,19 @@ let validate_ca_extensions cert =
 
 let ext_authority_matches_subject trusted cert =
   let open Extension in
-  match List.filter (function
-                      | (_, Authority_key_id (Some _, _, _)) -> true
-                      | _ -> false)
-                    cert.extensions with
-  | [] -> true (* it's not mandatory *)
-  | [(_, Authority_key_id (Some auth, _, _))] ->
-     List.exists (function
-                   | (_, Subject_key_id au) ->
-                      let res = Utils.cs_eq auth au in
-                      Printf.printf "SUB KEY ID and AUTH KEY ID matches? %s" (string_of_bool res);
-                      Cstruct.hexdump auth;
-                      Cstruct.hexdump au;
-                      res
-                   | _                 -> false)
-                 trusted.extensions
-  | _ -> false (* shouldn't happen *)
+  match
+    extn_authority_key_id cert, extn_subject_key_id trusted
+  with
+  | Some (_, Authority_key_id (Some auth, _, _)),
+    Some (_, Subject_key_id au) ->
+      let res = Utils.cs_eq auth au in
+      Printf.printf "SUB KEY ID and AUTH KEY ID matches? %s" (string_of_bool res);
+      Cstruct.hexdump auth;
+      Cstruct.hexdump au;
+      res
+  | (None | Some (_, Authority_key_id (None, _, _))), _ -> true (* it's not mandatory *)
+  | _, _ -> false
+
 
 let validate_intermediate_extensions trusted cert =
   (validate_ca_extensions cert) && (ext_authority_matches_subject trusted cert)
