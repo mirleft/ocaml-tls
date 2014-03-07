@@ -52,7 +52,7 @@ let get_key filename =
   let str = Cryptokit.(transform_string (Base64.decode ()) pem)
   in
   match
-    Asn_grammars.rsa_private_of_cstruct (Cstruct.of_string str)
+    Asn_grammars.PK.rsa_private_of_cstruct (Cstruct.of_string str)
   with
   | None         -> assert false
   | Some (pk, _) -> pk

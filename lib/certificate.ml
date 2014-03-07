@@ -80,7 +80,7 @@ let is_self_signed : certificate -> bool =
 
 let validate_signature : certificate -> certificate -> Cstruct.t -> bool =
   fun trusted c raw ->
-    let issuing_key = rsa_public_of_cert trusted in
+    let (PK.RSA issuing_key) = trusted.tbs_cert.pk_info in
 
     (* issuer of c should be subject of trusted! *)
     assert (issuer_matches_subject trusted c);
