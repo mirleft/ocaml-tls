@@ -5,19 +5,24 @@ let answer_client_hello_params sp ch raw =
   (`Handshaking (sp, [raw]), [`Record (Packet.HANDSHAKE, raw)], `Pass)
 
 let answer_client_hello ch raw =
-  let server_name = find_hostname ch in
+  let verification_name = find_hostname ch in
+  let server_name_extension = match verification_name with
+    | None   -> None
+    | Some x -> Some (Hostname (Some x))
+  in
   let params =
-    { entity             = Client ;
-      ciphersuite        = List.hd ch.ciphersuites ;
-      master_secret      = Cstruct.create 0 ;
-      client_random      = ch.random ;
-      server_random      = Cstruct.create 0 ;
-      dh_params          = None ;
-      dh_secret          = None ;
-      server_certificate = None ;
-      client_verify_data = Cstruct.create 0 ;
-      server_verify_data = Cstruct.create 0 ;
-      server_name
+    { entity                = Client ;
+      ciphersuite           = List.hd ch.ciphersuites ;
+      master_secret         = Cstruct.create 0 ;
+      client_random         = ch.random ;
+      server_random         = Cstruct.create 0 ;
+      dh_params             = None ;
+      dh_secret             = None ;
+      server_certificate    = None ;
+      client_verify_data    = Cstruct.create 0 ;
+      server_verify_data    = Cstruct.create 0 ;
+      server_name_extension ;
+      verification_name
     }
   in
   answer_client_hello_params params ch raw
@@ -39,7 +44,7 @@ let answer_server_hello (p : security_parameters) bs sh raw =
                      | _ -> false) sh.extensions then
       p
     else
-      { p with server_name = None }
+      { p with server_name_extension = None }
   in
   let sp' = { sp with ciphersuite   = sh.ciphersuites ;
                       server_random = sh.random } in
@@ -53,7 +58,7 @@ let answer_certificate p bs cs raw =
   in
   let certs = List.map (o getcert Asn_grammars.certificate_of_cstruct) cs in
   (* validate whole chain! *)
-  (match Certificate.verify_certificates p.server_name certs cs with
+  (match Certificate.verify_certificates p.verification_name certs cs with
    | `Fail x -> assert false
    | `Ok -> ());
   let ps = { p with server_certificate = Some (List.hd certs) } in
@@ -175,9 +180,9 @@ let handle_record
          | `KeysExchanged (_, _, p, bs), Finished fin ->
               answer_server_finished p bs fin
          | `Established sp, HelloRequest -> (* key renegotiation *)
-              let host = match sp.server_name with
+              let host = match sp.server_name_extension with
                 | None   -> []
-                | Some x -> [Hostname (Some x)]
+                | Some x -> [x]
               in
               let securereneg = SecureRenegotiation sp.client_verify_data in
               let ch = { default_client_hello with

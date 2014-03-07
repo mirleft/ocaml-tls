@@ -19,17 +19,18 @@ type crypto_state = [
 type connection_end = Server | Client
 
 type security_parameters = {
-  entity             : connection_end ;
-  ciphersuite        : Ciphersuite.ciphersuite ;
-  master_secret      : Cstruct.t ;
-  client_random      : Cstruct.t ;
-  server_random      : Cstruct.t ;
-  dh_params          : dh_parameters option ;
-  dh_secret          : Cryptokit.DH.private_secret option ;
-  server_certificate : Asn_grammars.certificate option ;
-  client_verify_data : Cstruct.t ;
-  server_verify_data : Cstruct.t ;
-  server_name        : string option
+  entity                : connection_end ;
+  ciphersuite           : Ciphersuite.ciphersuite ;
+  master_secret         : Cstruct.t ;
+  client_random         : Cstruct.t ;
+  server_random         : Cstruct.t ;
+  dh_params             : dh_parameters option ;
+  dh_secret             : Cryptokit.DH.private_secret option ;
+  server_certificate    : Asn_grammars.certificate option ;
+  client_verify_data    : Cstruct.t ;
+  server_verify_data    : Cstruct.t ;
+  server_name_extension : extension option ;
+  verification_name     : string option ;
 }
 
 (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)

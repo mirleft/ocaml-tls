@@ -248,7 +248,7 @@ let verify_server_certificate : certificate -> float -> string option -> certifi
                 `Fail NoServerName
       | Some n ->
          (if hostname_matches cert n then
-            (Printf.printf "successfully verified server certificate\n";
+            (Printf.printf "successfully verified server certificate %s\n" n;
              `Ok)
           else
             `Fail InvalidServerName)
