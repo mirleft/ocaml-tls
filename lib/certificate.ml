@@ -11,6 +11,7 @@ type certificate_failure =
   | MultipleRootCA
   | NoTrustAnchor
   | NoServerName
+  | InvalidInput
 
 type verification_result = [
   | `Fail of certificate_failure
@@ -18,7 +19,8 @@ type verification_result = [
 ]
 
 
-(* 5280 A certificate MUST NOT include more than one instance of a particular extension. *)
+(* TODO RFC 5280: A certificate MUST NOT include more than
+                  one instance of a particular extension. *)
 
 let issuer_matches_subject_tbs parent cert =
   Name.equal parent.subject cert.issuer
@@ -28,7 +30,7 @@ let issuer_matches_subject parent cert =
 
 let is_self_signed cert = issuer_matches_subject cert cert
 
-(* XXX should return the tbc_cert blob from the parser, this is insane *)
+(* XXX should return the tbs_cert blob from the parser, this is insane *)
 let raw_cert_hack cert raw =
   let siglen = Cstruct.len cert.signature_val in
   let off    = if siglen > 128 then 1 else 0 in
@@ -42,17 +44,17 @@ let validate_signature trusted cert raw =
 
   | PK.RSA issuing_key ->
 
-      let signature = 
+      let signature =
         Crypto.verifyRSA_and_unpadPKCS1 issuing_key cert.signature_val in
 
-      match pkcs1_digest_info_of_cstruct signature with
-      | None                   -> false
-      | Some ((algo, hash), _) ->
+      (match pkcs1_digest_info_of_cstruct signature with
+       | None                   -> false
+       | Some ((algo, hash), _) ->
           let compare_hashes hashfn = Utils.cs_eq hash (hashfn tbs_raw) in
           match (cert.signature_algo, algo) with
           | (MD5_RSA , MD5 ) -> compare_hashes Crypto.md5
           | (SHA1_RSA, SHA1) -> compare_hashes Crypto.sha
-          | _ -> false
+          | _ -> false)
 
   | _ -> false
 
@@ -82,10 +84,10 @@ let validate_ca_extensions cert =
   ( match extn_key_usage cert with
     (* When present, conforming CAs SHOULD mark this extension as critical *)
     (* yeah, you wish... *)
-    | Some (crit, Key_usage usage) -> List.mem Key_cert_sign usage 
+    | Some (crit, Key_usage usage) -> List.mem Key_cert_sign usage
     | _                            -> false ) &&
 
-  (* Name Constraints   - name constraints should match servername *)
+  (* Name Constraints - name constraints should match servername *)
 
   (* check criticality *)
   List.for_all
@@ -102,14 +104,11 @@ let ext_authority_matches_subject trusted cert =
     extn_authority_key_id cert, extn_subject_key_id trusted
   with
   | Some (_, Authority_key_id (Some auth, _, _)),
-    Some (_, Subject_key_id au) ->
-      let res = Utils.cs_eq auth au in
-      Printf.printf "SUB KEY ID and AUTH KEY ID matches? %s" (string_of_bool res);
-      Cstruct.hexdump auth;
-      Cstruct.hexdump au;
-      res
-  | (None | Some (_, Authority_key_id (None, _, _))), _ -> true (* it's not mandatory *)
-  | _, _ -> false
+    Some (_, Subject_key_id au)                -> Utils.cs_eq auth au
+  (* TODO: check exact rules in RFC5280 *)
+  | None, _                                    -> true (* not mandatory *)
+  | Some (_, Authority_key_id (None, _, _)), _ -> true (* not mandatory *)
+  | _, _                                       -> false
 
 
 let validate_intermediate_extensions trusted cert =
@@ -132,8 +131,7 @@ let get_cn cert =
   map_find cert.subject
     ~f:Name.(function Common_name n -> Some n | _ -> None)
 
-(* XXX return option? *)
-let get_common_name cert =
+let common_name_to_string cert =
   match get_cn cert.tbs_cert with
   | None   ->
      let sigl = Cstruct.len cert.signature_val in
@@ -144,8 +142,8 @@ let get_common_name cert =
 
 let verify_certificate ?servername trusted now cert raw_cert =
     Printf.printf "verify certificate %s -> %s\n"
-                  (get_common_name trusted)
-                  (get_common_name cert);
+                  (common_name_to_string trusted)
+                  (common_name_to_string cert);
     match
       validate_signature trusted cert raw_cert &&
       validate_time now cert                   &&
@@ -155,7 +153,7 @@ let verify_certificate ?servername trusted now cert raw_cert =
     | _    -> `Fail InvalidCertificate
 
 let verify_ca_cert now cert raw =
-  Printf.printf "verifying CA cert %s: " (get_common_name cert);
+  Printf.printf "verifying CA cert %s: " (common_name_to_string cert);
   match
     validate_signature cert cert raw &&
     validate_time now cert           &&
@@ -188,8 +186,8 @@ let hostname_matches cert name =
 
 let verify_server_certificate ?servername trusted now cert raw_cert =
   Printf.printf "verify server certificate %s -> %s\n"
-                (get_common_name trusted)
-                (get_common_name cert);
+                (common_name_to_string trusted)
+                (common_name_to_string cert);
   let smatches name cert = match name with
     | None   -> false
     | Some x -> hostname_matches cert x
@@ -207,15 +205,15 @@ let verify_server_certificate ?servername trusted now cert raw_cert =
       Printf.printf "could not verify server certificate\n";
       `Fail InvalidCertificate
 
-let verify_top_certificate ?servername trusted now cert raw_cert =
+let find_issuer trusted cert =
   (* first have to find issuer of ``c`` in ``trusted`` *)
-  Printf.printf "verify top certificate %s (%d CAs)\n"
-                (get_common_name cert)
+  Printf.printf "looking for issuer of %s (%d CAs)\n"
+                (common_name_to_string cert)
                 (List.length trusted);
   match List.filter (fun p -> issuer_matches_subject p cert) trusted with
-  | []  -> Printf.printf "couldn't find trusted CA cert\n"; `Fail NoTrustAnchor
-  | [t] -> verify_certificate ?servername t now cert raw_cert
-  | _   -> Printf.printf "found multiple root CAs\n"; `Fail MultipleRootCA
+  | []  -> Printf.printf "couldn't find trusted CA cert\n"; None
+  | [t] -> Some t
+  | _   -> Printf.printf "found multiple root CAs\n"; None
 
 (* this is the API for a user (Cstruct.t list might go away) *)
 let verify_certificates ?servername : (certificate * Cstruct.t) list -> verification_result
@@ -225,15 +223,14 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
         let server = c0
         let top = cn
        strategy:
-        1. find a trusted CA for top and
-             verify that trusted signed top
+        1. find a trusted CA for top, use it cn+1
         2. verify intermediate certificates:
-             verify that [cn .. c2] signed [cn-1 .. c1]
+             verify that [cn+1 .. c2] signed [cn .. c1]
         3. verify server certificate was signed by c1 and
              server certificate has required servername *)
-    (* short-path for self-signed certificate  *)
-  | [] -> assert false (* NO, return the right error *)
+  | [] -> `Fail InvalidInput
 
+    (* short-path for self-signed certificate  *)
   | [(cert, _)] when is_self_signed cert ->
       (* further verification of a self-signed certificate does not make sense:
          why should anyone handle a properly self-signed and valid certificate
@@ -244,28 +241,33 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
   | (server, server_raw) :: certs_and_raw ->
       let now = Sys.time () in
       (* :( this is soooo foldr in a lazy setting... *)
-      let rec go t = function
-        | []         -> (`Ok, t)
-        | (c, p)::cs -> (* step 2 *)
-           match verify_certificate ?servername t now c p with
-           | `Ok  -> go c cs
-           | `Fail x -> (`Fail x, c)
+      let rec go trustanchor = function
+        | []              -> (`Ok, trustanchor)
+        | (cert, raw)::cs ->
+           match verify_certificate ?servername trustanchor now cert raw with
+           | `Ok     -> go cert cs
+           | `Fail x -> (`Fail x, cert)
       in
       let trusted = find_trusted_certs now in
       (* intermediate certificates *)
       match List.rev certs_and_raw with
-      | (topc, topr) :: reversed ->
-        (* step 1 *)
-        ( match verify_top_certificate ?servername trusted now topc topr with
-          | `Ok ->
-            (* call step 2 *)
-            (match go topc reversed with
-              | (`Ok, t) ->
-                (* step 3 *)
-                verify_server_certificate ?servername t now server server_raw
-              | (`Fail x, _) -> `Fail x)
-          | `Fail x -> `Fail x )
-      | _ -> assert false (* single cert, not self-signed case *)
+      | (topc, topr) :: reversed as certificate_chain ->
+         (* step 1 *)
+         (match find_issuer trusted topc with
+          | None -> `Fail NoTrustAnchor
+          | Some trustanchor ->
+             (* step 2 *)
+             (match go trustanchor certificate_chain with
+              | (`Ok, trustanchor) ->
+                 (* step 3 *)
+                 verify_server_certificate ?servername trustanchor now server server_raw
+              | (`Fail x, _) -> `Fail x))
+      | [] -> (* cert might be a direct sibling of the CA *)
+         match find_issuer trusted server with
+         | None -> `Fail NoTrustAnchor
+         | Some trustanchor ->
+            (* step 3 *)
+            verify_server_certificate ?servername trustanchor now server server_raw
 
 
 (* TODO: how to deal with
