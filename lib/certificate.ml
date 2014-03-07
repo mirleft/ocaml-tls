@@ -6,12 +6,15 @@ open Utils
 type certificate_failure =
   | InvalidCertificate
   | InvalidSignature
-  | InvalidServerName
   | SelfSigned
   | MultipleRootCA
   | NoTrustAnchor
   | NoServerName
   | InvalidInput
+  | InvalidServerSignature
+  | InvalidServerValidity
+  | InvalidServerExtensions
+  | InvalidServerName
 
 type verification_result = [
   | `Fail of certificate_failure
@@ -193,17 +196,26 @@ let verify_server_certificate ?servername trusted now cert raw_cert =
     | Some x -> hostname_matches cert x
   in
   match
-    validate_signature trusted cert raw_cert &&
-    validate_time now cert                   &&
-    validate_server_extensions trusted cert  &&
+    validate_signature trusted cert raw_cert,
+    validate_time now cert,
+    validate_server_extensions trusted cert,
     smatches servername cert
   with
-  | true ->
+  | (true, true, true, true) ->
       Printf.printf "successfully verified server certificate\n";
       `Ok
-  | _ ->
-      Printf.printf "could not verify server certificate\n";
-      `Fail InvalidCertificate
+  | (false, _, _, _) ->
+      Printf.printf "failed to verify signature on server certificate\n";
+      `Fail InvalidServerSignature
+  | (_, false, _, _) ->
+      Printf.printf "failed to verify validity of server certificate\n";
+      `Fail InvalidServerValidity
+  | (_, _, false, _) ->
+      Printf.printf "failed to verify extensions of server certificate\n";
+      `Fail InvalidServerExtensions
+  | (_, _, _, false) ->
+      Printf.printf "failed to verify servername of server certificate\n";
+      `Fail InvalidServerName
 
 let find_issuer trusted cert =
   (* first have to find issuer of ``c`` in ``trusted`` *)
