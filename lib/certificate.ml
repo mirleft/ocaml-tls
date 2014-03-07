@@ -142,14 +142,13 @@ let get_common_name cert =
      "NO commonName " ^ hex
   | Some x -> x
 
-let verify_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
-  fun trusted now servername cert raw ->
+let verify_certificate ?servername trusted now cert raw_cert =
     Printf.printf "verify certificate %s -> %s\n"
                   (get_common_name trusted)
                   (get_common_name cert);
     match
-      validate_signature trusted cert raw &&
-      validate_time now cert              &&
+      validate_signature trusted cert raw_cert &&
+      validate_time now cert                   &&
       validate_intermediate_extensions trusted cert
     with
     | true -> `Ok
@@ -166,8 +165,7 @@ let verify_ca_cert now cert raw =
   | _    -> Printf.printf "failed\n"; false
 
 (* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
-let find_trusted_certs : float -> certificate list = fun now ->
-
+let find_trusted_certs now =
   let cacert_file, ca_nss_file =
     ("../certificates/cacert.crt", "../certificates/ca-root-nss.crt") in
   let ((cacert, raw), nss) =
@@ -191,8 +189,7 @@ let hostname_matches cert name =
     | None   -> false
     | Some x -> x = name )
 
-let verify_server_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
-  fun trusted now servername cert raw ->
+let verify_server_certificate ?servername trusted now cert raw_cert =
   Printf.printf "verify server certificate %s -> %s\n"
                 (get_common_name trusted)
                 (get_common_name cert);
@@ -201,9 +198,9 @@ let verify_server_certificate : certificate -> float -> string option -> certifi
     | Some x -> hostname_matches cert x
   in
   match
-    validate_signature trusted cert raw     &&
-    validate_time now cert                  &&
-    validate_server_extensions trusted cert &&
+    validate_signature trusted cert raw_cert &&
+    validate_time now cert                   &&
+    validate_server_extensions trusted cert  &&
     smatches servername cert
   with
   | true ->
@@ -213,20 +210,19 @@ let verify_server_certificate : certificate -> float -> string option -> certifi
       Printf.printf "could not verify server certificate\n";
       `Fail InvalidCertificate
 
-let verify_top_certificate : certificate list -> float -> string option -> certificate -> Cstruct.t -> verification_result =
-  fun trusted now servername c raw ->
-    (* first have to find issuer of ``c`` in ``trusted`` *)
-    Printf.printf "verify top certificate %s (%d CAs)\n"
-                  (get_common_name c)
-                  (List.length trusted);
-    match List.filter (fun p -> issuer_matches_subject p c) trusted with
-     | []  -> Printf.printf "couldn't find trusted CA cert\n"; `Fail NoTrustAnchor
-     | [t] -> verify_certificate t now servername c raw
-     | _   -> Printf.printf "found multiple root CAs\n"; `Fail MultipleRootCA
+let verify_top_certificate ?servername trusted now cert raw_cert =
+  (* first have to find issuer of ``c`` in ``trusted`` *)
+  Printf.printf "verify top certificate %s (%d CAs)\n"
+                (get_common_name cert)
+                (List.length trusted);
+  match List.filter (fun p -> issuer_matches_subject p cert) trusted with
+  | []  -> Printf.printf "couldn't find trusted CA cert\n"; `Fail NoTrustAnchor
+  | [t] -> verify_certificate ?servername t now cert raw_cert
+  | _   -> Printf.printf "found multiple root CAs\n"; `Fail MultipleRootCA
 
 (* this is the API for a user (Cstruct.t list might go away) *)
-let verify_certificates : string option -> (certificate * Cstruct.t) list -> verification_result =
-  fun servername -> function
+let verify_certificates ?servername : (certificate * Cstruct.t) list -> verification_result
+= function
     (* we get the certificate chain cs:
         [c0; c1; c2; ... ; cn]
         let server = c0
@@ -254,7 +250,7 @@ let verify_certificates : string option -> (certificate * Cstruct.t) list -> ver
       let rec go t = function
         | []         -> (`Ok, t)
         | (c, p)::cs -> (* step 2 *)
-           match verify_certificate t now servername c p with
+           match verify_certificate ?servername t now c p with
            | `Ok  -> go c cs
            | `Fail x -> (`Fail x, c)
       in
@@ -263,13 +259,13 @@ let verify_certificates : string option -> (certificate * Cstruct.t) list -> ver
       match List.rev certs_and_raw with
       | (topc, topr) :: reversed ->
         (* step 1 *)
-        ( match verify_top_certificate trusted now servername topc topr with
+        ( match verify_top_certificate ?servername trusted now topc topr with
           | `Ok ->
             (* call step 2 *)
             (match go topc reversed with
               | (`Ok, t) ->
                 (* step 3 *)
-                verify_server_certificate t now servername server server_raw
+                verify_server_certificate ?servername t now server server_raw
               | (`Fail x, _) -> `Fail x)
           | `Fail x -> `Fail x )
       | _ -> assert false (* single cert, not self-signed case *)
