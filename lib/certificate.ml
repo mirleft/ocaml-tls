@@ -132,6 +132,7 @@ let get_cn cert =
   map_find cert.subject
     ~f:Name.(function Common_name n -> Some n | _ -> None)
 
+(* XXX return option? *)
 let get_common_name cert =
   match get_cn cert.tbs_cert with
   | None   ->
@@ -142,15 +143,14 @@ let get_common_name cert =
   | Some x -> x
 
 let verify_certificate : certificate -> float -> string option -> certificate -> Cstruct.t -> verification_result =
-  fun trusted now servername c raw ->
+  fun trusted now servername cert raw ->
     Printf.printf "verify certificate %s -> %s\n"
                   (get_common_name trusted)
-                  (get_common_name c);
-    let cert = c.tbs_cert in
+                  (get_common_name cert);
     match
-      validate_signature trusted c raw &&
-      validate_time now cert           &&
-      validate_intermediate_extensions trusted.tbs_cert cert
+      validate_signature trusted cert raw &&
+      validate_time now cert              &&
+      validate_intermediate_extensions trusted cert
     with
     | true -> `Ok
     | _    -> `Fail InvalidCertificate
