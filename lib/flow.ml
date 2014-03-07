@@ -29,8 +29,7 @@ type security_parameters = {
   server_certificate    : Asn_grammars.certificate option ;
   client_verify_data    : Cstruct.t ;
   server_verify_data    : Cstruct.t ;
-  server_name_extension : extension option ;
-  verification_name     : string option ;
+  server_name           : string option ;
 }
 
 (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)

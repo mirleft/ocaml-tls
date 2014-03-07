@@ -49,20 +49,14 @@ let answer_client_hello_params_int sp ch raw =
   let cipher = sp.ciphersuite in
   assert (List.mem cipher ch.ciphersuites);
   (* now we can provide a certificate with any of the given hostnames *)
-  let hostname, supported = match sp.server_name_extension with
-    | None                     -> ("NONE", false)
-    | Some (Hostname None)     -> ("NONE", true)
-    | Some (Hostname (Some x)) -> (x, true)
-    | _                        -> assert false
-  in
-  Printf.printf "was %sasked for hostname %s\n"
-                (if supported then "" else "not")
-                hostname;
+  (match sp.server_name with
+   | None   -> ()
+   | Some x -> Printf.printf "was asked for hostname %s\n" x);
   let params = { sp with
                    server_random = default_config.rng 32 ;
                    client_random = ch.random } in
   (* RFC 4366: server shall reply with an empty hostname extension *)
-  let host = match sp.server_name_extension with
+  let host = match sp.server_name with
     | None   -> []
     | Some _ -> [Hostname None]
   in
@@ -125,11 +119,7 @@ let answer_client_hello_params sp ch raw =
               | _ -> ())
             ch.extensions;
   let host = find_hostname ch in
-  (match (sp.server_name_extension, host) with
-   | None, None                                  -> ();
-   | Some (Hostname None),     None              -> ();
-   | Some (Hostname (Some x)), Some y when x = y -> ();
-   | _                                           -> assert false);
+  assert (sp.server_name = host);
   answer_client_hello_params_int sp ch raw
 
 let answer_client_hello (ch : client_hello) raw =
@@ -137,10 +127,7 @@ let answer_client_hello (ch : client_hello) raw =
   let issuported = fun x -> List.mem x ch.ciphersuites in
   assert (List.exists issuported default_config.ciphers);
   let cipher = List.hd (List.filter issuported default_config.ciphers) in
-  let server_name_extension = match find_hostname ch with
-    | None   -> None
-    | Some x -> Some (Hostname (Some x))
-  in
+  let server_name = find_hostname ch in
   let params = { entity                = Server ;
                  ciphersuite           = cipher ;
                  master_secret         = Cstruct.create 0 ;
@@ -151,8 +138,7 @@ let answer_client_hello (ch : client_hello) raw =
                  server_certificate    = None ;
                  client_verify_data    = Cstruct.create 0 ;
                  server_verify_data    = Cstruct.create 0 ;
-                 server_name_extension ;
-                 verification_name     = None }
+                 server_name }
   in
   answer_client_hello_params_int params ch raw
 
