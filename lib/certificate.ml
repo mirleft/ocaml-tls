@@ -248,9 +248,9 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
       let rec chain validator cert cert_raw = function
         | [] ->
           ( match find_issuer trusted cert with
-            | None        -> `Fail NoTrustAnchor
-            | Some anchor ->
-                validator anchor now cert cert_raw )
+            | None when is_self_signed cert -> `Fail SelfSigned
+            | None                          -> `Fail NoTrustAnchor
+            | Some anchor -> validator anchor now cert cert_raw )
         | (super, super_raw)::certs ->
             match validator super now cert cert_raw with
             | `Ok  -> chain verify_certificate super super_raw certs
