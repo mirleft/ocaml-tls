@@ -236,48 +236,39 @@ let find_issuer trusted cert =
      | [t] -> Some t
      | _   -> Printf.printf "found multiple root CAs\n"; None
 
-let rec verify_certificates_internal ?servername now trustanchor
- = function
-    (* we get the certificate chain cs:
-        [cn; cn-1; ... ; c2; c1; c0]
-       strategy:
-        1. verify intermediate certificates:
-             verify that [cn+1 .. c2] signed [cn .. c1]
-        2. verify server certificate was signed by c1 and
-             server certificate has required servername *)
-  | []                               -> `Fail InvalidInput
-  | [(server_cert, server_raw)] ->
-     (* step 2 *)
-     verify_server_certificate ?servername trustanchor now server_cert server_raw
-  | (cert, raw) :: cs                ->
-     (* step 1 *)
-     match verify_certificate trustanchor now cert raw with
-     | `Ok     -> verify_certificates_internal ?servername now cert cs
-     | `Fail x -> `Fail x
-
-
 (* this is the API for a user (Cstruct.t list might go away) *)
-let verify_certificates ?servername certificates : verification_result =
-  if List.length certificates == 0 then
-    `Fail InvalidInput
-  else
-    let now = Sys.time () in
-    let trusted = find_trusted_certs now in
-    let reversed = List.rev certificates in
-    let top, _ = List.hd reversed in
-    match find_issuer trusted top with
-    | None ->
-       if is_self_signed top  then
-         (* further verification of a self-signed certificate does not make sense:
-         why should anyone handle a properly self-signed and valid certificate
-         different from a badly signed invalid certificate? *)
-         (Printf.printf "DANGER: self-signed certificate\n";
-          `Fail SelfSigned)
-       else
-         `Fail NoTrustAnchor
-    | Some trustanchor ->
-       verify_certificates_internal ?servername now trustanchor reversed
-
+(* XXX
+ * both Sys.time() and trusted anchors should be moved towards the user!
+ * a general kernel-less tls validator doesn't go out and read rondom cert
+ * files. it doesn't even look at the clock.
+ *)
+let verify_certificates ?servername : (certificate * Cstruct.t) list -> verification_result
+= function
+    (* we get the certificate chain cs:
+        [c0; c1; c2; ... ; cn], n > 0
+        let server = c0
+        let top = cn
+       strategy:
+        1. traverse left-to-right, checking c_n+1 signs c_n
+        2. include servername and different extension constraints for c0
+        3. at the end, try to establish a trust anchor *)
+  | [] -> `Fail InvalidInput
+  | (server, server_raw) :: certs_and_raw ->
+      let now     = Sys.time () in
+      let trusted = find_trusted_certs now in
+      let rec chain validator cert cert_raw = function
+        | (super, super_raw)::certs ->
+          ( match validator super now cert cert_raw with
+            | `Ok  -> chain verify_certificate super super_raw certs
+            | fail -> fail )
+        | [] ->
+            match find_issuer trusted cert with
+            | None when is_self_signed cert -> `Fail SelfSigned
+            | None                          -> `Fail NoTrustAnchor
+            | Some anchor -> validator anchor now cert cert_raw
+      in
+      chain (verify_server_certificate ?servername)
+            server server_raw certs_and_raw
 
 (* TODO: how to deal with
     2.16.840.1.113730.1.1 - Netscape certificate type
