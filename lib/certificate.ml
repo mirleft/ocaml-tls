@@ -230,11 +230,11 @@ let find_issuer trusted cert =
      | [t] -> Some t
      | _   -> Printf.printf "found multiple root CAs\n"; None
 
-(* this is the API for a user (Cstruct.t list might go away) *)
+(* this is the API for a user (Cstruct.t might go away) *)
 (* XXX
- * both Sys.time() and trusted anchors should be moved towards the user!
- * a general kernel-less tls validator doesn't go out and read rondom cert
- * files. it doesn't even look at the clock.
+ * Both Sys.time() and trusted anchors should be moved towards the user!
+ * A general kernel-less tls validator doesn't go out and read rondom cert
+ * files. It doesn't even look at the clock.
  *)
 let verify_certificates ?servername : (certificate * Cstruct.t) list -> verification_result
 = function
