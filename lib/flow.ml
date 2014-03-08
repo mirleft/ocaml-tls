@@ -38,13 +38,15 @@ type tls_internal_state = [
   | `Handshaking of security_parameters * Cstruct.t list
   | `KeysExchanged of crypto_state * crypto_state * security_parameters * Cstruct.t list (* only used in server, client initiates change cipher spec *)
   | `Established of security_parameters
+  | `Failure
 ]
 
 let state_to_string = function
-  | `Initial -> "Initial"
-  | `Handshaking _ -> "Shaking hands"
+  | `Initial         -> "Initial"
+  | `Handshaking _   -> "Shaking hands"
   | `KeysExchanged _ -> "Keys are exchanged"
-  | `Established _ -> "Established"
+  | `Established _   -> "Established"
+  | `Failure         -> "Failure"
 
 
 type record = Packet.content_type * Cstruct.t
@@ -104,23 +106,25 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
         enc)
 
 (* well-behaved pure decryptor *)
-let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
+let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t) option
 = fun s ty buf ->
     match s with
-    | `Nothing -> (s, buf)
+    | `Nothing -> Some (s, buf)
     | `Crypted ctx ->
        let dec, next_iv =
          match ctx.stream_cipher with
          | Some x -> (Crypto.crypt_stream x buf, Cstruct.create 0)
-         | None -> Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf
+         | None   -> Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf
        in
        let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
        let body, mac = Cstruct.split dec macstart in
        let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
-       assert (Utils.cs_eq cmac mac);
-       (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
-                            cipher_iv = next_iv },
-        body)
+       if Utils.cs_eq cmac mac then
+         Some (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
+                                   cipher_iv = next_iv },
+               body)
+       else
+         None
 
 (* party time *)
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t)
@@ -193,23 +197,31 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
 
 
 let handle_raw_record handler state (hdr, buf) =
-  let (dec_st, dec) = decrypt state.decryptor hdr.content_type buf in
-  let (machina, items, dec_cmd) =
-    handler state.machina hdr.content_type dec in
-  let (encryptor, encs) =
-    let rec loop st = function
-      | [] -> (st, [])
-      | `Change_enc st'   :: xs -> loop st' xs
-      | `Record (ty, buf) :: xs ->
-          let (st1, enc ) = encrypt st ty buf in
-          let (st2, rest) = loop st1 xs in
-          (st2, (ty, enc) :: rest)
-    in
-    loop state.encryptor items in
-  let decryptor = match dec_cmd with
-    | `Change_dec dec -> dec
-    | `Pass           -> dec_st in
-  ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
+  match decrypt state.decryptor hdr.content_type buf with
+  | Some (dec_st, dec) ->
+     let (machina, items, dec_cmd) =
+       handler state.machina hdr.content_type dec in
+     let (encryptor, encs) =
+       let rec loop st = function
+         | [] -> (st, [])
+         | `Change_enc st'   :: xs -> loop st' xs
+         | `Record (ty, buf) :: xs ->
+            let (st1, enc ) = encrypt st ty buf in
+            let (st2, rest) = loop st1 xs in
+            (st2, (ty, enc) :: rest)
+       in
+       loop state.encryptor items in
+     let decryptor = match dec_cmd with
+       | `Change_dec dec -> dec
+       | `Pass           -> dec_st
+     in
+     Some ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
+  | None              -> None
+
+
+let alert typ =
+  let buf = Writer.assemble_alert typ in
+  (Packet.ALERT, buf)
 
 let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
       -> (tls_internal_state * rec_resp list * dec_resp)) ->
@@ -220,11 +232,19 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
     let rec loop st = function
       | []    -> (st, [])
       | r::rs ->
-          let (st1, raw_rs ) = handle_raw_record handler st r in
-          let (st2, raw_rs') = loop st1 rs in
-          (st2, raw_rs @ raw_rs') in
-    loop state in_records in
+         (
+           match handle_raw_record handler st r with
+           | Some (st1, raw_rs ) ->
+              let (st2, raw_rs') = loop st1 rs in
+              (st2, raw_rs @ raw_rs')
+           | None                ->
+              ( { st with machina = `Failure },
+                [(alert Packet.DECRYPTION_FAILED)])
+         )
+    in loop state in_records
+  in
   let buf' = assemble_records out_records in
+  Printf.printf "sending out"; Cstruct.hexdump buf';
   ({ state' with fragment = frag }, buf')
 
 let find_hostname : 'a hello -> string option =
