@@ -279,6 +279,11 @@ let find_issuer trusted cert =
  * A general kernel-less tls validator doesn't go out and read rondom cert
  * files. It doesn't even look at the clock.
  *)
+
+let (>>) a f = match a with
+  | `Ok -> f ()
+  | err -> err
+
 let verify_certificates ?servername : (certificate * Cstruct.t) list -> verification_result
 = function
     (* we get the certificate chain cs:
@@ -292,30 +297,34 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
       path: all c_n certs are path-n from server. while veryfing each one, make
             sure c_n+1 has basic constraints >= n
     *)
-  | [] -> `Fail InvalidInput
+  | []                                    -> `Fail InvalidInput
   | (server, server_raw) :: certs_and_raw ->
+
       let now     = Sys.time () in
       let trusted = find_trusted_certs now in
-      let rec chain validator pathlen cert cert_raw = function
-        | (super, super_raw)::certs ->
-          ( match validator now cert with
-            | `Ok -> (match validate_relation pathlen super cert cert_raw with
-                      | `Ok -> chain verify_certificate (pathlen + 1) super super_raw certs
-                      | err -> err)
-            | err -> err )
+
+      let rec verify_certs = function
+        | []                 -> `Ok
+        | (cert, _) :: certs ->
+            verify_certificate now cert >> fun () -> verify_certs certs
+      in
+
+      let rec climb pathlen cert cert_raw = function
+        | (super, super_raw) :: certs ->
+            validate_relation pathlen super cert cert_raw >> fun () ->
+            climb (succ pathlen) super super_raw certs
         | [] ->
             match find_issuer trusted cert with
             | None when is_self_signed cert             -> `Fail SelfSigned
             | None                                      -> `Fail NoTrustAnchor
             | Some anchor when validate_time now anchor ->
-               ( match validator now cert with
-                 | `Ok -> validate_relation pathlen anchor cert cert_raw
-                 | err -> err)
-            | Some anchor                               -> `Fail InvalidCAValidity
-
+                validate_relation pathlen anchor cert cert_raw
+            | Some _                                    -> `Fail InvalidCAValidity
       in
-      chain (verify_server_certificate ?servername)
-            0 server server_raw certs_and_raw
+
+      verify_server_certificate ?servername now server >> fun () ->
+      verify_certs certs_and_raw                       >> fun () ->
+      climb 0 server server_raw certs_and_raw
 
 
 (* TODO: how to deal with
