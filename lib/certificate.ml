@@ -8,6 +8,7 @@ type certificate_failure =
   | InvalidSignature
   | InvalidValidity
   | InvalidExtensions
+  | InvalidPathlen
   | SelfSigned
   | MultipleRootCA
   | NoTrustAnchor
@@ -70,6 +71,13 @@ let validate_time now cert =
 (* TODO:  from < now && now < till *)
   true
 
+let validate_path_len pathlen cert =
+  let open Extension in
+  match extn_basic_constr cert with
+  | Some (_ , Basic_constraints None)         -> true
+  | Some (_ , Basic_constraints (Some n))     -> n >= pathlen
+  | _                                         -> false
+
 let validate_ca_extensions cert =
   let open Extension in
   (* comments from RFC5280 *)
@@ -77,7 +85,7 @@ let validate_ca_extensions cert =
   (* Conforming CAs MUST include this extension in all CA certificates used *)
   (* to validate digital signatures on certificates and MUST mark the *)
   (* extension as critical in such certificates *)
-  (* unfortunately, there are 12 CA certs (including the one which
+  (* unfortunately, there are 8 CA certs (including the one which
       signed google.com) which are _NOT_ marked as critical *)
   ( option false (const true) (extn_basic_constr cert) ) &&
 
@@ -113,8 +121,10 @@ let ext_authority_matches_subject trusted cert =
   | _, _                                       -> false
 
 
-let validate_intermediate_extensions trusted cert =
-  (validate_ca_extensions cert) && (ext_authority_matches_subject trusted cert)
+let validate_intermediate_extensions pathlen trusted cert =
+  (validate_ca_extensions cert) &&
+    (ext_authority_matches_subject trusted cert) &&
+      (validate_path_len pathlen cert)
 
 let validate_server_extensions trusted cert =
   let open Extension in
@@ -144,14 +154,14 @@ let common_name_to_string cert =
      "NO commonName " ^ hex
   | Some x -> x
 
-let verify_certificate trusted now cert raw_cert =
+let verify_certificate pathlen trusted now cert raw_cert =
     Printf.printf "verify certificate %s -> %s\n"
                   (common_name_to_string trusted)
                   (common_name_to_string cert);
     match
       validate_signature trusted cert raw_cert,
       validate_time now cert,
-      validate_intermediate_extensions trusted cert
+      validate_intermediate_extensions pathlen trusted cert
     with
     | (true, true, true) -> Printf.printf "success\n";
                             `Ok
@@ -201,7 +211,7 @@ let hostname_matches cert name =
         names
   | _ -> option false ((=) name) (get_cn cert.tbs_cert)
 
-let verify_server_certificate ?servername trusted now cert raw_cert =
+let verify_server_certificate _pathlen ?servername trusted now cert raw_cert =
   Printf.printf "verify server certificate %s -> %s\n"
                 (common_name_to_string trusted)
                 (common_name_to_string cert);
@@ -265,19 +275,24 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
   | (server, server_raw) :: certs_and_raw ->
       let now     = Sys.time () in
       let trusted = find_trusted_certs now in
-      let rec chain validator cert cert_raw = function
+      let rec chain validator pathlen cert cert_raw = function
         | (super, super_raw)::certs ->
-          ( match validator super now cert cert_raw with
-            | `Ok  -> chain verify_certificate super super_raw certs
+          ( match validator pathlen super now cert cert_raw with
+            | `Ok  -> chain verify_certificate (pathlen + 1) super super_raw certs
             | fail -> fail )
         | [] ->
             match find_issuer trusted cert with
             | None when is_self_signed cert -> `Fail SelfSigned
             | None                          -> `Fail NoTrustAnchor
-            | Some anchor -> validator anchor now cert cert_raw
+            | Some anchor when validate_path_len pathlen anchor ->
+               validator pathlen anchor now cert cert_raw
+            | Some anchor                   -> `Fail InvalidPathlen
       in
       chain (verify_server_certificate ?servername)
-            server server_raw certs_and_raw
+            (-1) server server_raw certs_and_raw
+               (* from RFC: Note: The
+   last certificate in the certification path is not an intermediate
+   certificate, and is not included in this limit. *)
 
 (* TODO: how to deal with
     2.16.840.1.113730.1.1 - Netscape certificate type
