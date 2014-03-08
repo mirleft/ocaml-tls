@@ -229,32 +229,35 @@ let find_issuer trusted cert =
   | _   -> Printf.printf "found multiple root CAs\n"; None
 
 (* this is the API for a user (Cstruct.t list might go away) *)
+(* XXX
+ * both Sys.time() and trusted anchors should be moved towards the user!
+ * a general kernel-less tls validator doesn't go out and read rondom cert
+ * files. it doesn't even look at the clock.
+ *)
 let verify_certificates ?servername : (certificate * Cstruct.t) list -> verification_result
 = function
     (* we get the certificate chain cs:
-        [c0; c1; c2; ... ; cn]
+        [c0; c1; c2; ... ; cn], n > 0
         let server = c0
         let top = cn
        strategy:
-        1. find a trusted CA for top, use it cn+1
-        2. verify intermediate certificates:
-             verify that [cn+1 .. c2] signed [cn .. c1]
-        3. verify server certificate was signed by c1 and
-             server certificate has required servername *)
+        1. traverse left-to-right, checking c_n+1 signs c_n
+        2. include servername and different extension constraints for c0
+        3. at the end, try to establish a trust anchor *)
   | [] -> `Fail InvalidInput
   | (server, server_raw) :: certs_and_raw ->
       let now     = Sys.time () in
       let trusted = find_trusted_certs now in
       let rec chain validator cert cert_raw = function
+        | (super, super_raw)::certs ->
+          ( match validator super now cert cert_raw with
+            | `Ok  -> chain verify_certificate super super_raw certs
+            | fail -> fail )
         | [] ->
-          ( match find_issuer trusted cert with
+            match find_issuer trusted cert with
             | None when is_self_signed cert -> `Fail SelfSigned
             | None                          -> `Fail NoTrustAnchor
-            | Some anchor -> validator anchor now cert cert_raw )
-        | (super, super_raw)::certs ->
-            match validator super now cert cert_raw with
-            | `Ok  -> chain verify_certificate super super_raw certs
-            | fail -> fail
+            | Some anchor -> validator anchor now cert cert_raw
       in
       chain (verify_server_certificate ?servername)
             server server_raw certs_and_raw
