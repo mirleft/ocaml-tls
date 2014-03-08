@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: a2cf72705add5ee85515ab775122bd12)
+# DO NOT EDIT (digest: 964e6e9b7d68af6115db05423c56f3a5)
 Ciphersuite
 Utils
 Packet
@@ -15,4 +15,5 @@ Server
 Client
 Registry
 Asn_grammars
+Control
 # OASIS_STOP

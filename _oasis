@@ -18,6 +18,6 @@ Library tls
    Printer, Reader, Writer,
    Crypto, Crypto_utils,
    Flow, Server, Client
-  InternalModules: Registry, Asn_grammars
+  InternalModules: Registry, Asn_grammars, Control
   Pack: true
   BuildDepends: cstruct, cstruct.syntax, nocrypto, asn1-combinators, cryptokit
