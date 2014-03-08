@@ -68,9 +68,6 @@ let validate_time now cert =
 (* TODO:  from < now && now < till *)
   true
 
-let extn_exists getter cert =
-  match getter cert with None -> false | Some _ -> true
-
 let validate_ca_extensions cert =
   let open Extension in
   (* comments from RFC5280 *)
@@ -80,7 +77,7 @@ let validate_ca_extensions cert =
   (* extension as critical in such certificates *)
   (* unfortunately, there are 12 CA certs (including the one which
       signed google.com) which are _NOT_ marked as critical *)
-  ( extn_exists extn_basic_constr cert ) &&
+  ( option false (const true) (extn_basic_constr cert) ) &&
 
   (* 4.2.1.3 Key Usage *)
   (* Conforming CAs MUST include key usage extension *)
@@ -187,21 +184,17 @@ let hostname_matches cert name =
       List.exists
         (function General_name.DNS x -> x = name | _ -> false)
         names
-  | _ -> match get_cn cert.tbs_cert with None -> false | Some x -> x = name
+  | _ -> option false ((=) name) (get_cn cert.tbs_cert)
 
 let verify_server_certificate ?servername trusted now cert raw_cert =
   Printf.printf "verify server certificate %s -> %s\n"
                 (common_name_to_string trusted)
                 (common_name_to_string cert);
-  let smatches name cert = match name with
-    | None   -> false
-    | Some x -> hostname_matches cert x
-  in
   match
     validate_signature trusted cert raw_cert,
     validate_time now cert,
     validate_server_extensions trusted cert,
-    smatches servername cert
+    option false (hostname_matches cert) servername
   with
   | (true, true, true, true) ->
       Printf.printf "successfully verified server certificate\n";
