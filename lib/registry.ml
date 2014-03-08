@@ -236,6 +236,14 @@ module Cert_extn = struct
     and time_stamping    = key_purpose <| 8
     and ocsp_signing     = key_purpose <| 9
   end
+
+  module Cert_policy = struct
+    let qt      = pkix <| 2
+    let cps     = qt <| 1
+    let unotice = qt <| 2
+
+    let any_policy = certificate_policies_2 <| 0
+  end
 end
 
 module Name_extn = struct

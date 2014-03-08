@@ -34,6 +34,13 @@ let project_exn asn =
   in
   (dec, encode c)
 
+
+let display_text =
+  map (function `C1 s -> s | `C2 s -> s | `C3 s -> s | `C4 s -> s)
+      (fun s -> `C4 s)
+  @@
+  choice4 ia5_string visible_string bmp_string utf8_string
+
 module Name = struct
 
   (* ASN `Name' fragmet appears all over. *)
@@ -424,22 +431,126 @@ module Extension = struct
       (optional ~label:"cA"      bool)
       (optional ~label:"pathLen" int)
 
+  type authority_key_id = Cstruct.t option * gen_names * Num.num option
+
   let authority_key_id =
+    map (fun (a, b, c) -> (a, def  [] b, c))
+        (fun (a, b, c) -> (a, def' [] b, c))
+    @@
     sequence3
       (optional ~label:"keyIdentifier"  @@ implicit 0 octet_string)
       (optional ~label:"authCertIssuer" @@ implicit 1 gen_names)
       (optional ~label:"authCertSN"     @@ implicit 2 integer)
 
+  type priv_key_usage_period =
+    | Interval   of time * time
+    | Not_after  of time
+    | Not_before of time
+
+  let priv_key_usage_period =
+    let f = function
+      | (Some t1, Some t2) -> Interval (t1, t2)
+      | (Some t1, None   ) -> Not_before t1
+      | (None   , Some t2) -> Not_after  t2
+      | _                  -> parse_error "empty PrivateKeyUsagePeriod"
+    and g = function
+      | Interval (t1, t2) -> (Some t1, Some t2)
+      | Not_before t1     -> (Some t1, None   )
+      | Not_after  t2     -> (None   , Some t2) in
+    map f g @@
+    sequence2
+      (optional ~label:"notBefore" @@ implicit 0 generalized_time)
+      (optional ~label:"notAfter"  @@ implicit 1 generalized_time)
+
+  type name_constraint = (General_name.t * int * int option) list
+  type name_constraints = name_constraint * name_constraint
+
+  let name_constraints =
+    let subtree =
+      map (fun (base, min, max) -> (base, def  0 min, max))
+          (fun (base, min, max) -> (base, def' 0 min, max))
+      @@
+      sequence3
+        (required ~label:"base"       General_name.general_name)
+        (optional ~label:"minimum" @@ implicit 0 int)
+        (optional ~label:"maximum" @@ implicit 1 int)
+    in
+    map (fun (a, b) -> (def  [] a, def  [] b))
+        (fun (a, b) -> (def' [] a, def' [] b))
+    @@
+    sequence2
+      (optional ~label:"permittedSubtrees" @@ implicit 0 (sequence_of subtree))
+      (optional ~label:"excludedSubtrees"  @@ implicit 1 (sequence_of subtree))
+
+    (* XXX cert policies are pure bullshit.
+     * Aside from "do anything" in the rfc, my certs contain the following ones:
+     * ["1.2.208.169.1.1.1"; "1.2.250.1.121.1.1.1"; "1.2.250.1.86.2.2.0.1.1";
+     *  "1.3.158.35975946.0.0.0.1.1.1"; "1.3.6.1.4.1.10015.1.1.1";
+     *  "1.3.6.1.4.1.15096.1.3.1.10";
+     *  "1.3.6.1.4.1.17326.10.1.1"; "1.3.6.1.4.1.17326.10.3.1";
+     *  "1.3.6.1.4.1.21528.2.1.1.1";
+     *  "1.3.6.1.4.1.23223.1.1.1"; "1.3.6.1.4.1.8024.0.1";
+     *  "1.3.6.1.4.1.8024.0.3";
+     *  "1.3.6.1.4.1.8149.2.1.0"; "2.16.756.1.89.1.1.1.1";
+     *  "2.16.756.1.89.1.2.1.1";
+     *  "2.16.756.1.89.1.3.1.1"; "2.16.840.1.101.3.2.1.1.1";
+     *  "2.16.840.1.114171.903.1.11";
+     *  "2.16.862.3.1.2"; "ANY"]
+     *  I can't find any of those in the databases.
+     *  Should we kill this?
+     *)
+
+    type cert_policies = (string * string list) list
+
+    (* XXX I don't want to deal with all the structure this can have. *)
+    let cert_policies =
+      let open ID.Cert_policy in
+      let qualifier_info =
+        map (function | (oid, `C1 s) when oid = cps     -> s
+                      | (oid, `C2 s) when oid = unotice -> s
+                      | _ -> parse_error "bad policy qualifier")
+            (function s -> (cps, `C1 s))
+        @@
+        sequence2
+          (required ~label:"qualifierId" oid)
+          (required ~label:"qualifier"
+            (choice2
+              ia5_string
+              @@
+              map (function | (_, Some s) -> s
+                            | _           ->  "FUCK THE SYSTEM!!!")
+                  (fun s -> (None, Some s)) @@
+              (sequence2
+                (optional ~label:"noticeRef"
+                  (sequence2
+                    (required ~label:"organization" display_text)
+                    (required ~label:"numbers"      (sequence_of integer))))
+                (optional ~label:"explicitText" display_text))))
+      in
+      sequence_of @@
+        map (fun (a, b) ->
+            let xx = if a = any_policy then "- ANY -" else OID.to_string a in
+            (xx, def [] b))
+(*           (OID.to_string a, def  [] b)) *)
+            (fun (a, b) -> (OID.of_string a, def' [] b))
+        @@
+        sequence2
+          (required ~label:"policyIdentifier" oid)
+          (optional ~label:"policyQualifiers" (sequence_of qualifier_info))
+
 
   type t =
-    | Unsupported        of OID.t * Cstruct.t
-    | Subject_alt_name   of gen_names
-    | Authority_key_id   of (Cstruct.t option * gen_names option * Num.num option)
-    | Subject_key_id     of Cstruct.t
-    | Issuer_alt_name    of gen_names
-    | Key_usage          of key_usage list
-    | Ext_key_usage      of extended_key_usage list
-    | Basic_constraints  of int option
+    | Unsupported       of OID.t * Cstruct.t
+    | Subject_alt_name  of gen_names
+    | Authority_key_id  of authority_key_id
+    | Subject_key_id    of Cstruct.t
+    | Issuer_alt_name   of gen_names
+    | Key_usage         of key_usage list
+    | Ext_key_usage     of extended_key_usage list
+    | Basic_constraints of int option
+    | Priv_key_period   of priv_key_usage_period
+    | Name_constraints  of name_constraints
+    | Policies          of cert_policies
 
 
   let gen_names_of_cs, gen_names_to_cs       = project_exn gen_names
@@ -448,6 +559,9 @@ module Extension = struct
   and key_usage_of_cs, key_usage_to_cs       = project_exn key_usage
   and e_key_usage_of_cs, e_key_usage_to_cs   = project_exn ext_key_usage
   and basic_constr_of_cs, basic_constr_to_cs = project_exn basic_constraints
+  and pr_key_peri_of_cs, pr_key_peri_to_cs   = project_exn priv_key_usage_period
+  and name_con_of_cs, name_con_to_cs         = project_exn name_constraints
+  and cert_pol_of_cs, cert_pol_to_cs         = project_exn cert_policies
 
   (* XXX 4.2.1.4. - cert policies! ( and other x509 extensions ) *)
 
@@ -473,6 +587,15 @@ module Extension = struct
     | (oid, cs) when oid = ID.extended_key_usage ->
         Ext_key_usage (e_key_usage_of_cs cs)
 
+    | (oid, cs) when oid = ID.private_key_usage_period ->
+        Priv_key_period (pr_key_peri_of_cs cs)
+
+    | (oid, cs) when oid = ID.name_constraints ->
+        Name_constraints (name_con_of_cs cs)
+
+    | (oid, cs) when oid = ID.certificate_policies_2 ->
+        Policies (cert_pol_of_cs cs)
+
     | (oid, cs) -> Unsupported (oid, cs)
 
   let unparse_extension = function
@@ -483,6 +606,9 @@ module Extension = struct
     | Key_usage         x -> (ID.key_usage               , key_usage_to_cs    x)
     | Basic_constraints x -> (ID.basic_constraints       , basic_constr_to_cs x)
     | Ext_key_usage     x -> (ID.extended_key_usage      , e_key_usage_to_cs  x)
+    | Priv_key_period   x -> (ID.private_key_usage_period, pr_key_peri_to_cs  x)
+    | Name_constraints  x -> (ID.name_constraints        , name_con_to_cs     x)
+    | Policies          x -> (ID.certificate_policies_2  , cert_pol_to_cs     x)
     | Unsupported (oid, cs) -> (oid, cs)
 
   let extensions_der =
