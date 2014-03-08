@@ -462,6 +462,7 @@ module Extension = struct
       (optional ~label:"notBefore" @@ implicit 0 generalized_time)
       (optional ~label:"notAfter"  @@ implicit 1 generalized_time)
 
+
   type name_constraint = (General_name.t * int * int option) list
   type name_constraints = name_constraint * name_constraint
 
@@ -482,27 +483,9 @@ module Extension = struct
       (optional ~label:"permittedSubtrees" @@ implicit 0 (sequence_of subtree))
       (optional ~label:"excludedSubtrees"  @@ implicit 1 (sequence_of subtree))
 
-    (* XXX cert policies are pure bullshit.
-     * Aside from "do anything" in the rfc, my certs contain the following ones:
-     * ["1.2.208.169.1.1.1"; "1.2.250.1.121.1.1.1"; "1.2.250.1.86.2.2.0.1.1";
-     *  "1.3.158.35975946.0.0.0.1.1.1"; "1.3.6.1.4.1.10015.1.1.1";
-     *  "1.3.6.1.4.1.15096.1.3.1.10";
-     *  "1.3.6.1.4.1.17326.10.1.1"; "1.3.6.1.4.1.17326.10.3.1";
-     *  "1.3.6.1.4.1.21528.2.1.1.1";
-     *  "1.3.6.1.4.1.23223.1.1.1"; "1.3.6.1.4.1.8024.0.1";
-     *  "1.3.6.1.4.1.8024.0.3";
-     *  "1.3.6.1.4.1.8149.2.1.0"; "2.16.756.1.89.1.1.1.1";
-     *  "2.16.756.1.89.1.2.1.1";
-     *  "2.16.756.1.89.1.3.1.1"; "2.16.840.1.101.3.2.1.1.1";
-     *  "2.16.840.1.114171.903.1.11";
-     *  "2.16.862.3.1.2"; "ANY"]
-     *  I can't find any of those in the databases.
-     *  Should we kill this?
-     *)
 
-    type cert_policies = (string * string list) list
+    type cert_policies = [ `Any | `Something of oid ] list
 
-    (* XXX I don't want to deal with all the structure this can have. *)
     let cert_policies =
       let open ID.Cert_policy in
       let qualifier_info =
@@ -517,8 +500,7 @@ module Extension = struct
             (choice2
               ia5_string
               @@
-              map (function | (_, Some s) -> s
-                            | _           ->  "FUCK THE SYSTEM!!!")
+              map (function (_, Some s) -> s | _ -> "#(BLAH BLAH)")
                   (fun s -> (None, Some s)) @@
               (sequence2
                 (optional ~label:"noticeRef"
@@ -527,12 +509,14 @@ module Extension = struct
                     (required ~label:"numbers"      (sequence_of integer))))
                 (optional ~label:"explicitText" display_text))))
       in
+      (* "Optional qualifiers, which MAY be present, are not expected to change
+       * the definition of the policy."
+       * Hence, we just drop them. *)
       sequence_of @@
-        map (fun (a, b) ->
-            let xx = if a = any_policy then "- ANY -" else OID.to_string a in
-            (xx, def [] b))
-(*           (OID.to_string a, def  [] b)) *)
-            (fun (a, b) -> (OID.of_string a, def' [] b))
+        map (function | (oid, _) when oid = any_policy -> `Any
+                      | (oid, _)                       -> `Something oid)
+            (function | `Any           -> (any_policy, None)
+                      | `Something oid -> (oid, None))
         @@
         sequence2
           (required ~label:"policyIdentifier" oid)
