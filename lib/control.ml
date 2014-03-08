@@ -11,6 +11,7 @@ module Monad (M : Monad) : sig
   val sequence_ : 'a M.t list -> unit M.t
   val mapM      : ('a -> 'b M.t) -> 'a list -> 'b list M.t
   val mapM_     : ('a -> 'b M.t) -> 'a list -> unit M.t
+  val foldM     : ('a -> 'b -> 'a M.t) -> 'b -> 'a list -> 'b M.t
 end
   =
 struct
@@ -29,6 +30,9 @@ struct
   let rec mapM_ f = function
     | []    -> return ()
     | x::xs -> f x >>= fun _ -> mapM_ f xs
+  let rec foldM f z = function
+    | []    -> return z
+    | x::xs -> f z >>= fun z' -> foldM f z' xs
 end
 
 module Option = Monad ( struct
