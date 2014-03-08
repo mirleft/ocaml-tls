@@ -120,14 +120,44 @@ let ext_authority_matches_subject trusted cert =
   | None, _                                    -> true (* not mandatory *)
   | _, _                                       -> false
 
-let validate_relation pathlen trusted cert raw_cert =
-  (issuer_matches_subject trusted cert) &&
-  (ext_authority_matches_subject trusted cert) &&
-  (validate_signature trusted cert raw_cert) &&
-  (validate_path_len pathlen trusted)
+let get_cn cert =
+  map_find cert.subject ~f:(function Name.CN n -> Some n | _ -> None)
 
-let validate_intermediate_extensions cert =
-  validate_ca_extensions cert
+let common_name_to_string cert =
+  match get_cn cert.tbs_cert with
+  | None   ->
+     let sigl = Cstruct.len cert.signature_val in
+     let sign = Cstruct.copy cert.signature_val 0 sigl in
+     let hex = Cryptokit.(transform_string (Hexa.encode ()) sign) in
+     "NO commonName " ^ hex
+  | Some x -> x
+
+let validate_relation pathlen trusted cert raw_cert =
+  Printf.printf "verifying relation of %s -> %s (pathlen %d)\n"
+                (common_name_to_string trusted)
+                (common_name_to_string cert)
+                pathlen;
+  match
+    issuer_matches_subject trusted cert,
+    ext_authority_matches_subject trusted cert,
+    validate_signature trusted cert raw_cert,
+    validate_path_len pathlen trusted
+  with
+  | (true, true, true, true) ->
+     Printf.printf "ok\n";
+     `Ok
+  | (false, _, _, _)         ->
+     Printf.printf "issuer doesn't match subject\n";
+     `Fail InvalidCertificate
+  | (_, false, _, _)         ->
+     Printf.printf "authority didn't match subject key id (in extensions)\n";
+     `Fail InvalidExtensions
+  | (_, _, false, _)         ->
+     Printf.printf "signature is wrong!\n";
+     `Fail InvalidSignature
+  | (_, _, _, false)         ->
+     Printf.printf "path len exceeded!\n";
+     `Fail InvalidPathlen
 
 let validate_server_extensions cert =
   let open Extension in
@@ -143,35 +173,19 @@ let validate_server_extensions cert =
                  | (crit, _)                       -> not crit )
                cert.tbs_cert.extensions
 
-let get_cn cert =
-  map_find cert.subject ~f:(function Name.CN n -> Some n | _ -> None)
-
-let common_name_to_string cert =
-  match get_cn cert.tbs_cert with
-  | None   ->
-     let sigl = Cstruct.len cert.signature_val in
-     let sign = Cstruct.copy cert.signature_val 0 sigl in
-     let hex = Cryptokit.(transform_string (Hexa.encode ()) sign) in
-     "NO commonName " ^ hex
-  | Some x -> x
-
-let verify_certificate pathlen trusted now cert raw_cert =
-    Printf.printf "verify certificate %s -> %s\n"
-                  (common_name_to_string trusted)
+let verify_certificate now cert =
+    Printf.printf "verify intermediate certificate %s\n"
                   (common_name_to_string cert);
     match
       validate_time now cert,
-      validate_ca_extensions cert,
-      validate_relation pathlen trusted cert raw_cert
+      validate_ca_extensions cert
     with
-    | (true, true, true) -> Printf.printf "success\n";
-                            `Ok
-    | (false, _, _)      -> Printf.printf "validity failed\n";
-                            `Fail InvalidValidity
-    | (_, false, _)      -> Printf.printf "extensions failed\n";
-                            `Fail InvalidExtensions
-    | (_, _, false)      -> Printf.printf "signature failed\n";
-                            `Fail InvalidSignature
+    | (true, true) -> Printf.printf "success\n";
+                      `Ok
+    | (false, _)   -> Printf.printf "validity failed\n";
+                      `Fail InvalidValidity
+    | (_, false)   -> Printf.printf "extensions failed\n";
+                      `Fail InvalidExtensions
 
 let verify_ca_cert now cert raw =
   Printf.printf "verifying CA cert %s: " (common_name_to_string cert);
@@ -224,31 +238,26 @@ let hostname_matches cert name =
         names
   | _ -> option false ((=) name) (get_cn cert.tbs_cert)
 
-let verify_server_certificate ?servername pathlen trusted now cert raw_cert =
-  Printf.printf "verify server certificate %s -> %s\n"
-                (common_name_to_string trusted)
+let verify_server_certificate ?servername now cert =
+  Printf.printf "verify server certificate %s\n"
                 (common_name_to_string cert);
   match
     validate_time now cert,
     option false (hostname_matches cert) servername,
-    validate_server_extensions cert,
-    validate_relation pathlen trusted cert raw_cert
+    validate_server_extensions cert
   with
-  | (true, true, true, true) ->
+  | (true, true, true) ->
       Printf.printf "successfully verified server certificate\n";
       `Ok
-  | (false, _, _, _) ->
+  | (false, _, _)      ->
       Printf.printf "failed to verify validity of server certificate\n";
       `Fail InvalidServerValidity
-  | (_, false, _, _) ->
+  | (_, false, _)      ->
       Printf.printf "failed to verify servername of server certificate\n";
       `Fail InvalidServerName
-  | (_, _, false, _) ->
+  | (_, _, false)      ->
       Printf.printf "failed to verify extensions of server certificate\n";
       `Fail InvalidServerExtensions
-  | (_, _, _, false) ->
-      Printf.printf "failed to verify signature on server certificate\n";
-      `Fail InvalidServerSignature
 
 let find_issuer trusted cert =
   (* first have to find issuer of ``c`` in ``trusted`` *)
@@ -289,16 +298,21 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
       let trusted = find_trusted_certs now in
       let rec chain validator pathlen cert cert_raw = function
         | (super, super_raw)::certs ->
-          ( match validator pathlen super now cert cert_raw with
-            | `Ok -> chain verify_certificate (pathlen + 1) super super_raw certs
+          ( match validator now cert with
+            | `Ok -> (match validate_relation pathlen super cert cert_raw with
+                      | `Ok -> chain verify_certificate (pathlen + 1) super super_raw certs
+                      | err -> err)
             | err -> err )
         | [] ->
             match find_issuer trusted cert with
             | None when is_self_signed cert             -> `Fail SelfSigned
             | None                                      -> `Fail NoTrustAnchor
             | Some anchor when validate_time now anchor ->
-                validator pathlen anchor now cert cert_raw
-            | Some _                                    -> `Fail InvalidCAValidity
+               ( match validator now cert with
+                 | `Ok -> validate_relation pathlen anchor cert cert_raw
+                 | err -> err)
+            | Some anchor                               -> `Fail InvalidCAValidity
+
       in
       chain (verify_server_certificate ?servername)
             0 server server_raw certs_and_raw
