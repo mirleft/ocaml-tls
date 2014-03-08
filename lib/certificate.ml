@@ -142,8 +142,7 @@ let validate_server_extensions trusted cert =
   ext_authority_matches_subject trusted cert
 
 let get_cn cert =
-  map_find cert.subject
-    ~f:Name.(function Common_name n -> Some n | _ -> None)
+  map_find cert.subject ~f:(function Name.CN n -> Some n | _ -> None)
 
 let common_name_to_string cert =
   match get_cn cert.tbs_cert with
