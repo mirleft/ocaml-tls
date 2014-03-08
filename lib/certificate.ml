@@ -74,9 +74,9 @@ let validate_time now cert =
 let validate_path_len pathlen cert =
   let open Extension in
   match extn_basic_constr cert with
-  | Some (_ , Basic_constraints None)         -> true
-  | Some (_ , Basic_constraints (Some n))     -> n >= pathlen
-  | _                                         -> false
+  | Some (_ , Basic_constraints (None | Some 0)) -> true
+  | Some (_ , Basic_constraints (Some n))        -> n >= (pathlen - 1)
+  | _                                            -> true
 
 let validate_ca_extensions cert =
   let open Extension in
@@ -123,8 +123,8 @@ let ext_authority_matches_subject trusted cert =
 
 let validate_intermediate_extensions pathlen trusted cert =
   (validate_ca_extensions cert) &&
-    (ext_authority_matches_subject trusted cert) &&
-      (validate_path_len pathlen cert)
+  (ext_authority_matches_subject trusted cert) &&
+  (validate_path_len pathlen cert)
 
 let validate_server_extensions trusted cert =
   let open Extension in
@@ -210,7 +210,7 @@ let hostname_matches cert name =
         names
   | _ -> option false ((=) name) (get_cn cert.tbs_cert)
 
-let verify_server_certificate _pathlen ?servername trusted now cert raw_cert =
+let verify_server_certificate ?servername _pathlen trusted now cert raw_cert =
   Printf.printf "verify server certificate %s -> %s\n"
                 (common_name_to_string trusted)
                 (common_name_to_string cert);
@@ -269,7 +269,10 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
        strategy:
         1. traverse left-to-right, checking c_n+1 signs c_n
         2. include servername and different extension constraints for c0
-        3. at the end, try to establish a trust anchor *)
+        3. at the end, try to establish a trust anchor
+      path: at step c_n, pathlen is n. verify no cert contains path len smaller
+            than n - 1.
+    *)
   | [] -> `Fail InvalidInput
   | (server, server_raw) :: certs_and_raw ->
       let now     = Sys.time () in
@@ -277,18 +280,17 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
       let rec chain validator pathlen cert cert_raw = function
         | (super, super_raw)::certs ->
           ( match validator pathlen super now cert cert_raw with
-            | `Ok  -> chain verify_certificate (pathlen + 1) super super_raw certs
-            | fail -> fail )
+            | `Ok -> chain verify_certificate (pathlen + 1) super super_raw certs
+            | err -> err )
         | [] ->
             match find_issuer trusted cert with
             | None when is_self_signed cert -> `Fail SelfSigned
             | None                          -> `Fail NoTrustAnchor
-            | Some anchor when validate_path_len pathlen anchor ->
-               validator pathlen anchor now cert cert_raw
-            | Some anchor                   -> `Fail InvalidPathlen
+            | Some anchor                   ->
+                validator pathlen anchor now cert cert_raw
       in
       chain (verify_server_certificate ?servername)
-            (-1) server server_raw certs_and_raw
+            0 server server_raw certs_and_raw
                (* from RFC: Note: The
    last certificate in the certification path is not an intermediate
    certificate, and is not included in this limit. *)
