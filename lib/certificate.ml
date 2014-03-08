@@ -261,12 +261,8 @@ let find_issuer trusted cert =
             | true -> Some t
             | false -> Printf.printf "authority key didn't match issuing CA";
                        None)
-  | ts  ->
-     match List.filter (fun t -> ext_authority_matches_subject t cert) ts with
-     | []  -> Printf.printf "couldn't find trusted CA cert whose authority key matched\n";
-             None
-     | [t] -> Some t
-     | _   -> Printf.printf "found multiple root CAs\n"; None
+  | _   -> Printf.printf "found multiple CAs where subject matched, giving up\n";
+           None
 
 (* this is the API for a user (Cstruct.t might go away) *)
 (* XXX
