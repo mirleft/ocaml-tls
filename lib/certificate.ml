@@ -6,6 +6,8 @@ open Utils
 type certificate_failure =
   | InvalidCertificate
   | InvalidSignature
+  | InvalidValidity
+  | InvalidExtensions
   | SelfSigned
   | MultipleRootCA
   | NoTrustAnchor
@@ -146,22 +148,26 @@ let verify_certificate trusted now cert raw_cert =
                   (common_name_to_string trusted)
                   (common_name_to_string cert);
     match
-      validate_signature trusted cert raw_cert &&
-      validate_time now cert                   &&
+      validate_signature trusted cert raw_cert,
+      validate_time now cert,
       validate_intermediate_extensions trusted cert
     with
-    | true -> `Ok
-    | _    -> `Fail InvalidCertificate
+    | (true, true, true) -> `Ok
+    | (false, _, _)      -> `Fail InvalidSignature
+    | (_, false, _)      -> `Fail InvalidValidity
+    | (_, _, false)      -> `Fail InvalidExtensions
 
 let verify_ca_cert now cert raw =
   Printf.printf "verifying CA cert %s: " (common_name_to_string cert);
   match
-    validate_signature cert cert raw &&
-    validate_time now cert           &&
+    validate_signature cert cert raw,
+    validate_time now cert,
     validate_ca_extensions cert
   with
-  | true -> Printf.printf "ok\n";     true
-  | _    -> Printf.printf "failed\n"; false
+  | (true, true, true) -> Printf.printf "ok\n"; `Ok
+  | (false, _, _)      -> Printf.printf "signature failed\n"; `Fail InvalidSignature
+  | (_, false, _)      -> Printf.printf "validity failed\n"; `Fail InvalidValidity
+  | (_, _, false)      -> Printf.printf "extensions failed\n"; `Fail InvalidExtensions
 
 (* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
 let find_trusted_certs now =
@@ -171,7 +177,12 @@ let find_trusted_certs now =
     Crypto_utils.(cert_of_file cacert_file, certs_of_file ca_nss_file) in
 
   let cas   = List.append nss [(cacert, raw)] in
-  let valid = List.filter (fun (cert, raw) -> verify_ca_cert now cert raw) cas in
+  let valid = List.filter (fun (cert, raw) ->
+                             match verify_ca_cert now cert raw with
+                             | `Ok     -> true
+                             | `Fail _ -> false)
+                          cas
+  in
   Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
   let certs, _ = List.split valid in
   certs
