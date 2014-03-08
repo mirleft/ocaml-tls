@@ -5,14 +5,13 @@ module type Monad = sig
 end
 
 module Monad (M : Monad) : sig
-  type 'a t
-  val return : 'a -> 'a t
-  val (>>=)  : 'a t -> ('a -> 'b t) -> 'b t
-  val sequence  : 'a t list -> 'a list t
-  val sequence_ : 'a t list -> unit t
-  val mapM      : ('a -> 'b t) -> 'a list -> 'b list t
-  val mapM_     : ('a -> 'b t) -> 'a list -> unit t
-end with type 'a t = 'a M.t
+  val return : 'a -> 'a M.t
+  val (>>=)  : 'a M.t -> ('a -> 'b M.t) -> 'b M.t
+  val sequence  : 'a M.t list -> 'a list M.t
+  val sequence_ : 'a M.t list -> unit M.t
+  val mapM      : ('a -> 'b M.t) -> 'a list -> 'b list M.t
+  val mapM_     : ('a -> 'b M.t) -> 'a list -> unit M.t
+end
   =
 struct
   type 'a t = 'a M.t
@@ -41,11 +40,16 @@ module Option = Monad ( struct
 end )
 
 module Or_error_make (M : sig type err end) = struct
-  type 'a t = Ok of 'a | Error of M.err
-  let return a = Ok a
-  let bind a f = match a with
-    | Ok x    -> f x
-    | Error e -> Error e
+  type 'a or_error = Ok of 'a | Error of M.err
+  let fail e   = Error e
+  module Monad_impl = Monad (struct
+    type 'a t = 'a or_error
+    let return a = Ok a
+    let bind a f = match a with
+      | Ok x    -> f x
+      | Error e -> Error e
+  end)
+  include Monad_impl
 end
 
 module Or_string_error = Or_error_make (struct type err = string end)
