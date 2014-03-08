@@ -45,31 +45,37 @@ module Name = struct
 
   (* ASN `Name' fragmet appears all over. *)
 
-  type component =
-    | Common_name      of string
-    | Surname          of string
-    | Serial           of string
-    | Country          of string
-    | Locality         of string
-    | Province         of string
-    | Org              of string
-    | Org_unit         of string
-    | Title            of string
-    | Given_name       of string
-    | Initials         of string
-    | Generation       of string
-    | DN_qualifier     of string
-    | Pseudonym        of string
-    | Email            of string
-    | Domain_component of string
-    | Other            of OID.t * string
+  (* rfc5280 section 4.1.2.4 - name components we "must" handle. *)
+  (* A list of abbreviations: http://pic.dhe.ibm.com/infocenter/wmqv7/v7r1/index.jsp?topic=%2Fcom.ibm.mq.doc%2Fsy10570_.htm *)
+  (* Also rfc4519. *)
 
-  type t = component list
+  type component =
+    | CN           of string
+    | Serialnumber of string
+    | C            of string
+    | L            of string
+    | SP           of string
+    | O            of string
+    | OU           of string
+    | T            of string
+    | DNQ          of string
+    | Mail         of string
+    | DC           of string
+
+    | Given_name   of string
+    | Surname      of string
+    | Initials     of string
+    | Pseudonym    of string
+    | Generation   of string
+
+    | Other        of OID.t * string
+
+  type dn = component list
 
   (* See rfc5280 section 4.1.2.4. *)
   let directory_name =
     let f = function | `C1 s -> s | `C2 s -> s | `C3 s -> s
-                    | `C4 s -> s | `C5 s -> s | `C6 s -> s
+                     | `C4 s -> s | `C5 s -> s | `C6 s -> s
     and g s = `C1 s in
     map f g @@
     choice6
@@ -86,42 +92,42 @@ module Name = struct
     let open Registry in
 
     let a_f = function
-      | (oid, x) when oid = X520.common_name              -> Common_name      x
-      | (oid, x) when oid = X520.surname                  -> Surname          x
-      | (oid, x) when oid = X520.serial_number            -> Serial           x
-      | (oid, x) when oid = X520.country_name             -> Country          x
-      | (oid, x) when oid = X520.locality_name            -> Locality         x
-      | (oid, x) when oid = X520.state_or_province_name   -> Province         x
-      | (oid, x) when oid = X520.organization_name        -> Org              x
-      | (oid, x) when oid = X520.organizational_unit_name -> Org_unit         x
-      | (oid, x) when oid = X520.title                    -> Title            x
-      | (oid, x) when oid = X520.given_name               -> Given_name       x
-      | (oid, x) when oid = X520.initials                 -> Initials         x
-      | (oid, x) when oid = X520.generation_qualifier     -> Generation       x
-      | (oid, x) when oid = X520.dn_qualifier             -> DN_qualifier     x
-      | (oid, x) when oid = X520.pseudonym                -> Pseudonym        x
-      | (oid, x) when oid = PKCS9.email                   -> Email            x
-      | (oid, x) when oid = domain_component              -> Domain_component x
-      | (oid, x) -> Other (oid, x)
+      | (oid, x ) when oid = domain_component              -> DC           x 
+      | (oid, x ) when oid = X520.common_name              -> CN           x 
+      | (oid, x ) when oid = X520.serial_number            -> Serialnumber x 
+      | (oid, x ) when oid = X520.country_name             -> C            x 
+      | (oid, x ) when oid = X520.locality_name            -> L            x 
+      | (oid, x ) when oid = X520.state_or_province_name   -> SP           x 
+      | (oid, x ) when oid = X520.organization_name        -> O            x 
+      | (oid, x ) when oid = X520.organizational_unit_name -> OU           x 
+      | (oid, x ) when oid = X520.title                    -> T            x 
+      | (oid, x ) when oid = X520.dn_qualifier             -> DNQ          x 
+      | (oid, x ) when oid = PKCS9.email                   -> Mail         x 
+      | (oid, x ) when oid = X520.given_name               -> Given_name   x 
+      | (oid, x ) when oid = X520.surname                  -> Surname      x 
+      | (oid, x ) when oid = X520.initials                 -> Initials     x 
+      | (oid, x ) when oid = X520.pseudonym                -> Pseudonym    x 
+      | (oid, x ) when oid = X520.generation_qualifier     -> Generation   x 
+      | (oid, x)                                           -> Other (oid, x)
 
     and a_g = function
-      | Common_name      x -> (X520.common_name              , x)
-      | Surname          x -> (X520.surname                  , x)
-      | Serial           x -> (X520.serial_number            , x)
-      | Country          x -> (X520.country_name             , x)
-      | Locality         x -> (X520.locality_name            , x)
-      | Province         x -> (X520.state_or_province_name   , x)
-      | Org              x -> (X520.organization_name        , x)
-      | Org_unit         x -> (X520.organizational_unit_name , x)
-      | Title            x -> (X520.title                    , x)
-      | Given_name       x -> (X520.given_name               , x)
-      | Initials         x -> (X520.initials                 , x)
-      | Generation       x -> (X520.generation_qualifier     , x)
-      | DN_qualifier     x -> (X520.dn_qualifier             , x)
-      | Pseudonym        x -> (X520.pseudonym                , x)
-      | Email            x -> (PKCS9.email                   , x)
-      | Domain_component x -> (domain_component              , x)
-      | Other (oid, x)     -> (oid, x)
+      | DC           x   -> (domain_component              , x )
+      | CN           x   -> (X520.common_name              , x )
+      | Serialnumber x   -> (X520.serial_number            , x )
+      | C            x   -> (X520.country_name             , x )
+      | L            x   -> (X520.locality_name            , x )
+      | SP           x   -> (X520.state_or_province_name   , x )
+      | O            x   -> (X520.organization_name        , x )
+      | OU           x   -> (X520.organizational_unit_name , x )
+      | T            x   -> (X520.title                    , x )
+      | DNQ          x   -> (X520.dn_qualifier             , x )
+      | Mail         x   -> (PKCS9.email                   , x )
+      | Given_name   x   -> (X520.given_name               , x )
+      | Surname      x   -> (X520.surname                  , x )
+      | Initials     x   -> (X520.initials                 , x )
+      | Pseudonym    x   -> (X520.pseudonym                , x )
+      | Generation   x   -> (X520.generation_qualifier     , x )
+      | Other (oid,  x ) -> (oid                           , x )
     in
 
     let attribute_tv =
@@ -138,6 +144,8 @@ module Name = struct
     in
     rdn_sequence (* A vacuous choice, in the standard. *)
 
+  (* rfc5280 section 7.1. -- we're too strict on strings and should preserve the
+   * order. *)
   let equal n1 n2 = compare_unordered_lists compare n1 n2 = 0
 
 end
@@ -174,7 +182,7 @@ module General_name = struct
     | Rfc_822       of string
     | DNS           of string
     | X400_address  of unit      (* or_address *)
-    | Directory     of Name.t
+    | Directory     of Name.dn
     | EDI_party     of (string option * string)
     | URI           of string
     | IP            of Cstruct.t (* ... decode? *)
@@ -511,7 +519,7 @@ module Extension = struct
       in
       (* "Optional qualifiers, which MAY be present, are not expected to change
        * the definition of the policy."
-       * Hence, we just drop them. *)
+       * Hence, we just drop them.  *)
       sequence_of @@
         map (function | (oid, _) when oid = any_policy -> `Any
                       | (oid, _)                       -> `Something oid)
@@ -703,9 +711,9 @@ type tBSCertificate = {
   version    : [ `V1 | `V2 | `V3 ] ;
   serial     : Num.num ;
   signature  : Algorithm.t ;
-  issuer     : Name.t ;
+  issuer     : Name.dn ;
   validity   : time * time ;
-  subject    : Name.t ;
+  subject    : Name.dn ;
   pk_info    : PK.t ;
   issuer_id  : bits option ;
   subject_id : bits option ;
