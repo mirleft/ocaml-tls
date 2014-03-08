@@ -242,45 +242,22 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
         3. verify server certificate was signed by c1 and
              server certificate has required servername *)
   | [] -> `Fail InvalidInput
-
-    (* short-path for self-signed certificate  *)
-  | [(cert, _)] when is_self_signed cert ->
-      (* further verification of a self-signed certificate does not make sense:
-         why should anyone handle a properly self-signed and valid certificate
-         different from a badly signed invalid certificate? *)
-      (Printf.printf "DANGER: self-signed certificate\n";
-       `Fail SelfSigned)
-
   | (server, server_raw) :: certs_and_raw ->
-      let now = Sys.time () in
-      (* :( this is soooo foldr in a lazy setting... *)
-      let rec go trustanchor = function
-        | []              -> (`Ok, trustanchor)
-        | (cert, raw)::cs ->
-           match verify_certificate trustanchor now cert raw with
-           | `Ok     -> go cert cs
-           | `Fail x -> (`Fail x, cert)
-      in
+      let now     = Sys.time () in
       let trusted = find_trusted_certs now in
-      (* intermediate certificates *)
-      match List.rev certs_and_raw with
-      | (topc, topr) :: reversed as certificate_chain ->
-         (* step 1 *)
-         (match find_issuer trusted topc with
-          | None -> `Fail NoTrustAnchor
-          | Some trustanchor ->
-             (* step 2 *)
-             (match go trustanchor certificate_chain with
-              | (`Ok, trustanchor) ->
-                 (* step 3 *)
-                 verify_server_certificate ?servername trustanchor now server server_raw
-              | (`Fail x, _) -> `Fail x))
-      | [] -> (* cert might be a direct sibling of the CA *)
-         match find_issuer trusted server with
-         | None -> `Fail NoTrustAnchor
-         | Some trustanchor ->
-            (* step 3 *)
-            verify_server_certificate ?servername trustanchor now server server_raw
+      let rec chain validator cert cert_raw = function
+        | [] ->
+          ( match find_issuer trusted cert with
+            | None        -> `Fail NoTrustAnchor
+            | Some anchor ->
+                validator anchor now cert cert_raw )
+        | (super, super_raw)::certs ->
+            match validator super now cert cert_raw with
+            | `Ok  -> chain verify_certificate super super_raw certs
+            | fail -> fail
+      in
+      chain (verify_server_certificate ?servername)
+            server server_raw certs_and_raw
 
 
 (* TODO: how to deal with
