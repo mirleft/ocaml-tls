@@ -152,10 +152,14 @@ let verify_certificate trusted now cert raw_cert =
       validate_time now cert,
       validate_intermediate_extensions trusted cert
     with
-    | (true, true, true) -> `Ok
-    | (false, _, _)      -> `Fail InvalidSignature
-    | (_, false, _)      -> `Fail InvalidValidity
-    | (_, _, false)      -> `Fail InvalidExtensions
+    | (true, true, true) -> Printf.printf "success\n";
+                            `Ok
+    | (false, _, _)      -> Printf.printf "signature failed\n";
+                            `Fail InvalidSignature
+    | (_, false, _)      -> Printf.printf "validity failed\n";
+                            `Fail InvalidValidity
+    | (_, _, false)      -> Printf.printf "extensions failed\n";
+                            `Fail InvalidExtensions
 
 let verify_ca_cert now cert raw =
   Printf.printf "verifying CA cert %s: " (common_name_to_string cert);
