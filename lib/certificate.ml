@@ -18,6 +18,8 @@ type certificate_failure =
   | InvalidServerValidity
   | InvalidServerExtensions
   | InvalidServerName
+  | InvalidCA
+  | InvalidCAValidity
 
 type verification_result = [
   | `Fail of certificate_failure
@@ -43,8 +45,6 @@ let raw_cert_hack cert raw =
   Cstruct.(sub raw 4 (len raw - (siglen + 4 + 19 + off)))
 
 let validate_signature trusted cert raw =
-  ( issuer_matches_subject trusted cert ) &&
-
   let tbs_raw = raw_cert_hack cert raw in
   match trusted.tbs_cert.pk_info with
 
@@ -120,26 +120,28 @@ let ext_authority_matches_subject trusted cert =
   | None, _                                    -> true (* not mandatory *)
   | _, _                                       -> false
 
-
-let validate_intermediate_extensions pathlen trusted cert =
-  (validate_ca_extensions cert) &&
+let validate_relation pathlen trusted cert raw_cert =
+  (issuer_matches_subject trusted cert) &&
   (ext_authority_matches_subject trusted cert) &&
-  (validate_path_len pathlen cert)
+  (validate_signature trusted cert raw_cert) &&
+  (validate_path_len pathlen trusted)
 
-let validate_server_extensions trusted cert =
+let validate_intermediate_extensions cert =
+  validate_ca_extensions cert
+
+let validate_server_extensions cert =
   let open Extension in
-  ( List.for_all (function
-      | (_, Basic_constraints (Some _)) -> false
-      | (_, Basic_constraints None    ) -> true
-        (* key_encipherment (RSA) *)
-        (* signing (DHE_RSA) *)
-      | (_, Key_usage usage    ) -> List.mem Key_encipherment usage
-      | (_, Ext_key_usage usage) -> List.mem Server_auth usage
-      | (c, Policies ps        ) -> not c || List.mem `Any ps
-        (* we've to deal with _all_ extensions marked critical! *)
-      | (crit, _)                       -> not crit )
-    cert.tbs_cert.extensions ) &&
-  ext_authority_matches_subject trusted cert
+  List.for_all (function
+                 | (_, Basic_constraints (Some _)) -> false
+                 | (_, Basic_constraints None    ) -> true
+                 (* key_encipherment (RSA) *)
+                 (* signing (DHE_RSA) *)
+                 | (_, Key_usage usage    ) -> List.mem Key_encipherment usage
+                 | (_, Ext_key_usage usage) -> List.mem Server_auth usage
+                 | (c, Policies ps        ) -> not c || List.mem `Any ps
+                 (* we've to deal with _all_ extensions marked critical! *)
+                 | (crit, _)                       -> not crit )
+               cert.tbs_cert.extensions
 
 let get_cn cert =
   map_find cert.subject ~f:(function Name.CN n -> Some n | _ -> None)
@@ -158,30 +160,42 @@ let verify_certificate pathlen trusted now cert raw_cert =
                   (common_name_to_string trusted)
                   (common_name_to_string cert);
     match
-      validate_signature trusted cert raw_cert,
       validate_time now cert,
-      validate_intermediate_extensions pathlen trusted cert
+      validate_ca_extensions cert,
+      validate_relation pathlen trusted cert raw_cert
     with
     | (true, true, true) -> Printf.printf "success\n";
                             `Ok
-    | (false, _, _)      -> Printf.printf "signature failed\n";
-                            `Fail InvalidSignature
-    | (_, false, _)      -> Printf.printf "validity failed\n";
+    | (false, _, _)      -> Printf.printf "validity failed\n";
                             `Fail InvalidValidity
-    | (_, _, false)      -> Printf.printf "extensions failed\n";
+    | (_, false, _)      -> Printf.printf "extensions failed\n";
                             `Fail InvalidExtensions
+    | (_, _, false)      -> Printf.printf "signature failed\n";
+                            `Fail InvalidSignature
 
 let verify_ca_cert now cert raw =
   Printf.printf "verifying CA cert %s: " (common_name_to_string cert);
   match
+    is_self_signed cert,
     validate_signature cert cert raw,
     validate_time now cert,
     validate_ca_extensions cert
   with
-  | (true, true, true) -> Printf.printf "ok\n"; `Ok
-  | (false, _, _)      -> Printf.printf "signature failed\n"; `Fail InvalidSignature
-  | (_, false, _)      -> Printf.printf "validity failed\n"; `Fail InvalidValidity
-  | (_, _, false)      -> Printf.printf "extensions failed\n"; `Fail InvalidExtensions
+  | (true, true, true, true) ->
+     Printf.printf "ok\n";
+     `Ok
+  | (false, _, _, _)         ->
+     Printf.printf "not self-signed CA\n";
+     `Fail InvalidCA
+  | (_, false, _, _)         ->
+     Printf.printf "signature failed\n";
+     `Fail InvalidSignature
+  | (_, _, false, _)         ->
+     Printf.printf "validity failed\n";
+     `Fail InvalidValidity
+  | (_, _, _, false)         ->
+     Printf.printf "extensions failed\n";
+     `Fail InvalidExtensions
 
 (* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
 let find_trusted_certs now =
@@ -210,31 +224,31 @@ let hostname_matches cert name =
         names
   | _ -> option false ((=) name) (get_cn cert.tbs_cert)
 
-let verify_server_certificate ?servername trusted now cert raw_cert =
+let verify_server_certificate ?servername pathlen trusted now cert raw_cert =
   Printf.printf "verify server certificate %s -> %s\n"
                 (common_name_to_string trusted)
                 (common_name_to_string cert);
   match
-    validate_signature trusted cert raw_cert,
     validate_time now cert,
-    validate_server_extensions trusted cert,
-    option false (hostname_matches cert) servername
+    option false (hostname_matches cert) servername,
+    validate_server_extensions cert,
+    validate_relation pathlen trusted cert raw_cert
   with
   | (true, true, true, true) ->
       Printf.printf "successfully verified server certificate\n";
       `Ok
   | (false, _, _, _) ->
-      Printf.printf "failed to verify signature on server certificate\n";
-      `Fail InvalidServerSignature
-  | (_, false, _, _) ->
       Printf.printf "failed to verify validity of server certificate\n";
       `Fail InvalidServerValidity
+  | (_, false, _, _) ->
+      Printf.printf "failed to verify servername of server certificate\n";
+      `Fail InvalidServerName
   | (_, _, false, _) ->
       Printf.printf "failed to verify extensions of server certificate\n";
       `Fail InvalidServerExtensions
   | (_, _, _, false) ->
-      Printf.printf "failed to verify servername of server certificate\n";
-      `Fail InvalidServerName
+      Printf.printf "failed to verify signature on server certificate\n";
+      `Fail InvalidServerSignature
 
 let find_issuer trusted cert =
   (* first have to find issuer of ``c`` in ``trusted`` *)
@@ -284,16 +298,15 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
             | err -> err )
         | [] ->
             match find_issuer trusted cert with
-            | None when is_self_signed cert -> `Fail SelfSigned
-            | None                          -> `Fail NoTrustAnchor
-            | Some anchor                   ->
+            | None when is_self_signed cert             -> `Fail SelfSigned
+            | None                                      -> `Fail NoTrustAnchor
+            | Some anchor when validate_time now anchor ->
                 validator pathlen anchor now cert cert_raw
+            | Some _                                    -> `Fail InvalidCAValidity
       in
-      let v1 = const @@ verify_server_certificate ?servername in
-      chain v1 0 server server_raw certs_and_raw
-               (* from RFC: Note: The
-   last certificate in the certification path is not an intermediate
-   certificate, and is not included in this limit. *)
+      chain (verify_server_certificate ?servername)
+            0 server server_raw certs_and_raw
+
 
 (* TODO: how to deal with
     2.16.840.1.113730.1.1 - Netscape certificate type
