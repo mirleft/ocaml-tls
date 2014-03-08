@@ -120,11 +120,12 @@ let validate_server_extensions trusted cert =
   let open Extension in
   ( List.for_all (function
       | (_, Basic_constraints (Some _)) -> false
-      | (_, Basic_constraints None)     -> true
+      | (_, Basic_constraints None    ) -> true
         (* key_encipherment (RSA) *)
         (* signing (DHE_RSA) *)
-      | (_, Key_usage usage)            -> List.mem Key_encipherment usage
-      | (_, Ext_key_usage usage)        -> List.mem Server_auth usage
+      | (_, Key_usage usage    ) -> List.mem Key_encipherment usage
+      | (_, Ext_key_usage usage) -> List.mem Server_auth usage
+      | (c, Policies ps        ) -> not c || List.mem `Any ps
         (* we've to deal with _all_ extensions marked critical! *)
       | (crit, _)                       -> not crit )
     cert.tbs_cert.extensions ) &&
