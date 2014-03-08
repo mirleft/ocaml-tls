@@ -225,8 +225,16 @@ let find_issuer trusted cert =
                 (List.length trusted);
   match List.filter (fun p -> issuer_matches_subject p cert) trusted with
   | []  -> Printf.printf "couldn't find trusted CA cert\n"; None
-  | [t] -> Some t
-  | _   -> Printf.printf "found multiple root CAs\n"; None
+  | [t] -> (match ext_authority_matches_subject t cert with
+            | true -> Some t
+            | false -> Printf.printf "authority key didn't match issuing CA";
+                       None)
+  | ts  ->
+     match List.filter (fun t -> ext_authority_matches_subject t cert) ts with
+     | []  -> Printf.printf "couldn't find trusted CA cert whose authority key matched\n";
+             None
+     | [t] -> Some t
+     | _   -> Printf.printf "found multiple root CAs\n"; None
 
 let rec verify_certificates_internal ?servername now trustanchor
  = function
