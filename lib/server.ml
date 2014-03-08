@@ -15,14 +15,17 @@ let default_server_config = {
 
 let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list) (fin : Cstruct.t) (raw : Cstruct.t)  =
   let computed = Crypto.finished sp.master_secret "client finished" packets in
-  assert (Utils.cs_eq computed fin);
-  Printf.printf "received good handshake finished\n";
-  let my_checksum = Crypto.finished sp.master_secret "server finished" (packets @ [raw]) in
-  let send = Writer.assemble_handshake (Finished my_checksum) in
-  let params = { sp with client_verify_data = computed ;
-                         server_verify_data = my_checksum }
-  in
-  (`Established params, [`Record (Packet.HANDSHAKE, send)], `Pass)
+  match Utils.cs_eq computed fin with
+  | true ->
+     Printf.printf "received good handshake finished\n";
+     let my_checksum = Crypto.finished sp.master_secret "server finished" (packets @ [raw]) in
+     let send = Writer.assemble_handshake (Finished my_checksum) in
+     let params = { sp with client_verify_data = computed ;
+                            server_verify_data = my_checksum }
+     in
+     (`Established params, [`Record (Packet.HANDSHAKE, send)], `Pass)
+  | false ->
+     (`Failure, [`Record (alert Packet.HANDSHAKE_FAILURE)], `Pass)
 
 let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
   let premastersecret =
