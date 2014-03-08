@@ -74,9 +74,9 @@ let validate_time now cert =
 let validate_path_len pathlen cert =
   let open Extension in
   match extn_basic_constr cert with
-  | Some (_ , Basic_constraints (None | Some 0)) -> true
-  | Some (_ , Basic_constraints (Some n))        -> n >= (pathlen - 1)
-  | _                                            -> true
+  | Some (_ , Basic_constraints None)     -> true
+  | Some (_ , Basic_constraints (Some n)) -> n >= pathlen
+  | _                                     -> true
 
 let validate_ca_extensions cert =
   let open Extension in
@@ -210,7 +210,7 @@ let hostname_matches cert name =
         names
   | _ -> option false ((=) name) (get_cn cert.tbs_cert)
 
-let verify_server_certificate ?servername _pathlen trusted now cert raw_cert =
+let verify_server_certificate ?servername trusted now cert raw_cert =
   Printf.printf "verify server certificate %s -> %s\n"
                 (common_name_to_string trusted)
                 (common_name_to_string cert);
@@ -270,8 +270,8 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
         1. traverse left-to-right, checking c_n+1 signs c_n
         2. include servername and different extension constraints for c0
         3. at the end, try to establish a trust anchor
-      path: at step c_n, pathlen is n. verify no cert contains path len smaller
-            than n - 1.
+      path: all c_n certs are path-n from server. while veryfing each one, make
+            sure c_n+1 has basic constraints >= n
     *)
   | [] -> `Fail InvalidInput
   | (server, server_raw) :: certs_and_raw ->
@@ -289,8 +289,8 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
             | Some anchor                   ->
                 validator pathlen anchor now cert cert_raw
       in
-      chain (verify_server_certificate ?servername)
-            0 server server_raw certs_and_raw
+      let v1 = const @@ verify_server_certificate ?servername in
+      chain v1 0 server server_raw certs_and_raw
                (* from RFC: Note: The
    last certificate in the certification path is not an intermediate
    certificate, and is not included in this limit. *)
