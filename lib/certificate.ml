@@ -92,10 +92,9 @@ let validate_ca_extensions cert =
 
   (* check criticality *)
   List.for_all
-    (function | (true,  Key_usage _)         -> true
-              | (true,  Basic_constraints _) -> true
-              | (true,  _)                   -> false
-              | (false, _)                   -> true )
+    (function | (true, Key_usage _)         -> true
+              | (true, Basic_constraints _) -> true
+              | (crit, _)                   -> not crit )
     cert.tbs_cert.extensions
 
 
@@ -107,8 +106,8 @@ let ext_authority_matches_subject trusted cert =
   | Some (_, Authority_key_id (Some auth, _, _)),
     Some (_, Subject_key_id au)                -> Utils.cs_eq auth au
   (* TODO: check exact rules in RFC5280 *)
-  | None, _                                    -> true (* not mandatory *)
   | Some (_, Authority_key_id (None, _, _)), _ -> true (* not mandatory *)
+  | None, _                                    -> true (* not mandatory *)
   | _, _                                       -> false
 
 
@@ -119,13 +118,13 @@ let validate_server_extensions trusted cert =
   let open Extension in
   ( List.for_all (function
       | (_, Basic_constraints (Some _)) -> false
-      | (_, Basic_constraints None) -> true
+      | (_, Basic_constraints None)     -> true
         (* key_encipherment (RSA) *)
         (* signing (DHE_RSA) *)
-      | (_, Key_usage usage) -> List.mem Key_encipherment usage
-      | (_, Ext_key_usage usage) -> List.mem Server_auth usage
-      | (true,  _) -> false (* we've to deal with _all_ extensions marked critical! *)
-      | (false, _) -> true )
+      | (_, Key_usage usage)            -> List.mem Key_encipherment usage
+      | (_, Ext_key_usage usage)        -> List.mem Server_auth usage
+        (* we've to deal with _all_ extensions marked critical! *)
+      | (crit, _)                       -> not crit )
     cert.tbs_cert.extensions ) &&
   ext_authority_matches_subject trusted cert
 
