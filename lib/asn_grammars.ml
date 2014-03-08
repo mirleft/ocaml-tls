@@ -819,6 +819,9 @@ let  extn_subject_alt_name
    , extn_key_usage
    , extn_ext_key_usage
    , extn_basic_constr
+   , extn_priv_key_period
+   , extn_name_constraints
+   , extn_policies
 =
   let f pred cert =
     Utils.map_find cert.tbs_cert.extensions
@@ -832,5 +835,7 @@ let  extn_subject_alt_name
   (f @@ function Subject_key_id    _ as x -> Some x | _ -> None),
   (f @@ function Key_usage         _ as x -> Some x | _ -> None),
   (f @@ function Ext_key_usage     _ as x -> Some x | _ -> None),
-  (f @@ function Basic_constraints _ as x -> Some x | _ -> None)
-
+  (f @@ function Basic_constraints _ as x -> Some x | _ -> None),
+  (f @@ function Priv_key_period   _ as x -> Some x | _ -> None),
+  (f @@ function Name_constraints  _ as x -> Some x | _ -> None),
+  (f @@ function Policies          _ as x -> Some x | _ -> None)
