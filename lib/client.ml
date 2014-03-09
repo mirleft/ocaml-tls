@@ -27,10 +27,9 @@ let answer_server_hello (p : security_parameters) bs sh raw =
   fail_false (sh.version = (3, 1)) Packet.PROTOCOL_VERSION >>= fun () ->
   let verify = Utils.cs_eq (p.client_verify_data <> p.server_verify_data) in
   let rec check_renegotiation = function
-    | []                                        -> false
-    | (SecureRenegotiation x)::xs when verify x -> true
-    | (SecureRenegotiation _)::_                -> false
-    | _::xs                                     -> check_renegotiation xs
+    | []                         -> false
+    | (SecureRenegotiation x)::_ -> verify x
+    | _::xs                      -> check_renegotiation xs
   in
   (* sends nothing *)
   fail_false (check_renegotiation sh.extensions) Packet.HANDSHAKE_FAILURE >>= fun () ->
