@@ -39,15 +39,15 @@ let parse_certificate c =
 let answer_certificate p bs cs raw =
   (* sends nothing *)
   mapM parse_certificate cs >>= function
-  | []    -> fail Packet.BAD_CERTIFICATE
-  | x::xs ->
-     let certificates = List.(combine (x::xs) cs) in
+  | []         -> fail Packet.BAD_CERTIFICATE
+  | s::_ as xs ->
+     let certificates = List.(combine xs cs) in
      match
        Certificate.verify_certificates ?servername:p.server_name certificates
      with
      | `Fail _ -> fail Packet.BAD_CERTIFICATE
      | `Ok     ->
-        let ps = { p with server_certificate = Some x } in
+        let ps = { p with server_certificate = Some s } in
         return (`Handshaking (ps, bs @ [raw]), [], `Pass)
 
 let find_server_rsa_key = function
