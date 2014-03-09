@@ -30,11 +30,8 @@ type verification_result = [
 (* TODO RFC 5280: A certificate MUST NOT include more than
                   one instance of a particular extension. *)
 
-let issuer_matches_subject_tbs parent cert =
-  Name.equal parent.subject cert.issuer
-
 let issuer_matches_subject parent cert =
-  issuer_matches_subject_tbs parent.tbs_cert cert.tbs_cert
+  Name.equal parent.tbs_cert.subject cert.tbs_cert.issuer
 
 let is_self_signed cert = issuer_matches_subject cert cert
 
@@ -74,9 +71,9 @@ let validate_time now cert =
 let validate_path_len pathlen cert =
   let open Extension in
   match extn_basic_constr cert with
+  | None                                  -> true
   | Some (_ , Basic_constraints None)     -> true
   | Some (_ , Basic_constraints (Some n)) -> n >= pathlen
-  | _                                     -> true
 
 let validate_ca_extensions cert =
   let open Extension in
@@ -101,10 +98,10 @@ let validate_ca_extensions cert =
   (* Name Constraints - name constraints should match servername *)
 
   (* check criticality *)
-  List.for_all
-    (function | (true, Key_usage _)         -> true
-              | (true, Basic_constraints _) -> true
-              | (crit, _)                   -> not crit )
+  List.for_all (function
+      | (true, Key_usage _)         -> true
+      | (true, Basic_constraints _) -> true
+      | (crit, _)                   -> not crit )
     cert.tbs_cert.extensions
 
 
@@ -120,11 +117,11 @@ let ext_authority_matches_subject trusted cert =
   | None, _                                    -> true (* not mandatory *)
   | _, _                                       -> false
 
-let get_cn cert =
-  map_find cert.subject ~f:(function Name.CN n -> Some n | _ -> None)
+let subject cert = map_find cert.tbs_cert.subject
+                      ~f:(function Name.CN n -> Some n | _ -> None)
 
 let common_name_to_string cert =
-  match get_cn cert.tbs_cert with
+  match subject cert with
   | None   ->
      let sigl = Cstruct.len cert.signature_val in
      let sign = Cstruct.copy cert.signature_val 0 sigl in
@@ -162,16 +159,16 @@ let validate_relation pathlen trusted cert raw_cert =
 let validate_server_extensions cert =
   let open Extension in
   List.for_all (function
-                 | (_, Basic_constraints (Some _)) -> false
-                 | (_, Basic_constraints None    ) -> true
-                 (* key_encipherment (RSA) *)
-                 (* signing (DHE_RSA) *)
-                 | (_, Key_usage usage    ) -> List.mem Key_encipherment usage
-                 | (_, Ext_key_usage usage) -> List.mem Server_auth usage
-                 | (c, Policies ps        ) -> not c || List.mem `Any ps
-                 (* we've to deal with _all_ extensions marked critical! *)
-                 | (crit, _)                       -> not crit )
-               cert.tbs_cert.extensions
+      | (_, Basic_constraints (Some _)) -> false
+      | (_, Basic_constraints None    ) -> true
+      (* key_encipherment (RSA) *)
+      (* signing (DHE_RSA) *)
+      | (_, Key_usage usage    ) -> List.mem Key_encipherment usage
+      | (_, Ext_key_usage usage) -> List.mem Server_auth usage
+      | (c, Policies ps        ) -> not c || List.mem `Any ps
+      (* we've to deal with _all_ extensions marked critical! *)
+      | (crit, _)                -> not crit )
+    cert.tbs_cert.extensions
 
 let verify_certificate now cert =
     Printf.printf "verify intermediate certificate %s\n"
@@ -236,7 +233,7 @@ let hostname_matches cert name =
       List.exists
         (function General_name.DNS x -> x = name | _ -> false)
         names
-  | _ -> option false ((=) name) (get_cn cert.tbs_cert)
+  | _ -> option false ((=) name) (subject cert)
 
 let verify_server_certificate ?servername now cert =
   Printf.printf "verify server certificate %s\n"
