@@ -259,6 +259,6 @@ let find_hostname : 'a hello -> string option =
     | _ -> None
 
 let rec check_reneg expected = function
-  | []                       -> fail Packet.HANDSHAKE_FAILURE
-  | SecureRenegotiation x::_ -> fail_neq expected x Packet.HANDSHAKE_FAILURE
+  | []                       -> fail Packet.NO_RENEGOTIATION
+  | SecureRenegotiation x::_ -> fail_neq expected x Packet.NO_RENEGOTIATION
   | _::xs                    -> check_reneg expected xs
