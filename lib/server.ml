@@ -110,7 +110,7 @@ let answer_client_hello_params sp ch raw =
   answer_client_hello_params_int sp ch raw
 
 let answer_client_hello (ch : client_hello) raw =
-  fail_false (List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch.ciphersuites) Packet.HANDSHAKE_FAILURE >>= fun () ->
+  fail_false (List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch.ciphersuites) Packet.NO_RENEGOTIATION >>= fun () ->
   let issuported = fun x -> List.mem x ch.ciphersuites in
   fail_false (List.exists issuported default_config.ciphers) Packet.HANDSHAKE_FAILURE >>= fun () ->
   let cipher = List.hd (List.filter issuported default_config.ciphers) in

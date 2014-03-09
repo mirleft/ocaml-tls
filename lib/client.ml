@@ -42,13 +42,17 @@ let answer_certificate p bs cs raw =
   | []         -> fail Packet.BAD_CERTIFICATE
   | s::_ as xs ->
      let certificates = List.(combine xs cs) in
-     match
-       Certificate.verify_certificates ?servername:p.server_name certificates
-     with
-     | `Fail _ -> fail Packet.BAD_CERTIFICATE
-     | `Ok     ->
-        let ps = { p with server_certificate = Some s } in
-        return (`Handshaking (ps, bs @ [raw]), [], `Pass)
+     Certificate.(
+       match
+         verify_certificates ?servername:p.server_name certificates
+       with
+       | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
+       | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
+       | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
+       | `Fail _                  -> fail Packet.BAD_CERTIFICATE
+       | `Ok                      ->
+          let ps = { p with server_certificate = Some s } in
+          return (`Handshaking (ps, bs @ [raw]), [], `Pass))
 
 let find_server_rsa_key = function
   | Some x -> Asn_grammars.(match x.tbs_cert.pk_info with
