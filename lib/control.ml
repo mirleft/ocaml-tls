@@ -48,6 +48,12 @@ end )
 module Or_error_make (M : sig type err end) = struct
   type 'a or_error = Ok of 'a | Error of M.err
   let fail e   = Error e
+  let is_success = function
+    | Ok    _ -> true
+    | Error _ -> false
+  let is_error = function
+    | Ok    _ -> false
+    | Error _ -> true
   module Monad_impl = Monad (struct
     type 'a t = 'a or_error
     let return a = Ok a

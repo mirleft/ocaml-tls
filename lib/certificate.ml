@@ -21,9 +21,6 @@ module Or_error =
   Control.Or_error_make ( struct type err = certificate_failure end )
 
 let success = Or_error.return ()
-let is_error = function
-  | Or_error.Ok    _ -> false
-  | Or_error.Error _ -> false
 
 let lower = function
   | Or_error.Ok ()     -> `Ok
@@ -196,7 +193,7 @@ let find_trusted_certs now =
 
   let cas   = List.append nss [(cacert, raw)] in
   let valid = List.filter
-                (fun (cert, raw) -> (not (is_error @@ verify_ca_cert now cert raw)))
+                (fun (cert, raw) -> (is_success @@ verify_ca_cert now cert raw))
                 cas in
   Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
   let certs, _ = List.split valid in
