@@ -142,21 +142,11 @@ let validate_relation pathlen trusted cert raw_cert =
     validate_signature trusted cert raw_cert,
     validate_path_len pathlen trusted
   with
-  | (true, true, true, true) ->
-     Printf.printf "ok\n";
-     success
-  | (false, _, _, _)         ->
-     Printf.printf "issuer doesn't match subject\n";
-     Or_error.fail InvalidCertificate
-  | (_, false, _, _)         ->
-     Printf.printf "authority didn't match subject key id (in extensions)\n";
-     Or_error.fail InvalidExtensions
-  | (_, _, false, _)         ->
-     Printf.printf "signature is wrong!\n";
-     Or_error.fail InvalidSignature
-  | (_, _, _, false)         ->
-     Printf.printf "path len exceeded!\n";
-     Or_error.fail InvalidPathlen
+  | (true, true, true, true) -> success
+  | (false, _, _, _)         -> Or_error.fail InvalidCertificate
+  | (_, false, _, _)         -> Or_error.fail InvalidExtensions
+  | (_, _, false, _)         -> Or_error.fail InvalidSignature
+  | (_, _, _, false)         -> Or_error.fail InvalidPathlen
 
 let validate_server_extensions cert =
   let open Extension in
@@ -179,12 +169,9 @@ let verify_certificate now cert =
       validate_time now cert,
       validate_ca_extensions cert
     with
-    | (true, true) -> Printf.printf "success\n";
-                      success
-    | (false, _)   -> Printf.printf "validity failed\n";
-                      Or_error.fail CertificateExpired
-    | (_, false)   -> Printf.printf "extensions failed\n";
-                      Or_error.fail InvalidExtensions
+    | (true, true) -> success
+    | (false, _)   -> Or_error.fail CertificateExpired
+    | (_, false)   -> Or_error.fail InvalidExtensions
 
 let verify_ca_cert now cert raw =
   Printf.printf "verifying CA cert %s: " (common_name_to_string cert);
@@ -194,21 +181,11 @@ let verify_ca_cert now cert raw =
     validate_time now cert,
     validate_ca_extensions cert
   with
-  | (true, true, true, true) ->
-     Printf.printf "ok\n";
-     success
-  | (false, _, _, _)         ->
-     Printf.printf "not self-signed CA\n";
-     Or_error.fail InvalidCA
-  | (_, false, _, _)         ->
-     Printf.printf "signature failed\n";
-     Or_error.fail InvalidSignature
-  | (_, _, false, _)         ->
-     Printf.printf "validity failed\n";
-     Or_error.fail CertificateExpired
-  | (_, _, _, false)         ->
-     Printf.printf "extensions failed\n";
-     Or_error.fail InvalidExtensions
+  | (true, true, true, true) -> success
+  | (false, _, _, _)         -> Or_error.fail InvalidCA
+  | (_, false, _, _)         -> Or_error.fail InvalidSignature
+  | (_, _, false, _)         -> Or_error.fail CertificateExpired
+  | (_, _, _, false)         -> Or_error.fail InvalidExtensions
 
 (* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
 let find_trusted_certs now =
@@ -242,18 +219,10 @@ let verify_server_certificate ?servername now cert =
     option false (hostname_matches cert) servername,
     validate_server_extensions cert
   with
-  | (true, true, true) ->
-      Printf.printf "successfully verified server certificate\n";
-      success
-  | (false, _, _)      ->
-      Printf.printf "failed to verify validity of server certificate\n";
-      Or_error.fail CertificateExpired
-  | (_, false, _)      ->
-      Printf.printf "failed to verify servername of server certificate\n";
-      Or_error.fail InvalidServerName
-  | (_, _, false)      ->
-      Printf.printf "failed to verify extensions of server certificate\n";
-      Or_error.fail InvalidServerExtensions
+  | (true, true, true) -> success
+  | (false, _, _)      -> Or_error.fail CertificateExpired
+  | (_, false, _)      -> Or_error.fail InvalidServerName
+  | (_, _, false)      -> Or_error.fail InvalidServerExtensions
 
 let find_issuer trusted cert =
   (* first have to find issuer of ``c`` in ``trusted`` *)
@@ -261,13 +230,11 @@ let find_issuer trusted cert =
                 (common_name_to_string cert)
                 (List.length trusted);
   match List.filter (fun p -> issuer_matches_subject p cert) trusted with
-  | []  -> Printf.printf "couldn't find trusted CA cert\n"; None
-  | [t] -> (match ext_authority_matches_subject t cert with
-            | true -> Some t
-            | false -> Printf.printf "authority key didn't match issuing CA";
-                       None)
-  | _   -> Printf.printf "found multiple CAs where subject matched, giving up\n";
-           None
+  | []  -> None
+  | [t] -> ( match ext_authority_matches_subject t cert with
+             | true  -> Some t
+             | false -> None )
+  | _   -> None
 
 (* this is the API for a user (Cstruct.t might go away) *)
 (* XXX
