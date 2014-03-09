@@ -200,15 +200,15 @@ let handle_raw_record handler state (hdr, buf) =
     handler state.machina hdr.content_type dec >>=
     fun (machina, items, dec_cmd) ->
     let (encryptor, encs) =
-      let rec loop st = function
-        | [] -> (st, [])
-        | `Change_enc st'   :: xs -> loop st' xs
-        | `Record (ty, buf) :: xs ->
-           let (st1, enc ) = encrypt st ty buf in
-           let (st2, rest) = loop st1 xs in
-           (st2, (ty, enc) :: rest)
-      in
-      loop state.encryptor items in
+      List.fold_left (fun (st, es) ->
+                      function
+                      | `Change_enc st' -> st'
+                      | `Record (ty, buf) ->
+                         let (st1, enc) = encrypt st ty buf in
+                         (st1, (ty, enc) :: es))
+                     (state.encryptor, [])
+                     items
+    in
     let decryptor = match dec_cmd with
       | `Change_dec dec -> dec
       | `Pass           -> dec_st
