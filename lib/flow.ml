@@ -219,20 +219,29 @@ let alert typ =
   let buf = Writer.assemble_alert typ in
   (Packet.ALERT, buf)
 
+type ret = [
+  | `Ok of (state * Cstruct.t)
+  | `Fail of Cstruct.t
+]
+
 let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
       -> (tls_internal_state * rec_resp list * dec_resp) or_error) ->
-                 state -> Cstruct.t -> (state * Cstruct.t) or_error
+                 state -> Cstruct.t -> ret
 = fun handler state buf ->
-  let in_records, frag = separate_records (state.fragment <> buf) in
-  foldM (fun (st, raw_rs) r ->
-         handle_raw_record handler st r >>=
-           fun (st', raw_rs') -> return (st', raw_rs @ raw_rs'))
-        (state, [])
-        in_records
-  >>= fun (state', out_records) ->
+  match
+    let in_records, frag = separate_records (state.fragment <> buf) in
+    foldM (fun (st, raw_rs) r ->
+           handle_raw_record handler st r >>=
+             fun (st', raw_rs') -> return (st', raw_rs @ raw_rs'))
+          (state, [])
+          in_records
+    >>= fun (state', out_records) ->
     let buf' = assemble_records out_records in
     Printf.printf "sending out"; Cstruct.hexdump buf';
     return ({ state' with fragment = frag }, buf')
+  with
+  | Ok v    -> `Ok v
+  | Error x -> `Fail (assemble_records [alert x])
 
 let find_hostname : 'a hello -> string option =
   fun h ->
