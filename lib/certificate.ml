@@ -192,8 +192,8 @@ let find_trusted_certs now =
     Crypto_utils.(cert_of_file cacert_file, certs_of_file ca_nss_file) in
 
   let cas   = List.append nss [(cacert, raw)] in
-  let valid = List.filter
-                (fun (cert, raw) -> is_success @@ verify_ca_cert now cert raw)
+  let valid = List.filter (fun (cert, raw) ->
+                  Or_error.is_success @@ verify_ca_cert now cert raw)
                 cas in
   Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
   let certs, _ = List.split valid in
@@ -273,8 +273,8 @@ let verify_certificates ?servername = function
       in
 
       let res =
-        verify_server_certificate ?servername now server             >>= fun () ->
-        mapM_ (fun (c, _) -> verify_certificate now c) certs_and_raw >>= fun () ->
+        verify_server_certificate ?servername now server     >>= fun () ->
+        mapM_ (o (verify_certificate now) fst) certs_and_raw >>= fun () ->
         climb 0 server server_raw certs_and_raw
       in lower res
 
