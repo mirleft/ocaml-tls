@@ -6,20 +6,15 @@ open Utils
 type certificate_failure =
   | InvalidCertificate
   | InvalidSignature
-  | InvalidValidity
+  | CertificateExpired
   | InvalidExtensions
   | InvalidPathlen
   | SelfSigned
-  | MultipleRootCA
   | NoTrustAnchor
-  | NoServerName
   | InvalidInput
-  | InvalidServerSignature
-  | InvalidServerValidity
   | InvalidServerExtensions
   | InvalidServerName
   | InvalidCA
-  | InvalidCAValidity
 
 type verification_result = [
   | `Fail of certificate_failure
@@ -180,7 +175,7 @@ let verify_certificate now cert =
     | (true, true) -> Printf.printf "success\n";
                       `Ok
     | (false, _)   -> Printf.printf "validity failed\n";
-                      `Fail InvalidValidity
+                      `Fail CertificateExpired
     | (_, false)   -> Printf.printf "extensions failed\n";
                       `Fail InvalidExtensions
 
@@ -203,7 +198,7 @@ let verify_ca_cert now cert raw =
      `Fail InvalidSignature
   | (_, _, false, _)         ->
      Printf.printf "validity failed\n";
-     `Fail InvalidValidity
+     `Fail CertificateExpired
   | (_, _, _, false)         ->
      Printf.printf "extensions failed\n";
      `Fail InvalidExtensions
@@ -248,7 +243,7 @@ let verify_server_certificate ?servername now cert =
       `Ok
   | (false, _, _)      ->
       Printf.printf "failed to verify validity of server certificate\n";
-      `Fail InvalidServerValidity
+      `Fail CertificateExpired
   | (_, false, _)      ->
       Printf.printf "failed to verify servername of server certificate\n";
       `Fail InvalidServerName
@@ -316,7 +311,7 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
             | None                                      -> `Fail NoTrustAnchor
             | Some anchor when validate_time now anchor ->
                 validate_relation pathlen anchor cert cert_raw
-            | Some _                                    -> `Fail InvalidCAValidity
+            | Some _                                    -> `Fail CertificateExpired
       in
 
       verify_server_certificate ?servername now server >> fun () ->
