@@ -257,3 +257,8 @@ let find_hostname : 'a hello -> string option =
     match hexts with
     | [Hostname name] -> name
     | _ -> None
+
+let rec check_reneg expected = function
+  | []                       -> fail Packet.HANDSHAKE_FAILURE
+  | SecureRenegotiation x::_ -> fail_neq expected x Packet.HANDSHAKE_FAILURE
+  | _::xs                    -> check_reneg expected xs

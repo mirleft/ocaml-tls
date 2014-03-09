@@ -24,14 +24,9 @@ let answer_client_hello ch raw =
   answer_client_hello_params params ch raw
 
 let answer_server_hello (p : security_parameters) bs sh raw =
-  fail_false (sh.version = (3, 1)) Packet.PROTOCOL_VERSION >>= fun () ->
+  fail_false (sh.version = default_config.protocol_version) Packet.PROTOCOL_VERSION >>= fun () ->
   let expected = p.client_verify_data <> p.server_verify_data in
-  let rec check_reneg = function
-    | []                       -> fail Packet.HANDSHAKE_FAILURE
-    | SecureRenegotiation x::_ -> fail_neq expected x Packet.HANDSHAKE_FAILURE
-    | _::xs                    -> check_reneg xs
-  in
-  check_reneg sh.extensions >>= fun () ->
+  check_reneg expected sh.extensions >>= fun () ->
   let sp = { p with ciphersuite   = sh.ciphersuites ;
                     server_random = sh.random } in
   return (`Handshaking (sp, bs @ [raw]), [], `Pass)
@@ -50,7 +45,7 @@ let answer_certificate p bs cs raw =
      match
        Certificate.verify_certificates ?servername:p.server_name certificates
      with
-     | `Fail x -> fail Packet.BAD_CERTIFICATE
+     | `Fail _ -> fail Packet.BAD_CERTIFICATE
      | `Ok     ->
         let ps = { p with server_certificate = Some x } in
         return (`Handshaking (ps, bs @ [raw]), [], `Pass)
