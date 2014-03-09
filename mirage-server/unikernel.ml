@@ -15,8 +15,9 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
         | `Eof     -> C.log_s c (red "read: eof")
         | `Error e -> C.log_s c (red "read: error")
         | `Ok buf  ->
-            let tls', ans= TLS.handle_tls tls buf in
-            S.TCPV4.write flow ans >> loop tls'
+            match TLS.handle_tls tls buf with
+              | `Ok (tls', ans) -> S.TCPV4.write flow ans >> loop tls'
+              | `Fail err       -> S.TCPV4.write flow err
     in
     let (dst, dst_port) = S.TCPV4.get_dest flow in
     C.log_s c (green "new tcp connection from %s %d"
