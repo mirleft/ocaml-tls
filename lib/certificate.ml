@@ -16,11 +16,18 @@ type certificate_failure =
   | InvalidServerName
   | InvalidCA
 
-type verification_result = [
-  | `Fail of certificate_failure
-  | `Ok
-]
 
+module Or_error =
+  Control.Or_error_make ( struct type err = certificate_failure end )
+
+let success = Or_error.return ()
+let is_error = function
+  | Or_error.Ok    _ -> false
+  | Or_error.Error _ -> false
+
+let lower = function
+  | Or_error.Ok ()     -> `Ok
+  | Or_error.Error err -> `Fail err
 
 (* TODO RFC 5280: A certificate MUST NOT include more than
                   one instance of a particular extension. *)
@@ -66,9 +73,9 @@ let validate_time now cert =
 let validate_path_len pathlen cert =
   let open Extension in
   match extn_basic_constr cert with
-  | None                                  -> true
   | Some (_ , Basic_constraints None)     -> true
   | Some (_ , Basic_constraints (Some n)) -> n >= pathlen
+  | _                                     -> true
 
 let validate_ca_extensions cert =
   let open Extension in
@@ -137,19 +144,19 @@ let validate_relation pathlen trusted cert raw_cert =
   with
   | (true, true, true, true) ->
      Printf.printf "ok\n";
-     `Ok
+     success
   | (false, _, _, _)         ->
      Printf.printf "issuer doesn't match subject\n";
-     `Fail InvalidCertificate
+     Or_error.fail InvalidCertificate
   | (_, false, _, _)         ->
      Printf.printf "authority didn't match subject key id (in extensions)\n";
-     `Fail InvalidExtensions
+     Or_error.fail InvalidExtensions
   | (_, _, false, _)         ->
      Printf.printf "signature is wrong!\n";
-     `Fail InvalidSignature
+     Or_error.fail InvalidSignature
   | (_, _, _, false)         ->
      Printf.printf "path len exceeded!\n";
-     `Fail InvalidPathlen
+     Or_error.fail InvalidPathlen
 
 let validate_server_extensions cert =
   let open Extension in
@@ -173,11 +180,11 @@ let verify_certificate now cert =
       validate_ca_extensions cert
     with
     | (true, true) -> Printf.printf "success\n";
-                      `Ok
+                      success
     | (false, _)   -> Printf.printf "validity failed\n";
-                      `Fail CertificateExpired
+                      Or_error.fail CertificateExpired
     | (_, false)   -> Printf.printf "extensions failed\n";
-                      `Fail InvalidExtensions
+                      Or_error.fail InvalidExtensions
 
 let verify_ca_cert now cert raw =
   Printf.printf "verifying CA cert %s: " (common_name_to_string cert);
@@ -189,19 +196,19 @@ let verify_ca_cert now cert raw =
   with
   | (true, true, true, true) ->
      Printf.printf "ok\n";
-     `Ok
+     success
   | (false, _, _, _)         ->
      Printf.printf "not self-signed CA\n";
-     `Fail InvalidCA
+     Or_error.fail InvalidCA
   | (_, false, _, _)         ->
      Printf.printf "signature failed\n";
-     `Fail InvalidSignature
+     Or_error.fail InvalidSignature
   | (_, _, false, _)         ->
      Printf.printf "validity failed\n";
-     `Fail CertificateExpired
+     Or_error.fail CertificateExpired
   | (_, _, _, false)         ->
      Printf.printf "extensions failed\n";
-     `Fail InvalidExtensions
+     Or_error.fail InvalidExtensions
 
 (* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
 let find_trusted_certs now =
@@ -211,12 +218,9 @@ let find_trusted_certs now =
     Crypto_utils.(cert_of_file cacert_file, certs_of_file ca_nss_file) in
 
   let cas   = List.append nss [(cacert, raw)] in
-  let valid = List.filter (fun (cert, raw) ->
-                             match verify_ca_cert now cert raw with
-                             | `Ok     -> true
-                             | `Fail _ -> false)
-                          cas
-  in
+  let valid = List.filter
+                (fun (cert, raw) -> (not (is_error @@ verify_ca_cert now cert raw)))
+                cas in
   Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
   let certs, _ = List.split valid in
   certs
@@ -240,16 +244,16 @@ let verify_server_certificate ?servername now cert =
   with
   | (true, true, true) ->
       Printf.printf "successfully verified server certificate\n";
-      `Ok
+      success
   | (false, _, _)      ->
       Printf.printf "failed to verify validity of server certificate\n";
-      `Fail CertificateExpired
+      Or_error.fail CertificateExpired
   | (_, false, _)      ->
       Printf.printf "failed to verify servername of server certificate\n";
-      `Fail InvalidServerName
+      Or_error.fail InvalidServerName
   | (_, _, false)      ->
       Printf.printf "failed to verify extensions of server certificate\n";
-      `Fail InvalidServerExtensions
+      Or_error.fail InvalidServerExtensions
 
 let find_issuer trusted cert =
   (* first have to find issuer of ``c`` in ``trusted`` *)
@@ -272,12 +276,7 @@ let find_issuer trusted cert =
  * files. It doesn't even look at the clock.
  *)
 
-let (>>) a f = match a with
-  | `Ok -> f ()
-  | err -> err
-
-let verify_certificates ?servername : (certificate * Cstruct.t) list -> verification_result
-= function
+let verify_certificates ?servername = function
     (* we get the certificate chain cs:
         [c0; c1; c2; ... ; cn], n > 0
         let server = c0
@@ -291,32 +290,29 @@ let verify_certificates ?servername : (certificate * Cstruct.t) list -> verifica
     *)
   | []                                    -> `Fail InvalidInput
   | (server, server_raw) :: certs_and_raw ->
+      let open Or_error in
 
       let now     = Sys.time () in
       let trusted = find_trusted_certs now in
 
-      let rec verify_certs = function
-        | []                 -> `Ok
-        | (cert, _) :: certs ->
-            verify_certificate now cert >> fun () -> verify_certs certs
-      in
-
       let rec climb pathlen cert cert_raw = function
         | (super, super_raw) :: certs ->
-            validate_relation pathlen super cert cert_raw >> fun () ->
+            validate_relation pathlen super cert cert_raw >>= fun () ->
             climb (succ pathlen) super super_raw certs
         | [] ->
             match find_issuer trusted cert with
-            | None when is_self_signed cert             -> `Fail SelfSigned
-            | None                                      -> `Fail NoTrustAnchor
+            | None when is_self_signed cert             -> Or_error.fail SelfSigned
+            | None                                      -> Or_error.fail NoTrustAnchor
             | Some anchor when validate_time now anchor ->
                 validate_relation pathlen anchor cert cert_raw
-            | Some _                                    -> `Fail CertificateExpired
+            | Some _                                    -> Or_error.fail CertificateExpired
       in
 
-      verify_server_certificate ?servername now server >> fun () ->
-      verify_certs certs_and_raw                       >> fun () ->
-      climb 0 server server_raw certs_and_raw
+      let res =
+        verify_server_certificate ?servername now server             >>= fun () ->
+        mapM_ (fun (c, _) -> verify_certificate now c) certs_and_raw >>= fun () ->
+        climb 0 server server_raw certs_and_raw
+      in lower res
 
 
 (* TODO: how to deal with
