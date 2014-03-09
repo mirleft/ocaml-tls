@@ -107,9 +107,9 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
                             cipher_iv = next_iv },
         enc)
 
-let fail_ne cs1 cs2 ok err =
+let fail_ne cs1 cs2 err =
   match Utils.cs_eq cs1 cs2 with
-  | true ->  return ok
+  | true ->  return ()
   | false -> fail err
 
 (* well-behaved pure decryptor *)
@@ -126,11 +126,10 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
        let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
        let body, mac = Cstruct.split dec macstart in
        let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
-       fail_ne cmac mac
-               (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
-                                    cipher_iv = next_iv },
-                body)
-               Packet.DECRYPTION_FAILED
+       fail_ne cmac mac Packet.DECRYPTION_FAILED >>= fun () ->
+       return (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
+                                   cipher_iv = next_iv },
+               body)
 
 (* party time *)
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t)
