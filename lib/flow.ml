@@ -195,25 +195,23 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      (c_context, s_context, { sp with master_secret = mastersecret })
 
 let handle_raw_record handler state (hdr, buf) =
-  decrypt state.decryptor hdr.content_type buf >>=
-  fun (dec_st, dec) ->
-    handler state.machina hdr.content_type dec >>=
-    fun (machina, items, dec_cmd) ->
-    let (encryptor, encs) =
-      List.fold_left (fun (st, es) ->
-                      function
-                      | `Change_enc st' -> st'
-                      | `Record (ty, buf) ->
-                         let (st1, enc) = encrypt st ty buf in
-                         (st1, (ty, enc) :: es))
-                     (state.encryptor, [])
-                     items
-    in
-    let decryptor = match dec_cmd with
-      | `Change_dec dec -> dec
-      | `Pass           -> dec_st
-    in
-    return ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
+  decrypt state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
+  handler state.machina hdr.content_type dec >>= fun (machina, items, dec_cmd) ->
+  let (encryptor, encs) =
+    List.fold_left (fun (st, es) ->
+                    function
+                    | `Change_enc st' -> (st', es)
+                    | `Record (ty, buf) ->
+                       let (st', enc) = encrypt st ty buf in
+                       (st', (ty, enc) :: es))
+                   (state.encryptor, [])
+                   items
+  in
+  let decryptor = match dec_cmd with
+    | `Change_dec dec -> dec
+    | `Pass           -> dec_st
+  in
+  return ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
 
 let alert typ =
   let buf = Writer.assemble_alert typ in
@@ -231,8 +229,8 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
   match
     let in_records, frag = separate_records (state.fragment <> buf) in
     foldM (fun (st, raw_rs) r ->
-           handle_raw_record handler st r >>=
-             fun (st', raw_rs') -> return (st', raw_rs @ raw_rs'))
+           map (fun (st', raw_rs') -> (st', raw_rs @ raw_rs')) @@
+             handle_raw_record handler st r)
           (state, [])
           in_records
     >>= fun (state', out_records) ->
