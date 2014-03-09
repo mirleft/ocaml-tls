@@ -209,7 +209,7 @@ let handle_raw_record handler state (hdr, buf) =
                     | `Change_enc st' -> (st', es)
                     | `Record (ty, buf) ->
                        let (st', enc) = encrypt st ty buf in
-                       (st', (ty, enc) :: es))
+                       (st', es @ [(ty, enc)]))
                    (state.encryptor, [])
                    items
   in
