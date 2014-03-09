@@ -265,11 +265,11 @@ let verify_certificates ?servername = function
             climb (succ pathlen) super super_raw certs
         | [] ->
             match find_issuer trusted cert with
-            | None when is_self_signed cert             -> Or_error.fail SelfSigned
-            | None                                      -> Or_error.fail NoTrustAnchor
+            | None when is_self_signed cert             -> fail SelfSigned
+            | None                                      -> fail NoTrustAnchor
             | Some anchor when validate_time now anchor ->
                 validate_relation pathlen anchor cert cert_raw
-            | Some _                                    -> Or_error.fail CertificateExpired
+            | Some _                                    -> fail CertificateExpired
       in
 
       let res =
