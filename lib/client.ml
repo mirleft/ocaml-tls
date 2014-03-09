@@ -25,18 +25,13 @@ let answer_client_hello ch raw =
 
 let answer_server_hello (p : security_parameters) bs sh raw =
   fail_false (sh.version = (3, 1)) Packet.PROTOCOL_VERSION >>= fun () ->
-  (* we first require existence of the SecureRenegotiation extension *)
-  fail_false (List.exists (function
-                            | SecureRenegotiation _ -> true
-                            | _ -> false)
-                          sh.extensions)
-             Packet.HANDSHAKE_FAILURE >>= fun () ->
-  (* and then check that it is similar to our expected value *)
   let expected = p.client_verify_data <> p.server_verify_data in
-  mapM_ (function
-          | SecureRenegotiation x -> fail_neq expected x Packet.HANDSHAKE_FAILURE
-          | _ -> return ())
-        sh.extensions >>= fun () ->
+  let rec check_reneg = function
+    | []                       -> fail Packet.HANDSHAKE_FAILURE
+    | SecureRenegotiation x::_ -> fail_neq expected x Packet.HANDSHAKE_FAILURE
+    | _::xs                    -> check_reneg xs
+  in
+  check_reneg sh.extensions >>= fun () ->
   let sp = { p with ciphersuite   = sh.ciphersuites ;
                     server_random = sh.random } in
   return (`Handshaking (sp, bs @ [raw]), [], `Pass)
