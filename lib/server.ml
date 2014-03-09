@@ -16,7 +16,7 @@ let default_server_config = {
 
 let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list) (fin : Cstruct.t) (raw : Cstruct.t)  =
   let computed = Crypto.finished sp.master_secret "client finished" packets in
-  fail_ne computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
+  fail_neq computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
   Printf.printf "received good handshake finished\n";
   let my_checksum = Crypto.finished sp.master_secret "server finished" (packets @ [raw]) in
   let send = Writer.assemble_handshake (Finished my_checksum) in

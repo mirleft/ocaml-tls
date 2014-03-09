@@ -25,14 +25,18 @@ let answer_client_hello ch raw =
 
 let answer_server_hello (p : security_parameters) bs sh raw =
   fail_false (sh.version = (3, 1)) Packet.PROTOCOL_VERSION >>= fun () ->
-  let verify = Utils.cs_eq (p.client_verify_data <> p.server_verify_data) in
-  let rec check_renegotiation = function
-    | []                         -> false
-    | (SecureRenegotiation x)::_ -> verify x
-    | _::xs                      -> check_renegotiation xs
-  in
-  (* sends nothing *)
-  fail_false (check_renegotiation sh.extensions) Packet.HANDSHAKE_FAILURE >>= fun () ->
+  (* we first require existence of the SecureRenegotiation extension *)
+  fail_false (List.exists (function
+                            | SecureRenegotiation _ -> true
+                            | _ -> false)
+                          sh.extensions)
+             Packet.HANDSHAKE_FAILURE >>= fun () ->
+  (* and then check that it is similar to our expected value *)
+  let expected = p.client_verify_data <> p.server_verify_data in
+  mapM_ (function
+          | SecureRenegotiation x -> fail_neq expected x Packet.HANDSHAKE_FAILURE
+          | _ -> return ())
+        sh.extensions >>= fun () ->
   let sp = { p with ciphersuite   = sh.ciphersuites ;
                     server_random = sh.random } in
   return (`Handshaking (sp, bs @ [raw]), [], `Pass)
@@ -110,14 +114,14 @@ let answer_server_key_exchange p bs kex raw =
      let md5 = Crypto.md5 sigdata in
      let sha = Crypto.sha sigdata in
      fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
-     fail_ne (md5 <> sha) raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
+     fail_neq (md5 <> sha) raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
      return (`Handshaking ( { p with dh_params = Some dh_params }, bs @ [raw]),
              [], `Pass)
   | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let answer_server_finished p bs fin =
   let computed = Crypto.finished p.master_secret "server finished" bs in
-  fail_ne computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
+  fail_neq computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
   return (`Established { p with server_verify_data = computed }, [], `Pass)
 
 let default_client_hello : client_hello =

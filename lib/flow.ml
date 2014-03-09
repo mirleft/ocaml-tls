@@ -112,7 +112,7 @@ let fail_false v err =
   | true ->  return ()
   | false -> fail err
 
-let fail_ne cs1 cs2 err =
+let fail_neq cs1 cs2 err =
   fail_false (Utils.cs_eq cs1 cs2) err
 
 (* well-behaved pure decryptor *)
@@ -129,7 +129,7 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
        let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
        let body, mac = Cstruct.split dec macstart in
        let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
-       fail_ne cmac mac Packet.DECRYPTION_FAILED >>= fun () ->
+       fail_neq cmac mac Packet.DECRYPTION_FAILED >>= fun () ->
        return (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
                                    cipher_iv = next_iv },
                body)
