@@ -1,5 +1,9 @@
 open Core
 
+module Or_alert =
+  Control.Or_error_make (struct type err = Packet.alert_type end)
+open Or_alert
+
 type crypto_context = {
   sequence      : int64 ;
   stream_cipher : Cryptokit.Stream.stream_cipher option ; (* XXX *)
@@ -41,10 +45,10 @@ type tls_internal_state = [
 ]
 
 let state_to_string = function
-  | `Initial -> "Initial"
-  | `Handshaking _ -> "Shaking hands"
+  | `Initial         -> "Initial"
+  | `Handshaking _   -> "Shaking hands"
   | `KeysExchanged _ -> "Keys are exchanged"
-  | `Established _ -> "Established"
+  | `Established _   -> "Established"
 
 
 type record = Packet.content_type * Cstruct.t
@@ -103,38 +107,43 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
                             cipher_iv = next_iv },
         enc)
 
+let fail_false v err =
+  match v with
+  | true ->  return ()
+  | false -> fail err
+
+let fail_neq cs1 cs2 err =
+  fail_false (Utils.cs_eq cs1 cs2) err
+
 (* well-behaved pure decryptor *)
-let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
+let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t) or_error
 = fun s ty buf ->
     match s with
-    | `Nothing -> (s, buf)
+    | `Nothing -> return (s, buf)
     | `Crypted ctx ->
        let dec, next_iv =
          match ctx.stream_cipher with
          | Some x -> (Crypto.crypt_stream x buf, Cstruct.create 0)
-         | None -> Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf
+         | None   -> Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf
        in
        let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
        let body, mac = Cstruct.split dec macstart in
        let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
-       assert (Utils.cs_eq cmac mac);
-       (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
-                            cipher_iv = next_iv },
-        body)
+       fail_neq cmac mac Packet.DECRYPTION_FAILED >>= fun () ->
+       return (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
+                                   cipher_iv = next_iv },
+               body)
 
 (* party time *)
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t)
 = fun buf ->
   match Cstruct.len buf with
-  | 0 -> ([], buf)
-  | x ->
-    if x <= 5 then
-      ([], buf)
-    else
-      let (hdr, buf', len) = Reader.parse_hdr buf in
-      if len > (Cstruct.len buf') then
-        ([], buf)
-      else
+  | 0             -> ([], buf)
+  | x when x <= 5 -> ([], buf)
+  | x             ->
+     match Reader.parse_hdr buf with
+     | (_, buf', len) when len > (Cstruct.len buf') -> ([], buf)
+     | (hdr, buf', len)                             ->
         let tl, frag = separate_records (Cstruct.shift buf' len) in
         ((hdr, (Cstruct.sub buf' 0 len)) :: tl, frag)
 
@@ -191,41 +200,52 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
          cipher ; mac ; sequence } in
      (c_context, s_context, { sp with master_secret = mastersecret })
 
-
 let handle_raw_record handler state (hdr, buf) =
-  let (dec_st, dec) = decrypt state.decryptor hdr.content_type buf in
-  let (machina, items, dec_cmd) =
-    handler state.machina hdr.content_type dec in
+  decrypt state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
+  handler state.machina hdr.content_type dec >>= fun (machina, items, dec_cmd) ->
   let (encryptor, encs) =
-    let rec loop st = function
-      | [] -> (st, [])
-      | `Change_enc st'   :: xs -> loop st' xs
-      | `Record (ty, buf) :: xs ->
-          let (st1, enc ) = encrypt st ty buf in
-          let (st2, rest) = loop st1 xs in
-          (st2, (ty, enc) :: rest)
-    in
-    loop state.encryptor items in
+    List.fold_left (fun (st, es) ->
+                    function
+                    | `Change_enc st' -> (st', es)
+                    | `Record (ty, buf) ->
+                       let (st', enc) = encrypt st ty buf in
+                       (st', es @ [(ty, enc)]))
+                   (state.encryptor, [])
+                   items
+  in
   let decryptor = match dec_cmd with
     | `Change_dec dec -> dec
-    | `Pass           -> dec_st in
-  ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
+    | `Pass           -> dec_st
+  in
+  return ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
+
+let alert typ =
+  let buf = Writer.assemble_alert typ in
+  (Packet.ALERT, buf)
+
+type ret = [
+  | `Ok of (state * Cstruct.t)
+  | `Fail of Cstruct.t
+]
 
 let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
-      -> (tls_internal_state * rec_resp list * dec_resp)) ->
-                 state -> Cstruct.t -> (state * Cstruct.t)
+      -> (tls_internal_state * rec_resp list * dec_resp) or_error) ->
+                 state -> Cstruct.t -> ret
 = fun handler state buf ->
-  let in_records, frag = separate_records (state.fragment <> buf) in
-  let (state', out_records) =
-    let rec loop st = function
-      | []    -> (st, [])
-      | r::rs ->
-          let (st1, raw_rs ) = handle_raw_record handler st r in
-          let (st2, raw_rs') = loop st1 rs in
-          (st2, raw_rs @ raw_rs') in
-    loop state in_records in
-  let buf' = assemble_records out_records in
-  ({ state' with fragment = frag }, buf')
+  match
+    let in_records, frag = separate_records (state.fragment <> buf) in
+    foldM (fun (st, raw_rs) r ->
+           map (fun (st', raw_rs') -> (st', raw_rs @ raw_rs')) @@
+             handle_raw_record handler st r)
+          (state, [])
+          in_records
+    >>= fun (state', out_records) ->
+    let buf' = assemble_records out_records in
+    Printf.printf "sending out"; Cstruct.hexdump buf';
+    return ({ state' with fragment = frag }, buf')
+  with
+  | Ok v    -> `Ok v
+  | Error x -> `Fail (assemble_records [alert x])
 
 let find_hostname : 'a hello -> string option =
   fun h ->
@@ -237,3 +257,8 @@ let find_hostname : 'a hello -> string option =
     match hexts with
     | [Hostname name] -> name
     | _ -> None
+
+let rec check_reneg expected = function
+  | []                       -> fail Packet.HANDSHAKE_FAILURE
+  | SecureRenegotiation x::_ -> fail_neq expected x Packet.HANDSHAKE_FAILURE
+  | _::xs                    -> check_reneg expected xs

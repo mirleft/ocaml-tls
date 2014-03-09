@@ -206,3 +206,11 @@ let assemble_handshake hs =
   Cstruct.set_uint8 buf 0 (handshake_type_to_int payload_type);
   set_uint24_len (Cstruct.shift buf 1) pay_len;
   buf
+
+let assemble_alert ?level typ =
+  let buf = Cstruct.create 2 in
+  Cstruct.set_uint8 buf 1 (alert_type_to_int typ);
+  (match level with
+   | None -> Cstruct.set_uint8 buf 0 (alert_level_to_int Packet.FATAL)
+   | Some x -> Cstruct.set_uint8 buf 0 (alert_level_to_int x));
+  buf
