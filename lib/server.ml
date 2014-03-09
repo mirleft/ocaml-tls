@@ -1,5 +1,6 @@
 open Core
 open Flow
+open Flow.Or_alert
 
 (* server configuration *)
 type server_config = {
@@ -15,17 +16,14 @@ let default_server_config = {
 
 let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list) (fin : Cstruct.t) (raw : Cstruct.t)  =
   let computed = Crypto.finished sp.master_secret "client finished" packets in
-  match Utils.cs_eq computed fin with
-  | true ->
-     Printf.printf "received good handshake finished\n";
-     let my_checksum = Crypto.finished sp.master_secret "server finished" (packets @ [raw]) in
-     let send = Writer.assemble_handshake (Finished my_checksum) in
-     let params = { sp with client_verify_data = computed ;
-                            server_verify_data = my_checksum }
-     in
-     (`Established params, [`Record (Packet.HANDSHAKE, send)], `Pass)
-  | false ->
-     (`Failure, [`Record (alert Packet.HANDSHAKE_FAILURE)], `Pass)
+  fail_ne computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
+  Printf.printf "received good handshake finished\n";
+  let my_checksum = Crypto.finished sp.master_secret "server finished" (packets @ [raw]) in
+  let send = Writer.assemble_handshake (Finished my_checksum) in
+  let params = { sp with client_verify_data = computed ;
+                         server_verify_data = my_checksum }
+  in
+  return (`Established params, [`Record (Packet.HANDSHAKE, send)], `Pass)
 
 let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
   let premastersecret =
@@ -147,7 +145,7 @@ let answer_client_hello (ch : client_hello) raw =
 
 let handle_record
 : tls_internal_state -> Packet.content_type -> Cstruct.t
-  -> (tls_internal_state * rec_resp list * dec_resp)
+  -> (tls_internal_state * rec_resp list * dec_resp) or_error
 = fun is ct buf ->
   Printf.printf "HANDLE_RECORD (in state %s) %s\n"
                 (state_to_string is)
@@ -156,21 +154,24 @@ let handle_record
   | Packet.ALERT ->
      let al = Reader.parse_alert buf in
      Printf.printf "ALERT: %s" (Printer.alert_to_string al);
-     (is, [], `Pass)
+     return (is, [], `Pass)
   | Packet.APPLICATION_DATA ->
      Printf.printf "APPLICATION DATA";
      Cstruct.hexdump buf;
-     (is, [], `Pass)
+     ( match is with
+       | `Established _ -> return (is, [], `Pass)
+       | _              -> fail Packet.UNEXPECTED_MESSAGE
+     )
   | Packet.CHANGE_CIPHER_SPEC ->
      begin
        match is with
        | `KeysExchanged (enc, dec, _, _) ->
           let ccs = Cstruct.create 1 in
           Cstruct.set_uint8 ccs 0 1;
-          (is,
-           [`Record (Packet.CHANGE_CIPHER_SPEC, ccs); `Change_enc enc],
-           `Change_dec dec)
-       | _ -> assert false
+          return (is,
+                  [`Record (Packet.CHANGE_CIPHER_SPEC, ccs); `Change_enc enc],
+                  `Change_dec dec)
+       | _ -> fail Packet.UNEXPECTED_MESSAGE
      end
   | Packet.HANDSHAKE ->
      begin
@@ -179,15 +180,15 @@ let handle_record
        Cstruct.hexdump buf;
        match (is, handshake) with
        | `Initial, ClientHello ch ->
-            answer_client_hello ch buf
+            return (answer_client_hello ch buf)
        | `Handshaking (p, bs), ClientKeyExchange kex ->
-            answer_client_key_exchange p bs kex buf
+            return (answer_client_key_exchange p bs kex buf)
        | `KeysExchanged (_, _, p, bs), Finished fin ->
             answer_client_finished p bs fin buf
        | `Established sp, ClientHello ch -> (* key renegotiation *)
-            answer_client_hello_params sp ch buf
-       | _, _-> assert false
+            return (answer_client_hello_params sp ch buf)
+       | _, _-> fail Packet.HANDSHAKE_FAILURE
      end
-  | _ -> assert false
+  | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let handle_tls = handle_tls_int handle_record

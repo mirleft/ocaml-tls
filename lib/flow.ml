@@ -107,10 +107,13 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
                             cipher_iv = next_iv },
         enc)
 
-let fail_ne cs1 cs2 err =
-  match Utils.cs_eq cs1 cs2 with
+let fail_false v err =
+  match v with
   | true ->  return ()
   | false -> fail err
+
+let fail_ne cs1 cs2 err =
+  fail_false (Utils.cs_eq cs1 cs2) err
 
 (* well-behaved pure decryptor *)
 let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t) or_error
