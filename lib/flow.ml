@@ -1,5 +1,9 @@
 open Core
 
+module Or_alert =
+  Control.Or_error_make (struct type err = Packet.alert_type end)
+open Or_alert
+
 type crypto_context = {
   sequence      : int64 ;
   stream_cipher : Cryptokit.Stream.stream_cipher option ; (* XXX *)
@@ -38,7 +42,6 @@ type tls_internal_state = [
   | `Handshaking of security_parameters * Cstruct.t list
   | `KeysExchanged of crypto_state * crypto_state * security_parameters * Cstruct.t list (* only used in server, client initiates change cipher spec *)
   | `Established of security_parameters
-  | `Failure
 ]
 
 let state_to_string = function
@@ -46,7 +49,6 @@ let state_to_string = function
   | `Handshaking _   -> "Shaking hands"
   | `KeysExchanged _ -> "Keys are exchanged"
   | `Established _   -> "Established"
-  | `Failure         -> "Failure"
 
 
 type record = Packet.content_type * Cstruct.t
@@ -106,10 +108,10 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
         enc)
 
 (* well-behaved pure decryptor *)
-let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t) option
+let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t) or_error
 = fun s ty buf ->
     match s with
-    | `Nothing -> Some (s, buf)
+    | `Nothing -> return (s, buf)
     | `Crypted ctx ->
        let dec, next_iv =
          match ctx.stream_cipher with
@@ -120,25 +122,22 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
        let body, mac = Cstruct.split dec macstart in
        let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
        if Utils.cs_eq cmac mac then
-         Some (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
-                                   cipher_iv = next_iv },
-               body)
+         return (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
+                                     cipher_iv = next_iv },
+                 body)
        else
-         None
+         fail Packet.DECRYPTION_FAILED
 
 (* party time *)
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t)
 = fun buf ->
   match Cstruct.len buf with
-  | 0 -> ([], buf)
-  | x ->
-    if x <= 5 then
-      ([], buf)
-    else
-      let (hdr, buf', len) = Reader.parse_hdr buf in
-      if len > (Cstruct.len buf') then
-        ([], buf)
-      else
+  | 0             -> ([], buf)
+  | x when x <= 5 -> ([], buf)
+  | x             ->
+     match Reader.parse_hdr buf with
+     | (_, buf', len) when len > (Cstruct.len buf') -> ([], buf)
+     | (hdr, buf', len)                             ->
         let tl, frag = separate_records (Cstruct.shift buf' len) in
         ((hdr, (Cstruct.sub buf' 0 len)) :: tl, frag)
 
@@ -195,57 +194,45 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
          cipher ; mac ; sequence } in
      (c_context, s_context, { sp with master_secret = mastersecret })
 
-
 let handle_raw_record handler state (hdr, buf) =
-  match decrypt state.decryptor hdr.content_type buf with
-  | Some (dec_st, dec) ->
-     let (machina, items, dec_cmd) =
-       handler state.machina hdr.content_type dec in
-     let (encryptor, encs) =
-       let rec loop st = function
-         | [] -> (st, [])
-         | `Change_enc st'   :: xs -> loop st' xs
-         | `Record (ty, buf) :: xs ->
-            let (st1, enc ) = encrypt st ty buf in
-            let (st2, rest) = loop st1 xs in
-            (st2, (ty, enc) :: rest)
-       in
-       loop state.encryptor items in
-     let decryptor = match dec_cmd with
-       | `Change_dec dec -> dec
-       | `Pass           -> dec_st
-     in
-     Some ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
-  | None              -> None
-
+  decrypt state.decryptor hdr.content_type buf >>=
+  fun (dec_st, dec) ->
+    handler state.machina hdr.content_type dec >>=
+    fun (machina, items, dec_cmd) ->
+    let (encryptor, encs) =
+      let rec loop st = function
+        | [] -> (st, [])
+        | `Change_enc st'   :: xs -> loop st' xs
+        | `Record (ty, buf) :: xs ->
+           let (st1, enc ) = encrypt st ty buf in
+           let (st2, rest) = loop st1 xs in
+           (st2, (ty, enc) :: rest)
+      in
+      loop state.encryptor items in
+    let decryptor = match dec_cmd with
+      | `Change_dec dec -> dec
+      | `Pass           -> dec_st
+    in
+    return ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
 
 let alert typ =
   let buf = Writer.assemble_alert typ in
   (Packet.ALERT, buf)
 
 let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
-      -> (tls_internal_state * rec_resp list * dec_resp)) ->
-                 state -> Cstruct.t -> (state * Cstruct.t)
+      -> (tls_internal_state * rec_resp list * dec_resp) or_error) ->
+                 state -> Cstruct.t -> (state * Cstruct.t) or_error
 = fun handler state buf ->
   let in_records, frag = separate_records (state.fragment <> buf) in
-  let (state', out_records) =
-    let rec loop st = function
-      | []    -> (st, [])
-      | r::rs ->
-         (
-           match handle_raw_record handler st r with
-           | Some (st1, raw_rs ) ->
-              let (st2, raw_rs') = loop st1 rs in
-              (st2, raw_rs @ raw_rs')
-           | None                ->
-              ( { st with machina = `Failure },
-                [(alert Packet.DECRYPTION_FAILED)])
-         )
-    in loop state in_records
-  in
-  let buf' = assemble_records out_records in
-  Printf.printf "sending out"; Cstruct.hexdump buf';
-  ({ state' with fragment = frag }, buf')
+  foldM (fun (st, raw_rs) r ->
+         handle_raw_record handler st r >>=
+           fun (st', raw_rs') -> return (st', raw_rs @ raw_rs'))
+        (state, [])
+        in_records
+  >>= fun (state', out_records) ->
+    let buf' = assemble_records out_records in
+    Printf.printf "sending out"; Cstruct.hexdump buf';
+    return ({ state' with fragment = frag }, buf')
 
 let find_hostname : 'a hello -> string option =
   fun h ->
