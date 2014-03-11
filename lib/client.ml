@@ -33,8 +33,8 @@ let answer_server_hello (p : security_parameters) bs sh raw =
 
 let parse_certificate c =
   match Asn_grammars.certificate_of_cstruct c with
-  | None           -> fail Packet.BAD_CERTIFICATE
-  | Some (cert, _) -> return cert
+  | None      -> fail Packet.BAD_CERTIFICATE
+  | Some cert -> return cert
 
 let answer_certificate p bs cs raw =
   (* sends nothing *)
