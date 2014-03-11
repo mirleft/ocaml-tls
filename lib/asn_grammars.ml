@@ -5,8 +5,15 @@ type bits = Cstruct.t
 let def  x = function None -> x | Some y -> y
 let def' x = fun y -> if y = x then None else Some y
 
+(* Error out on trailing bytes. *)
+(* XXX Is there a place where we need bytes after an ASN structure? *)
+let decode_strict codec cs =
+  match decode codec cs with
+  | Some (a, cs') when Cstruct.len cs' = 0 -> Some a
+  | _                                      -> None
+
 let projections encoding asn =
-  let c = codec encoding asn in (decode c, encode c)
+  let c = codec encoding asn in (decode_strict c, encode c)
 
 let compare_unordered_lists cmp l1 l2 =
   let rec loop = function
@@ -161,7 +168,7 @@ module General_name = struct
       | (oid, `C1 n) when oid = venezuela_1 || oid = venezuela_2 -> n
       | (oid, _    ) -> parse_error_oid "AnotherName: unrecognized oid" oid
     and g = fun _ ->
-      invalid_arg "can't encode AnotherName extentions, yet."
+      invalid_arg "can't encode AnotherName extensions, yet."
     in
     map f g @@
     sequence2

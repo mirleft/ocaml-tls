@@ -19,8 +19,8 @@ let pem_to_cstruct pem =
 let pem_to_cert pem =
   let cs = pem_to_cstruct pem in
   match Asn_grammars.certificate_of_cstruct cs with
-  | None           -> failwith "pem decode failed"
-  | Some (cert, _) -> cert
+  | None      -> failwith "pem decode failed"
+  | Some cert -> cert
 
 let cert_cstruct_of_file filename =
   let pem = read_pem_file filename in pem_to_cstruct pem
@@ -56,7 +56,7 @@ let get_key filename =
   match
     Asn_grammars.PK.rsa_private_of_cstruct (Cstruct.of_string str)
   with
-  | None         -> assert false
-  | Some (pk, _) -> pk
+  | None    -> assert false
+  | Some pk -> pk
 
 let the_key = lazy (get_key "server.key")
