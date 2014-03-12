@@ -116,14 +116,18 @@ let decryptRSA key msg =
   let res = Cryptokit.RSA.decrypt key input in
   Cstruct.of_string res
 
-let decryptRSA_unpadPKCS len key msg =
+let decryptRSA_unpadPKCS key msg =
   let dec = decryptRSA key msg in
-  let dlen = Cstruct.len dec in
-  let start = dlen - len in
-  assert (Cstruct.get_uint8 dec 0 = 0);
-  assert (Cstruct.get_uint8 dec 1 = 2);
-  assert (Cstruct.get_uint8 dec (start - 1) = 0);
-  Cstruct.sub dec start len
+  if (Cstruct.get_uint8 dec 0 = 0) && (Cstruct.get_uint8 dec 1 = 2) then
+    let rec not0 idx =
+      match Cstruct.get_uint8 dec idx with
+      | 0 -> succ idx
+      | _ -> not0 (succ idx)
+    in
+    let start = not0 2 in
+    Some (Cstruct.shift dec start)
+  else
+    None
 
 let dh_param_to_cryptokit key =
   Cryptokit.DH.(Core.(
