@@ -81,16 +81,18 @@ let verifyRSA key msg =
 
 let verifyRSA_and_unpadPKCS1 pubkey data =
   let dat = verifyRSA pubkey data in
-  assert (Cstruct.get_uint8 dat 0 = 0);
-  assert (Cstruct.get_uint8 dat 1 = 1);
-  let rec ff idx =
-    match Cstruct.get_uint8 dat idx with
-    | 0    -> idx + 1
-    | 0xff -> ff (idx + 1)
-    | _    -> assert false
-  in
-  let start = ff 2 in
-  Cstruct.shift dat start
+  if (Cstruct.get_uint8 dat 0 = 0) && (Cstruct.get_uint8 dat 1 = 1) then
+    let rec ff idx =
+      match Cstruct.get_uint8 dat idx with
+      | 0    -> Some (succ idx)
+      | 0xff -> ff (succ idx)
+      | _    -> None
+    in
+    match ff 2 with
+    | Some start -> Some (Cstruct.shift dat start)
+    | None       -> None
+  else
+    None
 
 let encryptRSA key msg =
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in
@@ -159,7 +161,6 @@ let computeDH key secret other =
 let hmac = function
   | Ciphersuite.MD5 -> hmac_md5
   | Ciphersuite.SHA -> hmac_sha
-  | _               -> assert false
 
 let signature : Ciphersuite.hash_algorithm -> Cstruct.t -> int64 -> Packet.content_type -> (int * int) -> Cstruct.t -> Cstruct.t
   = fun mac secret n ty (major, minor) data ->
@@ -211,7 +212,6 @@ let encrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -
            let siv = Cstruct.copy iv 0 (Cstruct.len iv) in
            let cip = new Cryptokit.Block.triple_des_encrypt key in
            new Cryptokit.Block.cbc_encrypt ~iv:siv cip
-        | _ -> assert false
       in
       let datalen = Cstruct.len to_encrypt in
       let bs = Ciphersuite.encryption_algorithm_block_size cipher in
@@ -235,7 +235,6 @@ let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -
            let siv = Cstruct.copy iv 0 (Cstruct.len iv) in
            let cip = new Cryptokit.Block.triple_des_decrypt key in
            new Cryptokit.Block.cbc_decrypt ~iv:siv cip
-        | _ -> assert false
       in
       let datalen = Cstruct.len data in
       let bs = Ciphersuite.encryption_algorithm_block_size cipher in
