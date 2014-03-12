@@ -72,8 +72,7 @@ let validate_path_len pathlen cert =
   match extn_basic_constr cert with
   | Some (_ , Basic_constraints (true, None))   -> true
   | Some (_ , Basic_constraints (true, Some n)) -> n >= pathlen
-  | Some (_ , Basic_constraints (false, _))     -> false
-  | _                                           -> true
+  | _                                           -> false
 
 let validate_ca_extensions cert =
   let open Extension in
@@ -84,7 +83,9 @@ let validate_ca_extensions cert =
   (* extension as critical in such certificates *)
   (* unfortunately, there are 8 CA certs (including the one which
       signed google.com) which are _NOT_ marked as critical *)
-  ( option false (const true) (extn_basic_constr cert) ) &&
+  ( match extn_basic_constr cert with
+    | Some (_ , Basic_constraints (true, _))   -> true
+    | _                                        -> false ) &&
 
   (* 4.2.1.3 Key Usage *)
   (* Conforming CAs MUST include key usage extension *)
