@@ -439,8 +439,8 @@ module Extension = struct
     map (List.map f) (List.map g) @@ sequence_of oid
 
   let basic_constraints =
-    map (function (Some true, Some n) -> Some n | _ -> None)
-        (function Some n -> (Some true, Some n) | _ -> (None, None))
+    map (fun (a, b) -> (def  false a, b))
+        (fun (a, b) -> (def' false a, b))
     @@
     sequence2
       (optional ~label:"cA"      bool)
@@ -516,7 +516,7 @@ module Extension = struct
               ia5_string
               @@
               map (function (_, Some s) -> s | _ -> "#(BLAH BLAH)")
-                  (fun s -> (None, Some s)) @@
+                  (fun s -> (None, Some s))
               (sequence2
                 (optional ~label:"noticeRef"
                   (sequence2
@@ -546,7 +546,7 @@ module Extension = struct
     | Issuer_alt_name   of gen_names
     | Key_usage         of key_usage list
     | Ext_key_usage     of extended_key_usage list
-    | Basic_constraints of int option
+    | Basic_constraints of (bool * int option)
     | Priv_key_period   of priv_key_usage_period
     | Name_constraints  of name_constraints
     | Policies          of cert_policies
