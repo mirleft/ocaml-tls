@@ -78,7 +78,6 @@ let assemble_extension e =
        (assemble_hostnames [name], SERVER_NAME)
     | Hostname None ->
        (Cstruct.create 0, SERVER_NAME)
-    | _ -> assert false
   in
   let buf = Cstruct.create 4 in
   Cstruct.BE.set_uint16 buf 0 (extension_type_to_int typ);
@@ -198,7 +197,6 @@ let assemble_handshake hs =
     | ClientKeyExchange kex -> (assemble_client_key_exchange kex, CLIENT_KEY_EXCHANGE)
     | ServerHelloDone -> (Cstruct.create 0, SERVER_HELLO_DONE)
     | Finished fs -> (fs, FINISHED)
-    | _ -> assert false
   in
   let pay_len = Cstruct.len payload in
   let buf = Cstruct.create (pay_len + 4) in

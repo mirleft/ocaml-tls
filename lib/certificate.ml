@@ -46,18 +46,18 @@ let validate_signature trusted cert raw =
 
   | PK.RSA issuing_key ->
 
-      let signature =
-        Crypto.verifyRSA_and_unpadPKCS1 issuing_key cert.signature_val in
-
-      ( match pkcs1_digest_info_of_cstruct signature with
-        | None              -> false
-        | Some (algo, hash) ->
-           let compare_hashes hashfn = Utils.cs_eq hash (hashfn tbs_raw) in
-           let open Algorithm in
-           match (cert.signature_algo, algo) with
-           | (MD5_RSA , MD5 ) -> compare_hashes Crypto.md5
-           | (SHA1_RSA, SHA1) -> compare_hashes Crypto.sha
-           | _ -> false )
+     ( match Crypto.verifyRSA_and_unpadPKCS1 issuing_key cert.signature_val with
+       | Some signature ->
+          ( match pkcs1_digest_info_of_cstruct signature with
+            | None              -> false
+            | Some (algo, hash) ->
+               let compare_hashes hashfn = Utils.cs_eq hash (hashfn tbs_raw) in
+               let open Algorithm in
+               match (cert.signature_algo, algo) with
+               | (MD5_RSA , MD5 ) -> compare_hashes Crypto.md5
+               | (SHA1_RSA, SHA1) -> compare_hashes Crypto.sha
+               | _ -> false )
+       | None -> false )
 
   | _ -> false
 

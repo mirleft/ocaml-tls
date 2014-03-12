@@ -85,14 +85,11 @@ let key_lengths = function
   | ARIA_256_GCM
   | ARIA_128_CBC
   | ARIA_256_CBC *)
-  | _ -> assert false
 
 let encryption_algorithm_block_size e =
   let _, _, bs = key_lengths e in
   match bs with
   | Some x -> x
-  | None -> assert false
-
 
 type hash_algorithm =
   | NULL
@@ -110,7 +107,6 @@ let hash_length_padding = function
   | SHA256 -> (32, 0)
 (*  | SHA384 -> ()
   | SHA512 -> () *)
-  | _ -> assert false
 
 let hash_length h =
   let (l, _) = hash_length_padding h in l

@@ -96,10 +96,11 @@ let answer_client_hello_params_int sp ch raw =
          let md5signature = Crypto.md5 data in
          let shasignature = Crypto.sha data in
          let signing = md5signature <> shasignature in
-         let sign = Crypto.padPKCS1_and_signRSA 128 (Crypto_utils.get_key default_server_config.key_file) signing in
-         let kex = Writer.assemble_dh_parameters_and_signature written sign in
-         return (bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)], params'')
-      | _ -> fail Packet.HANDSHAKE_FAILURE
+         match Crypto.padPKCS1_and_signRSA (Crypto_utils.get_key default_server_config.key_file) signing with
+         | Some sign ->
+            let kex = Writer.assemble_dh_parameters_and_signature written sign in
+            return (bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)], params'')
+         | None -> fail Packet.HANDSHAKE_FAILURE
     else
       return (bufs', params') ) >>= fun (bufs'', params'') ->
   (* server hello done! *)

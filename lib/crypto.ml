@@ -56,23 +56,25 @@ let signRSA key msg =
   let res = Cryptokit.RSA.sign key input in
   Cstruct.of_string res
 
-let padPKCS1_and_signRSA len key msg =
+let padPKCS1_and_signRSA key msg =
   (* inspiration from RFC3447 EMSA-PKCS1-v1_5 and rsa_sign.c from OpenSSL *)
   (* also ocaml-ssh kex.ml *)
   (* msg.length must be 36 (16 MD5 + 20 SHA1)! *)
   let mlen = Cstruct.len msg in
-  assert (mlen = 36);
+  let len = Cryptokit.RSA.(key.size / 8) in
   let padlen = len - mlen in
-  assert (padlen > 3);
-  let out = Cstruct.create len in
-  Cstruct.set_uint8 out 0 0;
-  Cstruct.set_uint8 out 1 1;
-  for i = 2 to (padlen - 2) do
-    Cstruct.set_uint8 out i 0xff;
-  done;
-  Cstruct.set_uint8 out (padlen - 1) 0;
-  Cstruct.blit msg 0 out padlen mlen;
-  signRSA key out
+  if (padlen > 3) && (mlen = 36) then
+    let out = Cstruct.create len in
+    Cstruct.set_uint8 out 0 0;
+    Cstruct.set_uint8 out 1 1;
+    for i = 2 to (padlen - 2) do
+      Cstruct.set_uint8 out i 0xff;
+    done;
+    Cstruct.set_uint8 out (padlen - 1) 0;
+    Cstruct.blit msg 0 out padlen mlen;
+    Some (signRSA key out)
+  else
+    None
 
 let verifyRSA key msg =
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in
@@ -81,16 +83,18 @@ let verifyRSA key msg =
 
 let verifyRSA_and_unpadPKCS1 pubkey data =
   let dat = verifyRSA pubkey data in
-  assert (Cstruct.get_uint8 dat 0 = 0);
-  assert (Cstruct.get_uint8 dat 1 = 1);
-  let rec ff idx =
-    match Cstruct.get_uint8 dat idx with
-    | 0    -> idx + 1
-    | 0xff -> ff (idx + 1)
-    | _    -> assert false
-  in
-  let start = ff 2 in
-  Cstruct.shift dat start
+  if (Cstruct.get_uint8 dat 0 = 0) && (Cstruct.get_uint8 dat 1 = 1) then
+    let rec ff idx =
+      match Cstruct.get_uint8 dat idx with
+      | 0    -> Some (succ idx)
+      | 0xff -> ff (succ idx)
+      | _    -> None
+    in
+    match ff 2 with
+    | Some start -> Some (Cstruct.shift dat start)
+    | None       -> None
+  else
+    None
 
 let encryptRSA key msg =
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in
@@ -159,7 +163,6 @@ let computeDH key secret other =
 let hmac = function
   | Ciphersuite.MD5 -> hmac_md5
   | Ciphersuite.SHA -> hmac_sha
-  | _               -> assert false
 
 let signature : Ciphersuite.hash_algorithm -> Cstruct.t -> int64 -> Packet.content_type -> (int * int) -> Cstruct.t -> Cstruct.t
   = fun mac secret n ty (major, minor) data ->
@@ -211,7 +214,6 @@ let encrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -
            let siv = Cstruct.copy iv 0 (Cstruct.len iv) in
            let cip = new Cryptokit.Block.triple_des_encrypt key in
            new Cryptokit.Block.cbc_encrypt ~iv:siv cip
-        | _ -> assert false
       in
       let datalen = Cstruct.len to_encrypt in
       let bs = Ciphersuite.encryption_algorithm_block_size cipher in
@@ -235,7 +237,6 @@ let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -
            let siv = Cstruct.copy iv 0 (Cstruct.len iv) in
            let cip = new Cryptokit.Block.triple_des_decrypt key in
            new Cryptokit.Block.cbc_decrypt ~iv:siv cip
-        | _ -> assert false
       in
       let datalen = Cstruct.len data in
       let bs = Ciphersuite.encryption_algorithm_block_size cipher in
