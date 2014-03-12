@@ -72,7 +72,8 @@ let validate_path_len pathlen cert =
   match extn_basic_constr cert with
   | Some (_ , Basic_constraints (true, None))   -> true
   | Some (_ , Basic_constraints (true, Some n)) -> n >= pathlen
-  | _                                     -> true
+  | Some (_ , Basic_constraints (false, _))     -> false
+  | _                                           -> true
 
 let validate_ca_extensions cert =
   let open Extension in
