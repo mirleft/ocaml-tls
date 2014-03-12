@@ -56,23 +56,25 @@ let signRSA key msg =
   let res = Cryptokit.RSA.sign key input in
   Cstruct.of_string res
 
-let padPKCS1_and_signRSA len key msg =
+let padPKCS1_and_signRSA key msg =
   (* inspiration from RFC3447 EMSA-PKCS1-v1_5 and rsa_sign.c from OpenSSL *)
   (* also ocaml-ssh kex.ml *)
   (* msg.length must be 36 (16 MD5 + 20 SHA1)! *)
   let mlen = Cstruct.len msg in
-  assert (mlen = 36);
+  let len = Cryptokit.RSA.(key.size / 8) in
   let padlen = len - mlen in
-  assert (padlen > 3);
-  let out = Cstruct.create len in
-  Cstruct.set_uint8 out 0 0;
-  Cstruct.set_uint8 out 1 1;
-  for i = 2 to (padlen - 2) do
-    Cstruct.set_uint8 out i 0xff;
-  done;
-  Cstruct.set_uint8 out (padlen - 1) 0;
-  Cstruct.blit msg 0 out padlen mlen;
-  signRSA key out
+  if (padlen > 3) && (mlen = 36) then
+    let out = Cstruct.create len in
+    Cstruct.set_uint8 out 0 0;
+    Cstruct.set_uint8 out 1 1;
+    for i = 2 to (padlen - 2) do
+      Cstruct.set_uint8 out i 0xff;
+    done;
+    Cstruct.set_uint8 out (padlen - 1) 0;
+    Cstruct.blit msg 0 out padlen mlen;
+    Some (signRSA key out)
+  else
+    None
 
 let verifyRSA key msg =
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in
