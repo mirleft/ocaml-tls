@@ -70,8 +70,8 @@ let validate_time now cert =
 let validate_path_len pathlen cert =
   let open Extension in
   match extn_basic_constr cert with
-  | Some (_ , Basic_constraints None)     -> true
-  | Some (_ , Basic_constraints (Some n)) -> n >= pathlen
+  | Some (_ , Basic_constraints (true, None))   -> true
+  | Some (_ , Basic_constraints (true, Some n)) -> n >= pathlen
   | _                                     -> true
 
 let validate_ca_extensions cert =
@@ -148,8 +148,8 @@ let validate_relation pathlen trusted cert raw_cert =
 let validate_server_extensions cert =
   let open Extension in
   List.for_all (function
-      | (_, Basic_constraints (Some _)) -> false
-      | (_, Basic_constraints None    ) -> true
+      | (_, Basic_constraints (true, _))  -> false
+      | (_, Basic_constraints (false, _)) -> true
       (* key_encipherment (RSA) *)
       (* signing (DHE_RSA) *)
       | (_, Key_usage usage    ) -> List.mem Key_encipherment usage
