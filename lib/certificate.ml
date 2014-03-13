@@ -224,30 +224,9 @@ let find_issuer trusted cert =
              | false -> None )
   | _   -> None
 
-(* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
-let find_trusted_certs now =
-  let cacert_file, ca_nss_file =
-    ("../certificates/cacert.crt", "../certificates/ca-root-nss.crt") in
-  let ((cacert, raw), nss) =
-    Crypto_utils.(cert_of_file cacert_file, certs_of_file ca_nss_file) in
 
-  let cas   = List.append nss [(cacert, raw)] in
-  let valid = List.filter (fun (cert, raw) ->
-                  Or_error.is_success @@ is_ca_cert_valid now cert raw)
-                cas in
-  Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
-  let certs, _ = List.split valid in
-  certs
-
-
-(* this is the API for a user (Cstruct.t might go away) *)
-(* XXX
- * Both Sys.time() and trusted anchors should be moved towards the user!
- * A general kernel-less tls validator doesn't go out and read rondom cert
- * files. It doesn't even look at the clock.
- *)
-
-let verify_certificates ?servername = function
+(* this is the API for the user (Cstruct.t will go away) *)
+let verify_certificates ?servername ~time ~anchors = function
     (* we get the certificate chain cs:
         [c0; c1; c2; ... ; cn], n > 0
         let server = c0
@@ -263,27 +242,46 @@ let verify_certificates ?servername = function
   | (server, server_raw) :: certs_and_raw ->
       let open Or_error in
 
-      let now     = Sys.time () in
-      let trusted = find_trusted_certs now in
-
       let rec climb pathlen cert cert_raw = function
         | (super, super_raw) :: certs ->
             signs pathlen super cert cert_raw >>= fun () ->
             climb (succ pathlen) super super_raw certs
         | [] ->
-            match find_issuer trusted cert with
+            match find_issuer anchors cert with
             | None when is_self_signed cert             -> fail SelfSigned
             | None                                      -> fail NoTrustAnchor
-            | Some anchor when validate_time now anchor ->
+            | Some anchor when validate_time time anchor ->
                 signs pathlen anchor cert cert_raw
             | Some _                                    -> fail CertificateExpired
       in
 
       let res =
-        is_server_cert_valid ?servername now server     >>= fun () ->
-        mapM_ (o (is_cert_valid now) fst) certs_and_raw >>= fun () ->
+        is_server_cert_valid ?servername time server     >>= fun () ->
+        mapM_ (o (is_cert_valid time) fst) certs_and_raw >>= fun () ->
         climb 0 server server_raw certs_and_raw
       in lower res
+
+
+
+(* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
+let find_trusted_certs now =
+  let cacert_file, ca_nss_file =
+    ("../certificates/cacert.crt", "../certificates/ca-root-nss.crt") in
+  let ((cacert, raw), nss) =
+    Crypto_utils.(cert_of_file cacert_file, certs_of_file ca_nss_file) in
+
+  let cas   = List.append nss [(cacert, raw)] in
+  let valid = List.filter (fun (cert, raw) ->
+                  Or_error.is_success @@ is_ca_cert_valid now cert raw)
+                cas in
+  Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
+  let certs, _ = List.split valid in
+  certs
+
+let verify_certificates_debug ?servername chain =
+  let time    = Unix.gettimeofday () in
+  let anchors = find_trusted_certs time in
+  verify_certificates ?servername ~time ~anchors chain
 
 
 (* TODO: how to deal with
