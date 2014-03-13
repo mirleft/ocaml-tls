@@ -29,12 +29,13 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
        let private_key = Crypto_utils.get_key default_server_config.key_file in
        (* due to bleichenbacher attach, we should use a random pms *)
        (* then we do not leak any decryption or padding errors! *)
+       let other = protocol_version_cstruct <> default_config.rng 46 in
        (match Crypto.decryptRSA_unpadPKCS private_key kex with
-        | None   -> return (protocol_version_cstruct <> default_config.rng 46)
+        | None   -> return other
         | Some k -> if ((Cstruct.len k) = 48) && (Utils.cs_eq (Cstruct.sub k 0 2) protocol_version_cstruct) then
                       return k
                     else
-                      return (protocol_version_cstruct <> default_config.rng 46) )
+                      return other )
     | Ciphersuite.DHE_RSA ->
        (* we assume explicit communication here, not a client certificate *)
        ( match sp.dh_params with
