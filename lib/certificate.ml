@@ -84,7 +84,6 @@ let validate_signature trusted cert raw =
 
   | _ -> false
 
-
 let validate_time now cert =
 (*   let from, till = cert.validity in *)
 (* TODO:  from < now && now < till *)
@@ -227,17 +226,6 @@ let find_issuer trusted cert =
 
 (* this is the API for the user (Cstruct.t will go away) *)
 let verify_certificates ?servername ~time ~anchors = function
-    (* we get the certificate chain cs:
-        [c0; c1; c2; ... ; cn], n > 0
-        let server = c0
-        let top = cn
-       strategy:
-        1. traverse left-to-right, checking c_n+1 signs c_n
-        2. include servername and different extension constraints for c0
-        3. at the end, try to establish a trust anchor
-      path: all c_n certs are path-n from server. while veryfing each one, make
-            sure c_n+1 has basic constraints >= n
-    *)
   | []                                    -> `Fail InvalidInput
   | (server, server_raw) :: certs_and_raw ->
       let open Or_error in
