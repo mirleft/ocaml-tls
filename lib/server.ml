@@ -54,7 +54,7 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
 let answer_client_hello_params_int sp ch raw =
   let cipher = sp.ciphersuite in
   fail_false (List.mem cipher ch.ciphersuites) Packet.HANDSHAKE_FAILURE >>= fun () ->
-  fail_false (ch.version = default_config.protocol_version) Packet.HANDSHAKE_FAILURE >>= fun () ->
+  fail_false (protocol_version_geq ch.version) Packet.HANDSHAKE_FAILURE >>= fun () ->
   (* now we can provide a certificate with any of the given hostnames *)
   (match sp.server_name with
    | None   -> ()
