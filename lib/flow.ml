@@ -90,6 +90,16 @@ let protocol_version_cstruct =
   Cstruct.set_uint8 buf 1 minor;
   buf
 
+let protocol_version_greater_equal version =
+  let major, minor = version in
+  let mymajor, myminor = default_config.protocol_version in
+  if major > mymajor then
+    true
+  else if (major = mymajor) && (minor >= myminor) then
+    true
+  else
+    false
+
 (* well-behaved pure encryptor *)
 let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
 = fun s ty buf ->
