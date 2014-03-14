@@ -2,16 +2,15 @@ open Packet
 open Core
 
 let parse_hdr buf =
-  let content_type = match int_to_content_type (get_tls_h_content_type buf) with
-    | Some x -> x
-    | None -> assert false
-  in
+  let typ = int_to_content_type (get_tls_h_content_type buf) in
   let major = get_tls_h_major_version buf in
   let minor = get_tls_h_minor_version buf in
   let version = (major, minor) in
   let len = get_tls_h_length buf in
   let payload = Cstruct.shift buf 5 in
-  ( { content_type; version }, payload, len)
+  match typ with
+  | Some content_type -> ( Some { content_type; version }, payload, len)
+  | None              -> ( None, payload, len)
 
 let parse_alert buf =
   let level = Cstruct.get_uint8 buf 0 in
@@ -348,16 +347,9 @@ let parse_handshake buf =
     | _ -> assert false
 
 let parse_body ct buf =
-  Printf.printf "parse body with ct %s\n" (content_type_to_string ct);
   match ct with
   | HANDSHAKE          -> TLS_Handshake (parse_handshake buf)
   | CHANGE_CIPHER_SPEC -> TLS_ChangeCipherSpec
   | ALERT              -> TLS_Alert (parse_alert buf)
   | _ -> assert false
-
-let parse buf =
-  let header, buf, len = parse_hdr buf in
-  Printf.printf "parse with ct %s\n" (content_type_to_string header.content_type);
-  let body = parse_body header.content_type buf in
-  ((header, body), len)
 

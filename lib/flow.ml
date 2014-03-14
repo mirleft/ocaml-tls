@@ -143,7 +143,7 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
                body)
 
 (* party time *)
-let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t)
+let rec separate_records : Cstruct.t ->  ((tls_hdr option * Cstruct.t) list * Cstruct.t)
 = fun buf ->
   match Cstruct.len buf with
   | 0             -> ([], buf)
@@ -208,24 +208,28 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
          cipher ; mac ; sequence } in
      (c_context, s_context, { sp with master_secret = mastersecret })
 
-let handle_raw_record handler state (hdr, buf) =
-  decrypt state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
-  handler state.machina hdr.content_type dec >>= fun (machina, items, dec_cmd) ->
-  let (encryptor, encs) =
-    List.fold_left (fun (st, es) ->
-                    function
-                    | `Change_enc st' -> (st', es)
-                    | `Record (ty, buf) ->
-                       let (st', enc) = encrypt st ty buf in
-                       (st', es @ [(ty, enc)]))
-                   (state.encryptor, [])
-                   items
-  in
-  let decryptor = match dec_cmd with
-    | `Change_dec dec -> dec
-    | `Pass           -> dec_st
-  in
-  return ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
+let handle_raw_record handler state (header, buf) =
+  match header with
+  | None -> fail Packet.UNEXPECTED_MESSAGE
+  | Some hdr ->
+     decrypt state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
+     handler state.machina hdr.content_type dec >>= fun (machina, items, dec_cmd) ->
+     let (encryptor, encs) =
+       List.fold_left (fun (st, es) ->
+                       function
+                       | `Change_enc st' -> (st', es)
+                       | `Record (ty, buf) ->
+                          let (st', enc) = encrypt st ty buf in
+                          (st', es @ [(ty, enc)]))
+                      (state.encryptor, [])
+                      items
+     in
+     let decryptor = match dec_cmd with
+       | `Change_dec dec -> dec
+       | `Pass           -> dec_st
+     in
+     return ({ machina ; encryptor ; decryptor ; fragment = state.fragment },
+             encs)
 
 let alert typ =
   let buf = Writer.assemble_alert typ in
