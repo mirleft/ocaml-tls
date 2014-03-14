@@ -95,7 +95,7 @@ let protocol_version_compare (a1, a2) (b1, b2) =
   | 0 -> compare a2 b2
   | c -> c
 
-let protocol_version_geq v =
+let supported_protocol_version v =
   protocol_version_compare v default_config.protocol_version > -1
 
 (* well-behaved pure encryptor *)
