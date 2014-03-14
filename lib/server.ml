@@ -35,8 +35,6 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
         | None   -> return other
         | Some k ->
            let c_ver = (Cstruct.get_uint8 k 0, Cstruct.get_uint8 k 1) in
-           Printf.printf "decrypted is %d" (Cstruct.len k);
-           Cstruct.hexdump k;
            if ((Cstruct.len k) = 48) && (supported_protocol_version c_ver) then
              return k
            else
