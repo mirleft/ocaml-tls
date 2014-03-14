@@ -34,7 +34,7 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
        (match Crypto.decryptRSA_unpadPKCS private_key kex with
         | None   -> return other
         | Some k ->
-           let c_ver = (Cstruct.get_uint8 k 0, Cstruct.get_uint8 k 1) in
+           let c_ver = Reader.parse_version k in
            if ((Cstruct.len k) = 48) && (supported_protocol_version c_ver) then
              return k
            else

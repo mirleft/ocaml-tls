@@ -8,21 +8,6 @@ let set_uint24_len buf num =
   Cstruct.BE.set_uint16 buf 0 (num / 0x100);
   Cstruct.set_uint8 buf 2 (num mod 0x100)
 
-(* TLS Record Header *)
-cstruct tls_h {
-  uint8_t  content_type;
-  uint8_t  major_version;
-  uint8_t  minor_version;
-  uint16_t length
-} as big_endian
-
-(* TLS Client and Server hello handshake header *)
-cstruct c_hello {
-  uint8_t major_version;
-  uint8_t minor_version;
-  uint8_t  random[32];
-} as big_endian
-
 (* TLS record content type *)
 cenum content_type {
   CHANGE_CIPHER_SPEC = 20;

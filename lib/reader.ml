@@ -1,12 +1,15 @@
 open Packet
 open Core
 
+let parse_version buf =
+  let major = Cstruct.get_uint8 buf 0 in
+  let minor = Cstruct.get_uint8 buf 1 in
+  (major, minor)
+
 let parse_hdr buf =
-  let typ = int_to_content_type (get_tls_h_content_type buf) in
-  let major = get_tls_h_major_version buf in
-  let minor = get_tls_h_minor_version buf in
-  let version = (major, minor) in
-  let len = get_tls_h_length buf in
+  let typ = int_to_content_type (Cstruct.get_uint8 buf 0) in
+  let version = parse_version (Cstruct.shift buf 1) in
+  let len = Cstruct.BE.get_uint16 buf 3 in
   let payload = Cstruct.shift buf 5 in
   match typ with
   | Some content_type -> ( Some { content_type; version }, payload, len)
@@ -155,10 +158,8 @@ let parse_extensions buf =
   (go (Cstruct.sub buf 2 len) [], 2 + len)
 
 let parse_hello get_compression get_cipher buf =
-  let major = get_c_hello_major_version buf in
-  let minor = get_c_hello_minor_version buf in
-  let version = (major, minor) in
-  let random = get_c_hello_random buf in
+  let version = parse_version buf in
+  let random = Cstruct.sub buf 2 32 in
   let slen = Cstruct.get_uint8 buf 34 in
   let sessionid = if slen = 0 then None else Some (Cstruct.sub buf 35 slen) in
   let ciphersuites, clen = get_cipher (Cstruct.shift buf (35 + slen)) in
