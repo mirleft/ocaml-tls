@@ -61,9 +61,10 @@ let parse_compression_methods buf =
   (methods, len + 1)
 
 let parse_ciphersuite buf =
-  match Ciphersuite.int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0) with
+  let typ = Cstruct.BE.get_uint16 buf 0 in
+  match Ciphersuite.int_to_ciphersuite typ with
   | Some x -> (x, 2)
-  | None -> assert false
+  | None -> failwith @@ "unknown ciphersuite: " ^ string_of_int typ
 
 let parse_ciphersuites buf =
   let rec go buf acc = function
@@ -88,7 +89,7 @@ let parse_hostnames buf =
          | 0 ->
             let hostname_length = Cstruct.BE.get_uint16 buf 1 in
             go (Cstruct.shift buf (3 + hostname_length)) ((Cstruct.copy buf 3 hostname_length) :: acc)
-         | _ -> assert false
+         | _ -> failwith @@ "unknown name_type: " ^ string_of_int name_type
     in
     go (Cstruct.sub buf 2 list_length) []
   else
@@ -254,9 +255,10 @@ let parse_ec_prime_parameters buf =
 
 let parse_ec_char_parameters buf =
   let m = Cstruct.BE.get_uint16 buf 0 in
-  let basis = match int_to_ec_basis_type (Cstruct.get_uint8 buf 2) with
+  let typ = Cstruct.get_uint8 buf 2 in
+  let basis = match int_to_ec_basis_type typ with
     | Some x -> x
-    | None -> assert false
+    | None -> failwith @@ "unknown basis type: " ^ string_of_int typ
   in
   let buf = Cstruct.shift buf 3 in
   let ks, buf = match basis with
