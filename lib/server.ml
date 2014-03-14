@@ -21,6 +21,7 @@ let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list)
   let params = { sp with client_verify_data = computed ;
                          server_verify_data = my_checksum }
   in
+  print_security_parameters params;
   return (`Established params, [`Record (Packet.HANDSHAKE, fin)], `Pass)
 
 let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
@@ -32,10 +33,14 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
        let other = protocol_version_cstruct <> default_config.rng 46 in
        (match Crypto.decryptRSA_unpadPKCS private_key kex with
         | None   -> return other
-        | Some k -> if ((Cstruct.len k) = 48) && (Utils.cs_eq (Cstruct.sub k 0 2) protocol_version_cstruct) then
-                      return k
-                    else
-                      return other )
+        | Some k ->
+           let c_ver = (Cstruct.get_uint8 k 0, Cstruct.get_uint8 k 1) in
+           Printf.printf "decrypted is %d" (Cstruct.len k);
+           Cstruct.hexdump k;
+           if ((Cstruct.len k) = 48) && (supported_protocol_version c_ver) then
+             return k
+           else
+             return other )
     | Ciphersuite.DHE_RSA ->
        (* we assume explicit communication here, not a client certificate *)
        ( match sp.dh_params with

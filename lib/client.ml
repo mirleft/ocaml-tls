@@ -119,6 +119,7 @@ let answer_server_key_exchange p bs kex raw =
 let answer_server_finished p bs fin =
   let computed = Crypto.finished p.master_secret "server finished" bs in
   fail_neq computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
+  print_security_parameters p;
   return (`Established { p with server_verify_data = computed }, [], `Pass)
 
 let default_client_hello : client_hello =

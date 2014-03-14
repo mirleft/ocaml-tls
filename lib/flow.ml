@@ -1,5 +1,36 @@
 open Core
 
+(* some config parameters *)
+type config = {
+  ciphers          : Ciphersuite.ciphersuite list ;
+  rng              : int -> Cstruct.t ;
+  protocol_version : int * int
+}
+
+let default_config = {
+  ciphers          = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                   TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                   TLS_RSA_WITH_RC4_128_SHA ;
+                                   TLS_RSA_WITH_RC4_128_MD5]) ;
+  rng              = (fun n -> Cstruct.create n) ; (* TODO: better random *)
+  protocol_version = (3, 1)
+}
+
+let protocol_version_cstruct =
+  let buf = Cstruct.create 2 in
+  let major, minor = default_config.protocol_version in
+  Cstruct.set_uint8 buf 0 major;
+  Cstruct.set_uint8 buf 1 minor;
+  buf
+
+let protocol_version_compare (a1, a2) (b1, b2) =
+  match compare a1 b1 with
+  | 0 -> compare a2 b2
+  | c -> c
+
+let supported_protocol_version v =
+  protocol_version_compare v default_config.protocol_version > -1
+
 module Or_alert =
   Control.Or_error_make (struct type err = Packet.alert_type end)
 open Or_alert
@@ -36,6 +67,15 @@ type security_parameters = {
   server_name           : string option ;
 }
 
+let print_security_parameters sp =
+  let open Printf in
+  let major, minor = default_config.protocol_version in
+  Printf.printf "ocaml-tls (secure renogiation enforced, session id ignored)\n";
+  Printf.printf "protocol version %d.%d\n" major minor;
+  Printf.printf "cipher %s\n" (Ciphersuite.ciphersuite_to_string sp.ciphersuite);
+  Printf.printf "master secret";
+  Cstruct.hexdump sp.master_secret;
+
 (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
 type tls_internal_state = [
   | `Initial
@@ -66,37 +106,6 @@ let empty_state = { machina   = `Initial ;
                     encryptor = `Nothing ;
                     fragment  = Cstruct.create 0
                   }
-
-(* some config parameters *)
-type config = {
-  ciphers          : Ciphersuite.ciphersuite list ;
-  rng              : int -> Cstruct.t ;
-  protocol_version : int * int
-}
-
-let default_config = {
-  ciphers          = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                   TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                   TLS_RSA_WITH_RC4_128_SHA ;
-                                   TLS_RSA_WITH_RC4_128_MD5]) ;
-  rng              = (fun n -> Cstruct.create n) ; (* TODO: better random *)
-  protocol_version = (3, 1)
-}
-
-let protocol_version_cstruct =
-  let buf = Cstruct.create 2 in
-  let major, minor = default_config.protocol_version in
-  Cstruct.set_uint8 buf 0 major;
-  Cstruct.set_uint8 buf 1 minor;
-  buf
-
-let protocol_version_compare (a1, a2) (b1, b2) =
-  match compare a1 b1 with
-  | 0 -> compare a2 b2
-  | c -> c
-
-let supported_protocol_version v =
-  protocol_version_compare v default_config.protocol_version > -1
 
 (* well-behaved pure encryptor *)
 let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
