@@ -17,11 +17,7 @@ let default_config = {
 }
 
 let protocol_version_cstruct =
-  let buf = Cstruct.create 2 in
-  let major, minor = default_config.protocol_version in
-  Cstruct.set_uint8 buf 0 major;
-  Cstruct.set_uint8 buf 1 minor;
-  buf
+  Writer.assemble_protocol_version default_config.protocol_version
 
 let protocol_version_compare (a1, a2) (b1, b2) =
   match compare a1 b1 with
@@ -173,6 +169,14 @@ type rec_resp = [
 ]
 type dec_resp = [ `Change_dec of crypto_state | `Pass ]
 
+let divide_keyblock key mac iv buf =
+  let c_mac, rt0 = Cstruct.split buf mac in
+  let s_mac, rt1 = Cstruct.split rt0 mac in
+  let c_key, rt2 = Cstruct.split rt1 key in
+  let s_key, rt3 = Cstruct.split rt2 key in
+  let c_iv , s_iv = Cstruct.split rt3 iv  in
+  (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
+
 let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context * crypto_context * security_parameters)
  = fun sp premastersecret ->
      let mastersecret = Crypto.generate_master_secret premastersecret (sp.client_random <> sp.server_random) in
@@ -180,15 +184,12 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      Cstruct.hexdump mastersecret;
 
      let key, iv, mac = Ciphersuite.ciphersuite_cipher_mac_length sp.ciphersuite in
-     let keyblocklength =  2 * key + 2 * mac + 2 * iv in
-     let keyblock = Crypto.key_block keyblocklength mastersecret (sp.server_random <> sp.client_random) in
+     let kblen =  2 * key + 2 * mac + 2 * iv in
+     let rand = sp.server_random <> sp.client_random in
+     let keyblock = Crypto.key_block kblen mastersecret rand in
 
-     let c_mac, off = (Cstruct.sub keyblock 0 mac, mac) in
-     let s_mac, off = (Cstruct.sub keyblock off mac, off + mac) in
-     let c_key, off = (Cstruct.sub keyblock off key, off + key) in
-     let s_key, off = (Cstruct.sub keyblock off key, off + key) in
-     let c_iv, off = (Cstruct.sub keyblock off iv, off + iv) in
-     let s_iv = Cstruct.sub keyblock off iv in
+     let c_mac, s_mac, c_key, s_key, c_iv, s_iv =
+       divide_keyblock key mac iv keyblock in
 
      let mac = Ciphersuite.ciphersuite_mac sp.ciphersuite in
      let sequence = 0L in
@@ -197,8 +198,8 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      let c_stream_cipher, s_stream_cipher =
        match cipher with
        | Ciphersuite.RC4_128 ->
-          let ccipher = new Cryptokit.Stream.arcfour (Cstruct.copy c_key 0 key) in
-          let scipher = new Cryptokit.Stream.arcfour (Cstruct.copy s_key 0 key) in
+          let ccipher = Crypto.prepare_arcfour c_key in
+          let scipher = Crypto.prepare_arcfour s_key in
           (Some ccipher, Some scipher)
        | _ -> (None, None)
      in
@@ -206,14 +207,14 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      let c_context =
        { stream_cipher = c_stream_cipher ;
          cipher_secret = c_key ;
-         cipher_iv = c_iv ;
-         mac_secret = c_mac ;
+         cipher_iv     = c_iv ;
+         mac_secret    = c_mac ;
          cipher ; mac ; sequence } in
      let s_context =
        { stream_cipher = s_stream_cipher ;
          cipher_secret = s_key ;
-         cipher_iv = s_iv ;
-         mac_secret = s_mac ;
+         cipher_iv     = s_iv ;
+         mac_secret    = s_mac ;
          cipher ; mac ; sequence } in
      (c_context, s_context, { sp with master_secret = mastersecret })
 
@@ -243,6 +244,9 @@ let handle_raw_record handler state (header, buf) =
 let alert typ =
   let buf = Writer.assemble_alert typ in
   (Packet.ALERT, buf)
+
+let change_cipher_spec =
+  (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
 
 type ret = [
   | `Ok of (state * Cstruct.t)

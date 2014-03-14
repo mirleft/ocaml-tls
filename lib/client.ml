@@ -82,8 +82,7 @@ let answer_server_hello_done p bs raw =
   (* sends clientkex change ciper spec; finished *)
   find_premaster p >>= fun (kex, premaster) ->
   let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
-  let ccs = Cstruct.create 1 in
-  Cstruct.set_uint8 ccs 0 1;
+  let ccs = change_cipher_spec in
   let client_ctx, server_ctx, p' = initialise_crypto_ctx p premaster in
   let to_fin = bs @ [raw; ckex] in
   let checksum = Crypto.finished p'.master_secret "client finished" to_fin in
@@ -92,7 +91,7 @@ let answer_server_hello_done p bs raw =
   let ps = to_fin @ [fin] in
   return (`KeysExchanged (`Crypted client_ctx, `Crypted server_ctx, p'', ps),
           [`Record (Packet.HANDSHAKE, ckex);
-           `Record (Packet.CHANGE_CIPHER_SPEC, ccs);
+           `Record ccs;
            `Change_enc (`Crypted client_ctx);
            `Record (Packet.HANDSHAKE, fin)],
           `Pass)

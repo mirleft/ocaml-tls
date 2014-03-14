@@ -212,3 +212,15 @@ let assemble_alert ?level typ =
    | None -> Cstruct.set_uint8 buf 0 (alert_level_to_int Packet.FATAL)
    | Some x -> Cstruct.set_uint8 buf 0 (alert_level_to_int x));
   buf
+
+let assemble_change_cipher_spec =
+  let ccs = Cstruct.create 1 in
+  Cstruct.set_uint8 ccs 0 1;
+  ccs
+
+let assemble_protocol_version version =
+  let buf = Cstruct.create 2 in
+  let major, minor = version in
+  Cstruct.set_uint8 buf 0 major;
+  Cstruct.set_uint8 buf 1 minor;
+  buf

@@ -160,11 +160,8 @@ let handle_record
   | Packet.CHANGE_CIPHER_SPEC ->
      ( match is with
        | `KeysExchanged (enc, dec, _, _) ->
-          let ccs = Cstruct.create 1 in
-          Cstruct.set_uint8 ccs 0 1;
-          return (is,
-                  [`Record (Packet.CHANGE_CIPHER_SPEC, ccs); `Change_enc enc],
-                  `Change_dec dec)
+          let ccs = change_cipher_spec in
+          return (is, [`Record ccs; `Change_enc enc], `Change_dec dec)
        | _ -> fail Packet.UNEXPECTED_MESSAGE )
   | Packet.HANDSHAKE ->
      ( match Reader.parse_handshake buf with
