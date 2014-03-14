@@ -44,7 +44,7 @@ let answer_certificate p bs cs raw =
      let certificates = List.(combine xs cs) in
      Certificate.(
        match
-         verify_certificates ?servername:p.server_name certificates
+         verify_certificates_debug ?servername:p.server_name certificates
        with
        | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
        | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
