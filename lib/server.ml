@@ -155,32 +155,30 @@ let handle_record
        | _              -> fail Packet.UNEXPECTED_MESSAGE
      )
   | Packet.CHANGE_CIPHER_SPEC ->
-     begin
-       match is with
+     ( match is with
        | `KeysExchanged (enc, dec, _, _) ->
           let ccs = Cstruct.create 1 in
           Cstruct.set_uint8 ccs 0 1;
           return (is,
                   [`Record (Packet.CHANGE_CIPHER_SPEC, ccs); `Change_enc enc],
                   `Change_dec dec)
-       | _ -> fail Packet.UNEXPECTED_MESSAGE
-     end
+       | _ -> fail Packet.UNEXPECTED_MESSAGE )
   | Packet.HANDSHAKE ->
-     begin
-       let handshake = Reader.parse_handshake buf in
-       Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
-       Cstruct.hexdump buf;
-       match (is, handshake) with
-       | `Initial, ClientHello ch ->
-            answer_client_hello ch buf
-       | `Handshaking (p, bs), ClientKeyExchange kex ->
-            answer_client_key_exchange p bs kex buf
-       | `KeysExchanged (_, _, p, bs), Finished fin ->
-            answer_client_finished p bs fin buf
-       | `Established sp, ClientHello ch -> (* key renegotiation *)
-            answer_client_hello_params sp ch buf
-       | _, _-> fail Packet.HANDSHAKE_FAILURE
-     end
+     ( match Reader.parse_handshake buf with
+       | Some handshake ->
+          Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
+          Cstruct.hexdump buf;
+          ( match (is, handshake) with
+            | `Initial, ClientHello ch ->
+               answer_client_hello ch buf
+            | `Handshaking (p, bs), ClientKeyExchange kex ->
+               answer_client_key_exchange p bs kex buf
+            | `KeysExchanged (_, _, p, bs), Finished fin ->
+               answer_client_finished p bs fin buf
+            | `Established sp, ClientHello ch -> (* key renegotiation *)
+               answer_client_hello_params sp ch buf
+            | _, _-> fail Packet.HANDSHAKE_FAILURE )
+       | None -> fail Packet.UNEXPECTED_MESSAGE )
   | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let handle_tls = handle_tls_int handle_record

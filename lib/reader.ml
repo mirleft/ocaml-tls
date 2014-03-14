@@ -19,64 +19,64 @@ let parse_alert buf =
     | (Some lvl, Some msg) -> Some (lvl, msg)
     | _                    -> None
 
-let rec get_certificate_types buf acc = function
+let rec parse_certificate_types buf acc = function
   | 0 -> acc
-  | n -> let ctype =
-           match int_to_client_certificate_type (Cstruct.get_uint8 buf 0) with
-           | Some x -> x
-           | None -> assert false
-         in get_certificate_types (Cstruct.shift buf 1) (ctype :: acc) (n - 1)
+  | n -> let typ = Cstruct.get_uint8 buf 0 in
+         match int_to_client_certificate_type typ with
+         | Some x ->
+            parse_certificate_types (Cstruct.shift buf 1) (x :: acc) (n - 1)
+         | None -> failwith @@ "unsupported certificate type: " ^ string_of_int typ
 
-let rec get_cas buf acc =
+let rec parse_cas buf acc =
   match (Cstruct.len buf) with
   | 0 -> acc
   | n ->
      let len = Cstruct.BE.get_uint16 buf 0 in
      let name = Cstruct.copy buf 2 len in
-     get_cas (Cstruct.shift buf (2 + len)) (name :: acc)
+     parse_cas (Cstruct.shift buf (2 + len)) (name :: acc)
 
 let parse_certificate_request buf =
   let typeslen = Cstruct.get_uint8 buf 0 in
-  let certificate_types = get_certificate_types (Cstruct.shift buf 1) [] typeslen in
+  let certificate_types = parse_certificate_types (Cstruct.shift buf 1) [] typeslen in
   let buf = Cstruct.shift buf (1 + typeslen) in
   let calength = Cstruct.BE.get_uint16 buf 0 in
-  let certificate_authorities = get_cas (Cstruct.sub buf 2 calength) [] in
-  { certificate_types ; certificate_authorities }
+  let certificate_authorities = parse_cas (Cstruct.sub buf 2 calength) [] in
+  CertificateRequest { certificate_types ; certificate_authorities }
 
-let get_compression_method buf =
+let parse_compression_method buf =
   let cm = Cstruct.get_uint8 buf 0 in
   match int_to_compression_method cm with
   | Some x -> (x, 1)
   | None   -> failwith @@ "unsupported compression method: " ^ string_of_int cm
 
-let get_compression_methods buf =
+let parse_compression_methods buf =
   let rec go buf acc = function
     | 0 -> acc
     | n ->
-       let cm, b = get_compression_method buf in
+       let cm, b = parse_compression_method buf in
        go (Cstruct.shift buf b) (cm :: acc) (n - 1)
   in
   let len = Cstruct.get_uint8 buf 0 in
   let methods = go (Cstruct.shift buf 1) [] len in
   (methods, len + 1)
 
-let get_ciphersuite buf =
+let parse_ciphersuite buf =
   match Ciphersuite.int_to_ciphersuite (Cstruct.BE.get_uint16 buf 0) with
   | Some x -> (x, 2)
   | None -> assert false
 
-let get_ciphersuites buf =
+let parse_ciphersuites buf =
   let rec go buf acc = function
     | 0 -> acc
     | n ->
-       let suite, l = get_ciphersuite buf in
+       let suite, l = parse_ciphersuite buf in
        go (Cstruct.shift buf l) (suite :: acc) (n - 1)
   in
   let len = Cstruct.BE.get_uint16 buf 0 in
   let suites = go (Cstruct.shift buf 2) [] (len / 2) in
   (List.rev suites, len + 2)
 
-let get_hostnames buf =
+let parse_hostnames buf =
   if Cstruct.len buf > 1 then
     let list_length = Cstruct.BE.get_uint16 buf 0 in
     let rec go buf acc =
@@ -94,76 +94,64 @@ let get_hostnames buf =
   else
     []
 
-let get_fragment_length buf =
+let parse_fragment_length buf =
   int_to_max_fragment_length (Cstruct.get_uint8 buf 0)
 
-let get_named_curve buf =
-  match int_to_named_curve_type (Cstruct.BE.get_uint16 buf 0) with
+let parse_named_curve buf =
+  let typ = Cstruct.BE.get_uint16 buf 0 in
+  match int_to_named_curve_type typ with
   | Some x -> x
-  | None -> assert false
+  | None -> failwith @@ "unknown named curve: " ^ string_of_int typ
 
-let get_elliptic_curves buf =
+let parse_elliptic_curves buf =
   let rec go buf acc = match (Cstruct.len buf) with
     | 0 -> acc
-    | n -> go (Cstruct.shift buf 2) (get_named_curve buf :: acc)
+    | n -> go (Cstruct.shift buf 2) (parse_named_curve buf :: acc)
   in
   let len = Cstruct.BE.get_uint16 buf 0 in
   go (Cstruct.sub buf 2 len) []
 
-let get_ec_point_format buf =
+let parse_ec_point_format buf =
   let rec go buf acc = match (Cstruct.len buf) with
     | 0 -> acc
     | n ->
-       let fmt = match int_to_ec_point_format (Cstruct.get_uint8 buf 0) with
-         | Some x -> x
-         | None -> assert false
-       in
-       go (Cstruct.shift buf 1) (fmt :: acc)
+       let typ = Cstruct.get_uint8 buf 0 in
+       match int_to_ec_point_format typ with
+         | Some fmt -> go (Cstruct.shift buf 1) (fmt :: acc)
+         | None     -> failwith @@ "unknown ec point format: " ^ string_of_int typ
   in
   let len = Cstruct.get_uint8 buf 0 in
   go (Cstruct.sub buf 1 len) []
 
-let get_extension buf =
+let parse_extension buf =
   let etype = Cstruct.BE.get_uint16 buf 0 in
   let len = Cstruct.BE.get_uint16 buf 2 in
   let buf = Cstruct.sub buf 4 len in
   let data = match (int_to_extension_type etype) with
     | Some SERVER_NAME ->
-       (match get_hostnames buf with
+       (match parse_hostnames buf with
         | [] -> Hostname None
         | [name] -> Hostname (Some name)
-        | _ -> assert false)
-    | Some MAX_FRAGMENT_LENGTH -> MaxFragmentLength (get_fragment_length buf)
-    | Some ELLIPTIC_CURVES -> EllipticCurves (get_elliptic_curves buf)
-    | Some EC_POINT_FORMATS -> ECPointFormats (get_ec_point_format buf)
+        | _ -> failwith @@ "bad server_name extension")
+    | Some MAX_FRAGMENT_LENGTH -> MaxFragmentLength (parse_fragment_length buf)
+    | Some ELLIPTIC_CURVES -> EllipticCurves (parse_elliptic_curves buf)
+    | Some EC_POINT_FORMATS -> ECPointFormats (parse_ec_point_format buf)
     | Some RENEGOTIATION_INFO -> SecureRenegotiation (Cstruct.shift buf 1)
     | Some x -> Unsupported x
-    | None -> assert false
+    | None -> failwith @@ "unknown extension: " ^ string_of_int etype
   in
   (data, 4 + len)
 
-let get_extensions buf =
+let parse_extensions buf =
   let rec go buf acc =
     match (Cstruct.len buf) with
     | 0 -> acc
     | n ->
-       let extension, esize = get_extension buf in
+       let extension, esize = parse_extension buf in
        go (Cstruct.shift buf esize) (extension :: acc)
   in
   let len = Cstruct.BE.get_uint16 buf 0 in
   (go (Cstruct.sub buf 2 len) [], 2 + len)
-
-
-let get_varlength buf bytes =
-  let rec go buf len = function
-    | 0 -> len
-    | n -> go (Cstruct.shift buf 1) ((Cstruct.get_uint8 buf 0) + len * 0x100) (n - 1)
-  in
-  let len = go buf 0 bytes in
-  match len with
-  | 0 -> (None, 1)
-  | n -> let total = n + bytes in
-         (Some (Cstruct.sub buf n total), total)
 
 let parse_hello get_compression get_cipher buf =
   let major = get_c_hello_major_version buf in
@@ -176,19 +164,19 @@ let parse_hello get_compression get_cipher buf =
   let _, dlen = get_compression (Cstruct.shift buf (35 + slen + clen)) in
   let extensions, _ =
     if Cstruct.len buf > (35 + slen + clen + dlen) then
-      get_extensions (Cstruct.shift buf (35 + slen + clen + dlen))
+      parse_extensions (Cstruct.shift buf (35 + slen + clen + dlen))
     else
       ([], 0)
   in
   { version ; random ; sessionid ; ciphersuites ; extensions }
 
-let parse_client_hello =
-  parse_hello get_compression_methods get_ciphersuites
+let parse_client_hello buf =
+  ClientHello (parse_hello parse_compression_methods parse_ciphersuites buf)
 
-let parse_server_hello =
-  parse_hello get_compression_method get_ciphersuite
+let parse_server_hello buf =
+  ServerHello (parse_hello parse_compression_method parse_ciphersuite buf)
 
-let get_certificate buf =
+let parse_certificate buf =
   let len = get_uint24_len buf in
   ((Cstruct.sub buf 3 len), len + 3)
 
@@ -202,15 +190,16 @@ let get_some prs buf =
   go (Cstruct.sub buf 3 len)
 *)
 
-let get_certificates buf =
+let parse_certificates buf =
   let rec go buf acc =
             match (Cstruct.len buf) with
             | 0 -> List.rev acc
-            | n -> let cert, size = get_certificate buf in
+            | n -> let cert, size = parse_certificate buf in
                    go (Cstruct.shift buf size) (cert :: acc)
   in
   let len = get_uint24_len buf in
-  go (Cstruct.sub buf 3 len) []
+  let cs = go (Cstruct.sub buf 3 len) [] in
+  Certificate cs
 
 let parse_rsa_parameters buf =
   let mlength = Cstruct.BE.get_uint16 buf 0 in
@@ -302,7 +291,8 @@ let parse_ec_char_parameters buf =
 
 let parse_ec_parameters buf =
   let pbuf = Cstruct.shift buf 1 in
-  match int_to_ec_curve_type (Cstruct.get_uint8 buf 0) with
+  let typ = Cstruct.get_uint8 buf 0 in
+  match int_to_ec_curve_type typ with
   | Some EXPLICIT_PRIME ->
      let ep, buf = parse_ec_prime_parameters pbuf in
      (ExplicitPrimeParameters ep, buf)
@@ -310,33 +300,30 @@ let parse_ec_parameters buf =
      let ec, buf = parse_ec_char_parameters pbuf in
      (ExplicitCharParameters ec, buf)
   | Some NAMED_CURVE ->
-     let curve = get_named_curve pbuf in
+     let curve = parse_named_curve pbuf in
      let plen = Cstruct.get_uint8 buf 2 in
      let public = Cstruct.sub buf 3 plen in
      (NamedCurveParameters (curve, public), Cstruct.shift buf (3 + plen))
-  | _ -> assert false
+  | _ -> failwith @@ "unkown curve type: " ^ string_of_int typ
 
 let parse_client_key_exchange buf =
   let len = Cstruct.BE.get_uint16 buf 0 in
-  Cstruct.sub buf 2 len
+  ClientKeyExchange (Cstruct.sub buf 2 len)
 
 let parse_handshake buf =
   let typ = Cstruct.get_uint8 buf 0 in
-  let handshake_type = match int_to_handshake_type typ with
-    | Some x -> x
-    | None -> assert false
-  in
+  let handshake_type = int_to_handshake_type typ in
   let len = get_uint24_len (Cstruct.shift buf 1) in
   let payload = Cstruct.sub buf 4 len in
   match handshake_type with
-    | HELLO_REQUEST -> HelloRequest
-    | CLIENT_HELLO -> ClientHello (parse_client_hello payload)
-    | SERVER_HELLO -> ServerHello (parse_server_hello payload)
-    | CERTIFICATE -> Certificate (get_certificates payload)
-    | SERVER_KEY_EXCHANGE -> ServerKeyExchange payload
-    | SERVER_HELLO_DONE -> ServerHelloDone
-    | CERTIFICATE_REQUEST -> CertificateRequest (parse_certificate_request payload)
-    | CLIENT_KEY_EXCHANGE -> ClientKeyExchange (parse_client_key_exchange payload)
-    | FINISHED -> Finished (Cstruct.sub payload 0 12)
-    | _ -> assert false
+    | Some HELLO_REQUEST -> Some HelloRequest
+    | Some CLIENT_HELLO -> Some (parse_client_hello payload)
+    | Some SERVER_HELLO -> Some (parse_server_hello payload)
+    | Some CERTIFICATE -> Some (parse_certificates payload)
+    | Some SERVER_KEY_EXCHANGE -> Some (ServerKeyExchange payload)
+    | Some SERVER_HELLO_DONE -> Some ServerHelloDone
+    | Some CERTIFICATE_REQUEST -> Some (parse_certificate_request payload)
+    | Some CLIENT_KEY_EXCHANGE -> Some (parse_client_key_exchange payload)
+    | Some FINISHED -> Some (Finished (Cstruct.sub payload 0 12))
+    | _ -> None
 

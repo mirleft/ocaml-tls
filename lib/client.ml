@@ -152,39 +152,38 @@ let handle_record
          | _                                    -> fail Packet.UNEXPECTED_MESSAGE
        )
     | Packet.HANDSHAKE ->
-       begin
-         let handshake = Reader.parse_handshake buf in
-         Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
-         Cstruct.hexdump buf;
-         match (is, handshake) with
-          (* this initiates a connection --
-             we use the pipeline with a manually crafted ClientHello *)
-         | `Initial, ClientHello ch ->
-            answer_client_hello ch buf
-         | `Handshaking (p, bs), ServerHello sh ->
-            answer_server_hello p bs sh buf (* sends nothing *)
-         | `Handshaking (p, bs), Certificate cs ->
-            answer_certificate p bs cs buf (* sends nothing *)
-         | `Handshaking (p, bs), ServerKeyExchange kex ->
-            answer_server_key_exchange p bs kex buf (* sends nothing *)
-         | `Handshaking (p, bs), ServerHelloDone ->
-            answer_server_hello_done p bs buf
-            (* sends clientkex change ciper spec; finished *)
-            (* also maybe certificate/certificateverify *)
-         | `KeysExchanged (_, _, p, bs), Finished fin ->
-              answer_server_finished p bs fin
-         | `Established sp, HelloRequest -> (* key renegotiation *)
-              let host = match sp.server_name with
-                | None   -> []
-                | Some x -> [Hostname (Some x)]
-              in
-              let securereneg = SecureRenegotiation sp.client_verify_data in
-              let ch = { default_client_hello with
-                         extensions = securereneg :: host } in
-              let raw = Writer.assemble_handshake (ClientHello ch) in
-              answer_client_hello_params sp ch raw
-         | _, _ -> fail Packet.HANDSHAKE_FAILURE
-       end
+       ( match Reader.parse_handshake buf with
+         | Some handshake ->
+            Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
+            Cstruct.hexdump buf;
+            ( match (is, handshake) with
+              (* we use the pipeline with a manually crafted ClientHello to initiate the connection*)
+              | `Initial, ClientHello ch ->
+                 answer_client_hello ch buf
+              | `Handshaking (p, bs), ServerHello sh ->
+                 answer_server_hello p bs sh buf (* sends nothing *)
+              | `Handshaking (p, bs), Certificate cs ->
+                 answer_certificate p bs cs buf (* sends nothing *)
+              | `Handshaking (p, bs), ServerKeyExchange kex ->
+                 answer_server_key_exchange p bs kex buf (* sends nothing *)
+              | `Handshaking (p, bs), ServerHelloDone ->
+                 answer_server_hello_done p bs buf
+              (* sends clientkex change ciper spec; finished *)
+              (* also maybe certificate/certificateverify *)
+              | `KeysExchanged (_, _, p, bs), Finished fin ->
+                 answer_server_finished p bs fin
+              | `Established sp, HelloRequest -> (* key renegotiation *)
+                 let host = match sp.server_name with
+                   | None   -> []
+                   | Some x -> [Hostname (Some x)]
+                 in
+                 let securereneg = SecureRenegotiation sp.client_verify_data in
+                 let ch = { default_client_hello with
+                            extensions = securereneg :: host } in
+                 let raw = Writer.assemble_handshake (ClientHello ch) in
+                 answer_client_hello_params sp ch raw
+              | _, _ -> fail Packet.HANDSHAKE_FAILURE )
+         | None -> fail Packet.UNEXPECTED_MESSAGE )
     | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let handle_tls = handle_tls_int handle_record
