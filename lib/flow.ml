@@ -274,3 +274,13 @@ let rec check_reneg expected = function
   | []                       -> fail Packet.NO_RENEGOTIATION
   | SecureRenegotiation x::_ -> fail_neq expected x Packet.NO_RENEGOTIATION
   | _::xs                    -> check_reneg expected xs
+
+let alert_handler buf =
+  match Reader.parse_alert buf with
+  | Some al ->
+     Printf.printf "ALERT: %s" (Printer.alert_to_string al);
+     fail Packet.CLOSE_NOTIFY
+  | None ->
+     Printf.printf "unknown alert";
+     Cstruct.hexdump buf;
+     fail Packet.UNEXPECTED_MESSAGE

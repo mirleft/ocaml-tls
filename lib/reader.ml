@@ -14,16 +14,10 @@ let parse_hdr buf =
 
 let parse_alert buf =
   let level = Cstruct.get_uint8 buf 0 in
-  let lvl = match int_to_alert_level level with
-    | Some x -> x
-    | None -> assert false
-  in
-  let desc = Cstruct.get_uint8 buf 1 in
-  let msg = match int_to_alert_type desc with
-    | Some x -> x
-    | None -> assert false
-  in
-  (lvl, msg)
+  let typ = Cstruct.get_uint8 buf 1 in
+  match int_to_alert_level level, int_to_alert_type typ with
+    | (Some lvl, Some msg) -> Some (lvl, msg)
+    | _                    -> None
 
 let rec get_certificate_types buf acc = function
   | 0 -> acc
@@ -345,11 +339,4 @@ let parse_handshake buf =
     | CLIENT_KEY_EXCHANGE -> ClientKeyExchange (parse_client_key_exchange payload)
     | FINISHED -> Finished (Cstruct.sub payload 0 12)
     | _ -> assert false
-
-let parse_body ct buf =
-  match ct with
-  | HANDSHAKE          -> TLS_Handshake (parse_handshake buf)
-  | CHANGE_CIPHER_SPEC -> TLS_ChangeCipherSpec
-  | ALERT              -> TLS_Alert (parse_alert buf)
-  | _ -> assert false
 

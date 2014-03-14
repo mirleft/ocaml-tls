@@ -136,10 +136,7 @@ let handle_record
                   (state_to_string is)
                   (Packet.content_type_to_string ct);
     match ct with
-    | Packet.ALERT ->
-       let al = Reader.parse_alert buf in
-       Printf.printf "ALERT: %s" (Printer.alert_to_string al);
-       return (is, [], `Pass)
+    | Packet.ALERT -> alert_handler buf
     | Packet.APPLICATION_DATA ->
        Printf.printf "APPLICATION DATA";
        Cstruct.hexdump buf;
