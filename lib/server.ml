@@ -141,6 +141,29 @@ let answer_client_hello (ch : client_hello) raw =
   in
   answer_client_hello_params_int params ch raw
 
+let handle_change_cipher_spec = function
+  | `KeysExchanged (enc, dec, _, _) as is ->
+     let ccs = change_cipher_spec in
+     return (is, [`Record ccs; `Change_enc enc], `Change_dec dec)
+  | _ -> fail Packet.UNEXPECTED_MESSAGE
+
+let handle_handshake is buf =
+  match Reader.parse_handshake buf with
+  | Some handshake ->
+     Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
+     Cstruct.hexdump buf;
+     ( match (is, handshake) with
+       | `Initial, ClientHello ch ->
+          answer_client_hello ch buf
+       | `Handshaking (p, bs), ClientKeyExchange kex ->
+          answer_client_key_exchange p bs kex buf
+       | `KeysExchanged (_, _, p, bs), Finished fin ->
+          answer_client_finished p bs fin buf
+       | `Established sp, ClientHello ch -> (* key renegotiation *)
+          answer_client_hello_params sp ch buf
+       | _, _-> fail Packet.HANDSHAKE_FAILURE )
+  | None -> fail Packet.UNEXPECTED_MESSAGE
+
 let handle_record
 : tls_internal_state -> Packet.content_type -> Cstruct.t
   -> (tls_internal_state * rec_resp list * dec_resp) or_error
@@ -149,7 +172,7 @@ let handle_record
                 (state_to_string is)
                 (Packet.content_type_to_string ct);
   match ct with
-  | Packet.ALERT -> alert_handler buf
+  | Packet.ALERT -> handle_alert buf
   | Packet.APPLICATION_DATA ->
      Printf.printf "APPLICATION DATA";
      Cstruct.hexdump buf;
@@ -157,28 +180,7 @@ let handle_record
        | `Established _ -> return (is, [], `Pass)
        | _              -> fail Packet.UNEXPECTED_MESSAGE
      )
-  | Packet.CHANGE_CIPHER_SPEC ->
-     ( match is with
-       | `KeysExchanged (enc, dec, _, _) ->
-          let ccs = change_cipher_spec in
-          return (is, [`Record ccs; `Change_enc enc], `Change_dec dec)
-       | _ -> fail Packet.UNEXPECTED_MESSAGE )
-  | Packet.HANDSHAKE ->
-     ( match Reader.parse_handshake buf with
-       | Some handshake ->
-          Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
-          Cstruct.hexdump buf;
-          ( match (is, handshake) with
-            | `Initial, ClientHello ch ->
-               answer_client_hello ch buf
-            | `Handshaking (p, bs), ClientKeyExchange kex ->
-               answer_client_key_exchange p bs kex buf
-            | `KeysExchanged (_, _, p, bs), Finished fin ->
-               answer_client_finished p bs fin buf
-            | `Established sp, ClientHello ch -> (* key renegotiation *)
-               answer_client_hello_params sp ch buf
-            | _, _-> fail Packet.HANDSHAKE_FAILURE )
-       | None -> fail Packet.UNEXPECTED_MESSAGE )
-  | _ -> fail Packet.UNEXPECTED_MESSAGE
+  | Packet.CHANGE_CIPHER_SPEC -> handle_change_cipher_spec is
+  | Packet.HANDSHAKE -> handle_handshake is buf
 
 let handle_tls = handle_tls_int handle_record

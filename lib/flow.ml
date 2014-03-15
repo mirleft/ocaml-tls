@@ -288,7 +288,7 @@ let rec check_reneg expected = function
   | SecureRenegotiation x::_ -> fail_neq expected x Packet.NO_RENEGOTIATION
   | _::xs                    -> check_reneg expected xs
 
-let alert_handler buf =
+let handle_alert buf =
   match Reader.parse_alert buf with
   | Some al ->
      Printf.printf "ALERT: %s" (Printer.alert_to_string al);
