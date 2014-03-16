@@ -24,8 +24,6 @@ let parse_version : Cstruct.t -> (int * int) or_error =
 
 let parse_hdr : Cstruct.t -> (tls_hdr * Cstruct.t * int) or_error =
   fun buf ->
-  Printf.printf "parsing hdr %d\n" (Cstruct.len buf);
-  Cstruct.hexdump buf;
   check_length 5 buf >>= fun () ->
   let typ = Cstruct.get_uint8 buf 0 in
   match int_to_content_type typ with
