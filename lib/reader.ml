@@ -9,18 +9,23 @@ module Or_error =
   Control.Or_error_make (struct type err = error end)
 open Or_error
 
-let check_length len buf =
+let check_length : int -> Cstruct.t -> unit or_error =
+  fun len buf ->
   match (Cstruct.len buf) >= len with
   | false -> fail Overflow
   | true  -> return ()
 
-let parse_version buf =
+let parse_version : Cstruct.t -> (int * int) or_error =
+  fun buf ->
   check_length 2 buf >>= fun () ->
   let major = Cstruct.get_uint8 buf 0 in
   let minor = Cstruct.get_uint8 buf 1 in
   return (major, minor)
 
-let parse_hdr buf =
+let parse_hdr : Cstruct.t -> (tls_hdr * Cstruct.t * int) or_error =
+  fun buf ->
+  Printf.printf "parsing hdr %d\n" (Cstruct.len buf);
+  Cstruct.hexdump buf;
   check_length 5 buf >>= fun () ->
   let typ = Cstruct.get_uint8 buf 0 in
   match int_to_content_type typ with
@@ -203,7 +208,9 @@ let parse_extension buf =
     | Some RENEGOTIATION_INFO ->
        check_length 1 buf >>= fun () ->
        return (SecureRenegotiation (Cstruct.shift buf 1))
-    | None -> fail (Unknown ("extension: " ^ string_of_int etype)) ) >>= fun (data) ->
+    | Some x ->
+       return (Unhandled (x, buf))
+    | _ -> fail (Unknown ("extension: " ^ string_of_int etype)) ) >>= fun (data) ->
   return (data, 4 + len)
 
 let parse_extensions buf =

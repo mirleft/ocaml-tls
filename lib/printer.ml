@@ -18,7 +18,8 @@ let extension_to_string = function
   | EllipticCurves curves -> "Elliptic curves: " ^
                                (String.concat ", " (List.map named_curve_type_to_string curves))
   | ECPointFormats formats -> "Elliptic Curve formats: " ^ (String.concat ", " (List.map ec_point_format_to_string formats))
-  | SecureRenegotiation x -> "secure renegotiation"
+  | SecureRenegotiation _ -> "secure renegotiation"
+  | Unhandled _ -> "Unhandled extension"
 
 let client_hello_to_string c_h =
   let (major, minor) = c_h.version in
