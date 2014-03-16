@@ -447,4 +447,4 @@ let parse_handshake buf =
     | Some FINISHED ->
        check_length 12 payload >>= fun () ->
        return (Finished (Cstruct.sub payload 0 12))
-
+    | _  -> fail (Unknown ("handshake type" ^ string_of_int typ))
