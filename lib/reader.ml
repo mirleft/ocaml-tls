@@ -12,7 +12,7 @@ open Or_error
 let check_length len buf =
   match (Cstruct.len buf) >= len with
   | false -> fail Overflow
-  | treu  -> return ()
+  | true  -> return ()
 
 let parse_version buf =
   check_length 2 buf >>= fun () ->
