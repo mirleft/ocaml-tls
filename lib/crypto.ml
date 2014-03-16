@@ -179,6 +179,10 @@ let signature : Ciphersuite.hash_algorithm -> Cstruct.t -> int64 -> Packet.conte
       let res = hmac mac sec ps in
       Cstruct.of_string res
 
+let prepare_arcfour : Cstruct.t -> Cryptokit.Stream.stream_cipher =
+  fun key ->
+    new Cryptokit.Stream.arcfour (Cstruct.copy key 0 (Cstruct.len key))
+
 (* encryption and decryption is the same, thus "crypt" *)
 let crypt_stream : Cryptokit.Stream.stream_cipher -> Cstruct.t -> Cstruct.t
   = fun cipher decrypted ->

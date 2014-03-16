@@ -1,14 +1,22 @@
 open Packet
 open Core
 
-let assemble_hdr (major, minor) (content_type, payload) =
+let assemble_protocol_version_int buf (major, minor) =
+  Cstruct.set_uint8 buf 0 major;
+  Cstruct.set_uint8 buf 1 minor
+
+let assemble_protocol_version version =
+  let buf = Cstruct.create 2 in
+  assemble_protocol_version_int buf version;
+  buf
+
+let assemble_hdr version (content_type, payload) =
   let payloadlength = Cstruct.len payload in
   let buf = Cstruct.create (5 + payloadlength) in
   Cstruct.blit payload 0 buf 5 payloadlength;
-  set_tls_h_content_type buf (content_type_to_int content_type);
-  set_tls_h_major_version buf major;
-  set_tls_h_minor_version buf minor;
-  set_tls_h_length buf payloadlength;
+  Cstruct.set_uint8 buf 0 (content_type_to_int content_type);
+  assemble_protocol_version_int (Cstruct.shift buf 1) version;
+  Cstruct.BE.set_uint16 buf 3 payloadlength;
   buf
 
 let assemble_certificate buf c =
@@ -98,9 +106,7 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   in
   let cslen = 2 * List.length cl.ciphersuites in
   let bbuf = Cstruct.create (2 + 32 + slen + 2 + cslen + 1 + 1) in
-  let (major, minor) = cl.version in
-  set_c_hello_major_version bbuf major;
-  set_c_hello_minor_version bbuf minor;
+  assemble_protocol_version_int bbuf cl.version;
   Cstruct.blit cl.random 0 bbuf 2 32;
   let buf = Cstruct.shift bbuf 34 in
   (match cl.sessionid with
@@ -127,9 +133,7 @@ let assemble_server_hello (sh : server_hello) : Cstruct.t =
     | Some s -> 1 + Cstruct.len s
   in
   let bbuf = Cstruct.create (2 + 32 + slen + 2 + 1) in
-  let (major, minor) = sh.version in
-  set_c_hello_major_version bbuf major;
-  set_c_hello_minor_version bbuf minor;
+  assemble_protocol_version_int bbuf sh.version;
   Cstruct.blit sh.random 0 bbuf 2 32;
   let buf = Cstruct.shift bbuf 34 in
   (match sh.sessionid with
@@ -212,3 +216,8 @@ let assemble_alert ?level typ =
    | None -> Cstruct.set_uint8 buf 0 (alert_level_to_int Packet.FATAL)
    | Some x -> Cstruct.set_uint8 buf 0 (alert_level_to_int x));
   buf
+
+let assemble_change_cipher_spec =
+  let ccs = Cstruct.create 1 in
+  Cstruct.set_uint8 ccs 0 1;
+  ccs

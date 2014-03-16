@@ -82,8 +82,7 @@ let answer_server_hello_done p bs raw =
   (* sends clientkex change ciper spec; finished *)
   find_premaster p >>= fun (kex, premaster) ->
   let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
-  let ccs = Cstruct.create 1 in
-  Cstruct.set_uint8 ccs 0 1;
+  let ccs = change_cipher_spec in
   let client_ctx, server_ctx, p' = initialise_crypto_ctx p premaster in
   let to_fin = bs @ [raw; ckex] in
   let checksum = Crypto.finished p'.master_secret "client finished" to_fin in
@@ -92,7 +91,7 @@ let answer_server_hello_done p bs raw =
   let ps = to_fin @ [fin] in
   return (`KeysExchanged (`Crypted client_ctx, `Crypted server_ctx, p'', ps),
           [`Record (Packet.HANDSHAKE, ckex);
-           `Record (Packet.CHANGE_CIPHER_SPEC, ccs);
+           `Record ccs;
            `Change_enc (`Crypted client_ctx);
            `Record (Packet.HANDSHAKE, fin)],
           `Pass)
@@ -100,25 +99,26 @@ let answer_server_hello_done p bs raw =
 let answer_server_key_exchange p bs kex raw =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
   | Ciphersuite.DHE_RSA ->
-     let dh_params, signature, raw_params =
-       Reader.parse_dh_parameters_and_signature kex in
-     find_server_rsa_key p.server_certificate >>= fun (pubkey) ->
-     ( match Crypto.verifyRSA_and_unpadPKCS1 pubkey signature with
-       | Some raw_sig ->
-          let sigdata = (p.client_random <> p.server_random) <> raw_params in
-          let md5 = Crypto.md5 sigdata in
-          let sha = Crypto.sha sigdata in
-          fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
-          fail_neq (md5 <> sha) raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
-          return (`Handshaking ( { p with dh_params = Some dh_params }, bs @ [raw]),
-                  [], `Pass)
-       | None         -> fail Packet.HANDSHAKE_FAILURE )
-
+     ( match Reader.parse_dh_parameters_and_signature kex with
+       | Reader.Or_error.Ok (dh_params, signature, raw_params) ->
+          find_server_rsa_key p.server_certificate >>= fun (pubkey) ->
+          ( match Crypto.verifyRSA_and_unpadPKCS1 pubkey signature with
+            | Some raw_sig ->
+               let sigdata = (p.client_random <> p.server_random) <> raw_params in
+               let md5 = Crypto.md5 sigdata in
+               let sha = Crypto.sha sigdata in
+               fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
+               fail_neq (md5 <> sha) raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
+               return (`Handshaking ( { p with dh_params = Some dh_params }, bs @ [raw]),
+                       [], `Pass)
+            | None         -> fail Packet.HANDSHAKE_FAILURE )
+       | _ -> fail Packet.HANDSHAKE_FAILURE )
   | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let answer_server_finished p bs fin =
   let computed = Crypto.finished p.master_secret "server finished" bs in
   fail_neq computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
+  print_security_parameters p;
   return (`Established { p with server_verify_data = computed }, [], `Pass)
 
 let default_client_hello : client_hello =
@@ -128,6 +128,47 @@ let default_client_hello : client_hello =
     ciphersuites = default_config.ciphers ;
     extensions   = [] }
 
+let handle_change_cipher_spec = function
+  (* actually, we're the client and have already sent the kex! *)
+  | `KeysExchanged (_, server_ctx, _, _) as is ->
+     return (is, [], `Change_dec server_ctx)
+  | _                                    ->
+     fail Packet.UNEXPECTED_MESSAGE
+
+let handle_handshake is buf =
+  match Reader.parse_handshake buf with
+  | Reader.Or_error.Ok handshake ->
+     Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
+     Cstruct.hexdump buf;
+     ( match (is, handshake) with
+       (* we use the pipeline with a manually crafted ClientHello to initiate the connection*)
+       | `Initial, ClientHello ch ->
+          answer_client_hello ch buf
+       | `Handshaking (p, bs), ServerHello sh ->
+          answer_server_hello p bs sh buf (* sends nothing *)
+       | `Handshaking (p, bs), Certificate cs ->
+          answer_certificate p bs cs buf (* sends nothing *)
+       | `Handshaking (p, bs), ServerKeyExchange kex ->
+          answer_server_key_exchange p bs kex buf (* sends nothing *)
+       | `Handshaking (p, bs), ServerHelloDone ->
+          answer_server_hello_done p bs buf
+       (* sends clientkex change ciper spec; finished *)
+       (* also maybe certificate/certificateverify *)
+       | `KeysExchanged (_, _, p, bs), Finished fin ->
+          answer_server_finished p bs fin
+       | `Established sp, HelloRequest -> (* key renegotiation *)
+          let host = match sp.server_name with
+            | None   -> []
+            | Some x -> [Hostname (Some x)]
+          in
+          let securereneg = SecureRenegotiation sp.client_verify_data in
+          let ch = { default_client_hello with
+                     extensions = securereneg :: host } in
+          let raw = Writer.assemble_handshake (ClientHello ch) in
+          answer_client_hello_params sp ch raw
+       | _, _ -> fail Packet.HANDSHAKE_FAILURE )
+  | _ -> fail Packet.UNEXPECTED_MESSAGE
+
 let handle_record
     : tls_internal_state -> Packet.content_type -> Cstruct.t
       -> (tls_internal_state * rec_resp list * dec_resp) or_error
@@ -136,10 +177,7 @@ let handle_record
                   (state_to_string is)
                   (Packet.content_type_to_string ct);
     match ct with
-    | Packet.ALERT ->
-       let al = Reader.parse_alert buf in
-       Printf.printf "ALERT: %s" (Printer.alert_to_string al);
-       return (is, [], `Pass)
+    | Packet.ALERT -> handle_alert buf
     | Packet.APPLICATION_DATA ->
        Printf.printf "APPLICATION DATA";
        Cstruct.hexdump buf;
@@ -147,48 +185,8 @@ let handle_record
          | `Established _ -> return (is, [], `Pass)
          | _              -> fail Packet.UNEXPECTED_MESSAGE
        )
-    | Packet.CHANGE_CIPHER_SPEC ->
-       (* actually, we're the client and have already sent the kex! *)
-       ( match is with
-         | `KeysExchanged (_, server_ctx, _, _) ->
-            return (is, [], `Change_dec server_ctx)
-         | _                                    -> fail Packet.UNEXPECTED_MESSAGE
-       )
-    | Packet.HANDSHAKE ->
-       begin
-         let handshake = Reader.parse_handshake buf in
-         Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
-         Cstruct.hexdump buf;
-         match (is, handshake) with
-          (* this initiates a connection --
-             we use the pipeline with a manually crafted ClientHello *)
-         | `Initial, ClientHello ch ->
-            answer_client_hello ch buf
-         | `Handshaking (p, bs), ServerHello sh ->
-            answer_server_hello p bs sh buf (* sends nothing *)
-         | `Handshaking (p, bs), Certificate cs ->
-            answer_certificate p bs cs buf (* sends nothing *)
-         | `Handshaking (p, bs), ServerKeyExchange kex ->
-            answer_server_key_exchange p bs kex buf (* sends nothing *)
-         | `Handshaking (p, bs), ServerHelloDone ->
-            answer_server_hello_done p bs buf
-            (* sends clientkex change ciper spec; finished *)
-            (* also maybe certificate/certificateverify *)
-         | `KeysExchanged (_, _, p, bs), Finished fin ->
-              answer_server_finished p bs fin
-         | `Established sp, HelloRequest -> (* key renegotiation *)
-              let host = match sp.server_name with
-                | None   -> []
-                | Some x -> [Hostname (Some x)]
-              in
-              let securereneg = SecureRenegotiation sp.client_verify_data in
-              let ch = { default_client_hello with
-                         extensions = securereneg :: host } in
-              let raw = Writer.assemble_handshake (ClientHello ch) in
-              answer_client_hello_params sp ch raw
-         | _, _ -> fail Packet.HANDSHAKE_FAILURE
-       end
-    | _ -> fail Packet.UNEXPECTED_MESSAGE
+    | Packet.CHANGE_CIPHER_SPEC -> handle_change_cipher_spec is
+    | Packet.HANDSHAKE -> handle_handshake is buf
 
 let handle_tls = handle_tls_int handle_record
 

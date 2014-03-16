@@ -6,7 +6,6 @@ let o f g x = f (g x)
 
 let (<>) = Utils.cs_append
 
-(* well, a client most likely will not have to deal with this *)
 type tls_hdr = {
   content_type : content_type;
   version      : int * int;
@@ -14,11 +13,11 @@ type tls_hdr = {
 
 type extension =
   | Hostname of string option
-  | MaxFragmentLength of max_fragment_length option
+  | MaxFragmentLength of max_fragment_length
   | EllipticCurves of named_curve_type list
   | ECPointFormats of ec_point_format list
   | SecureRenegotiation of Cstruct.t
-  | Unsupported of extension_type
+  | Unhandled of (extension_type * Cstruct.t)
 
 type 'a hello = {
   version      : int * int;

@@ -1,5 +1,32 @@
 open Core
 
+(* some config parameters *)
+type config = {
+  ciphers          : Ciphersuite.ciphersuite list ;
+  rng              : int -> Cstruct.t ;
+  protocol_version : int * int
+}
+
+let default_config = {
+  ciphers          = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                   TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                   TLS_RSA_WITH_RC4_128_SHA ;
+                                   TLS_RSA_WITH_RC4_128_MD5]) ;
+  rng              = (fun n -> Cstruct.create n) ; (* TODO: better random *)
+  protocol_version = (3, 1)
+}
+
+let protocol_version_cstruct =
+  Writer.assemble_protocol_version default_config.protocol_version
+
+let protocol_version_compare (a1, a2) (b1, b2) =
+  match compare a1 b1 with
+  | 0 -> compare a2 b2
+  | c -> c
+
+let supported_protocol_version v =
+  protocol_version_compare v default_config.protocol_version > -1
+
 module Or_alert =
   Control.Or_error_make (struct type err = Packet.alert_type end)
 open Or_alert
@@ -36,6 +63,15 @@ type security_parameters = {
   server_name           : string option ;
 }
 
+let print_security_parameters sp =
+  let open Printf in
+  let major, minor = default_config.protocol_version in
+  Printf.printf "ocaml-tls (secure renogiation enforced, session id ignored)\n";
+  Printf.printf "protocol version %d.%d\n" major minor;
+  Printf.printf "cipher %s\n" (Ciphersuite.ciphersuite_to_string sp.ciphersuite);
+  Printf.printf "master secret";
+  Cstruct.hexdump sp.master_secret;
+
 (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
 type tls_internal_state = [
   | `Initial
@@ -66,37 +102,6 @@ let empty_state = { machina   = `Initial ;
                     encryptor = `Nothing ;
                     fragment  = Cstruct.create 0
                   }
-
-(* some config parameters *)
-type config = {
-  ciphers          : Ciphersuite.ciphersuite list ;
-  rng              : int -> Cstruct.t ;
-  protocol_version : int * int
-}
-
-let default_config = {
-  ciphers          = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                   TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                   TLS_RSA_WITH_RC4_128_SHA ;
-                                   TLS_RSA_WITH_RC4_128_MD5]) ;
-  rng              = (fun n -> Cstruct.create n) ; (* TODO: better random *)
-  protocol_version = (3, 1)
-}
-
-let protocol_version_cstruct =
-  let buf = Cstruct.create 2 in
-  let major, minor = default_config.protocol_version in
-  Cstruct.set_uint8 buf 0 major;
-  Cstruct.set_uint8 buf 1 minor;
-  buf
-
-let protocol_version_compare (a1, a2) (b1, b2) =
-  match compare a1 b1 with
-  | 0 -> compare a2 b2
-  | c -> c
-
-let protocol_version_geq v =
-  protocol_version_compare v default_config.protocol_version < 1
 
 (* well-behaved pure encryptor *)
 let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
@@ -143,17 +148,19 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
                body)
 
 (* party time *)
-let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t)
+let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) or_error
 = fun buf ->
-  match Cstruct.len buf with
-  | 0             -> ([], buf)
-  | x when x <= 5 -> ([], buf)
-  | x             ->
+  match (Cstruct.len buf) > 5 with
+  | false -> return ([], buf)
+  | true  ->
      match Reader.parse_hdr buf with
-     | (_, buf', len) when len > (Cstruct.len buf') -> ([], buf)
-     | (hdr, buf', len)                             ->
-        let tl, frag = separate_records (Cstruct.shift buf' len) in
-        ((hdr, (Cstruct.sub buf' 0 len)) :: tl, frag)
+     | Reader.Or_error.Ok (_, buf', len) when len > (Cstruct.len buf') ->
+        return ([], buf)
+     | Reader.Or_error.Ok (hdr, buf', len)                             ->
+        separate_records (Cstruct.shift buf' len) >>= fun (tl, frag) ->
+        return ((hdr, (Cstruct.sub buf' 0 len)) :: tl, frag)
+     | Reader.Or_error.Error _                                         ->
+        fail Packet.HANDSHAKE_FAILURE
 
 let assemble_records : record list -> Cstruct.t =
   o Utils.cs_appends @@ List.map @@ (Writer.assemble_hdr default_config.protocol_version)
@@ -164,22 +171,25 @@ type rec_resp = [
 ]
 type dec_resp = [ `Change_dec of crypto_state | `Pass ]
 
+let divide_keyblock key mac iv buf =
+  let c_mac, rt0 = Cstruct.split buf mac in
+  let s_mac, rt1 = Cstruct.split rt0 mac in
+  let c_key, rt2 = Cstruct.split rt1 key in
+  let s_key, rt3 = Cstruct.split rt2 key in
+  let c_iv , s_iv = Cstruct.split rt3 iv  in
+  (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
+
 let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context * crypto_context * security_parameters)
  = fun sp premastersecret ->
      let mastersecret = Crypto.generate_master_secret premastersecret (sp.client_random <> sp.server_random) in
-     Printf.printf "master secret\n";
-     Cstruct.hexdump mastersecret;
 
      let key, iv, mac = Ciphersuite.ciphersuite_cipher_mac_length sp.ciphersuite in
-     let keyblocklength =  2 * key + 2 * mac + 2 * iv in
-     let keyblock = Crypto.key_block keyblocklength mastersecret (sp.server_random <> sp.client_random) in
+     let kblen =  2 * key + 2 * mac + 2 * iv in
+     let rand = sp.server_random <> sp.client_random in
+     let keyblock = Crypto.key_block kblen mastersecret rand in
 
-     let c_mac, off = (Cstruct.sub keyblock 0 mac, mac) in
-     let s_mac, off = (Cstruct.sub keyblock off mac, off + mac) in
-     let c_key, off = (Cstruct.sub keyblock off key, off + key) in
-     let s_key, off = (Cstruct.sub keyblock off key, off + key) in
-     let c_iv, off = (Cstruct.sub keyblock off iv, off + iv) in
-     let s_iv = Cstruct.sub keyblock off iv in
+     let c_mac, s_mac, c_key, s_key, c_iv, s_iv =
+       divide_keyblock key mac iv keyblock in
 
      let mac = Ciphersuite.ciphersuite_mac sp.ciphersuite in
      let sequence = 0L in
@@ -188,8 +198,8 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      let c_stream_cipher, s_stream_cipher =
        match cipher with
        | Ciphersuite.RC4_128 ->
-          let ccipher = new Cryptokit.Stream.arcfour (Cstruct.copy c_key 0 key) in
-          let scipher = new Cryptokit.Stream.arcfour (Cstruct.copy s_key 0 key) in
+          let ccipher = Crypto.prepare_arcfour c_key in
+          let scipher = Crypto.prepare_arcfour s_key in
           (Some ccipher, Some scipher)
        | _ -> (None, None)
      in
@@ -197,14 +207,14 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      let c_context =
        { stream_cipher = c_stream_cipher ;
          cipher_secret = c_key ;
-         cipher_iv = c_iv ;
-         mac_secret = c_mac ;
+         cipher_iv     = c_iv ;
+         mac_secret    = c_mac ;
          cipher ; mac ; sequence } in
      let s_context =
        { stream_cipher = s_stream_cipher ;
          cipher_secret = s_key ;
-         cipher_iv = s_iv ;
-         mac_secret = s_mac ;
+         cipher_iv     = s_iv ;
+         mac_secret    = s_mac ;
          cipher ; mac ; sequence } in
      (c_context, s_context, { sp with master_secret = mastersecret })
 
@@ -225,11 +235,15 @@ let handle_raw_record handler state (hdr, buf) =
     | `Change_dec dec -> dec
     | `Pass           -> dec_st
   in
-  return ({ machina ; encryptor ; decryptor ; fragment = state.fragment }, encs)
+  return ({ machina ; encryptor ; decryptor ; fragment = state.fragment },
+          encs)
 
 let alert typ =
   let buf = Writer.assemble_alert typ in
   (Packet.ALERT, buf)
+
+let change_cipher_spec =
+  (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
 
 type ret = [
   | `Ok of (state * Cstruct.t)
@@ -241,7 +255,7 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
                  state -> Cstruct.t -> ret
 = fun handler state buf ->
   match
-    let in_records, frag = separate_records (state.fragment <> buf) in
+    separate_records (state.fragment <> buf) >>= fun (in_records, frag) ->
     foldM (fun (st, raw_rs) r ->
            map (fun (st', raw_rs') -> (st', raw_rs @ raw_rs')) @@
              handle_raw_record handler st r)
@@ -249,7 +263,6 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
           in_records
     >>= fun (state', out_records) ->
     let buf' = assemble_records out_records in
-    Printf.printf "sending out"; Cstruct.hexdump buf';
     return ({ state' with fragment = frag }, buf')
   with
   | Ok v    -> `Ok v
@@ -270,3 +283,13 @@ let rec check_reneg expected = function
   | []                       -> fail Packet.NO_RENEGOTIATION
   | SecureRenegotiation x::_ -> fail_neq expected x Packet.NO_RENEGOTIATION
   | _::xs                    -> check_reneg expected xs
+
+let handle_alert buf =
+  match Reader.parse_alert buf with
+  | Reader.Or_error.Ok al ->
+     Printf.printf "ALERT: %s" (Printer.alert_to_string al);
+     fail Packet.CLOSE_NOTIFY
+  | Reader.Or_error.Error _ ->
+     Printf.printf "unknown alert";
+     Cstruct.hexdump buf;
+     fail Packet.UNEXPECTED_MESSAGE
