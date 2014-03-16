@@ -180,7 +180,6 @@ let parse_ec_point_format buf =
   go (Cstruct.sub buf 1 len) []
 
 let parse_extension buf =
-  Printf.printf "parsing extension\n";
   check_length 4 buf >>= fun () ->
   let etype = Cstruct.BE.get_uint16 buf 0 in
   let len = Cstruct.BE.get_uint16 buf 2 in
@@ -219,7 +218,6 @@ let parse_extensions buf =
   let len = Cstruct.BE.get_uint16 buf 0 in
   check_length (2 + len) buf >>= fun () ->
   go (Cstruct.sub buf 2 len) [] >>= fun (exts) ->
-  Printf.printf "finished parsing extensions %d\n" (List.length exts);
   return (exts, 2 + len)
 
 let parse_hello get_compression get_cipher buf =

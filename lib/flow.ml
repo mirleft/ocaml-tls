@@ -182,8 +182,6 @@ let divide_keyblock key mac iv buf =
 let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context * crypto_context * security_parameters)
  = fun sp premastersecret ->
      let mastersecret = Crypto.generate_master_secret premastersecret (sp.client_random <> sp.server_random) in
-     Printf.printf "master secret\n";
-     Cstruct.hexdump mastersecret;
 
      let key, iv, mac = Ciphersuite.ciphersuite_cipher_mac_length sp.ciphersuite in
      let kblen =  2 * key + 2 * mac + 2 * iv in
@@ -257,9 +255,7 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
                  state -> Cstruct.t -> ret
 = fun handler state buf ->
   match
-    Printf.printf "handle_tls_int with"; Cstruct.hexdump buf;
     separate_records (state.fragment <> buf) >>= fun (in_records, frag) ->
-    Printf.printf "got %d records" (List.length in_records);
     foldM (fun (st, raw_rs) r ->
            map (fun (st', raw_rs') -> (st', raw_rs @ raw_rs')) @@
              handle_raw_record handler st r)
@@ -267,7 +263,6 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
           in_records
     >>= fun (state', out_records) ->
     let buf' = assemble_records out_records in
-    Printf.printf "sending out"; Cstruct.hexdump buf';
     return ({ state' with fragment = frag }, buf')
   with
   | Ok v    -> `Ok v
