@@ -31,14 +31,16 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
        (* due to bleichenbacher attach, we should use a random pms *)
        (* then we do not leak any decryption or padding errors! *)
        let other = protocol_version_cstruct <> default_config.rng 46 in
-       (match Crypto.decryptRSA_unpadPKCS private_key kex with
-        | None   -> return other
-        | Some k ->
-           let c_ver = Reader.parse_version k in
-           if ((Cstruct.len k) = 48) && (supported_protocol_version c_ver) then
-             return k
-           else
-             return other )
+       ( match Crypto.decryptRSA_unpadPKCS private_key kex with
+         | None   -> return other
+         | Some k ->
+            ( match Reader.parse_version k with
+              | Reader.Or_error.Ok c_ver ->
+                 if ((Cstruct.len k) = 48) && (supported_protocol_version c_ver) then
+                   return k
+                 else
+                   return other
+              | Reader.Or_error.Error _ -> return other ) )
     | Ciphersuite.DHE_RSA ->
        (* we assume explicit communication here, not a client certificate *)
        ( match sp.dh_params with
@@ -149,7 +151,7 @@ let handle_change_cipher_spec = function
 
 let handle_handshake is buf =
   match Reader.parse_handshake buf with
-  | Some handshake ->
+  | Reader.Or_error.Ok handshake ->
      Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
      Cstruct.hexdump buf;
      ( match (is, handshake) with
@@ -162,7 +164,8 @@ let handle_handshake is buf =
        | `Established sp, ClientHello ch -> (* key renegotiation *)
           answer_client_hello_params sp ch buf
        | _, _-> fail Packet.HANDSHAKE_FAILURE )
-  | None -> fail Packet.UNEXPECTED_MESSAGE
+  | _                           ->
+     fail Packet.UNEXPECTED_MESSAGE
 
 let handle_record
 : tls_internal_state -> Packet.content_type -> Cstruct.t

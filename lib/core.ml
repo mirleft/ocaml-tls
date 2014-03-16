@@ -13,11 +13,10 @@ type tls_hdr = {
 
 type extension =
   | Hostname of string option
-  | MaxFragmentLength of max_fragment_length option
+  | MaxFragmentLength of max_fragment_length
   | EllipticCurves of named_curve_type list
   | ECPointFormats of ec_point_format list
   | SecureRenegotiation of Cstruct.t
-  | Unsupported of extension_type
 
 type 'a hello = {
   version      : int * int;

@@ -148,17 +148,19 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
                body)
 
 (* party time *)
-let rec separate_records : Cstruct.t ->  ((tls_hdr option * Cstruct.t) list * Cstruct.t)
+let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) or_error
 = fun buf ->
-  match Cstruct.len buf with
-  | 0             -> ([], buf)
-  | x when x <= 5 -> ([], buf)
-  | x             ->
+  match (Cstruct.len buf) > 5 with
+  | false -> return ([], buf)
+  | true  ->
      match Reader.parse_hdr buf with
-     | (_, buf', len) when len > (Cstruct.len buf') -> ([], buf)
-     | (hdr, buf', len)                             ->
-        let tl, frag = separate_records (Cstruct.shift buf' len) in
-        ((hdr, (Cstruct.sub buf' 0 len)) :: tl, frag)
+     | Reader.Or_error.Ok (_, buf', len) when len > (Cstruct.len buf') ->
+        return ([], buf)
+     | Reader.Or_error.Ok (hdr, buf', len)                             ->
+        separate_records (Cstruct.shift buf' len) >>= fun (tl, frag) ->
+        return ((hdr, (Cstruct.sub buf' 0 len)) :: tl, frag)
+     | Reader.Or_error.Error _                                         ->
+        fail Packet.HANDSHAKE_FAILURE
 
 let assemble_records : record list -> Cstruct.t =
   o Utils.cs_appends @@ List.map @@ (Writer.assemble_hdr default_config.protocol_version)
@@ -218,28 +220,25 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
          cipher ; mac ; sequence } in
      (c_context, s_context, { sp with master_secret = mastersecret })
 
-let handle_raw_record handler state (header, buf) =
-  match header with
-  | None -> fail Packet.UNEXPECTED_MESSAGE
-  | Some hdr ->
-     decrypt state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
-     handler state.machina hdr.content_type dec >>= fun (machina, items, dec_cmd) ->
-     let (encryptor, encs) =
-       List.fold_left (fun (st, es) ->
-                       function
-                       | `Change_enc st' -> (st', es)
-                       | `Record (ty, buf) ->
-                          let (st', enc) = encrypt st ty buf in
-                          (st', es @ [(ty, enc)]))
-                      (state.encryptor, [])
-                      items
-     in
-     let decryptor = match dec_cmd with
-       | `Change_dec dec -> dec
-       | `Pass           -> dec_st
-     in
-     return ({ machina ; encryptor ; decryptor ; fragment = state.fragment },
-             encs)
+let handle_raw_record handler state (hdr, buf) =
+  decrypt state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
+  handler state.machina hdr.content_type dec >>= fun (machina, items, dec_cmd) ->
+  let (encryptor, encs) =
+    List.fold_left (fun (st, es) ->
+                    function
+                    | `Change_enc st' -> (st', es)
+                    | `Record (ty, buf) ->
+                       let (st', enc) = encrypt st ty buf in
+                       (st', es @ [(ty, enc)]))
+                   (state.encryptor, [])
+                   items
+  in
+  let decryptor = match dec_cmd with
+    | `Change_dec dec -> dec
+    | `Pass           -> dec_st
+  in
+  return ({ machina ; encryptor ; decryptor ; fragment = state.fragment },
+          encs)
 
 let alert typ =
   let buf = Writer.assemble_alert typ in
@@ -258,7 +257,9 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
                  state -> Cstruct.t -> ret
 = fun handler state buf ->
   match
-    let in_records, frag = separate_records (state.fragment <> buf) in
+    Printf.printf "handle_tls_int with"; Cstruct.hexdump buf;
+    separate_records (state.fragment <> buf) >>= fun (in_records, frag) ->
+    Printf.printf "got %d records" (List.length in_records);
     foldM (fun (st, raw_rs) r ->
            map (fun (st', raw_rs') -> (st', raw_rs @ raw_rs')) @@
              handle_raw_record handler st r)
@@ -290,10 +291,10 @@ let rec check_reneg expected = function
 
 let handle_alert buf =
   match Reader.parse_alert buf with
-  | Some al ->
+  | Reader.Or_error.Ok al ->
      Printf.printf "ALERT: %s" (Printer.alert_to_string al);
      fail Packet.CLOSE_NOTIFY
-  | None ->
+  | Reader.Or_error.Error _ ->
      Printf.printf "unknown alert";
      Cstruct.hexdump buf;
      fail Packet.UNEXPECTED_MESSAGE

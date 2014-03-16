@@ -14,14 +14,11 @@ let extension_to_string = function
   | Hostname host -> "Hostname: " ^ (match host with
                                      | None   -> "NONE"
                                      | Some x -> x)
-  | MaxFragmentLength mfl -> (match mfl with
-                              | None   -> "unknown max_fragment_length"
-                              | Some x -> "Maximum fragment length: " ^ (max_fragment_length_to_string x))
+  | MaxFragmentLength mfl -> "Maximum fragment length: " ^ (max_fragment_length_to_string mfl)
   | EllipticCurves curves -> "Elliptic curves: " ^
                                (String.concat ", " (List.map named_curve_type_to_string curves))
   | ECPointFormats formats -> "Elliptic Curve formats: " ^ (String.concat ", " (List.map ec_point_format_to_string formats))
   | SecureRenegotiation x -> "secure renegotiation"
-  | Unsupported i -> "unsupported: " ^ (extension_type_to_string i)
 
 let client_hello_to_string c_h =
   let (major, minor) = c_h.version in

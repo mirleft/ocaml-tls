@@ -99,20 +99,20 @@ let answer_server_hello_done p bs raw =
 let answer_server_key_exchange p bs kex raw =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
   | Ciphersuite.DHE_RSA ->
-     let dh_params, signature, raw_params =
-       Reader.parse_dh_parameters_and_signature kex in
-     find_server_rsa_key p.server_certificate >>= fun (pubkey) ->
-     ( match Crypto.verifyRSA_and_unpadPKCS1 pubkey signature with
-       | Some raw_sig ->
-          let sigdata = (p.client_random <> p.server_random) <> raw_params in
-          let md5 = Crypto.md5 sigdata in
-          let sha = Crypto.sha sigdata in
-          fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
-          fail_neq (md5 <> sha) raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
-          return (`Handshaking ( { p with dh_params = Some dh_params }, bs @ [raw]),
-                  [], `Pass)
-       | None         -> fail Packet.HANDSHAKE_FAILURE )
-
+     ( match Reader.parse_dh_parameters_and_signature kex with
+       | Reader.Or_error.Ok (dh_params, signature, raw_params) ->
+          find_server_rsa_key p.server_certificate >>= fun (pubkey) ->
+          ( match Crypto.verifyRSA_and_unpadPKCS1 pubkey signature with
+            | Some raw_sig ->
+               let sigdata = (p.client_random <> p.server_random) <> raw_params in
+               let md5 = Crypto.md5 sigdata in
+               let sha = Crypto.sha sigdata in
+               fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
+               fail_neq (md5 <> sha) raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
+               return (`Handshaking ( { p with dh_params = Some dh_params }, bs @ [raw]),
+                       [], `Pass)
+            | None         -> fail Packet.HANDSHAKE_FAILURE )
+       | _ -> fail Packet.HANDSHAKE_FAILURE )
   | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let answer_server_finished p bs fin =
@@ -137,7 +137,7 @@ let handle_change_cipher_spec = function
 
 let handle_handshake is buf =
   match Reader.parse_handshake buf with
-  | Some handshake ->
+  | Reader.Or_error.Ok handshake ->
      Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
      Cstruct.hexdump buf;
      ( match (is, handshake) with
@@ -167,7 +167,7 @@ let handle_handshake is buf =
           let raw = Writer.assemble_handshake (ClientHello ch) in
           answer_client_hello_params sp ch raw
        | _, _ -> fail Packet.HANDSHAKE_FAILURE )
-  | None -> fail Packet.UNEXPECTED_MESSAGE
+  | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let handle_record
     : tls_internal_state -> Packet.content_type -> Cstruct.t
