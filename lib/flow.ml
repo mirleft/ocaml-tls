@@ -13,7 +13,7 @@ let default_config = {
                                    TLS_RSA_WITH_RC4_128_SHA ;
                                    TLS_RSA_WITH_RC4_128_MD5]) ;
   rng              = (fun n -> Cstruct.create n) ; (* TODO: better random *)
-  protocol_version = TLS_1_0
+  protocol_version = TLS_1_1
 }
 
 let protocol_version_cstruct =
@@ -105,21 +105,28 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
     | `Crypted ctx ->
        let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version default_config.protocol_version) buf in
        let to_encrypt = buf <> sign in
+       let iv = match default_config.protocol_version with
+         | TLS_1_0 -> ctx.cipher_iv
+         | TLS_1_1 ->
+            let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
+            default_config.rng bs
+       in
        let enc =
          match ctx.stream_cipher with
          | Some x -> Crypto.crypt_stream x to_encrypt
          | None   ->
-            let iv = ctx.cipher_iv in
             Crypto.encrypt_block ctx.cipher ctx.cipher_secret iv to_encrypt
        in
-       let next_iv =
+       let out, next_iv =
          match ctx.stream_cipher with
-         | Some _ -> Cstruct.create 0
-         | None   -> Crypto.last_block ctx.cipher enc
+         | Some _ -> (enc, Cstruct.create 0)
+         | None   -> match default_config.protocol_version with
+                     | TLS_1_0 -> (enc, Crypto.last_block ctx.cipher enc)
+                     | TLS_1_1 -> (iv <> enc, Cstruct.create 0)
        in
        (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
                             cipher_iv = next_iv },
-        enc)
+        out)
 
 let fail_false v err =
   match v with
@@ -149,12 +156,17 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
             return body
          | None   ->
             (* we might have an explicit IV! this is the case in >= TLS1.1 *)
-            let iv = ctx.cipher_iv in
-            ( match Crypto.decrypt_block ctx.cipher ctx.cipher_secret iv buf with
+            let iv, data = match default_config.protocol_version with
+              | TLS_1_0 -> (ctx.cipher_iv, buf)
+              | TLS_1_1 ->
+                 let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
+                 Cstruct.split buf bs
+            in
+            ( match Crypto.decrypt_block ctx.cipher ctx.cipher_secret iv data with
               | None                ->
                  (* we compute the mac to prevent timing attacks *)
                  (* instead of the decrypted data we use the encrypted data *)
-                 verify_mac ctx ty buf >>= fun (_body) ->
+                 verify_mac ctx ty data >>= fun (_body) ->
                  fail Packet.BAD_RECORD_MAC
               | Some dec ->
                  verify_mac ctx ty dec >>= fun (body) ->
@@ -162,7 +174,9 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
             ) >>= fun (body) ->
        let next_iv = match ctx.stream_cipher with
          | Some _ -> Cstruct.create 0
-         | None   -> Crypto.last_block ctx.cipher buf
+         | None   -> match default_config.protocol_version with
+                     | TLS_1_0 -> Crypto.last_block ctx.cipher buf
+                     | TLS_1_1 -> Cstruct.create 0
        in
        return (`Crypted { ctx with sequence  = Int64.succ ctx.sequence ;
                                    cipher_iv = next_iv },
@@ -197,7 +211,10 @@ let divide_keyblock key mac iv buf =
   let s_mac, rt1 = Cstruct.split rt0 mac in
   let c_key, rt2 = Cstruct.split rt1 key in
   let s_key, rt3 = Cstruct.split rt2 key in
-  let c_iv , s_iv = Cstruct.split rt3 iv  in
+  let c_iv , s_iv = match default_config.protocol_version with
+    | TLS_1_0 -> Cstruct.split rt3 iv
+    | TLS_1_1 -> Cstruct.(create 0, create 0)
+  in
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
 let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context * crypto_context * security_parameters)
@@ -205,7 +222,10 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      let mastersecret = Crypto.generate_master_secret premastersecret (sp.client_random <> sp.server_random) in
 
      let key, iv, mac = Ciphersuite.ciphersuite_cipher_mac_length sp.ciphersuite in
-     let kblen =  2 * key + 2 * mac + 2 * iv in
+     let kblen = match default_config.protocol_version with
+       | TLS_1_0 -> 2 * key + 2 * mac + 2 * iv
+       | TLS_1_1 -> 2 * key + 2 * mac
+     in
      let rand = sp.server_random <> sp.client_random in
      let keyblock = Crypto.key_block kblen mastersecret rand in
 
