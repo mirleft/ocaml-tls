@@ -103,13 +103,14 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
     match s with
     | `Nothing -> (s, buf)
     | `Crypted ctx ->
-       let iv = ctx.cipher_iv in
        let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version default_config.protocol_version) buf in
        let to_encrypt = buf <> sign in
        let enc =
          match ctx.stream_cipher with
          | Some x -> Crypto.crypt_stream x to_encrypt
-         | None   -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret iv to_encrypt
+         | None   ->
+            let iv = ctx.cipher_iv in
+            Crypto.encrypt_block ctx.cipher ctx.cipher_secret iv to_encrypt
        in
        let next_iv =
          match ctx.stream_cipher with
