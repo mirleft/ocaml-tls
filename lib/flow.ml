@@ -147,10 +147,11 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
             verify_mac ctx ty dec >>= fun (body) ->
             return (body, Cstruct.create 0)
          | None   ->
-            ( let other = default_config.rng (Cstruct.len buf) in
-              match Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf with
-              | None           ->
-                 verify_mac ctx ty other >>= fun (_body) ->
+            ( match Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf with
+              | None                ->
+                 (* we compute the mac to prevent timing attacks *)
+                 (* instead of the decrypted data we use the encrypted data *)
+                 verify_mac ctx ty buf >>= fun (_body) ->
                  fail Packet.BAD_RECORD_MAC
               | Some (dec, next_iv) ->
                  verify_mac ctx ty dec >>= fun (body) ->
