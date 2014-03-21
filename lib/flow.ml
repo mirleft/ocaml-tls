@@ -109,12 +109,18 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
     match s with
     | `Nothing -> (s, buf)
     | `Crypted ctx ->
+       let iv = ctx.cipher_iv in
        let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version buf in
        let to_encrypt = buf <> sign in
-       let enc, next_iv =
+       let enc =
          match ctx.stream_cipher with
-         | Some x -> (Crypto.crypt_stream x to_encrypt, Cstruct.create 0)
-         | None -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv to_encrypt
+         | Some x -> Crypto.crypt_stream x to_encrypt
+         | None   -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret iv to_encrypt
+       in
+       let next_iv =
+         match ctx.stream_cipher with
+         | Some _ -> Cstruct.create 0
+         | None   -> Crypto.last_block ctx.cipher enc
        in
        (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
                             cipher_iv = next_iv },
@@ -145,18 +151,24 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
          | Some x ->
             let dec = Crypto.crypt_stream x buf in
             verify_mac ctx ty dec >>= fun (body) ->
-            return (body, Cstruct.create 0)
+            return body
          | None   ->
-            ( match Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf with
+            (* we might have an explicit IV! this is the case in >= TLS1.1 *)
+            let iv = ctx.cipher_iv in
+            ( match Crypto.decrypt_block ctx.cipher ctx.cipher_secret iv buf with
               | None                ->
                  (* we compute the mac to prevent timing attacks *)
                  (* instead of the decrypted data we use the encrypted data *)
                  verify_mac ctx ty buf >>= fun (_body) ->
                  fail Packet.BAD_RECORD_MAC
-              | Some (dec, next_iv) ->
+              | Some dec ->
                  verify_mac ctx ty dec >>= fun (body) ->
-                 return (body, next_iv) )
-       ) >>= fun (body, next_iv) ->
+                 return body )
+            ) >>= fun (body) ->
+       let next_iv = match ctx.stream_cipher with
+         | Some _ -> Cstruct.create 0
+         | None   -> Crypto.last_block ctx.cipher buf
+       in
        return (`Crypted { ctx with sequence  = Int64.succ ctx.sequence ;
                                    cipher_iv = next_iv },
                body)
@@ -249,8 +261,8 @@ let handle_raw_record handler state (hdr, buf) =
     | `Change_dec dec -> dec
     | `Pass           -> dec_st
   in
-  return ({ machina ; encryptor ; decryptor ; fragment = state.fragment },
-          encs)
+  let fragment = state.fragment in
+  return ({ machina ; encryptor ; decryptor ; fragment }, encs)
 
 let alert typ =
   let buf = Writer.assemble_alert typ in
