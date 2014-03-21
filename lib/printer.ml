@@ -2,10 +2,15 @@ open Core
 open Printf
 open Packet
 
+let tls_version_to_string = function
+  | TLS_1_0 -> "TLS version 1.0"
+  | TLS_1_1 -> "TLS version 1.1"
+  | TLS_1_2 -> "TLS version 1.2"
+
 let header_to_string (header : tls_hdr) =
-  let (major, minor) = header.version in
-  sprintf "protocol %d.%d: %s"
-          major minor (content_type_to_string header.content_type)
+  sprintf "protocol %s: %s"
+          (tls_version_to_string header.version)
+          (content_type_to_string header.content_type)
 
 let certificate_request_to_string cr =
   "FOOO"
@@ -22,16 +27,14 @@ let extension_to_string = function
   | Unhandled _ -> "Unhandled extension"
 
 let client_hello_to_string c_h =
-  let (major, minor) = c_h.version in
-  sprintf "client hello: protocol %d.%d\n  ciphers %s\n  extensions %s"
-          major minor
+  sprintf "client hello: protocol %s\n  ciphers %s\n  extensions %s"
+          (tls_version_to_string c_h.version)
           (List.map Ciphersuite.ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
 
 let server_hello_to_string (c_h : server_hello) =
-  let (major, minor) = c_h.version in
-  sprintf "server hello: protocol %d.%d cipher %s extensions %s"
-          major minor
+  sprintf "server hello: protocol %s\n cipher %s\b extensions %s"
+          (tls_version_to_string c_h.version)
           (Ciphersuite.ciphersuite_to_string c_h.ciphersuites)
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
 

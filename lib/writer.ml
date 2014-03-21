@@ -1,14 +1,17 @@
 open Packet
 open Core
 
-let assemble_protocol_version_int buf (major, minor) =
+let assemble_protocol_version_numbers buf (major, minor) =
   Cstruct.set_uint8 buf 0 major;
   Cstruct.set_uint8 buf 1 minor
 
+let assemble_protocol_version_int buf version =
+  assemble_protocol_version_numbers buf (pair_of_tls_version version);
+  buf
+
 let assemble_protocol_version version =
   let buf = Cstruct.create 2 in
-  assemble_protocol_version_int buf version;
-  buf
+  assemble_protocol_version_int buf version
 
 let assemble_hdr version (content_type, payload) =
   let payloadlength = Cstruct.len payload in

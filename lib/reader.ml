@@ -15,12 +15,15 @@ let check_length : int -> Cstruct.t -> unit or_error =
   | false -> fail Overflow
   | true  -> return ()
 
-let parse_version : Cstruct.t -> (int * int) or_error =
+let parse_version : Cstruct.t -> tls_version or_error =
   fun buf ->
   check_length 2 buf >>= fun () ->
   let major = Cstruct.get_uint8 buf 0 in
   let minor = Cstruct.get_uint8 buf 1 in
-  return (major, minor)
+  match tls_version_of_pair (major, minor) with
+  | Some x -> return x
+  | None   -> fail (Unknown ("version: " ^
+                               string_of_int major ^ "." ^ string_of_int minor))
 
 let parse_hdr : Cstruct.t -> (tls_hdr * Cstruct.t * int) or_error =
   fun buf ->

@@ -4,7 +4,7 @@ open Core
 type config = {
   ciphers          : Ciphersuite.ciphersuite list ;
   rng              : int -> Cstruct.t ;
-  protocol_version : int * int
+  protocol_version : tls_version
 }
 
 let default_config = {
@@ -13,19 +13,14 @@ let default_config = {
                                    TLS_RSA_WITH_RC4_128_SHA ;
                                    TLS_RSA_WITH_RC4_128_MD5]) ;
   rng              = (fun n -> Cstruct.create n) ; (* TODO: better random *)
-  protocol_version = (3, 1)
+  protocol_version = TLS_1_0
 }
 
 let protocol_version_cstruct =
   Writer.assemble_protocol_version default_config.protocol_version
 
-let protocol_version_compare (a1, a2) (b1, b2) =
-  match compare a1 b1 with
-  | 0 -> compare a2 b2
-  | c -> c
-
 let supported_protocol_version v =
-  protocol_version_compare v default_config.protocol_version > -1
+  tls_version_compare v default_config.protocol_version > -1
 
 module Or_alert =
   Control.Or_error_make (struct type err = Packet.alert_type end)
@@ -65,9 +60,8 @@ type security_parameters = {
 
 let print_security_parameters sp =
   let open Printf in
-  let major, minor = default_config.protocol_version in
   Printf.printf "ocaml-tls (secure renogiation enforced, session id ignored)\n";
-  Printf.printf "protocol version %d.%d\n" major minor;
+  Printf.printf "protocol %s\n" (Printer.tls_version_to_string default_config.protocol_version);
   Printf.printf "cipher %s\n" (Ciphersuite.ciphersuite_to_string sp.ciphersuite);
   Printf.printf "master secret";
   Cstruct.hexdump sp.master_secret;
@@ -110,7 +104,7 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
     | `Nothing -> (s, buf)
     | `Crypted ctx ->
        let iv = ctx.cipher_iv in
-       let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version buf in
+       let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version default_config.protocol_version) buf in
        let to_encrypt = buf <> sign in
        let enc =
          match ctx.stream_cipher with
@@ -137,7 +131,7 @@ let fail_neq cs1 cs2 err =
 let verify_mac ctx ty decrypted =
   let macstart = (Cstruct.len decrypted) - (Ciphersuite.hash_length ctx.mac) in
   let body, mac = Cstruct.split decrypted macstart in
-  let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
+  let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version default_config.protocol_version) body in
   fail_neq cmac mac Packet.BAD_RECORD_MAC >>= fun () ->
   return body
 
