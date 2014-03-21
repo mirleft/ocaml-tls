@@ -128,6 +128,13 @@ let fail_false v err =
 let fail_neq cs1 cs2 err =
   fail_false (Utils.cs_eq cs1 cs2) err
 
+let verify_mac ctx ty decrypted =
+  let macstart = (Cstruct.len decrypted) - (Ciphersuite.hash_length ctx.mac) in
+  let body, mac = Cstruct.split decrypted macstart in
+  let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
+  fail_neq cmac mac Packet.BAD_RECORD_MAC >>= fun () ->
+  return body
+
 (* well-behaved pure decryptor *)
 let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t) or_error
 = fun s ty buf ->
@@ -135,16 +142,21 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
     | `Nothing -> return (s, buf)
     | `Crypted ctx ->
        ( match ctx.stream_cipher with
-         | Some x -> return (Crypto.crypt_stream x buf, Cstruct.create 0)
+         | Some x ->
+            let dec = Crypto.crypt_stream x buf in
+            verify_mac ctx ty dec >>= fun (body) ->
+            return (body, Cstruct.create 0)
          | None   ->
-            ( match Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf with
-              | None        -> fail Packet.BAD_RECORD_MAC
-              | Some (x, y) -> return (x, y) ) ) >>= fun (dec, next_iv) ->
-       let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
-       let body, mac = Cstruct.split dec macstart in
-       let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
-       fail_neq cmac mac Packet.BAD_RECORD_MAC >>= fun () ->
-       return (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
+            ( let other = default_config.rng (Cstruct.len buf) in
+              match Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf with
+              | None           ->
+                 verify_mac ctx ty other >>= fun (_body) ->
+                 fail Packet.BAD_RECORD_MAC
+              | Some (dec, next_iv) ->
+                 verify_mac ctx ty dec >>= fun (body) ->
+                 return (body, next_iv) )
+       ) >>= fun (body, next_iv) ->
+       return (`Crypted { ctx with sequence  = Int64.succ ctx.sequence ;
                                    cipher_iv = next_iv },
                body)
 

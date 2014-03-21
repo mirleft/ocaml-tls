@@ -267,4 +267,7 @@ let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -
            Some (res, Cstruct.sub data ((blocks - 1) * bs) bs)
          else
            None
-      | _ -> None
+      | _ ->
+         (* we leak block size information (due to faster processing here) *)
+         (* do we leak anything else? *)
+         None
