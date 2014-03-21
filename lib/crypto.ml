@@ -233,7 +233,7 @@ let encrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -
 
 (* in: algo, secret, iv, data
    out: [padded]decrypted data, new_iv *)
-let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -> Cstruct.t -> (Cstruct.t * Cstruct.t)
+let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -> Cstruct.t -> (Cstruct.t * Cstruct.t) option
   = fun cipher sec iv data ->
       let cip = match cipher with
         | Ciphersuite.TRIPLE_DES_EDE_CBC ->
@@ -244,14 +244,27 @@ let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -
       in
       let datalen = Cstruct.len data in
       let bs = Ciphersuite.encryption_algorithm_block_size cipher in
-      let blocks = datalen / bs in
-      let dec = String.create datalen in
-      let dat = Cstruct.copy data 0 datalen in
-      for i = 0 to (blocks - 1) do
-        cip#transform dat (i * bs) dec (i * bs)
-      done;
-      let result = Cstruct.of_string dec in
-      let padding = Cstruct.get_uint8 result (datalen - 1) in
-      let res, _ = Cstruct.split result (datalen - padding - 1) in
-      (* last ciphertext block is new iv *)
-      (res, Cstruct.sub data ((blocks - 1) * bs) bs)
+      match datalen mod bs with
+      | 0 ->
+         let blocks = datalen / bs in
+         let dec = String.create datalen in
+         let dat = Cstruct.copy data 0 datalen in
+         for i = 0 to (blocks - 1) do
+           cip#transform dat (i * bs) dec (i * bs)
+         done;
+         let result = Cstruct.of_string dec in
+         let padlen = Cstruct.get_uint8 result (datalen - 1) in
+         let res, padding = Cstruct.split result (datalen - padlen - 1) in
+         let correct_padding =
+           Cstruct.fold (fun acc data -> if Cstruct.get_uint8 data 0 == padlen then
+                                           acc
+                                         else
+                                           false)
+                        (Cstruct.iter (fun buf -> Some 1) (fun buf -> buf) padding) true
+         in
+         if correct_padding then
+           (* last ciphertext block is new iv *)
+           Some (res, Cstruct.sub data ((blocks - 1) * bs) bs)
+         else
+           None
+      | _ -> None

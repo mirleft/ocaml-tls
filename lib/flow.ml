@@ -134,15 +134,16 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
     match s with
     | `Nothing -> return (s, buf)
     | `Crypted ctx ->
-       let dec, next_iv =
-         match ctx.stream_cipher with
-         | Some x -> (Crypto.crypt_stream x buf, Cstruct.create 0)
-         | None   -> Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf
-       in
+       ( match ctx.stream_cipher with
+         | Some x -> return (Crypto.crypt_stream x buf, Cstruct.create 0)
+         | None   ->
+            ( match Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf with
+              | None        -> fail Packet.BAD_RECORD_MAC
+              | Some (x, y) -> return (x, y) ) ) >>= fun (dec, next_iv) ->
        let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
        let body, mac = Cstruct.split dec macstart in
        let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
-       fail_neq cmac mac Packet.DECRYPTION_FAILED >>= fun () ->
+       fail_neq cmac mac Packet.BAD_RECORD_MAC >>= fun () ->
        return (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
                                    cipher_iv = next_iv },
                body)
