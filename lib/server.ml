@@ -95,6 +95,7 @@ let answer_client_hello_params_int sp ch raw =
   ( if Ciphersuite.needs_server_kex kex then
       match kex with
       | Ciphersuite.DHE_RSA ->
+         (* do not hardcode 1024 bit! *)
          let dh_params, priv = Crypto.generateDH 1024 in
          let params'' = { params' with dh_params = Some dh_params ; dh_secret = Some priv } in
          let written = Writer.assemble_dh_parameters dh_params in

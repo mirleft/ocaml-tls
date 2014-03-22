@@ -138,6 +138,7 @@ let fail_neq cs1 cs2 err =
 
 let verify_mac ctx ty decrypted =
   let macstart = (Cstruct.len decrypted) - (Ciphersuite.hash_length ctx.mac) in
+  (* check that macstart > 0! *)
   let body, mac = Cstruct.split decrypted macstart in
   let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version default_config.protocol_version) body in
   fail_neq cmac mac Packet.BAD_RECORD_MAC >>= fun () ->
@@ -160,12 +161,14 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
               | TLS_1_0 -> (ctx.cipher_iv, buf)
               | TLS_1_1 ->
                  let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
+                 (* check for length! *)
                  Cstruct.split buf bs
             in
             ( match Crypto.decrypt_block ctx.cipher ctx.cipher_secret iv data with
               | None                ->
                  (* we compute the mac to prevent timing attacks *)
                  (* instead of the decrypted data we use the encrypted data *)
+                 (* len data >= len dec ?? timing attacks? *)
                  verify_mac ctx ty data >>= fun (_body) ->
                  fail Packet.BAD_RECORD_MAC
               | Some dec ->

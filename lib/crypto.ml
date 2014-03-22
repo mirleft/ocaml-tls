@@ -116,12 +116,14 @@ let padPKCS1_and_encryptRSA len pubkey data =
   encryptRSA pubkey pad
 
 let decryptRSA key msg =
+  (* might fail if len msg > keysize! *)
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in
   let res = Cryptokit.RSA.decrypt key input in
   Cstruct.of_string res
 
 let decryptRSA_unpadPKCS key msg =
   let dec = decryptRSA key msg in
+  (* we're branching -- do same computation in both branches! *)
   if (Cstruct.get_uint8 dec 0 = 0) && (Cstruct.get_uint8 dec 1 = 2) then
     let rec not0 idx =
       match Cstruct.get_uint8 dec idx with
@@ -250,6 +252,7 @@ let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -
       let bs = Ciphersuite.encryption_algorithm_block_size cipher in
       match datalen mod bs with
       | 0 ->
+         (* datalen > 0 *)
          let blocks = datalen / bs in
          let dec = String.create datalen in
          let dat = Cstruct.copy data 0 datalen in
