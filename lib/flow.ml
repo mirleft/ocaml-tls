@@ -105,17 +105,18 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
     | `Crypted ctx ->
        let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version default_config.protocol_version) buf in
        let to_encrypt = buf <> sign in
-       let iv = match default_config.protocol_version with
-         | TLS_1_0 -> ctx.cipher_iv
-         | TLS_1_1 ->
-            let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
-            default_config.rng bs
+       let iv = match ctx.stream_cipher with
+         | Some x -> Cstruct.create 0
+         | None   -> match default_config.protocol_version with
+                     | TLS_1_0 -> ctx.cipher_iv
+                     | TLS_1_1 ->
+                        let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
+                        default_config.rng bs
        in
        let enc =
          match ctx.stream_cipher with
          | Some x -> Crypto.crypt_stream x to_encrypt
-         | None   ->
-            Crypto.encrypt_block ctx.cipher ctx.cipher_secret iv to_encrypt
+         | None   -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret iv to_encrypt
        in
        let out, next_iv =
          match ctx.stream_cipher with
