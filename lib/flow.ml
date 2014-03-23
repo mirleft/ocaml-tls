@@ -26,6 +26,14 @@ module Or_alert =
   Control.Or_error_make (struct type err = Packet.alert_type end)
 open Or_alert
 
+let fail_false v err =
+  match v with
+  | true ->  return ()
+  | false -> fail err
+
+let fail_neq cs1 cs2 err =
+  fail_false (Utils.cs_eq cs1 cs2) err
+
 type crypto_context = {
   sequence      : int64 ;
   stream_cipher : Cryptokit.Stream.stream_cipher option ; (* XXX *)
@@ -80,7 +88,6 @@ let state_to_string = function
   | `KeysExchanged _ -> "Keys are exchanged"
   | `Established _   -> "Established"
 
-
 type record = Packet.content_type * Cstruct.t
 
 (* this is the externally-visible state somebody will keep track of for us. *)
@@ -91,11 +98,12 @@ type state = {
   fragment  : Cstruct.t ;
 }
 
-let empty_state = { machina   = `Initial ;
-                    decryptor = `Nothing ;
-                    encryptor = `Nothing ;
-                    fragment  = Cstruct.create 0
-                  }
+let empty_state = {
+  machina   = `Initial ;
+  decryptor = `Nothing ;
+  encryptor = `Nothing ;
+  fragment  = Cstruct.create 0
+}
 
 (* well-behaved pure encryptor *)
 let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
@@ -129,14 +137,6 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
                             cipher_iv = next_iv },
         out)
 
-let fail_false v err =
-  match v with
-  | true ->  return ()
-  | false -> fail err
-
-let fail_neq cs1 cs2 err =
-  fail_false (Utils.cs_eq cs1 cs2) err
-
 let verify_mac ctx ty decrypted =
   let macstart = (Cstruct.len decrypted) - (Ciphersuite.hash_length ctx.mac) in
   (* check that macstart > 0! *)
@@ -157,7 +157,6 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
             verify_mac ctx ty dec >>= fun (body) ->
             return body
          | None   ->
-            (* we might have an explicit IV! this is the case in >= TLS1.1 *)
             let iv, data = match default_config.protocol_version with
               | TLS_1_0 -> (ctx.cipher_iv, buf)
               | TLS_1_1 ->
@@ -167,14 +166,15 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
             in
             ( match Crypto.decrypt_block ctx.cipher ctx.cipher_secret iv data with
               | None                ->
-                 (* we compute the mac to prevent timing attacks *)
-                 (* instead of the decrypted data we use the encrypted data *)
-                 (* This comment is stolen from miTLS: *)
+                 (* This comment is borrowed from miTLS, but applies here as well: *)
                  (* We implement standard mitigation for padding oracles.
                     Still, we note a small timing leak here:
                     The time to verify the mac is linear in the plaintext length. *)
-                 (* our plaintext is here encrypted-data, in the other branch decrypted - padding *)
-                 (* http://lasecwww.epfl.ch/memo/memo_ssl.shtml and 1) from https://www.openssl.org/~bodo/tls-cbc.txt *)
+                 (* defense against
+                     http://lasecwww.epfl.ch/memo/memo_ssl.shtml
+                     1) in https://www.openssl.org/~bodo/tls-cbc.txt *)
+                 (* hmac is computed in this failure branch from the encrypted data,
+                    in the successful branch it is decrypted - padding (which is smaller equal than encrypted data) *)
                  verify_mac ctx ty data >>= fun (_body) ->
                  fail Packet.BAD_RECORD_MAC
               | Some dec ->
