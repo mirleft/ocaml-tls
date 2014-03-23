@@ -169,7 +169,12 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
               | None                ->
                  (* we compute the mac to prevent timing attacks *)
                  (* instead of the decrypted data we use the encrypted data *)
-                 (* len data >= len dec ?? timing attacks? *)
+                 (* This comment is stolen from miTLS: *)
+                 (* We implement standard mitigation for padding oracles.
+                    Still, we note a small timing leak here:
+                    The time to verify the mac is linear in the plaintext length. *)
+                 (* our plaintext is here encrypted-data, in the other branch decrypted - padding *)
+                 (* http://lasecwww.epfl.ch/memo/memo_ssl.shtml and 1) from https://www.openssl.org/~bodo/tls-cbc.txt *)
                  verify_mac ctx ty data >>= fun (_body) ->
                  fail Packet.BAD_RECORD_MAC
               | Some dec ->
