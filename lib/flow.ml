@@ -20,7 +20,7 @@ let protocol_version_cstruct =
   Writer.assemble_protocol_version default_config.protocol_version
 
 let supported_protocol_version v =
-  tls_version_compare v default_config.protocol_version > -1
+  default_config.protocol_version <= v
 
 module Or_alert =
   Control.Or_error_make (struct type err = Packet.alert_type end)

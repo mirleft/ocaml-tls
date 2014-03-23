@@ -21,14 +21,6 @@ let tls_version_of_pair = function
   | (3, 3) -> Some TLS_1_2
   | _      -> None
 
-let tls_version_pairs_compare (a1, a2) (b1, b2) =
-  match compare a1 b1 with
-  | 0 -> compare a2 b2
-  | c -> c
-
-let tls_version_compare a b =
-  tls_version_pairs_compare (pair_of_tls_version a) (pair_of_tls_version b)
-
 type tls_hdr = {
   content_type : content_type;
   version      : tls_version;
