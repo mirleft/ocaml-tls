@@ -332,8 +332,7 @@ let rec check_reneg expected = function
 let handle_alert buf =
   match Reader.parse_alert buf with
   | Reader.Or_error.Ok al ->
-     Printf.printf "ALERT: %s\n" (Printer.alert_to_string al);
-     Cstruct.hexdump buf;
+     Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string al);
      fail Packet.CLOSE_NOTIFY
   | Reader.Or_error.Error _ ->
      Printf.printf "unknown alert";
