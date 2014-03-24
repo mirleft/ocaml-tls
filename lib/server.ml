@@ -30,17 +30,30 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
        let private_key = Crypto_utils.get_key default_server_config.key_file in
        (* due to bleichenbacher attach, we should use a random pms *)
        (* then we do not leak any decryption or padding errors! *)
-       let other = protocol_version_cstruct <> default_config.rng 46 in
+       let other = Writer.assemble_protocol_version sp.protocol_version <> default_config.rng 46 in
+       let validate_pms k =
+ (* Client implementations MUST always send the correct version number in
+    PreMasterSecret.  If ClientHello.client_version is TLS 1.1 or higher,
+    server implementations MUST check the version number as described in
+    the note below.  If the version number is TLS 1.0 or earlier, server
+    implementations SHOULD check the version number, but MAY have a
+    configuration option to disable the check.  Note that if the check
+    fails, the PreMasterSecret SHOULD be randomized as described below *)
+         match Cstruct.len k == 48,
+               Reader.parse_version k,
+               sp.protocol_version
+         with
+         | true, Reader.Or_error.Ok c_ver, TLS_1_0 ->
+            if c_ver <= TLS_1_2 then return k else return other
+         | true, Reader.Or_error.Ok c_ver, v       ->
+            if c_ver = v then return k else return other
+         | _, Reader.Or_error.Error _, _           ->
+            (* I should have a similar conditional here, shouldn't I? *)
+            return other
+       in
        ( match Crypto.decryptRSA_unpadPKCS private_key kex with
-         | None   -> return other
-         | Some k ->
-            ( match Reader.parse_version k with
-              | Reader.Or_error.Ok c_ver ->
-                 if ((Cstruct.len k) = 48) && (supported_protocol_version c_ver) then
-                   return k
-                 else
-                   return other
-              | Reader.Or_error.Error _ -> return other ) )
+         | None   -> validate_pms other
+         | Some k -> validate_pms k )
     | Ciphersuite.DHE_RSA ->
        (* we assume explicit communication here, not a client certificate *)
        ( match sp.dh_params with
@@ -60,7 +73,6 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
 let answer_client_hello_params_int sp ch raw =
   let cipher = sp.ciphersuite in
   fail_false (List.mem cipher ch.ciphersuites) Packet.HANDSHAKE_FAILURE >>= fun () ->
-  fail_false (supported_protocol_version ch.version) Packet.HANDSHAKE_FAILURE >>= fun () ->
   (* now we can provide a certificate with any of the given hostnames *)
   (match sp.server_name with
    | None   -> ()
@@ -77,7 +89,7 @@ let answer_client_hello_params_int sp ch raw =
                  (params.client_verify_data <> params.server_verify_data)
   in
   let server_hello : server_hello =
-    { version      = default_config.protocol_version ;
+    { version      = sp.protocol_version ;
       random       = params.server_random ;
       sessionid    = None ;
       ciphersuites = cipher ;
@@ -122,6 +134,7 @@ let answer_client_hello_params sp ch raw =
   check_reneg expected ch.extensions >>= fun () ->
   let host = find_hostname ch in
   fail_false (sp.server_name = host) Packet.HANDSHAKE_FAILURE >>= fun () ->
+  fail_false (ch.version >= sp.protocol_version) Packet.PROTOCOL_VERSION >>= fun () ->
   answer_client_hello_params_int sp ch raw
 
 let answer_client_hello (ch : client_hello) raw =
@@ -130,6 +143,9 @@ let answer_client_hello (ch : client_hello) raw =
   fail_false (List.exists issuported default_config.ciphers) Packet.HANDSHAKE_FAILURE >>= fun () ->
   let cipher = List.hd (List.filter issuported default_config.ciphers) in
   let server_name = find_hostname ch in
+  ( match supported_protocol_version ch.version with
+    | None   -> fail Packet.PROTOCOL_VERSION
+    | Some x -> return x ) >>= fun (protocol_version) ->
   let params = { entity                = Server ;
                  ciphersuite           = cipher ;
                  master_secret         = Cstruct.create 0 ;
@@ -140,7 +156,8 @@ let answer_client_hello (ch : client_hello) raw =
                  server_certificate    = None ;
                  client_verify_data    = Cstruct.create 0 ;
                  server_verify_data    = Cstruct.create 0 ;
-                 server_name }
+                 server_name ;
+                 protocol_version }
   in
   answer_client_hello_params_int params ch raw
 
