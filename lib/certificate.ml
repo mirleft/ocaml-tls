@@ -3,6 +3,8 @@ open Asn_grammars
 open Asn
 open Utils
 
+open Nocrypto
+
 type certificate_failure =
   | InvalidCertificate
   | InvalidSignature
@@ -77,8 +79,8 @@ let validate_signature trusted cert raw =
                let compare_hashes hashfn = Utils.cs_eq hash (hashfn tbs_raw) in
                let open Algorithm in
                match (cert.signature_algo, algo) with
-               | (MD5_RSA , MD5 ) -> compare_hashes Crypto.md5
-               | (SHA1_RSA, SHA1) -> compare_hashes Crypto.sha
+               | (MD5_RSA , MD5 ) -> compare_hashes Hash.MD5.digest
+               | (SHA1_RSA, SHA1) -> compare_hashes Hash.SHA1.digest
                | _ -> false )
        | None -> false )
 

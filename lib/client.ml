@@ -2,6 +2,8 @@ open Core
 open Flow
 open Flow.Or_alert
 
+open Nocrypto
+
 let answer_client_hello_params sp ch raw =
   return (`Handshaking (sp, [raw]), [`Record (Packet.HANDSHAKE, raw)], `Pass)
 
@@ -105,10 +107,9 @@ let answer_server_key_exchange p bs kex raw =
           ( match Crypto.verifyRSA_and_unpadPKCS1 pubkey signature with
             | Some raw_sig ->
                let sigdata = (p.client_random <> p.server_random) <> raw_params in
-               let md5 = Crypto.md5 sigdata in
-               let sha = Crypto.sha sigdata in
+               let sig_ = Hash.( MD5.digest sigdata <> SHA1.digest sigdata ) in
                fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
-               fail_neq (md5 <> sha) raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
+               fail_neq sig_ raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
                return (`Handshaking ( { p with dh_params = Some dh_params }, bs @ [raw]),
                        [], `Pass)
             | None         -> fail Packet.HANDSHAKE_FAILURE )

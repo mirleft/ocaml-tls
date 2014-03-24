@@ -2,6 +2,8 @@ open Core
 open Flow
 open Flow.Or_alert
 
+open Nocrypto
+
 (* server configuration *)
 type server_config = {
   key_file         : string ;
@@ -100,9 +102,7 @@ let answer_client_hello_params_int sp ch raw =
          let params'' = { params' with dh_params = Some dh_params ; dh_secret = Some priv } in
          let written = Writer.assemble_dh_parameters dh_params in
          let data = (params''.client_random <> params''.server_random) <> written in
-         let md5signature = Crypto.md5 data in
-         let shasignature = Crypto.sha data in
-         let signing = md5signature <> shasignature in
+         let signing = Hash.( MD5.digest data <> SHA1.digest data ) in
          match Crypto.padPKCS1_and_signRSA (Crypto_utils.get_key default_server_config.key_file) signing with
          | Some sign ->
             let kex = Writer.assemble_dh_parameters_and_signature written sign in

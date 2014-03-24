@@ -1,43 +1,31 @@
 
+open Nocrypto
+open Nocrypto.Common
+open Nocrypto.Hash
+
 let (<>) = Utils.cs_append
 
-
-let sha buf =
-  let data = Cstruct.copy buf 0 (Cstruct.len buf) in
-  let hash = Cryptokit.hash_string (Cryptokit.Hash.sha1 ()) data in
-  Cstruct.of_string hash
-
-let md5 buf =
-  let data = Cstruct.copy buf 0 (Cstruct.len buf) in
-  let hash = Cryptokit.hash_string (Cryptokit.Hash.md5 ()) data in
-  Cstruct.of_string hash
-
-let hmac_md5 sec = Cryptokit.(hash_string (MAC.hmac_md5 sec))
-let hmac_sha sec = Cryptokit.(hash_string (MAC.hmac_sha1 sec))
-
-let rec p_hash (hmac, hmac_n) secret seed len =
-  let rec expand a to_go =
-    let res = hmac secret (a ^ seed) in
-    if to_go > hmac_n then
-      res ^ expand (hmac secret a) (to_go - hmac_n)
-    else String.sub res 0 to_go
-  in
-  expand (hmac secret seed) len
 
 let halve secret =
   let len  = Cstruct.len secret in
   let half = len - len / 2 in
   (Cstruct.sub secret 0 half, Cstruct.sub secret (len - half) half)
 
+let rec p_hash (hmac, hmac_n) key seed len =
+  let rec expand a to_go =
+    let res = hmac ~key (a <> seed) in
+    if to_go > hmac_n then
+      res <> expand (hmac ~key a) (to_go - hmac_n)
+    else Cstruct.sub res 0 to_go
+  in
+  expand (hmac ~key seed) len
+
 let pseudo_random_function len secret label seed =
-  let (s1, s2) = halve secret in
-  let dat = Cstruct.copy seed 0 (Cstruct.len seed) in
-  let ss1 = Cstruct.copy s1 0 (Cstruct.len s1) in
-  let ss2 = Cstruct.copy s2 0 (Cstruct.len s2) in
-  let md5 = p_hash (hmac_md5, 16) ss1 (label ^ dat) len
-  and sha = p_hash (hmac_sha, 20) ss2 (label ^ dat) len in
-  Cryptokit.xor_string md5 0 sha 0 len ;
-  Cstruct.of_string sha
+  let (s1, s2) = halve secret
+  and labelled = Cstruct.of_string label <> seed in
+  let md5 = p_hash (MD5.hmac, 16) s1 labelled len
+  and sha = p_hash (SHA1.hmac, 20) s2 labelled len in
+  CS.xor md5 sha
 
 let generate_master_secret pre_master_secret seed =
   pseudo_random_function 48 pre_master_secret "master secret" seed
@@ -47,9 +35,8 @@ let key_block len master_secret seed =
 
 let finished master_secret label ps =
   let data = Utils.cs_appends ps in
-  let md5 = md5 data in
-  let sha1 = sha data in
-  pseudo_random_function 12 master_secret label (md5 <> sha1)
+  let seed = MD5.digest data <> SHA1.digest data in
+  pseudo_random_function 12 master_secret label seed
 
 let signRSA key msg =
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in
@@ -163,8 +150,8 @@ let computeDH key secret other =
   Cstruct.of_string shared
 
 let hmac = function
-  | Ciphersuite.MD5 -> hmac_md5
-  | Ciphersuite.SHA -> hmac_sha
+  | Ciphersuite.MD5 -> MD5.hmac
+  | Ciphersuite.SHA -> SHA1.hmac
 
 let signature : Ciphersuite.hash_algorithm -> Cstruct.t -> int64 -> Packet.content_type -> (int * int) -> Cstruct.t -> Cstruct.t
   = fun mac secret n ty (major, minor) data ->
@@ -175,11 +162,7 @@ let signature : Ciphersuite.hash_algorithm -> Cstruct.t -> int64 -> Packet.conte
       Cstruct.set_uint8 prefix 9 major;
       Cstruct.set_uint8 prefix 10 minor;
       Cstruct.BE.set_uint16 prefix 11 len;
-      let to_sign = prefix <> data in
-      let ps = Cstruct.copy to_sign 0 (Cstruct.len to_sign) in
-      let sec = Cstruct.copy secret 0 (Cstruct.len secret) in
-      let res = hmac mac sec ps in
-      Cstruct.of_string res
+      hmac mac ~key:secret (prefix <> data)
 
 let prepare_arcfour : Cstruct.t -> Cryptokit.Stream.stream_cipher =
   fun key ->
