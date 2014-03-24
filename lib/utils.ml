@@ -37,7 +37,7 @@ let cs_eq cs1 cs2 =
     | -1 -> true
     |  i -> Cstruct.(get_uint8 cs1 i = get_uint8 cs2 i) && cmp (pred i)
   in
-  (len1 = len2) && cmp (len1 - 1)
+  (len1 = len2) && cmp (pred len1)
 
 let rec filter_map ~f = function
   | []    -> []
