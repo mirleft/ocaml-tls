@@ -2,25 +2,44 @@ open Core
 
 (* some config parameters *)
 type config = {
-  ciphers          : Ciphersuite.ciphersuite list ;
-  rng              : int -> Cstruct.t ;
-  protocol_version : tls_version
+  ciphers           : Ciphersuite.ciphersuite list ;
+  rng               : int -> Cstruct.t ;
+  protocol_versions : tls_version list
 }
 
 let default_config = {
-  ciphers          = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                   TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                   TLS_RSA_WITH_RC4_128_SHA ;
-                                   TLS_RSA_WITH_RC4_128_MD5]) ;
-  rng              = (fun n -> Cstruct.create n) ; (* TODO: better random *)
-  protocol_version = TLS_1_1
+  (* this is used as prioritized list of ciphersuites in both client and server code *)
+  ciphers           = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                    TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                    TLS_RSA_WITH_RC4_128_SHA ;
+                                    TLS_RSA_WITH_RC4_128_MD5]) ;
+  rng               = (fun n -> Cstruct.create n) ; (* TODO: better random *)
+  (* this is an ordered list of all supported versions, highest first *)
+  protocol_versions = [TLS_1_1 ; TLS_1_0 ]
 }
 
-let protocol_version_cstruct =
-  Writer.assemble_protocol_version default_config.protocol_version
-
+(* find highest version between !v! and supported versions *)
+(* some cases are simple:
+  - v is bigger than the highest supported one -> use highest
+  - v is an exact match of any supported -> use it!
+  - v is smaller than the lowest -> bail *)
+(* constraints not checked in code:
+    - protocol_versions is ordered from highest to lowest
+    - there's no unsupported version between highest and lowest
+*)
 let supported_protocol_version v =
-  default_config.protocol_version <= v
+  let sups = default_config.protocol_versions in
+  let highest = List.hd sups in
+  if compare v highest >= 0 then
+    Some highest
+  else
+    let lowest = List.nth sups (pred (List.length sups)) in
+    if compare v lowest >= 0 then
+      Some v
+    else
+      None
+
+let max_protocol_version = List.hd default_config.protocol_versions
 
 module Or_alert =
   Control.Or_error_make (struct type err = Packet.alert_type end)
@@ -64,12 +83,13 @@ type security_parameters = {
   client_verify_data    : Cstruct.t ;
   server_verify_data    : Cstruct.t ;
   server_name           : string option ;
+  protocol_version      : tls_version ;
 }
 
 let print_security_parameters sp =
   let open Printf in
   Printf.printf "ocaml-tls (secure renogiation enforced, session id ignored)\n";
-  Printf.printf "protocol %s\n" (Printer.tls_version_to_string default_config.protocol_version);
+  Printf.printf "protocol %s\n" (Printer.tls_version_to_string sp.protocol_version);
   Printf.printf "cipher %s\n" (Ciphersuite.ciphersuite_to_string sp.ciphersuite);
   Printf.printf "master secret";
   Cstruct.hexdump sp.master_secret;
@@ -105,17 +125,23 @@ let empty_state = {
   fragment  = Cstruct.create 0
 }
 
+let active_protocol_version = function
+  | `Initial                     -> max_protocol_version
+  | `Handshaking (sp, _)         -> sp.protocol_version
+  | `KeysExchanged (_, _, sp, _) -> sp.protocol_version
+  | `Established sp              -> sp.protocol_version
+
 (* well-behaved pure encryptor *)
-let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
-= fun s ty buf ->
+let encrypt : tls_version -> crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
+= fun v s ty buf ->
     match s with
     | `Nothing -> (s, buf)
     | `Crypted ctx ->
-       let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version default_config.protocol_version) buf in
+       let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version v) buf in
        let to_encrypt = buf <> sign in
        let iv = match ctx.stream_cipher with
          | Some x -> Cstruct.create 0
-         | None   -> match default_config.protocol_version with
+         | None   -> match v with
                      | TLS_1_0 -> ctx.cipher_iv
                      | TLS_1_1 ->
                         let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
@@ -129,7 +155,7 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
        let out, next_iv =
          match ctx.stream_cipher with
          | Some _ -> (enc, Cstruct.create 0)
-         | None   -> match default_config.protocol_version with
+         | None   -> match v with
                      | TLS_1_0 -> (enc, Crypto.last_block ctx.cipher enc)
                      | TLS_1_1 -> (iv <> enc, Cstruct.create 0)
        in
@@ -137,27 +163,27 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
                             cipher_iv = next_iv },
         out)
 
-let verify_mac ctx ty decrypted =
+let verify_mac ctx v ty decrypted =
   let macstart = (Cstruct.len decrypted) - (Ciphersuite.hash_length ctx.mac) in
   (* check that macstart > 0! *)
   let body, mac = Cstruct.split decrypted macstart in
-  let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version default_config.protocol_version) body in
+  let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version v) body in
   fail_neq cmac mac Packet.BAD_RECORD_MAC >>= fun () ->
   return body
 
 (* well-behaved pure decryptor *)
-let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t) or_error
-= fun s ty buf ->
+let decrypt : tls_version -> crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t) or_error
+= fun v s ty buf ->
     match s with
     | `Nothing -> return (s, buf)
     | `Crypted ctx ->
        ( match ctx.stream_cipher with
          | Some x ->
             let dec = Crypto.crypt_stream x buf in
-            verify_mac ctx ty dec >>= fun (body) ->
+            verify_mac ctx v ty dec >>= fun (body) ->
             return body
          | None   ->
-            let iv, data = match default_config.protocol_version with
+            let iv, data = match v with
               | TLS_1_0 -> (ctx.cipher_iv, buf)
               | TLS_1_1 ->
                  let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
@@ -175,15 +201,15 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
                      1) in https://www.openssl.org/~bodo/tls-cbc.txt *)
                  (* hmac is computed in this failure branch from the encrypted data,
                     in the successful branch it is decrypted - padding (which is smaller equal than encrypted data) *)
-                 verify_mac ctx ty data >>= fun (_body) ->
+                 verify_mac ctx v ty data >>= fun (_body) ->
                  fail Packet.BAD_RECORD_MAC
               | Some dec ->
-                 verify_mac ctx ty dec >>= fun (body) ->
+                 verify_mac ctx v ty dec >>= fun (body) ->
                  return body )
             ) >>= fun (body) ->
        let next_iv = match ctx.stream_cipher with
          | Some _ -> Cstruct.create 0
-         | None   -> match default_config.protocol_version with
+         | None   -> match v with
                      | TLS_1_0 -> Crypto.last_block ctx.cipher buf
                      | TLS_1_1 -> Cstruct.create 0
        in
@@ -206,8 +232,8 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
      | Reader.Or_error.Error _                                         ->
         fail Packet.HANDSHAKE_FAILURE
 
-let assemble_records : record list -> Cstruct.t =
-  o Utils.cs_appends @@ List.map @@ (Writer.assemble_hdr default_config.protocol_version)
+let assemble_records : tls_version -> record list -> Cstruct.t = fun v ->
+  o Utils.cs_appends @@ List.map @@ (Writer.assemble_hdr v)
 
 type rec_resp = [
   | `Change_enc of crypto_state
@@ -215,12 +241,12 @@ type rec_resp = [
 ]
 type dec_resp = [ `Change_dec of crypto_state | `Pass ]
 
-let divide_keyblock key mac iv buf =
+let divide_keyblock v key mac iv buf =
   let c_mac, rt0 = Cstruct.split buf mac in
   let s_mac, rt1 = Cstruct.split rt0 mac in
   let c_key, rt2 = Cstruct.split rt1 key in
   let s_key, rt3 = Cstruct.split rt2 key in
-  let c_iv , s_iv = match default_config.protocol_version with
+  let c_iv , s_iv = match v with
     | TLS_1_0 -> Cstruct.split rt3 iv
     | TLS_1_1 -> Cstruct.(create 0, create 0)
   in
@@ -231,7 +257,7 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      let mastersecret = Crypto.generate_master_secret premastersecret (sp.client_random <> sp.server_random) in
 
      let key, iv, mac = Ciphersuite.ciphersuite_cipher_mac_length sp.ciphersuite in
-     let kblen = match default_config.protocol_version with
+     let kblen = match sp.protocol_version with
        | TLS_1_0 -> 2 * key + 2 * mac + 2 * iv
        | TLS_1_1 -> 2 * key + 2 * mac
      in
@@ -239,7 +265,7 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      let keyblock = Crypto.key_block kblen mastersecret rand in
 
      let c_mac, s_mac, c_key, s_key, c_iv, s_iv =
-       divide_keyblock key mac iv keyblock in
+       divide_keyblock sp.protocol_version key mac iv keyblock in
 
      let mac = Ciphersuite.ciphersuite_mac sp.ciphersuite in
      let sequence = 0L in
@@ -268,15 +294,18 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
          cipher ; mac ; sequence } in
      (c_context, s_context, { sp with master_secret = mastersecret })
 
+
 let handle_raw_record handler state (hdr, buf) =
-  decrypt state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
+  let version = active_protocol_version state.machina in
+  decrypt version state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
   handler state.machina hdr.content_type dec >>= fun (machina, items, dec_cmd) ->
+  let version = active_protocol_version machina in
   let (encryptor, encs) =
     List.fold_left (fun (st, es) ->
                     function
                     | `Change_enc st' -> (st', es)
                     | `Record (ty, buf) ->
-                       let (st', enc) = encrypt st ty buf in
+                       let (st', enc) = encrypt version st ty buf in
                        (st', es @ [(ty, enc)]))
                    (state.encryptor, [])
                    items
@@ -312,11 +341,11 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
           (state, [])
           in_records
     >>= fun (state', out_records) ->
-    let buf' = assemble_records out_records in
+    let buf' = assemble_records (active_protocol_version state'.machina) out_records in
     return ({ state' with fragment = frag }, buf')
   with
   | Ok v    -> `Ok v
-  | Error x -> `Fail (assemble_records [alert x])
+  | Error x -> `Fail (assemble_records (active_protocol_version state.machina) [alert x])
 
 let find_hostname : 'a hello -> string option =
   fun h ->

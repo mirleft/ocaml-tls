@@ -19,17 +19,20 @@ let answer_client_hello ch raw =
       client_verify_data    = Cstruct.create 0 ;
       server_verify_data    = Cstruct.create 0 ;
       server_name ;
+      protocol_version      = ch.version ;
     }
   in
   answer_client_hello_params params ch raw
 
 let answer_server_hello (p : security_parameters) bs sh raw =
-  fail_false (sh.version = default_config.protocol_version) Packet.PROTOCOL_VERSION >>= fun () ->
+  (match supported_protocol_version sh.version with
+   | None   -> fail Packet.PROTOCOL_VERSION
+   | Some v -> return { p with protocol_version = v } ) >>= fun (sp) ->
   let expected = p.client_verify_data <> p.server_verify_data in
   check_reneg expected sh.extensions >>= fun () ->
-  let sp = { p with ciphersuite   = sh.ciphersuites ;
-                    server_random = sh.random } in
-  return (`Handshaking (sp, bs @ [raw]), [], `Pass)
+  let sp' = { sp with ciphersuite   = sh.ciphersuites ;
+                      server_random = sh.random } in
+  return (`Handshaking (sp', bs @ [raw]), [], `Pass)
 
 let parse_certificate c =
   match Asn_grammars.certificate_of_cstruct c with
@@ -51,8 +54,16 @@ let answer_certificate p bs cs raw =
        | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
        | `Fail _                  -> fail Packet.BAD_CERTIFICATE
        | `Ok                      ->
-          let ps = { p with server_certificate = Some s } in
-          return (`Handshaking (ps, bs @ [raw]), [], `Pass))
+          (* due to triple-handshake (https://secure-resumption.com) we better
+             ensure that we got the same certificate *)
+(*          match p.server_certificate with
+          | Some x when x = s ->
+             return (`Handshaking (ps, bs @ [raw]), [], `Pass)
+          | Some _            ->
+             fail Packet.HANDSHAKE_FAILURE
+          | None              ->*)
+             let ps = { p with server_certificate = Some s } in
+             return (`Handshaking (ps, bs @ [raw]), [], `Pass))
 
 let find_server_rsa_key = function
   | Some x -> Asn_grammars.(match x.tbs_cert.pk_info with
@@ -63,7 +74,7 @@ let find_server_rsa_key = function
 let find_premaster p =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
   | Ciphersuite.RSA ->
-     let ver = protocol_version_cstruct in
+     let ver = Writer.assemble_protocol_version p.protocol_version in
      let premaster = ver <> (default_config.rng 46) in
      find_server_rsa_key p.server_certificate >>= fun (pubkey) ->
      let msglen = Cryptokit.RSA.(pubkey.size / 8) in
@@ -122,7 +133,7 @@ let answer_server_finished p bs fin =
   return (`Established { p with server_verify_data = computed }, [], `Pass)
 
 let default_client_hello : client_hello =
-  { version      = default_config.protocol_version ;
+  { version      = max_protocol_version ;
     random       = default_config.rng 32 ;
     sessionid    = None ;
     ciphersuites = default_config.ciphers ;
@@ -203,4 +214,4 @@ let open_connection server =
            }
   in
   let buf = Writer.assemble_handshake (ClientHello ch) in
-  Writer.assemble_hdr default_config.protocol_version (Packet.HANDSHAKE, buf)
+  Writer.assemble_hdr ch.version (Packet.HANDSHAKE, buf)
