@@ -4,7 +4,7 @@ open Core
 type config = {
   ciphers          : Ciphersuite.ciphersuite list ;
   rng              : int -> Cstruct.t ;
-  protocol_version : int * int
+  protocol_version : tls_version
 }
 
 let default_config = {
@@ -13,23 +13,26 @@ let default_config = {
                                    TLS_RSA_WITH_RC4_128_SHA ;
                                    TLS_RSA_WITH_RC4_128_MD5]) ;
   rng              = (fun n -> Cstruct.create n) ; (* TODO: better random *)
-  protocol_version = (3, 1)
+  protocol_version = TLS_1_1
 }
 
 let protocol_version_cstruct =
   Writer.assemble_protocol_version default_config.protocol_version
 
-let protocol_version_compare (a1, a2) (b1, b2) =
-  match compare a1 b1 with
-  | 0 -> compare a2 b2
-  | c -> c
-
 let supported_protocol_version v =
-  protocol_version_compare v default_config.protocol_version > -1
+  default_config.protocol_version <= v
 
 module Or_alert =
   Control.Or_error_make (struct type err = Packet.alert_type end)
 open Or_alert
+
+let fail_false v err =
+  match v with
+  | true ->  return ()
+  | false -> fail err
+
+let fail_neq cs1 cs2 err =
+  fail_false (Utils.cs_eq cs1 cs2) err
 
 type crypto_context = {
   sequence      : int64 ;
@@ -65,9 +68,8 @@ type security_parameters = {
 
 let print_security_parameters sp =
   let open Printf in
-  let major, minor = default_config.protocol_version in
   Printf.printf "ocaml-tls (secure renogiation enforced, session id ignored)\n";
-  Printf.printf "protocol version %d.%d\n" major minor;
+  Printf.printf "protocol %s\n" (Printer.tls_version_to_string default_config.protocol_version);
   Printf.printf "cipher %s\n" (Ciphersuite.ciphersuite_to_string sp.ciphersuite);
   Printf.printf "master secret";
   Cstruct.hexdump sp.master_secret;
@@ -86,7 +88,6 @@ let state_to_string = function
   | `KeysExchanged _ -> "Keys are exchanged"
   | `Established _   -> "Established"
 
-
 type record = Packet.content_type * Cstruct.t
 
 (* this is the externally-visible state somebody will keep track of for us. *)
@@ -97,11 +98,12 @@ type state = {
   fragment  : Cstruct.t ;
 }
 
-let empty_state = { machina   = `Initial ;
-                    decryptor = `Nothing ;
-                    encryptor = `Nothing ;
-                    fragment  = Cstruct.create 0
-                  }
+let empty_state = {
+  machina   = `Initial ;
+  decryptor = `Nothing ;
+  encryptor = `Nothing ;
+  fragment  = Cstruct.create 0
+}
 
 (* well-behaved pure encryptor *)
 let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state * Cstruct.t
@@ -109,24 +111,39 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
     match s with
     | `Nothing -> (s, buf)
     | `Crypted ctx ->
-       let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version buf in
+       let sign = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version default_config.protocol_version) buf in
        let to_encrypt = buf <> sign in
-       let enc, next_iv =
+       let iv = match ctx.stream_cipher with
+         | Some x -> Cstruct.create 0
+         | None   -> match default_config.protocol_version with
+                     | TLS_1_0 -> ctx.cipher_iv
+                     | TLS_1_1 ->
+                        let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
+                        default_config.rng bs
+       in
+       let enc =
          match ctx.stream_cipher with
-         | Some x -> (Crypto.crypt_stream x to_encrypt, Cstruct.create 0)
-         | None -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv to_encrypt
+         | Some x -> Crypto.crypt_stream x to_encrypt
+         | None   -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret iv to_encrypt
+       in
+       let out, next_iv =
+         match ctx.stream_cipher with
+         | Some _ -> (enc, Cstruct.create 0)
+         | None   -> match default_config.protocol_version with
+                     | TLS_1_0 -> (enc, Crypto.last_block ctx.cipher enc)
+                     | TLS_1_1 -> (iv <> enc, Cstruct.create 0)
        in
        (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
                             cipher_iv = next_iv },
-        enc)
+        out)
 
-let fail_false v err =
-  match v with
-  | true ->  return ()
-  | false -> fail err
-
-let fail_neq cs1 cs2 err =
-  fail_false (Utils.cs_eq cs1 cs2) err
+let verify_mac ctx ty decrypted =
+  let macstart = (Cstruct.len decrypted) - (Ciphersuite.hash_length ctx.mac) in
+  (* check that macstart > 0! *)
+  let body, mac = Cstruct.split decrypted macstart in
+  let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty (pair_of_tls_version default_config.protocol_version) body in
+  fail_neq cmac mac Packet.BAD_RECORD_MAC >>= fun () ->
+  return body
 
 (* well-behaved pure decryptor *)
 let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t) or_error
@@ -134,16 +151,43 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
     match s with
     | `Nothing -> return (s, buf)
     | `Crypted ctx ->
-       let dec, next_iv =
-         match ctx.stream_cipher with
-         | Some x -> (Crypto.crypt_stream x buf, Cstruct.create 0)
-         | None   -> Crypto.decrypt_block ctx.cipher ctx.cipher_secret ctx.cipher_iv buf
+       ( match ctx.stream_cipher with
+         | Some x ->
+            let dec = Crypto.crypt_stream x buf in
+            verify_mac ctx ty dec >>= fun (body) ->
+            return body
+         | None   ->
+            let iv, data = match default_config.protocol_version with
+              | TLS_1_0 -> (ctx.cipher_iv, buf)
+              | TLS_1_1 ->
+                 let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
+                 (* check for length! *)
+                 Cstruct.split buf bs
+            in
+            ( match Crypto.decrypt_block ctx.cipher ctx.cipher_secret iv data with
+              | None                ->
+                 (* This comment is borrowed from miTLS, but applies here as well: *)
+                 (* We implement standard mitigation for padding oracles.
+                    Still, we note a small timing leak here:
+                    The time to verify the mac is linear in the plaintext length. *)
+                 (* defense against
+                     http://lasecwww.epfl.ch/memo/memo_ssl.shtml
+                     1) in https://www.openssl.org/~bodo/tls-cbc.txt *)
+                 (* hmac is computed in this failure branch from the encrypted data,
+                    in the successful branch it is decrypted - padding (which is smaller equal than encrypted data) *)
+                 verify_mac ctx ty data >>= fun (_body) ->
+                 fail Packet.BAD_RECORD_MAC
+              | Some dec ->
+                 verify_mac ctx ty dec >>= fun (body) ->
+                 return body )
+            ) >>= fun (body) ->
+       let next_iv = match ctx.stream_cipher with
+         | Some _ -> Cstruct.create 0
+         | None   -> match default_config.protocol_version with
+                     | TLS_1_0 -> Crypto.last_block ctx.cipher buf
+                     | TLS_1_1 -> Cstruct.create 0
        in
-       let macstart = (Cstruct.len dec) - (Ciphersuite.hash_length ctx.mac) in
-       let body, mac = Cstruct.split dec macstart in
-       let cmac = Crypto.signature ctx.mac ctx.mac_secret ctx.sequence ty default_config.protocol_version body in
-       fail_neq cmac mac Packet.DECRYPTION_FAILED >>= fun () ->
-       return (`Crypted { ctx with sequence = Int64.succ ctx.sequence ;
+       return (`Crypted { ctx with sequence  = Int64.succ ctx.sequence ;
                                    cipher_iv = next_iv },
                body)
 
@@ -176,7 +220,10 @@ let divide_keyblock key mac iv buf =
   let s_mac, rt1 = Cstruct.split rt0 mac in
   let c_key, rt2 = Cstruct.split rt1 key in
   let s_key, rt3 = Cstruct.split rt2 key in
-  let c_iv , s_iv = Cstruct.split rt3 iv  in
+  let c_iv , s_iv = match default_config.protocol_version with
+    | TLS_1_0 -> Cstruct.split rt3 iv
+    | TLS_1_1 -> Cstruct.(create 0, create 0)
+  in
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
 let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context * crypto_context * security_parameters)
@@ -184,7 +231,10 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      let mastersecret = Crypto.generate_master_secret premastersecret (sp.client_random <> sp.server_random) in
 
      let key, iv, mac = Ciphersuite.ciphersuite_cipher_mac_length sp.ciphersuite in
-     let kblen =  2 * key + 2 * mac + 2 * iv in
+     let kblen = match default_config.protocol_version with
+       | TLS_1_0 -> 2 * key + 2 * mac + 2 * iv
+       | TLS_1_1 -> 2 * key + 2 * mac
+     in
      let rand = sp.server_random <> sp.client_random in
      let keyblock = Crypto.key_block kblen mastersecret rand in
 
@@ -235,8 +285,8 @@ let handle_raw_record handler state (hdr, buf) =
     | `Change_dec dec -> dec
     | `Pass           -> dec_st
   in
-  return ({ machina ; encryptor ; decryptor ; fragment = state.fragment },
-          encs)
+  let fragment = state.fragment in
+  return ({ machina ; encryptor ; decryptor ; fragment }, encs)
 
 let alert typ =
   let buf = Writer.assemble_alert typ in
@@ -287,7 +337,7 @@ let rec check_reneg expected = function
 let handle_alert buf =
   match Reader.parse_alert buf with
   | Reader.Or_error.Ok al ->
-     Printf.printf "ALERT: %s" (Printer.alert_to_string al);
+     Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string al);
      fail Packet.CLOSE_NOTIFY
   | Reader.Or_error.Error _ ->
      Printf.printf "unknown alert";

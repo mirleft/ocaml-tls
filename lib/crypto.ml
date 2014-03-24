@@ -116,12 +116,14 @@ let padPKCS1_and_encryptRSA len pubkey data =
   encryptRSA pubkey pad
 
 let decryptRSA key msg =
+  (* might fail if len msg > keysize! *)
   let input = Cstruct.copy msg 0 (Cstruct.len msg) in
   let res = Cryptokit.RSA.decrypt key input in
   Cstruct.of_string res
 
 let decryptRSA_unpadPKCS key msg =
   let dec = decryptRSA key msg in
+  (* we're branching -- do same computation in both branches! *)
   if (Cstruct.get_uint8 dec 0 = 0) && (Cstruct.get_uint8 dec 1 = 2) then
     let rec not0 idx =
       match Cstruct.get_uint8 dec idx with
@@ -192,6 +194,12 @@ let crypt_stream : Cryptokit.Stream.stream_cipher -> Cstruct.t -> Cstruct.t
       cipher#transform dec 0 encrypted 0 len;
       Cstruct.of_string encrypted
 
+let last_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t
+  = fun cipher data ->
+  let bs = Ciphersuite.encryption_algorithm_block_size cipher in
+  let blocks = (Cstruct.len data) / bs in
+  Cstruct.sub data ((blocks - 1) * bs) bs
+
 let pad : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t
   = fun enc data ->
   let bs = Ciphersuite.encryption_algorithm_block_size enc in
@@ -208,8 +216,8 @@ let pad : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t
   pad
 
 (* in: algo, secret, iv, data
-   out: [padded]encrypted data, new_iv *)
-let encrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -> Cstruct.t -> (Cstruct.t * Cstruct.t)
+   out: [padded]encrypted data *)
+let encrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -> Cstruct.t -> Cstruct.t
   = fun cipher sec iv data ->
       let to_encrypt = data <> (pad cipher data) in
       let cip = match cipher with
@@ -227,13 +235,11 @@ let encrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -
       for i = 0 to (blocks - 1) do
         cip#transform dat (i * bs) enc (i * bs)
       done;
-      (* last ciphertext block is new iv *)
-      let res = Cstruct.of_string enc in
-      (res, Cstruct.sub res ((blocks - 1) * bs) bs)
+      Cstruct.of_string enc
 
 (* in: algo, secret, iv, data
-   out: [padded]decrypted data, new_iv *)
-let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -> Cstruct.t -> (Cstruct.t * Cstruct.t)
+   out: [padded]decrypted data *)
+let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -> Cstruct.t -> Cstruct.t option
   = fun cipher sec iv data ->
       let cip = match cipher with
         | Ciphersuite.TRIPLE_DES_EDE_CBC ->
@@ -244,14 +250,30 @@ let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -
       in
       let datalen = Cstruct.len data in
       let bs = Ciphersuite.encryption_algorithm_block_size cipher in
-      let blocks = datalen / bs in
-      let dec = String.create datalen in
-      let dat = Cstruct.copy data 0 datalen in
-      for i = 0 to (blocks - 1) do
-        cip#transform dat (i * bs) dec (i * bs)
-      done;
-      let result = Cstruct.of_string dec in
-      let padding = Cstruct.get_uint8 result (datalen - 1) in
-      let res, _ = Cstruct.split result (datalen - padding - 1) in
-      (* last ciphertext block is new iv *)
-      (res, Cstruct.sub data ((blocks - 1) * bs) bs)
+      match datalen mod bs with
+      | 0 ->
+         (* datalen > 0 *)
+         let blocks = datalen / bs in
+         let dec = String.create datalen in
+         let dat = Cstruct.copy data 0 datalen in
+         for i = 0 to (blocks - 1) do
+           cip#transform dat (i * bs) dec (i * bs)
+         done;
+         let result = Cstruct.of_string dec in
+         let padlen = Cstruct.get_uint8 result (datalen - 1) in
+         let res, padding = Cstruct.split result (datalen - padlen - 1) in
+         let correct_padding =
+           Cstruct.fold (fun acc data -> if Cstruct.get_uint8 data 0 == padlen then
+                                           acc
+                                         else
+                                           false)
+                        (Cstruct.iter (fun buf -> Some 1) (fun buf -> buf) padding) true
+         in
+         if correct_padding then
+           Some res
+         else
+           None
+      | _ ->
+         (* we leak block size information (due to faster processing here) *)
+         (* do we leak anything else? *)
+         None

@@ -1,14 +1,29 @@
 open Packet
 open Ciphersuite
-open Cstruct
 
 let o f g x = f (g x)
 
 let (<>) = Utils.cs_append
 
+type tls_version =
+  | TLS_1_0
+  | TLS_1_1
+  | TLS_1_2
+
+let pair_of_tls_version = function
+  | TLS_1_0 -> (3, 1)
+  | TLS_1_1 -> (3, 2)
+  | TLS_1_2 -> (3, 3)
+
+let tls_version_of_pair = function
+  | (3, 1) -> Some TLS_1_0
+  | (3, 2) -> Some TLS_1_1
+  | (3, 3) -> Some TLS_1_2
+  | _      -> None
+
 type tls_hdr = {
   content_type : content_type;
-  version      : int * int;
+  version      : tls_version;
 }
 
 type extension =
@@ -20,7 +35,7 @@ type extension =
   | Unhandled of (extension_type * Cstruct.t)
 
 type 'a hello = {
-  version      : int * int;
+  version      : tls_version;
   random       : Cstruct.t;
   sessionid    : Cstruct.t option;
   ciphersuites : 'a;
@@ -94,7 +109,3 @@ type tls_body =
   | TLS_ApplicationData
   | TLS_Alert of tls_alert
   | TLS_Handshake of tls_handshake
-
-type tls_frame = tls_hdr * tls_body
-
-(* type tls_frame = int * int * tls_body *)
