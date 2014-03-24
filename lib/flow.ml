@@ -1,9 +1,9 @@
 open Core
+open Nocrypto
 
 (* some config parameters *)
 type config = {
   ciphers          : Ciphersuite.ciphersuite list ;
-  rng              : int -> Cstruct.t ;
   protocol_version : tls_version
 }
 
@@ -12,7 +12,6 @@ let default_config = {
                                    TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
                                    TLS_RSA_WITH_RC4_128_SHA ;
                                    TLS_RSA_WITH_RC4_128_MD5]) ;
-  rng              = (fun n -> Cstruct.create n) ; (* TODO: better random *)
   protocol_version = TLS_1_1
 }
 
@@ -115,11 +114,12 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
        let to_encrypt = buf <> sign in
        let iv = match ctx.stream_cipher with
          | Some x -> Cstruct.create 0
-         | None   -> match default_config.protocol_version with
-                     | TLS_1_0 -> ctx.cipher_iv
-                     | TLS_1_1 ->
-                        let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
-                        default_config.rng bs
+         | None   ->
+            match default_config.protocol_version with
+            | TLS_1_0 -> ctx.cipher_iv
+            | TLS_1_1 ->
+                let bs = Ciphersuite.encryption_algorithm_block_size ctx.cipher in
+                Rng.generate bs
        in
        let enc =
          match ctx.stream_cipher with

@@ -32,7 +32,7 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
        let private_key = Crypto_utils.get_key default_server_config.key_file in
        (* due to bleichenbacher attach, we should use a random pms *)
        (* then we do not leak any decryption or padding errors! *)
-       let other = protocol_version_cstruct <> default_config.rng 46 in
+       let other = protocol_version_cstruct <> Rng.generate 46 in
        ( match Crypto.decryptRSA_unpadPKCS private_key kex with
          | None   -> return other
          | Some k ->
@@ -68,7 +68,7 @@ let answer_client_hello_params_int sp ch raw =
    | None   -> ()
    | Some x -> Printf.printf "was asked for hostname %s\n" x);
   let params = { sp with
-                   server_random = default_config.rng 32 ;
+                   server_random = Rng.generate 32 ;
                    client_random = ch.random } in
   (* RFC 4366: server shall reply with an empty hostname extension *)
   let host = match sp.server_name with
@@ -101,7 +101,7 @@ let answer_client_hello_params_int sp ch raw =
          let dh_params, priv = Crypto.generateDH 1024 in
          let params'' = { params' with dh_params = Some dh_params ; dh_secret = Some priv } in
          let written = Writer.assemble_dh_parameters dh_params in
-         let data = (params''.client_random <> params''.server_random) <> written in
+         let data = params''.client_random <> params''.server_random <> written in
          let signing = Hash.( MD5.digest data <> SHA1.digest data ) in
          match Crypto.padPKCS1_and_signRSA (Crypto_utils.get_key default_server_config.key_file) signing with
          | Some sign ->

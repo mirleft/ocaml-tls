@@ -5,6 +5,8 @@ open Nocrypto.Hash
 
 let (<>) = Utils.cs_append
 
+(* XXX todo :D *)
+let () = Rng.reseed (Cstruct.of_string "\001\002\003\004")
 
 let halve secret =
   let len  = Cstruct.len secret in

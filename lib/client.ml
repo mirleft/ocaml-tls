@@ -66,7 +66,7 @@ let find_premaster p =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
   | Ciphersuite.RSA ->
      let ver = protocol_version_cstruct in
-     let premaster = ver <> (default_config.rng 46) in
+     let premaster = ver <> Rng.generate 46 in
      find_server_rsa_key p.server_certificate >>= fun (pubkey) ->
      let msglen = Cryptokit.RSA.(pubkey.size / 8) in
      return (Crypto.padPKCS1_and_encryptRSA msglen pubkey premaster, premaster)
@@ -106,7 +106,7 @@ let answer_server_key_exchange p bs kex raw =
           find_server_rsa_key p.server_certificate >>= fun (pubkey) ->
           ( match Crypto.verifyRSA_and_unpadPKCS1 pubkey signature with
             | Some raw_sig ->
-               let sigdata = (p.client_random <> p.server_random) <> raw_params in
+               let sigdata = p.client_random <> p.server_random <> raw_params in
                let sig_ = Hash.( MD5.digest sigdata <> SHA1.digest sigdata ) in
                fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
                fail_neq sig_ raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
@@ -124,7 +124,7 @@ let answer_server_finished p bs fin =
 
 let default_client_hello : client_hello =
   { version      = default_config.protocol_version ;
-    random       = default_config.rng 32 ;
+    random       = Rng.generate 32 ;
     sessionid    = None ;
     ciphersuites = default_config.ciphers ;
     extensions   = [] }
