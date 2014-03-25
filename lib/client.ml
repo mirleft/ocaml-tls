@@ -67,9 +67,9 @@ let find_premaster p =
   | Ciphersuite.RSA ->
      let ver = protocol_version_cstruct in
      let premaster = ver <> Rng.generate 46 in
-     find_server_rsa_key p.server_certificate >>= fun (pubkey) ->
-     let msglen = Cryptokit.RSA.(pubkey.size / 8) in
-     return (Crypto.padPKCS1_and_encryptRSA msglen pubkey premaster, premaster)
+     find_server_rsa_key p.server_certificate
+     >>= fun pubkey ->
+     return (Crypto.padPKCS1_and_encryptRSA pubkey premaster, premaster)
 
   | Ciphersuite.DHE_RSA ->
     ( match p.dh_state with

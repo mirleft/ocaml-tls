@@ -40,17 +40,15 @@ let finished master_secret label ps =
   let seed = MD5.digest data <> SHA1.digest data in
   pseudo_random_function 12 master_secret label seed
 
-let signRSA key msg =
-  let input = Cstruct.copy msg 0 (Cstruct.len msg) in
-  let res = Cryptokit.RSA.sign key input in
-  Cstruct.of_string res
-
 let padPKCS1_and_signRSA key msg =
+
+  (* XXX XXX temp *)
+  let len = Rsa.priv_bits key / 8 in
+
   (* inspiration from RFC3447 EMSA-PKCS1-v1_5 and rsa_sign.c from OpenSSL *)
   (* also ocaml-ssh kex.ml *)
   (* msg.length must be 36 (16 MD5 + 20 SHA1)! *)
   let mlen = Cstruct.len msg in
-  let len = Cryptokit.RSA.(key.size / 8) in
   let padlen = len - mlen in
   if (padlen > 3) && (mlen = 36) then
     let out = Cstruct.create len in
@@ -61,17 +59,12 @@ let padPKCS1_and_signRSA key msg =
     done;
     Cstruct.set_uint8 out (padlen - 1) 0;
     Cstruct.blit msg 0 out padlen mlen;
-    Some (signRSA key out)
+    Some (Rsa.decrypt ~key out)
   else
     None
 
-let verifyRSA key msg =
-  let input = Cstruct.copy msg 0 (Cstruct.len msg) in
-  let res = Cryptokit.RSA.unwrap_signature key input in
-  Cstruct.of_string res
-
 let verifyRSA_and_unpadPKCS1 pubkey data =
-  let dat = verifyRSA pubkey data in
+  let dat = Rsa.encrypt ~key:pubkey data in
   if (Cstruct.get_uint8 dat 0 = 0) && (Cstruct.get_uint8 dat 1 = 1) then
     let rec ff idx =
       match Cstruct.get_uint8 dat idx with
@@ -85,14 +78,13 @@ let verifyRSA_and_unpadPKCS1 pubkey data =
   else
     None
 
-let encryptRSA key msg =
-  let input = Cstruct.copy msg 0 (Cstruct.len msg) in
-  let res = Cryptokit.RSA.encrypt key input in
-  Cstruct.of_string res
-
-let padPKCS1_and_encryptRSA len pubkey data =
+let padPKCS1_and_encryptRSA pubkey data =
   (* we're supposed to do the following:
      0x00 0x02 <random_not_zero> 0x00 data *)
+
+  (* XXX XXX this is temp. *)
+
+  let len = Rsa.pub_bits pubkey / 8 in
   let padlen = len - (Cstruct.len data) in
   let pad = Cstruct.create len in
   Cstruct.set_uint8 pad 0 0;
@@ -102,16 +94,11 @@ let padPKCS1_and_encryptRSA len pubkey data =
   done;
   Cstruct.set_uint8 pad (padlen - 1) 0;
   Cstruct.blit data 0 pad padlen (Cstruct.len data);
-  encryptRSA pubkey pad
-
-let decryptRSA key msg =
-  (* might fail if len msg > keysize! *)
-  let input = Cstruct.copy msg 0 (Cstruct.len msg) in
-  let res = Cryptokit.RSA.decrypt key input in
-  Cstruct.of_string res
+  Rsa.encrypt ~key:pubkey pad
 
 let decryptRSA_unpadPKCS key msg =
-  let dec = decryptRSA key msg in
+  (* might fail if len msg > keysize! *)
+  let dec = Rsa.decrypt ~key msg in
   (* we're branching -- do same computation in both branches! *)
   if (Cstruct.get_uint8 dec 0 = 0) && (Cstruct.get_uint8 dec 1 = 2) then
     let rec not0 idx =
@@ -126,7 +113,6 @@ let decryptRSA_unpadPKCS key msg =
 
 (* on-the-wire dh_params <-> (group, pub_message) *)
 let dh_params_pack group message =
-  (* XXX p, g sizing?? *)
   let (p, g) = DH.to_cstruct group in
   { Core.dh_p = p ; dh_g = g ; dh_Ys = message }
 

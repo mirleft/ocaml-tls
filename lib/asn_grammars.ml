@@ -629,6 +629,8 @@ end
 
 module PK = struct
 
+  open Nocrypto
+
   (* RSA *)
 
   let other_prime_infos =
@@ -639,14 +641,14 @@ module PK = struct
         (required ~label:"coefficient" big_natural))
 
   let rsa_private_key =
-    let open Cryptokit.RSA in
 
-    let f (_, (n, (e, (d, (p, (q, (dp, (dq, (qinv, _))))))))) =
-      let size = String.length n * 8 in
-      { size; n; e; d; p; q; dp; dq; qinv }
+    (* XXX ditch big_natural parser, use zarith for asn integer *)
+    let f (_, (n, (e, (d, (p, (q, (dp, (dq, (q', _))))))))) =
+      Cstruct.(Rsa.priv ~e:(of_string e) ~d:(of_string d) ~n:(of_string n)
+                        ~p:(of_string p) ~q:(of_string q)
+                        ~dp:(of_string dp) ~dq:(of_string dq) ~q':(of_string q'))
 
-    and g { size; n; e; d; p; q; dp; dq; qinv } =
-      (0, (n, (e, (d, (p, (q, (dp, (dq, (qinv, None))))))))) in
+    and g priv = assert false (* XXX export from nocrypto *) in (* v.0 *)
 
     map f g @@
     sequence @@
@@ -663,13 +665,10 @@ module PK = struct
 
 
   let rsa_public_key =
-    let open Cryptokit.RSA in
 
-    let f (n, e) =
-      let size = String.length n * 8 in
-      { size; n; e; d = ""; p = ""; q = ""; dp = ""; dq = ""; qinv = "" }
-
-    and g { n; e } = (n, e) in
+    (* XXX ditch big_natural parser, use zarith for asn integer *)
+    let f (n, e) = Rsa.pub ~n:(Cstruct.of_string n) ~e:(Cstruct.of_string e)
+    and g pub = assert false (* XXX export from nocrypto *) in
 
     map f g @@
     sequence2
@@ -686,7 +685,7 @@ module PK = struct
   (* ... *)
 
   type t =
-    | RSA    of Cryptokit.RSA.key
+    | RSA    of Rsa.pub
     | EC_pub of OID.t
 
   let rsa_pub_of_cs, rsa_pub_to_cs = project_exn rsa_public_key
