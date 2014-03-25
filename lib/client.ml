@@ -15,8 +15,7 @@ let answer_client_hello ch raw =
       master_secret         = Cstruct.create 0 ;
       client_random         = ch.random ;
       server_random         = Cstruct.create 0 ;
-      dh_params             = None ;
-      dh_secret             = None ;
+      dh_state              = `Initial ;
       server_certificate    = None ;
       client_verify_data    = Cstruct.create 0 ;
       server_verify_data    = Cstruct.create 0 ;
@@ -64,19 +63,22 @@ let find_server_rsa_key = function
 
 let find_premaster p =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
+
   | Ciphersuite.RSA ->
      let ver = protocol_version_cstruct in
      let premaster = ver <> Rng.generate 46 in
      find_server_rsa_key p.server_certificate >>= fun (pubkey) ->
      let msglen = Cryptokit.RSA.(pubkey.size / 8) in
      return (Crypto.padPKCS1_and_encryptRSA msglen pubkey premaster, premaster)
+
   | Ciphersuite.DHE_RSA ->
-     (match p.dh_params with
-      | Some par ->
-         let msg, sec = Crypto.generateDH_secret_and_msg par in
-         let shared = Crypto.computeDH par sec par.dh_Ys in
-         return (msg, shared)
-      | None -> fail Packet.HANDSHAKE_FAILURE)
+    ( match p.dh_state with
+      | `Received (group, s_secret) ->
+          let (secret, msg) = DH.gen_secret group in
+          let shared        = DH.shared group secret s_secret in
+          return (msg, shared)
+      | _ -> fail Packet.HANDSHAKE_FAILURE )
+
   | _ -> fail Packet.HANDSHAKE_FAILURE
 
 
@@ -101,19 +103,21 @@ let answer_server_hello_done p bs raw =
 let answer_server_key_exchange p bs kex raw =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
   | Ciphersuite.DHE_RSA ->
-     ( match Reader.parse_dh_parameters_and_signature kex with
-       | Reader.Or_error.Ok (dh_params, signature, raw_params) ->
-          find_server_rsa_key p.server_certificate >>= fun (pubkey) ->
+    ( match Reader.parse_dh_parameters_and_signature kex with
+      | Reader.Or_error.Ok (dh_params, signature, raw_params) ->
+          let dh_state = `Received (Crypto.dh_params_unpack dh_params) in
+          find_server_rsa_key p.server_certificate
+          >>= fun pubkey ->
           ( match Crypto.verifyRSA_and_unpadPKCS1 pubkey signature with
             | Some raw_sig ->
-               let sigdata = p.client_random <> p.server_random <> raw_params in
-               let sig_ = Hash.( MD5.digest sigdata <> SHA1.digest sigdata ) in
-               fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
-               fail_neq sig_ raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
-               return (`Handshaking ( { p with dh_params = Some dh_params }, bs @ [raw]),
-                       [], `Pass)
-            | None         -> fail Packet.HANDSHAKE_FAILURE )
+                let sigdata = p.client_random <> p.server_random <> raw_params in
+                let sig_ = Hash.( MD5.digest sigdata <> SHA1.digest sigdata ) in
+                fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
+                fail_neq sig_ raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
+                return (`Handshaking ({ p with dh_state }, bs @ [raw]), [], `Pass)
+            | None -> fail Packet.HANDSHAKE_FAILURE )
        | _ -> fail Packet.HANDSHAKE_FAILURE )
+
   | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let answer_server_finished p bs fin =

@@ -124,32 +124,14 @@ let decryptRSA_unpadPKCS key msg =
   else
     None
 
-let dh_param_to_cryptokit key =
-  Cryptokit.DH.(Core.(
-     { p = Cstruct.copy key.dh_p 0 (Cstruct.len key.dh_p) ;
-       g = Cstruct.copy key.dh_g 0 (Cstruct.len key.dh_g) ;
-       privlen = 160 }))
+(* on-the-wire dh_params <-> (group, pub_message) *)
+let dh_params_pack group message =
+  (* XXX p, g sizing?? *)
+  let (p, g) = DH.to_cstruct group in
+  { Core.dh_p = p ; dh_g = g ; dh_Ys = message }
 
-let generateDH_secret_and_msg params =
-  Cryptokit.DH.(
-    let key = dh_param_to_cryptokit params in
-    let secret = private_secret key in
-    let msg = message key secret in
-    (Cstruct.of_string msg, secret))
-
-let generateDH bits =
-  Cryptokit.DH.(
-    let ps = new_parameters bits in
-    let priv = private_secret ps in
-    let msg = message ps priv in
-    Core.(Cstruct.({ dh_p  = of_string ps.p ;
-                     dh_g  = of_string ps.g ;
-                     dh_Ys = of_string msg})), priv)
-
-let computeDH key secret other =
-  let ps = dh_param_to_cryptokit key in
-  let shared = Cryptokit.DH.shared_secret ps secret (Cstruct.copy other 0 (Cstruct.len other)) in
-  Cstruct.of_string shared
+and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
+  ( DH.group ~p:dh_p ~gg:dh_g (), dh_Ys )
 
 let hmac = function
   | Ciphersuite.MD5 -> MD5.hmac
