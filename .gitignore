@@ -1,10 +1,10 @@
 _build/
-mirage/_build/
 setup.data
 setup.log
 Makefile
 log
+
 main.ml
 main.native
-mir-mirage-tls
-mirage-tls.xl
+mir-mirage-*
+mirage-*.xl
