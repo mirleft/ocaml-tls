@@ -159,8 +159,7 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
        ( match ctx.stream_cipher with
          | Some x ->
             let dec = Crypto.crypt_stream x buf in
-            verify_mac ctx ty dec >>= fun (body) ->
-            return body
+            verify_mac ctx ty dec
          | None   ->
             let iv, data = match default_config.protocol_version with
               | TLS_1_0 -> (ctx.cipher_iv, buf)
@@ -180,12 +179,13 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
                      1) in https://www.openssl.org/~bodo/tls-cbc.txt *)
                  (* hmac is computed in this failure branch from the encrypted data,
                     in the successful branch it is decrypted - padding (which is smaller equal than encrypted data) *)
-                 verify_mac ctx ty data >>= fun (_body) ->
-                 fail Packet.BAD_RECORD_MAC
+                 verify_mac ctx ty data
+                 >>= fun _ -> fail Packet.BAD_RECORD_MAC
               | Some dec ->
-                 verify_mac ctx ty dec >>= fun (body) ->
-                 return body )
-            ) >>= fun (body) ->
+                 verify_mac ctx ty dec )
+            )
+
+       >>= fun body ->
        let next_iv = match ctx.stream_cipher with
          | Some _ -> Cstruct.create 0
          | None   -> match default_config.protocol_version with
