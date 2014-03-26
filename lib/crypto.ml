@@ -3,6 +3,9 @@ open Nocrypto
 open Nocrypto.Common
 open Nocrypto.Hash
 
+open Ciphersuite
+
+
 let (<>) = Utils.cs_append
 
 (* XXX todo :D *)
@@ -120,19 +123,22 @@ and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
   ( DH.group ~p:dh_p ~gg:dh_g (), dh_Ys )
 
 let hmac = function
-  | Ciphersuite.MD5 -> MD5.hmac
-  | Ciphersuite.SHA -> SHA1.hmac
+  | MD5 -> MD5.hmac
+  | SHA -> SHA1.hmac
 
-let signature : Ciphersuite.hash_algorithm -> Cstruct.t -> int64 -> Packet.content_type -> (int * int) -> Cstruct.t -> Cstruct.t
-  = fun mac secret n ty (major, minor) data ->
-      let prefix = Cstruct.create 13 in
-      let len = Cstruct.len data in
-      Cstruct.BE.set_uint64 prefix 0 n;
-      Cstruct.set_uint8 prefix 8 (Packet.content_type_to_int ty);
-      Cstruct.set_uint8 prefix 9 major;
-      Cstruct.set_uint8 prefix 10 minor;
-      Cstruct.BE.set_uint16 prefix 11 len;
-      hmac mac ~key:secret (prefix <> data)
+let signature mac secret n ty (major, minor) data =
+  let open Cstruct in
+
+  let prefix = create 13
+  and len = len data in
+
+  BE.set_uint64 prefix 0 n;
+  set_uint8 prefix 8 (Packet.content_type_to_int ty);
+  set_uint8 prefix 9 major;
+  set_uint8 prefix 10 minor;
+  BE.set_uint16 prefix 11 len;
+
+  hmac mac ~key:secret (prefix <> data)
 
 let prepare_arcfour : Cstruct.t -> Cryptokit.Stream.stream_cipher =
   fun key ->
@@ -147,15 +153,13 @@ let crypt_stream : Cryptokit.Stream.stream_cipher -> Cstruct.t -> Cstruct.t
       cipher#transform dec 0 encrypted 0 len;
       Cstruct.of_string encrypted
 
-let last_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t
-  = fun cipher data ->
-  let bs = Ciphersuite.encryption_algorithm_block_size cipher in
+let last_block (cipher : encryption_algorithm) data =
+  let bs = encryption_algorithm_block_size cipher in
   let blocks = (Cstruct.len data) / bs in
   Cstruct.sub data ((blocks - 1) * bs) bs
 
-let pad : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t
-  = fun enc data ->
-  let bs = Ciphersuite.encryption_algorithm_block_size enc in
+let pad (enc : encryption_algorithm) data =
+  let bs = encryption_algorithm_block_size enc in
   (* 1 is the padding length, encoded as 8 bit at the end of the fragment *)
   let len = 1 + Cstruct.len data in
   (* we might want to add additional blocks of padding *)
@@ -168,65 +172,40 @@ let pad : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t
   done;
   pad
 
-(* in: algo, secret, iv, data
-   out: [padded]encrypted data *)
-let encrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -> Cstruct.t -> Cstruct.t
-  = fun cipher sec iv data ->
-      let to_encrypt = data <> (pad cipher data) in
-      let cip = match cipher with
-        | Ciphersuite.TRIPLE_DES_EDE_CBC ->
-           let key = Cstruct.copy sec 0 (Cstruct.len sec) in
-           let siv = Cstruct.copy iv 0 (Cstruct.len iv) in
-           let cip = new Cryptokit.Block.triple_des_encrypt key in
-           new Cryptokit.Block.cbc_encrypt ~iv:siv cip
-      in
-      let datalen = Cstruct.len to_encrypt in
-      let bs = Ciphersuite.encryption_algorithm_block_size cipher in
-      let blocks = datalen / bs in
-      let enc = String.create (Cstruct.len to_encrypt) in
-      let dat = Cstruct.copy to_encrypt 0 datalen in
-      for i = 0 to (blocks - 1) do
-        cip#transform dat (i * bs) enc (i * bs)
-      done;
-      Cstruct.of_string enc
+let unpad (enc : encryption_algorithm) data =
+  let open Cstruct in
+
+  let bs  = encryption_algorithm_block_size enc
+  and len = len data in
+  let padlen = get_uint8 data (len - 1) in
+  let (res, pad) = split data (len - padlen - 1) in
+
+  let rec check = function
+    | i when i = padlen -> Some res
+    | i -> if get_uint8 pad i = padlen then check (succ i) else None
+  in check 0
 
 (* in: algo, secret, iv, data
-   out: [padded]decrypted data *)
-let decrypt_block : Ciphersuite.encryption_algorithm -> Cstruct.t -> Cstruct.t -> Cstruct.t -> Cstruct.t option
-  = fun cipher sec iv data ->
-      let cip = match cipher with
-        | Ciphersuite.TRIPLE_DES_EDE_CBC ->
-           let key = Cstruct.copy sec 0 (Cstruct.len sec) in
-           let siv = Cstruct.copy iv 0 (Cstruct.len iv) in
-           let cip = new Cryptokit.Block.triple_des_decrypt key in
-           new Cryptokit.Block.cbc_decrypt ~iv:siv cip
-      in
-      let datalen = Cstruct.len data in
-      let bs = Ciphersuite.encryption_algorithm_block_size cipher in
-      match datalen mod bs with
-      | 0 ->
-         (* datalen > 0 *)
-         let blocks = datalen / bs in
-         let dec = String.create datalen in
-         let dat = Cstruct.copy data 0 datalen in
-         for i = 0 to (blocks - 1) do
-           cip#transform dat (i * bs) dec (i * bs)
-         done;
-         let result = Cstruct.of_string dec in
-         let padlen = Cstruct.get_uint8 result (datalen - 1) in
-         let res, padding = Cstruct.split result (datalen - padlen - 1) in
-         let correct_padding =
-           Cstruct.fold (fun acc data -> if Cstruct.get_uint8 data 0 == padlen then
-                                           acc
-                                         else
-                                           false)
-                        (Cstruct.iter (fun buf -> Some 1) (fun buf -> buf) padding) true
-         in
-         if correct_padding then
-           Some res
-         else
-           None
-      | _ ->
-         (* we leak block size information (due to faster processing here) *)
-         (* do we leak anything else? *)
-         None
+   out: [padded]encrypted data *)
+let encrypt_block (cipher : encryption_algorithm) sec iv data =
+  let padded = data <> pad cipher data in
+  match cipher with
+  | TRIPLE_DES_EDE_CBC ->
+      Block.DES.CBC.((encrypt ~key:(of_secret sec) ~iv padded).message)
+
+(* in: algo, secret, iv, data
+   out: [unpadded]decrypted data *)
+let decrypt_block (cipher : encryption_algorithm) sec iv data =
+  let len = Cstruct.len data in
+  try
+    let dec = match cipher with
+      | TRIPLE_DES_EDE_CBC ->
+          Block.DES.CBC.((decrypt ~key:(of_secret sec) ~iv data).message)
+    in
+    unpad cipher dec
+  with
+  (* we leak block size information (due to faster processing here)
+     do we leak anything else? *)
+  | Invalid_argument _ -> None
+  (* XXX Catches both data mis-alignment and empty.
+   * Get a more specific exn from Nocrypto. *)
