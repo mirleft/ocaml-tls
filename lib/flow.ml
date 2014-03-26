@@ -35,7 +35,7 @@ let fail_neq cs1 cs2 err =
 
 type crypto_context = {
   sequence      : int64 ;
-  stream_cipher : Cryptokit.Stream.stream_cipher option ; (* XXX *)
+  stream_cipher : Stream.ARC4.key option ; (* XXX temporary quickfix *)
   cipher        : Ciphersuite.encryption_algorithm ;
   cipher_secret : Cstruct.t ;
   cipher_iv     : Cstruct.t ;
@@ -128,7 +128,10 @@ let encrypt : crypto_state -> Packet.content_type -> Cstruct.t -> crypto_state *
        in
        let enc =
          match ctx.stream_cipher with
-         | Some x -> Crypto.crypt_stream x to_encrypt
+         | Some x ->
+             let { Stream.ARC4.message ; key } =
+               Crypto.encrypt_stream x to_encrypt in
+             message (* XXX key is the new state *)
          | None   -> Crypto.encrypt_block ctx.cipher ctx.cipher_secret iv to_encrypt
        in
        let out, next_iv =
@@ -158,7 +161,10 @@ let decrypt : crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state 
     | `Crypted ctx ->
        ( match ctx.stream_cipher with
          | Some x ->
-            let dec = Crypto.crypt_stream x buf in
+            let dec =
+              let { Stream.ARC4.message ; key } =
+                Crypto.decrypt_stream x buf in
+              message in (* XXX key... *)
             verify_mac ctx ty dec
          | None   ->
             let iv, data = match default_config.protocol_version with
@@ -253,9 +259,7 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
      let c_stream_cipher, s_stream_cipher =
        match cipher with
        | Ciphersuite.RC4_128 ->
-          let ccipher = Crypto.prepare_arcfour c_key in
-          let scipher = Crypto.prepare_arcfour s_key in
-          (Some ccipher, Some scipher)
+           Stream.ARC4.( Some (of_secret c_key), Some (of_secret s_key) )
        | _ -> (None, None)
      in
 
@@ -264,13 +268,15 @@ let initialise_crypto_ctx : security_parameters -> Cstruct.t -> (crypto_context 
          cipher_secret = c_key ;
          cipher_iv     = c_iv ;
          mac_secret    = c_mac ;
-         cipher ; mac ; sequence } in
-     let s_context =
+         cipher ; mac ; sequence }
+
+     and s_context =
        { stream_cipher = s_stream_cipher ;
          cipher_secret = s_key ;
          cipher_iv     = s_iv ;
          mac_secret    = s_mac ;
          cipher ; mac ; sequence } in
+
      (c_context, s_context, { sp with master_secret = mastersecret })
 
 let handle_raw_record handler state (hdr, buf) =

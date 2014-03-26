@@ -140,18 +140,10 @@ let signature mac secret n ty (major, minor) data =
 
   hmac mac ~key:secret (prefix <> data)
 
-let prepare_arcfour : Cstruct.t -> Cryptokit.Stream.stream_cipher =
-  fun key ->
-    new Cryptokit.Stream.arcfour (Cstruct.copy key 0 (Cstruct.len key))
 
-(* encryption and decryption is the same, thus "crypt" *)
-let crypt_stream : Cryptokit.Stream.stream_cipher -> Cstruct.t -> Cstruct.t
-  = fun cipher decrypted ->
-      let len = Cstruct.len decrypted in
-      let encrypted = String.create len in
-      let dec = Cstruct.copy decrypted 0 len in
-      cipher#transform dec 0 encrypted 0 len;
-      Cstruct.of_string encrypted
+(* ARC4 _pretends_ to have disjoint operations. Revisit. *)
+let encrypt_stream key = Stream.ARC4.encrypt ~key
+and decrypt_stream key = Stream.ARC4.decrypt ~key
 
 let last_block (cipher : encryption_algorithm) data =
   let bs = encryption_algorithm_block_size cipher in
