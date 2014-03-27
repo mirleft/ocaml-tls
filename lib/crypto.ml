@@ -12,9 +12,9 @@ let (<>) = Utils.cs_append
 let () = Rng.reseed (Cstruct.of_string "\001\002\003\004")
 
 let halve secret =
-  let len  = Cstruct.len secret in
-  let half = len - len / 2 in
-  (Cstruct.sub secret 0 half, Cstruct.sub secret (len - half) half)
+  let size = Cstruct.len secret in
+  let half = size - size / 2 in
+  Cstruct.(sub secret 0 half, sub secret (size - half) half)
 
 let rec p_hash (hmac, hmac_n) key seed len =
   let rec expand a to_go =
@@ -122,82 +122,146 @@ let dh_params_pack group message =
 and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
   ( DH.group ~p:dh_p ~gg:dh_g (), dh_Ys )
 
-let hmac = function
-  | MD5 -> MD5.hmac
-  | SHA -> SHA1.hmac
 
-let signature mac secret n ty (major, minor) data =
+(* XXX *)
+
+(* Stupid boiler before properly exposing proper module types from nocrypto. *)
+
+module type Stream_T = sig
+  type key
+  type result = { message : Cstruct.t ; key : key }
+  val of_secret : Cstruct.t -> key
+  val encrypt : key:key -> Cstruct.t -> result
+  val decrypt : key:key -> Cstruct.t -> result
+end
+
+module type CBC_T = sig
+  type key
+  type result = { message : Cstruct.t ; iv : Cstruct.t }
+  val block_size : int
+  val of_secret : Cstruct.t -> key
+  val encrypt : key:key -> iv:Cstruct.t -> Cstruct.t -> result
+  val decrypt : key:key -> iv:Cstruct.t -> Cstruct.t -> result
+end
+
+module type Hash_T = sig
+  val digest  : Cstruct.t -> Cstruct.t
+  val digestv : Cstruct.t list -> Cstruct.t
+  val hmac    : key:Cstruct.t -> Cstruct.t -> Cstruct.t
+  val digest_size : int
+end
+
+(* /XXX *)
+
+type 'k stream_cipher = (module Stream_T with type key = 'k)
+type 'k cbc_cipher    = (module CBC_T    with type key = 'k)
+type hash_fn          = (module Hash_T)
+
+module Ciphers = struct
+
+  (* XXX partial *)
+  let get_hash = function
+    | MD5 -> (module Hash.MD5  : Hash_T)
+    | SHA -> (module Hash.SHA1 : Hash_T)
+
+  type keyed =
+    | K_Stream : 'k stream_cipher * 'k -> keyed
+    | K_CBC    : 'k cbc_cipher    * 'k -> keyed
+
+  (* XXX partial *)
+  let get_cipher ~secret = function
+
+    | RC4_128 ->
+        let open Stream in
+        K_Stream ( (module ARC4 : Stream_T with type key = ARC4.key),
+                   ARC4.of_secret secret )
+
+    | TRIPLE_DES_EDE_CBC ->
+        let open Block.DES in
+        K_CBC ( (module CBC : CBC_T with type key = CBC.key),
+                CBC.of_secret secret )
+end
+
+let signature (hash, secret) seq ty (v_major, v_minor) data =
   let open Cstruct in
 
   let prefix = create 13
   and len = len data in
 
-  BE.set_uint64 prefix 0 n;
+  BE.set_uint64 prefix 0 seq;
   set_uint8 prefix 8 (Packet.content_type_to_int ty);
-  set_uint8 prefix 9 major;
-  set_uint8 prefix 10 minor;
+  set_uint8 prefix 9 v_major;
+  set_uint8 prefix 10 v_minor;
   BE.set_uint16 prefix 11 len;
 
-  hmac mac ~key:secret (prefix <> data)
+  let module H = (val hash : Hash_T) in
+  H.hmac ~key:secret (prefix <> data)
 
 
-(* ARC4 _pretends_ to have disjoint operations. Revisit. *)
-let encrypt_stream key = Stream.ARC4.encrypt ~key
-and decrypt_stream key = Stream.ARC4.decrypt ~key
+let cbc_block (type a) cipher =
+  let module C = (val cipher : CBC_T with type key = a) in C.block_size
 
-let last_block (cipher : encryption_algorithm) data =
-  let bs = encryption_algorithm_block_size cipher in
-  let blocks = (Cstruct.len data) / bs in
-  Cstruct.sub data ((blocks - 1) * bs) bs
+let digest_size h =
+  let module H = (val h : Hash_T) in H.digest_size
 
-let pad (enc : encryption_algorithm) data =
-  let bs = encryption_algorithm_block_size enc in
+
+let encrypt_stream (type a) ~cipher ~key data =
+  let module C = (val cipher : Stream_T with type key = a) in
+  let { C.message ; key } = C.encrypt ~key data in
+  (message, key)
+
+let decrypt_stream (type a) ~cipher ~key data =
+  let module C = (val cipher : Stream_T with type key = a) in
+  let { C.message ; key } = C.decrypt ~key data in
+  (message, key)
+
+
+let cbc_pad ~block data =
+  let open Cstruct in
+
   (* 1 is the padding length, encoded as 8 bit at the end of the fragment *)
-  let len = 1 + Cstruct.len data in
+  let len = 1 + len data in
   (* we might want to add additional blocks of padding *)
-  let padding_length = bs - (len mod bs) in
+  let padding_length = block - (len mod block) in
   (* 1 is again padding length field *)
   let cstruct_len = padding_length + 1 in
-  let pad = Cstruct.create cstruct_len in
+  let pad = create cstruct_len in
   for i = 0 to (cstruct_len - 1) do
-    Cstruct.set_uint8 pad i padding_length
+    set_uint8 pad i padding_length
   done;
   pad
 
-let unpad (enc : encryption_algorithm) data =
+let cbc_unpad ~block data =
   let open Cstruct in
 
-  let bs  = encryption_algorithm_block_size enc
-  and len = len data in
+  let len = len data in
   let padlen = get_uint8 data (len - 1) in
   let (res, pad) = split data (len - padlen - 1) in
 
   let rec check = function
-    | i when i = padlen -> Some res
-    | i -> if get_uint8 pad i = padlen then check (succ i) else None
-  in check 0
-
-(* in: algo, secret, iv, data
-   out: [padded]encrypted data *)
-let encrypt_block (cipher : encryption_algorithm) sec iv data =
-  let padded = data <> pad cipher data in
-  match cipher with
-  | TRIPLE_DES_EDE_CBC ->
-      Block.DES.CBC.((encrypt ~key:(of_secret sec) ~iv padded).message)
-
-(* in: algo, secret, iv, data
-   out: [unpadded]decrypted data *)
-let decrypt_block (cipher : encryption_algorithm) sec iv data =
-  let len = Cstruct.len data in
+    | i when i > padlen -> true
+    | i -> (get_uint8 pad i = padlen) && check (succ i) in
+  
   try
-    let dec = match cipher with
-      | TRIPLE_DES_EDE_CBC ->
-          Block.DES.CBC.((decrypt ~key:(of_secret sec) ~iv data).message)
-    in
-    unpad cipher dec
+    if check 0 then Some res else None
+  with Invalid_argument _ -> None
+
+
+let encrypt_cbc (type a) ~cipher ~key ~iv data =
+  let module C = (val cipher : CBC_T with type key = a) in
+  let { C.message ; iv } =
+    C.encrypt ~key ~iv (data <> cbc_pad C.block_size data) in
+  (message, iv)
+
+let decrypt_cbc (type a) ~cipher ~key ~iv data =
+  let module C = (val cipher : CBC_T with type key = a) in
+  try
+    let { C.message ; iv } = C.decrypt ~key ~iv data in
+    match cbc_unpad C.block_size message with
+    | Some res -> Some (res, iv)
+    | None     -> None
   with
-  (* we leak block size information (due to faster processing here)
-     do we leak anything else? *)
+  (* XXX Catches data mis-alignment. Get a more specific exn from nocrypto. *)
+  (* We _don't_ leak block size now because we catch misalignment only while
+   * decrypting the last block. *)
   | Invalid_argument _ -> None
-  (* XXX Catches both data mis-alignment and empty.
-   * Get a more specific exn from Nocrypto. *)
