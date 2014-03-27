@@ -62,3 +62,8 @@ let const a _ = a
 let id a = a
 
 let o f g x = f (g x)
+
+let hexdump_to_str cs =
+  let b = Buffer.create 16 in
+  Cstruct.hexdump_to_buffer b ;
+  Buffer.contents b

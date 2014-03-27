@@ -42,11 +42,7 @@ let subject cert =
 
 let common_name_to_string cert =
   match subject cert with
-  | None   ->
-     let sigl = Cstruct.len cert.signature_val in
-     let sign = Cstruct.copy cert.signature_val 0 sigl in
-     let hex = Cryptokit.(transform_string (Hexa.encode ()) sign) in
-     "NO commonName " ^ hex
+  | None   -> "NO commonName:" ^ Utils.hexdump_to_str cert.signature_val
   | Some x -> x
 
 let hostname_matches cert name =
