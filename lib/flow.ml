@@ -342,6 +342,16 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
   | Ok v    -> `Ok v
   | Error x -> `Fail (assemble_records [alert x])
 
+let application_data st css =
+  let ty = Packet.APPLICATION_DATA in
+  let data = assemble_records @@ List.map (fun cs -> (ty, cs)) css in
+  let encryptor, enc = encrypt st.encryptor ty data in
+  ({ st with encryptor }, enc)
+
+let state_established = function
+  | { machina = `Established _ } -> true
+  | _                            -> false
+
 let find_hostname : 'a hello -> string option =
   fun h ->
     let hexts = List.filter (function
