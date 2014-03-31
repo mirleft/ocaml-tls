@@ -20,4 +20,4 @@ Library tls
    Flow, Server, Client
   InternalModules: Registry, Asn_grammars, Control
   Pack: true
-  BuildDepends: cstruct, cstruct.syntax, nocrypto, asn1-combinators, cryptokit
+  BuildDepends: cstruct, cstruct.syntax, nocrypto, asn1-combinators
