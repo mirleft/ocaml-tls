@@ -9,9 +9,9 @@ type config = {
 
 let default_config = {
   ciphers          = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                   TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                   TLS_RSA_WITH_3DES_EDE_CBC_SHA (* ;
                                    TLS_RSA_WITH_RC4_128_SHA ;
-                                   TLS_RSA_WITH_RC4_128_MD5]) ;
+                                   TLS_RSA_WITH_RC4_128_MD5 *) ]) ;
   protocol_version = TLS_1_1
 }
 
