@@ -7,6 +7,7 @@ end
 module Monad (M : Monad) : sig
   val return : 'a -> 'a M.t
   val (>>=)  : 'a M.t -> ('a -> 'b M.t) -> 'b M.t
+  val (>|=)  : ('a -> 'b) -> 'a M.t -> 'b M.t
   val map    : ('a -> 'b) -> 'a M.t -> 'b M.t
   val sequence  : 'a M.t list -> 'a list M.t
   val sequence_ : 'a M.t list -> unit M.t
@@ -20,6 +21,7 @@ struct
   let return = M.return
   let (>>=)  = M.bind
   let map f a = a >>= fun x -> return (f x)
+  let (>|=) = map
   let rec sequence = function
     | []    -> return []
     | m::ms -> m >>= fun m' -> sequence ms >>= fun ms' -> return (m'::ms')
