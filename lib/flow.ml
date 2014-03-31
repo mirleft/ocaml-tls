@@ -292,6 +292,7 @@ let initialize_crypto_ctx sp premaster =
 
 
 let handle_raw_record handler state (hdr, buf) =
+  (* check hdr.version in here! *)
   decrypt state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
   handler state.machina hdr.content_type dec >>= fun (machina, items, dec_cmd) ->
   let (encryptor, encs) =

@@ -53,7 +53,7 @@ let rec parse_certificate_types buf acc = function
      check_length 1 buf >>= fun () ->
      let typ = Cstruct.get_uint8 buf 0 in
      match int_to_client_certificate_type typ with
-     | Some x -> parse_certificate_types (Cstruct.shift buf 1) (x :: acc) (n - 1)
+     | Some x -> parse_certificate_types (Cstruct.shift buf 1) (x :: acc) (pred n)
      | None -> fail (Unknown ("certificate type: " ^ string_of_int typ))
 
 let rec parse_cas buf acc =
@@ -92,7 +92,7 @@ let parse_compression_methods buf =
     | 0 -> return acc
     | n ->
        parse_compression_method buf >>= fun (cm, b) ->
-       go (Cstruct.shift buf b) (cm :: acc) (n - 1)
+       go (Cstruct.shift buf b) (cm :: acc) (pred n)
   in
   check_length 1 buf >>= fun () ->
   let len = Cstruct.get_uint8 buf 0 in
@@ -112,7 +112,7 @@ let parse_ciphersuites buf =
     | 0 -> return acc
     | n ->
        parse_ciphersuite buf >>= fun (suite, l) ->
-       go (Cstruct.shift buf l) (suite :: acc) (n - 1)
+       go (Cstruct.shift buf l) (suite :: acc) (pred n)
   in
   check_length 2 buf >>= fun () ->
   let len = Cstruct.BE.get_uint16 buf 0 in

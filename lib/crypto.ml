@@ -60,7 +60,7 @@ let padPKCS1_and_signRSA key msg =
     for i = 2 to (padlen - 2) do
       Cstruct.set_uint8 out i 0xff;
     done;
-    Cstruct.set_uint8 out (padlen - 1) 0;
+    Cstruct.set_uint8 out (pred padlen) 0;
     Cstruct.blit msg 0 out padlen mlen;
     Some (Rsa.decrypt ~key out)
   else
@@ -95,7 +95,7 @@ let padPKCS1_and_encryptRSA pubkey data =
   for i = 2 to padlen - 2 do
     Cstruct.set_uint8 pad i 0xAA; (* TODO: might use better random *)
   done;
-  Cstruct.set_uint8 pad (padlen - 1) 0;
+  Cstruct.set_uint8 pad (pred padlen) 0;
   Cstruct.blit data 0 pad padlen (Cstruct.len data);
   Rsa.encrypt ~key:pubkey pad
 
@@ -226,7 +226,7 @@ let cbc_pad ~block data =
   (* 1 is again padding length field *)
   let cstruct_len = padding_length + 1 in
   let pad = create cstruct_len in
-  for i = 0 to (cstruct_len - 1) do
+  for i = 0 to pred cstruct_len do
     set_uint8 pad i padding_length
   done;
   pad
@@ -235,13 +235,13 @@ let cbc_unpad ~block data =
   let open Cstruct in
 
   let len = len data in
-  let padlen = get_uint8 data (len - 1) in
+  let padlen = get_uint8 data (pred len) in
   let (res, pad) = split data (len - padlen - 1) in
 
   let rec check = function
     | i when i > padlen -> true
     | i -> (get_uint8 pad i = padlen) && check (succ i) in
-  
+
   try
     if check 0 then Some res else None
   with Invalid_argument _ -> None
