@@ -9,17 +9,18 @@
  * This kinda travesty will go away. After we reach correctness. Not before.
  *)
 
-let cs_appends csn =
-  let cs =
-    Cstruct.create @@
-      List.fold_left (fun x cs -> x + Cstruct.len cs) 0 csn in
-  let _ =
-    List.fold_left
-      (fun off e ->
-        let len = Cstruct.len e in
-        ( Cstruct.blit e 0 cs off len ; off + len ))
-      0 csn in
-  cs
+let cs_appends = function
+  | []   -> Cstruct.create 0
+  | [cs] -> cs
+  | csn  ->
+      let cs = Cstruct.(create @@ lenv csn) in
+      let _ =
+        List.fold_left
+          (fun off e ->
+            let len = Cstruct.len e in
+            ( Cstruct.blit e 0 cs off len ; off + len ))
+          0 csn in
+      cs
 
 let cs_append cs1 cs2 = cs_appends [ cs1; cs2 ]
 
@@ -61,3 +62,8 @@ let const a _ = a
 let id a = a
 
 let o f g x = f (g x)
+
+let hexdump_to_str cs =
+  let b = Buffer.create 16 in
+  Cstruct.hexdump_to_buffer b ;
+  Buffer.contents b

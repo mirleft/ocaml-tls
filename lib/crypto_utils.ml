@@ -1,4 +1,6 @@
 
+open Nocrypto
+
 let read_lines filename =
   let chan = open_in filename in
   let rec read () =
@@ -12,9 +14,7 @@ let read_pem_file filename =
   String.concat "" (List.filter (fun line -> line.[0] <> '-') lines)
 
 let pem_to_cstruct pem =
-  let str =
-    Cryptokit.(transform_string (Base64.decode ()) pem) in
-  Cstruct.of_string str
+  Base64.decode @@ Cstruct.of_string pem
 
 let pem_to_cert pem =
   let cs = pem_to_cstruct pem in
@@ -50,11 +50,10 @@ let cert_of_file : string -> (Asn_grammars.certificate * Cstruct.t) =
     (pem_to_cert pem, pem_to_cstruct pem)
 
 let get_key filename =
-  let pem = read_pem_file filename in
-  let str = Cryptokit.(transform_string (Base64.decode ()) pem)
-  in
+  let enc = read_pem_file filename in
+  let dec = Base64.decode (Cstruct.of_string enc) in
   match
-    Asn_grammars.PK.rsa_private_of_cstruct (Cstruct.of_string str)
+    Asn_grammars.PK.rsa_private_of_cstruct dec
   with
   | None    -> assert false
   | Some pk -> pk

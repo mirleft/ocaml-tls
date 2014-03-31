@@ -2,6 +2,8 @@ open Core
 open Flow
 open Flow.Or_alert
 
+open Nocrypto
+
 (* server configuration *)
 type server_config = {
   key_file         : string ;
@@ -26,11 +28,12 @@ let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list)
 
 let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
   ( match Ciphersuite.ciphersuite_kex sp.ciphersuite with
+
     | Ciphersuite.RSA ->
        let private_key = Crypto_utils.get_key default_server_config.key_file in
        (* due to bleichenbacher attach, we should use a random pms *)
        (* then we do not leak any decryption or padding errors! *)
-       let other = protocol_version_cstruct <> default_config.rng 46 in
+       let other = protocol_version_cstruct <> Rng.generate 46 in
        ( match Crypto.decryptRSA_unpadPKCS private_key kex with
          | None   -> return other
          | Some k ->
@@ -41,20 +44,21 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
                  else
                    return other
               | Reader.Or_error.Error _ -> return other ) )
+
     | Ciphersuite.DHE_RSA ->
-       (* we assume explicit communication here, not a client certificate *)
-       ( match sp.dh_params with
-         | Some x -> return x
-         | None -> fail Packet.HANDSHAKE_FAILURE ) >>= fun (params) ->
-       ( match sp.dh_secret with
-         | Some x -> return x
-         | None -> fail Packet.HANDSHAKE_FAILURE ) >>= fun (sec) ->
-       return (Crypto.computeDH params sec kex)
-    | _ -> fail Packet.HANDSHAKE_FAILURE ) >>= fun (premastersecret) ->
-  let client_ctx, server_ctx, params = initialise_crypto_ctx sp premastersecret in
+      (* we assume explicit communication here, not a client certificate *)
+      ( match sp.dh_state with
+        | `Sent (group, secret) -> return @@ DH.shared group secret kex
+        | _                     -> fail Packet.HANDSHAKE_FAILURE  )
+
+    | _ -> fail Packet.HANDSHAKE_FAILURE )
+
+  >>= fun premastersecret ->
+  let client_ctx, server_ctx, params =
+    initialize_crypto_ctx sp premastersecret in
   let ps = packets @ [raw] in
   return (
-      `KeysExchanged (`Crypted server_ctx, `Crypted client_ctx, params, ps),
+      `KeysExchanged (Some server_ctx, Some client_ctx, params, ps),
       [], `Pass)
 
 let answer_client_hello_params_int sp ch raw =
@@ -66,7 +70,7 @@ let answer_client_hello_params_int sp ch raw =
    | None   -> ()
    | Some x -> Printf.printf "was asked for hostname %s\n" x);
   let params = { sp with
-                   server_random = default_config.rng 32 ;
+                   server_random = Rng.generate 32 ;
                    client_random = ch.random } in
   (* RFC 4366: server shall reply with an empty hostname extension *)
   let host = match sp.server_name with
@@ -91,25 +95,41 @@ let answer_client_hello_params_int sp ch raw =
       return (bufs @ [Writer.assemble_handshake (Certificate [cert])],
               { params with server_certificate = Some asn })
     else
-      return (bufs, params) ) >>= fun (bufs', params') ->
+      return (bufs, params) )
+
+  >>= fun (bufs', params') ->
   ( if Ciphersuite.needs_server_kex kex then
       match kex with
       | Ciphersuite.DHE_RSA ->
-         (* do not hardcode 1024 bit! *)
-         let dh_params, priv = Crypto.generateDH 1024 in
-         let params'' = { params' with dh_params = Some dh_params ; dh_secret = Some priv } in
-         let written = Writer.assemble_dh_parameters dh_params in
-         let data = (params''.client_random <> params''.server_random) <> written in
-         let md5signature = Crypto.md5 data in
-         let shasignature = Crypto.sha data in
-         let signing = md5signature <> shasignature in
-         match Crypto.padPKCS1_and_signRSA (Crypto_utils.get_key default_server_config.key_file) signing with
-         | Some sign ->
-            let kex = Writer.assemble_dh_parameters_and_signature written sign in
-            return (bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)], params'')
-         | None -> fail Packet.HANDSHAKE_FAILURE
-    else
-      return (bufs', params') ) >>= fun (bufs'', params'') ->
+
+          (* XXX
+           * Can move group selection up into default params, or pick a group of
+           * different size in this spot. *)
+          let group         = DH.Group.oakley_2 in (* rfc2409 1024-bit group *)
+          let (secret, msg) = DH.gen_secret group in
+          let dh_state      = `Sent (group, secret) in
+          let written =
+            let dh_param = Crypto.dh_params_pack group msg in
+            Writer.assemble_dh_parameters dh_param in
+          let data    = params'.client_random <> params'.server_random <> written in
+          let signing = Hash.( MD5.digest data <> SHA1.digest data ) in
+
+          match
+            Crypto.padPKCS1_and_signRSA
+                (Crypto_utils.get_key default_server_config.key_file)
+                signing
+          with
+          | Some sign ->
+              let kex =
+                Writer.assemble_dh_parameters_and_signature written sign in
+              return ( bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)]
+                     , { params' with dh_state } )
+
+          | None -> fail Packet.HANDSHAKE_FAILURE
+
+    else return (bufs', params') )
+
+  >>= fun (bufs'', params'') ->
   (* server hello done! *)
   let hello_done = Writer.assemble_handshake ServerHelloDone in
   let packets = bufs'' @ [hello_done] in
@@ -135,8 +155,7 @@ let answer_client_hello (ch : client_hello) raw =
                  master_secret         = Cstruct.create 0 ;
                  client_random         = Cstruct.create 0 ;
                  server_random         = Cstruct.create 0 ;
-                 dh_params             = None ;
-                 dh_secret             = None ;
+                 dh_state              = `Initial ;
                  server_certificate    = None ;
                  client_verify_data    = Cstruct.create 0 ;
                  server_verify_data    = Cstruct.create 0 ;

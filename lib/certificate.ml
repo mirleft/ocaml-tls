@@ -3,6 +3,8 @@ open Asn_grammars
 open Asn
 open Utils
 
+open Nocrypto
+
 type certificate_failure =
   | InvalidCertificate
   | InvalidSignature
@@ -40,11 +42,7 @@ let subject cert =
 
 let common_name_to_string cert =
   match subject cert with
-  | None   ->
-     let sigl = Cstruct.len cert.signature_val in
-     let sign = Cstruct.copy cert.signature_val 0 sigl in
-     let hex = Cryptokit.(transform_string (Hexa.encode ()) sign) in
-     "NO commonName " ^ hex
+  | None   -> "NO commonName:" ^ Utils.hexdump_to_str cert.signature_val
   | Some x -> x
 
 let hostname_matches cert name =
@@ -77,8 +75,8 @@ let validate_signature trusted cert raw =
                let compare_hashes hashfn = Utils.cs_eq hash (hashfn tbs_raw) in
                let open Algorithm in
                match (cert.signature_algo, algo) with
-               | (MD5_RSA , MD5 ) -> compare_hashes Crypto.md5
-               | (SHA1_RSA, SHA1) -> compare_hashes Crypto.sha
+               | (MD5_RSA , MD5 ) -> compare_hashes Hash.MD5.digest
+               | (SHA1_RSA, SHA1) -> compare_hashes Hash.SHA1.digest
                | _ -> false )
        | None -> false )
 
