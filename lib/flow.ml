@@ -3,23 +3,32 @@ open Nocrypto
 
 (* some config parameters *)
 type config = {
-  ciphers          : Ciphersuite.ciphersuite list ;
-  protocol_version : tls_version
+  ciphers           : Ciphersuite.ciphersuite list ;
+  protocol_versions : tls_version list
 }
 
 let default_config = {
-  ciphers          = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                   TLS_RSA_WITH_3DES_EDE_CBC_SHA (* ;
-                                   TLS_RSA_WITH_RC4_128_SHA ;
-                                   TLS_RSA_WITH_RC4_128_MD5 *) ]) ;
-  protocol_version = TLS_1_1
+  (* ordered list (regarding preference) of supported cipher suites *)
+  ciphers           = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                    TLS_RSA_WITH_3DES_EDE_CBC_SHA (* ;
+                                    TLS_RSA_WITH_RC4_128_SHA ;
+                                    TLS_RSA_WITH_RC4_128_MD5 *) ]) ;
+  (* ordered list of decreasing protocol versions *)
+  protocol_versions = [ TLS_1_1 ; TLS_1_0 ]
 }
 
-let protocol_version_cstruct =
-  Writer.assemble_protocol_version default_config.protocol_version
-
+(* find highest version between v and supported versions *)
 let supported_protocol_version v =
-  default_config.protocol_version <= v
+  let sups = default_config.protocol_versions in
+  let highest = List.hd sups in
+  let lowest = last sups in
+  (* implicitly assumes that sups is decreasing ordered and without any holes *)
+  match (v >= highest), (v >= lowest) with
+    | true, _ -> Some highest
+    | _, true -> Some v
+    | _, _    -> None
+
+let max_protocol_version = List.hd default_config.protocol_versions
 
 module Or_alert =
   Control.Or_error_make (struct type err = Packet.alert_type end)
@@ -69,13 +78,28 @@ type security_parameters = {
   client_verify_data    : Cstruct.t ;
   server_verify_data    : Cstruct.t ;
   server_name           : string option ;
+  protocol_version      : tls_version ;
 }
 
+let empty_security_parameters =
+  let open Cstruct in
+  { entity             = Server ;
+    ciphersuite        = List.hd default_config.ciphers ;
+    master_secret      = create 0 ;
+    client_random      = create 0 ;
+    server_random      = create 0 ;
+    dh_state           = `Initial ;
+    server_certificate = None ;
+    client_verify_data = create 0 ;
+    server_verify_data = create 0 ;
+    server_name        = None ;
+    protocol_version   = max_protocol_version
+  }
 
 let print_security_parameters sp =
   let open Printf in
   Printf.printf "ocaml-tls (secure renogiation enforced, session id ignored)\n";
-  Printf.printf "protocol %s\n" (Printer.tls_version_to_string default_config.protocol_version);
+  Printf.printf "protocol %s\n" (Printer.tls_version_to_string sp.protocol_version);
   Printf.printf "cipher %s\n" (Ciphersuite.ciphersuite_to_string sp.ciphersuite);
   Printf.printf "master secret";
   Cstruct.hexdump sp.master_secret;
@@ -83,40 +107,46 @@ let print_security_parameters sp =
 (* EVERYTHING a well-behaved dispatcher needs. And pure, too. *)
 type tls_internal_state = [
   | `Initial
-  | `Handshaking of security_parameters * Cstruct.t list
-  | `KeysExchanged of crypto_state * crypto_state * security_parameters * Cstruct.t list (* only used in server, client initiates change cipher spec *)
-  | `Established of security_parameters
+  | `Handshaking of Cstruct.t list
+  | `KeysExchanged of crypto_state * crypto_state * Cstruct.t list (* only used in server, client initiates change cipher spec *)
+  | `Established
 ]
 
 let state_to_string = function
   | `Initial         -> "Initial"
   | `Handshaking _   -> "Shaking hands"
   | `KeysExchanged _ -> "Keys are exchanged"
-  | `Established _   -> "Established"
+  | `Established     -> "Established"
 
 type record = Packet.content_type * Cstruct.t
 
-
 (* this is the externally-visible state somebody will keep track of for us. *)
 type state = {
-  machina   : tls_internal_state ;
-  decryptor : crypto_state ;
-  encryptor : crypto_state ;
-  fragment  : Cstruct.t ;
+  machina             : tls_internal_state ;
+  security_parameters : security_parameters ;
+  decryptor           : crypto_state ;
+  encryptor           : crypto_state ;
+  fragment            : Cstruct.t ;
 }
 
+let state_established = function
+  | { machina = `Established } -> true
+  | _                          -> false
+
+let state_initial = function
+  | { machina = `Initial } -> true
+  | _                      -> false
+
 let empty_state = {
-  machina   = `Initial ;
-  decryptor = None ;
-  encryptor = None ;
-  fragment  = Cstruct.create 0
+  machina             = `Initial ;
+  security_parameters = empty_security_parameters ;
+  decryptor           = None ;
+  encryptor           = None ;
+  fragment            = Cstruct.create 0
 }
 
 (* well-behaved pure encryptor *)
-
-let encrypt (st : crypto_state) ty buf =
-  let version = default_config.protocol_version in (* XXX *)
-
+let encrypt (version : tls_version) (st : crypto_state) ty buf =
   match st with
   | None     -> (st, buf)
   | Some ctx ->
@@ -154,7 +184,7 @@ let encrypt (st : crypto_state) ty buf =
 
 let verify_mac { mac = (hash, _) as mac ; sequence } ty ver decrypted =
   let macstart = Cstruct.len decrypted - Crypto.digest_size hash in
-  if macstart <= 0 then fail Packet.BAD_RECORD_MAC else
+  if macstart < 0 then fail Packet.BAD_RECORD_MAC else
     let (body, mmac) = Cstruct.split decrypted macstart in
     let cmac =
       let ver = pair_of_tls_version ver in
@@ -162,8 +192,7 @@ let verify_mac { mac = (hash, _) as mac ; sequence } ty ver decrypted =
     fail_neq cmac mmac Packet.BAD_RECORD_MAC >>= fun () -> return body
 
 
-let decrypt (st : crypto_state) ty buf =
-  let version = default_config.protocol_version in (* XXX *)
+let decrypt (version : tls_version) (st : crypto_state) ty buf =
 
   let verify ctx (st', dec) =
     verify_mac ctx ty version dec >>= fun body -> return (st', body)
@@ -230,8 +259,8 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
      | Reader.Or_error.Error _                                         ->
         fail Packet.HANDSHAKE_FAILURE
 
-let assemble_records : record list -> Cstruct.t =
-  o Utils.cs_appends @@ List.map @@ (Writer.assemble_hdr default_config.protocol_version)
+let assemble_records : tls_version -> record list -> Cstruct.t = fun version ->
+  o Utils.cs_appends @@ List.map @@ (Writer.assemble_hdr version)
 
 type rec_resp = [
   | `Change_enc of crypto_state
@@ -254,7 +283,8 @@ let divide_keyblock ~version key mac iv buf =
 let initialize_crypto_ctx sp premaster =
 
   let open Ciphersuite in
-  let version = default_config.protocol_version in
+  let version = sp.protocol_version in
+  Printf.printf "ICC version %s\n" (Printer.tls_version_to_string version);
 
   let master = Crypto.generate_master_secret premaster
                 (sp.client_random <> sp.server_random) in
@@ -291,16 +321,26 @@ let initialize_crypto_ctx sp premaster =
   (c_context, s_context, { sp with master_secret = master })
 
 
-let handle_raw_record handler state (hdr, buf) =
-  (* check hdr.version in here! *)
-  decrypt state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
-  handler state.machina hdr.content_type dec >>= fun (machina, data, items, dec_cmd) ->
+let handle_raw_record handler state ((hdr : tls_hdr), buf) =
+  let version = state.security_parameters.protocol_version in
+  (if state_initial state then
+  (* first packet does not need to have the right version number:
+     client receives the selected P_V from server ;
+     server receives the highest supported P_V from client *)
+     match supported_protocol_version hdr.version with
+       | Some _ -> return ()
+       | None   -> fail Packet.PROTOCOL_VERSION
+   else
+     fail_false (hdr.version = version) Packet.PROTOCOL_VERSION ) >>= fun () ->
+  decrypt state.security_parameters.protocol_version state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
+  handler state.machina state.security_parameters hdr.content_type dec
+  >>= fun (machina, security_parameters, data, items, dec_cmd) ->
   let (encryptor, encs) =
     List.fold_left (fun (st, es) ->
                     function
                     | `Change_enc st' -> (st', es)
                     | `Record (ty, buf) ->
-                       let (st', enc) = encrypt st ty buf in
+                       let (st', enc) = encrypt security_parameters.protocol_version st ty buf in
                        (st', es @ [(ty, enc)]))
                    (state.encryptor, [])
                    items
@@ -310,7 +350,7 @@ let handle_raw_record handler state (hdr, buf) =
     | `Pass           -> dec_st
   in
   let fragment = state.fragment in
-  return ({ machina ; encryptor ; decryptor ; fragment }, data, encs)
+  return ({ machina ; security_parameters ; encryptor ; decryptor ; fragment }, data, encs)
 
 let alert typ =
   let buf = Writer.assemble_alert typ in
@@ -318,6 +358,12 @@ let alert typ =
 
 let change_cipher_spec =
   (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
+
+type tls_result = {
+  state   : state ;
+  to_send : Cstruct.t ;
+  data    : Cstruct.t option
+}
 
 type ret = [
   | `Ok of (state * Cstruct.t * Cstruct.t option)
@@ -330,8 +376,16 @@ let maybe_app a b = match a, b with
   | None, Some y   -> Some y
   | None, None     -> None
 
-let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
-      -> (tls_internal_state * Cstruct.t option * rec_resp list * dec_resp) or_error) ->
+type tls_handle_result = {
+  machina    : tls_internal_state ;
+  parameters : security_parameters ;
+  data       : Cstruct.t option ;
+  out        : rec_resp list ;
+  dec        : dec_resp ;
+}
+
+let handle_tls_int : (tls_internal_state -> security_parameters -> Packet.content_type -> Cstruct.t
+      -> (tls_internal_state * security_parameters * Cstruct.t option * rec_resp list * dec_resp) or_error) ->
                  state -> Cstruct.t -> ret
 = fun handler state buf ->
   match
@@ -342,21 +396,19 @@ let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
           (state, None, [])
           in_records
     >>= fun (state', data, out_records) ->
-    let buf' = assemble_records out_records in
+    let version = state'.security_parameters.protocol_version in
+    let buf' = assemble_records version out_records in
     return ({ state' with fragment = frag }, buf', data)
   with
   | Ok v    -> `Ok v
-  | Error x -> `Fail (assemble_records [alert x])
+  | Error x -> `Fail (assemble_records state.security_parameters.protocol_version [alert x])
 
 let application_data st css =
   let ty = Packet.APPLICATION_DATA in
-  let data = assemble_records @@ List.map (fun cs -> (ty, cs)) css in
-  let encryptor, enc = encrypt st.encryptor ty data in
+  let version = st.security_parameters.protocol_version in
+  let data = assemble_records version @@ List.map (fun cs -> (ty, cs)) css in
+  let encryptor, enc = encrypt version st.encryptor ty data in
   ({ st with encryptor }, enc)
-
-let state_established = function
-  | { machina = `Established _ } -> true
-  | _                            -> false
 
 let find_hostname : 'a hello -> string option =
   fun h ->
@@ -374,7 +426,7 @@ let rec check_reneg expected = function
   | SecureRenegotiation x::_ -> fail_neq expected x Packet.NO_RENEGOTIATION
   | _::xs                    -> check_reneg expected xs
 
-let handle_alert buf =
+let handle_alert sp buf =
   match Reader.parse_alert buf with
   | Reader.Or_error.Ok al ->
      Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string al);
