@@ -7,7 +7,7 @@ let blue fmt   = Printf.sprintf ("\027[36m"^^fmt^^"\027[m")
 
 module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
 
-  let on_connect hello c (flow : S.TCPV4.flow) =
+  let on_connect c (flow : S.TCPV4.flow) (state, enc) =
     let rec loop tls =
       S.TCPV4.read flow >>= function
         | `Eof     -> C.log_s c (red "read: eof")
@@ -25,29 +25,9 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
               | `Fail err                  -> S.TCPV4.write flow err
     in
     let (dst, dst_port) = S.TCPV4.get_dest flow in
-    match Tls.Client.handle_tls Tls.Flow.empty_state hello with
-    | `Ok (tls', ans, None) ->
-       C.log_s c (green "writing to tcp connection from %s %d (len %d)"
-                        (Ipaddr.V4.to_string dst) dst_port (Cstruct.len ans))
-       >>
-         S.TCPV4.write flow ans
-       >>
-         loop tls'
-    | `Ok (tls', ans, Some data) ->
-        C.log_s c (green "received data (strange)")
-        >>
-          ( Cstruct.hexdump data;
-            C.log_s c (green "writing to tcp connection from %s %d (len %d)"
-                         (Ipaddr.V4.to_string dst) dst_port (Cstruct.len ans)) )
-        >>
-          S.TCPV4.write flow ans
-        >>
-          loop tls'
-    | `Fail err ->
-       C.log_s c (red "fail to tcp connection from %s %d (len %d)"
-                      (Ipaddr.V4.to_string dst) dst_port (Cstruct.len err))
-       >>
-         S.TCPV4.write flow err
+    C.log_s c (green "writing to tcp connection to %s %d"
+                 (Ipaddr.V4.to_string dst) dst_port)
+    >> S.TCPV4.write flow enc >> loop state
 
   let start c s =
 (*    OS.Time.sleep 5.0 >>= fun () -> *)
@@ -58,8 +38,7 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
       S.TCPV4.create_connection (S.tcpv4 s) (google, gport) >>= function
        | `Ok flow ->
           C.log_s c (green "established connection") >>
-          let client_hello = Tls.Client.open_connection gname in
-          on_connect client_hello c flow;
+          on_connect c flow (Tls.Client.new_connection gname)
        | `Error e ->
           C.log_s c (red "received an error while connecting")
 

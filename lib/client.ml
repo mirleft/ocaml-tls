@@ -4,20 +4,6 @@ open Flow.Or_alert
 
 open Nocrypto
 
-let answer_client_hello_params sp ch raw =
-  return (`Handshaking [raw], sp, None, [`Record (Packet.HANDSHAKE, raw)], `Pass)
-
-let answer_initial_client_hello sp ch raw =
-  let server_name = find_hostname ch in
-  let params = { sp with
-                   entity        = Client ;
-                   ciphersuite   = List.hd ch.ciphersuites ;
-                   client_random = ch.random ;
-                   server_name ;
-               }
-  in
-  answer_client_hello_params params ch raw
-
 let answer_server_hello (p : security_parameters) bs sh raw =
   (match supported_protocol_version sh.version with
      | None   -> fail Packet.PROTOCOL_VERSION
@@ -126,7 +112,7 @@ let answer_server_finished p bs fin =
   print_security_parameters p;
   return (`Established, { p with server_verify_data = computed }, None, [], `Pass)
 
-let default_client_hello : client_hello =
+let default_client_hello () =
   { version      = max_protocol_version ;
     random       = Rng.generate 32 ;
     sessionid    = None ;
@@ -139,10 +125,10 @@ let answer_hello_request sp =
     | Some x -> [Hostname (Some x)]
   in
   let securereneg = SecureRenegotiation sp.client_verify_data in
-  let ch = { default_client_hello with
+  let ch = { default_client_hello () with
                extensions = securereneg :: host } in
   let raw = Writer.assemble_handshake (ClientHello ch) in
-  answer_client_hello_params sp ch raw
+  return (`Handshaking [raw], sp, None, [`Record (Packet.HANDSHAKE, raw)], `Pass)
 
 let handle_change_cipher_spec sp = function
   (* actually, we're the client and have already sent the kex! *)
@@ -157,9 +143,6 @@ let handle_handshake sp is buf =
      Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
      Cstruct.hexdump buf;
      ( match (is, handshake) with
-       (* we use the pipeline with a manually crafted ClientHello to initiate the connection *)
-       | `Initial, ClientHello ch ->
-          answer_initial_client_hello sp ch buf
        | `Handshaking bs, ServerHello sh ->
           answer_server_hello sp bs sh buf
        | `Handshaking bs, Certificate cs ->
@@ -194,17 +177,28 @@ let handle_record
 
 let handle_tls = handle_tls_int handle_record
 
-let open_connection server =
-  let dch = default_client_hello in
+let new_connection server =
+  let state = empty_state in
   let host = match server with
     | None   -> []
     | Some _ -> [Hostname server]
   in
-  let ch = { dch with ciphersuites =
-                        dch.ciphersuites @
-                          [Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV];
-                      extensions   = host
-           }
+  let client_hello =
+    let dch = default_client_hello () in
+      { dch with
+          ciphersuites = dch.ciphersuites @ [Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV];
+          extensions   = host
+      }
   in
-  let buf = Writer.assemble_handshake (ClientHello ch) in
-  Writer.assemble_hdr ch.version (Packet.HANDSHAKE, buf)
+  let security_parameters =
+    { state.security_parameters with
+        entity        = Client ;
+        client_random = client_hello.random ;
+        server_name   = server ;
+    }
+  in
+  let raw = Writer.assemble_handshake (ClientHello client_hello) in
+  let machina = `Handshaking [raw] in
+  send_records
+      { state with security_parameters ; machina }
+      [(Packet.HANDSHAKE, raw)]

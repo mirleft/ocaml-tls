@@ -251,8 +251,9 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
      | Reader.Or_error.Error _                                         ->
         fail Packet.HANDSHAKE_FAILURE
 
-let assemble_records : tls_version -> record list -> Cstruct.t = fun version ->
-  o Utils.cs_appends @@ List.map @@ (Writer.assemble_hdr version)
+let assemble_records : tls_version -> record list -> Cstruct.t =
+  fun version ->
+    o Utils.cs_appends @@ List.map @@ Writer.assemble_hdr version
 
 type rec_resp = [
   | `Change_enc of crypto_state
@@ -392,7 +393,19 @@ let handle_tls_int : (tls_internal_state -> security_parameters -> Packet.conten
   | Ok v    -> `Ok v
   | Error x -> `Fail (assemble_records state.security_parameters.protocol_version [alert x])
 
-let application_data (st : state) css =
+let send_records (st : state) records =
+  let version = st.security_parameters.protocol_version in
+  let encryptor, encs = List.fold_left
+    (fun (est, encs) (ty, cs)  ->
+       let encryptor, enc = encrypt version est ty cs in
+       (encryptor, encs @ [(ty, enc)]))
+    (st.encryptor, [])
+    records
+  in
+  let data = assemble_records version encs in
+  ({ st with encryptor }, data)
+
+let send_application_data (st : state) css =
   match st.machina with
   | `Established ->
       let datas = match st.encryptor with
@@ -401,10 +414,8 @@ let application_data (st : state) css =
         | _                                     -> css
       in
       let ty = Packet.APPLICATION_DATA in
-      let version = st.security_parameters.protocol_version in
-      let data = assemble_records version @@ List.map (fun cs -> (ty, cs)) datas in
-      let encryptor, enc = encrypt version st.encryptor ty data in
-      Some ({ st with encryptor }, enc)
+      let data = List.map (fun cs -> (ty, cs)) datas in
+      Some (send_records st data)
   | _            -> None
 
 let find_hostname : 'a hello -> string option =
