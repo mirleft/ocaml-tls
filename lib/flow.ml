@@ -21,7 +21,7 @@ let default_config = {
 let supported_protocol_version v =
   let sups = default_config.protocol_versions in
   let highest = List.hd sups in
-  let lowest = last sups in
+  let lowest = Utils.last sups in
   (* implicitly assumes that sups is decreasing ordered and without any holes *)
   match (v >= highest), (v >= lowest) with
     | true, _ -> Some highest
@@ -128,14 +128,6 @@ type state = {
   encryptor           : crypto_state ;
   fragment            : Cstruct.t ;
 }
-
-let state_established = function
-  | { machina = `Established } -> true
-  | _                          -> false
-
-let state_initial = function
-  | { machina = `Initial } -> true
-  | _                      -> false
 
 let empty_state = {
   machina             = `Initial ;
@@ -284,7 +276,6 @@ let initialize_crypto_ctx sp premaster =
 
   let open Ciphersuite in
   let version = sp.protocol_version in
-  Printf.printf "ICC version %s\n" (Printer.tls_version_to_string version);
 
   let master = Crypto.generate_master_secret premaster
                 (sp.client_random <> sp.server_random) in
@@ -323,16 +314,14 @@ let initialize_crypto_ctx sp premaster =
 
 let handle_raw_record handler state ((hdr : tls_hdr), buf) =
   let version = state.security_parameters.protocol_version in
-  (if state_initial state then
-  (* first packet does not need to have the right version number:
-     client receives the selected P_V from server ;
-     server receives the highest supported P_V from client *)
-     match supported_protocol_version hdr.version with
-       | Some _ -> return ()
-       | None   -> fail Packet.PROTOCOL_VERSION
-   else
-     fail_false (hdr.version = version) Packet.PROTOCOL_VERSION ) >>= fun () ->
-  decrypt state.security_parameters.protocol_version state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
+  ( match state.machina, supported_protocol_version hdr.version with
+    | `Initial, Some _                -> return ()
+    | `Initial, None                  -> fail Packet.PROTOCOL_VERSION
+    | _, _ when hdr.version = version -> return ()
+    | _, _                            -> fail Packet.PROTOCOL_VERSION )
+  >>= fun () ->
+  decrypt state.security_parameters.protocol_version state.decryptor hdr.content_type buf
+  >>= fun (dec_st, dec) ->
   handler state.machina state.security_parameters hdr.content_type dec
   >>= fun (machina, security_parameters, data, items, dec_cmd) ->
   let (encryptor, encs) =
@@ -403,12 +392,15 @@ let handle_tls_int : (tls_internal_state -> security_parameters -> Packet.conten
   | Ok v    -> `Ok v
   | Error x -> `Fail (assemble_records state.security_parameters.protocol_version [alert x])
 
-let application_data st css =
-  let ty = Packet.APPLICATION_DATA in
-  let version = st.security_parameters.protocol_version in
-  let data = assemble_records version @@ List.map (fun cs -> (ty, cs)) css in
-  let encryptor, enc = encrypt version st.encryptor ty data in
-  ({ st with encryptor }, enc)
+let application_data (st : state) css =
+  match st.machina with
+  | `Established ->
+      let ty = Packet.APPLICATION_DATA in
+      let version = st.security_parameters.protocol_version in
+      let data = assemble_records version @@ List.map (fun cs -> (ty, cs)) css in
+      let encryptor, enc = encrypt version st.encryptor ty data in
+      Some ({ st with encryptor }, enc)
+  | _            -> None
 
 let find_hostname : 'a hello -> string option =
   fun h ->
