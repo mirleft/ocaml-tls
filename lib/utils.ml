@@ -57,6 +57,11 @@ let option none some = function
   | None   -> none
   | Some x -> some x
 
+let rec last = function
+  | []    -> invalid_arg "empty list"
+  | [x]   -> x
+  | _::xs -> last xs
+
 let const a _ = a
 
 let id a = a
