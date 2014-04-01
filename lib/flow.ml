@@ -395,9 +395,14 @@ let handle_tls_int : (tls_internal_state -> security_parameters -> Packet.conten
 let application_data (st : state) css =
   match st.machina with
   | `Established ->
+      let datas = match st.encryptor with
+        (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
+        | Some { cipher_st = CBC (_, _, Iv _) } -> Cstruct.create 0 :: css
+        | _                                     -> css
+      in
       let ty = Packet.APPLICATION_DATA in
       let version = st.security_parameters.protocol_version in
-      let data = assemble_records version @@ List.map (fun cs -> (ty, cs)) css in
+      let data = assemble_records version @@ List.map (fun cs -> (ty, cs)) datas in
       let encryptor, enc = encrypt version st.encryptor ty data in
       Some ({ st with encryptor }, enc)
   | _            -> None
