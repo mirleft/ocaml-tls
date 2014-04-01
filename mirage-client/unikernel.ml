@@ -14,18 +14,35 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
         | `Error e -> C.log_s c (red "read: error")
         | `Ok buf  ->
             match Tls.Client.handle_tls tls buf with
-              | `Ok (tls', ans) -> S.TCPV4.write flow ans >> loop tls'
-              | `Fail err       -> S.TCPV4.write flow err
+              | `Ok (tls', ans, None)      -> S.TCPV4.write flow ans >> loop tls'
+              | `Ok (tls', ans, Some data) ->
+                  C.log_s c (green "received data:")
+                  >>
+                    ( Cstruct.hexdump data;
+                      S.TCPV4.write flow ans )
+                  >>
+                    loop tls'
+              | `Fail err                  -> S.TCPV4.write flow err
     in
     let (dst, dst_port) = S.TCPV4.get_dest flow in
     match Tls.Client.handle_tls Tls.Flow.empty_state hello with
-    | `Ok (tls', ans) ->
+    | `Ok (tls', ans, None) ->
        C.log_s c (green "writing to tcp connection from %s %d (len %d)"
                         (Ipaddr.V4.to_string dst) dst_port (Cstruct.len ans))
        >>
          S.TCPV4.write flow ans
        >>
          loop tls'
+    | `Ok (tls', ans, Some data) ->
+        C.log_s c (green "received data (strange)")
+        >>
+          ( Cstruct.hexdump data;
+            C.log_s c (green "writing to tcp connection from %s %d (len %d)"
+                         (Ipaddr.V4.to_string dst) dst_port (Cstruct.len ans)) )
+        >>
+          S.TCPV4.write flow ans
+        >>
+          loop tls'
     | `Fail err ->
        C.log_s c (red "fail to tcp connection from %s %d (len %d)"
                       (Ipaddr.V4.to_string dst) dst_port (Cstruct.len err))

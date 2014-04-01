@@ -24,7 +24,7 @@ let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list)
                          server_verify_data = my_checksum }
   in
   print_security_parameters params;
-  return (`Established params, [`Record (Packet.HANDSHAKE, fin)], `Pass)
+  return (`Established params, None, [`Record (Packet.HANDSHAKE, fin)], `Pass)
 
 let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
   ( match Ciphersuite.ciphersuite_kex sp.ciphersuite with
@@ -57,9 +57,7 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
   let client_ctx, server_ctx, params =
     initialize_crypto_ctx sp premastersecret in
   let ps = packets @ [raw] in
-  return (
-      `KeysExchanged (Some server_ctx, Some client_ctx, params, ps),
-      [], `Pass)
+  return (`KeysExchanged (Some server_ctx, Some client_ctx, params, ps), None, [], `Pass)
 
 let answer_client_hello_params_int sp ch raw =
   let cipher = sp.ciphersuite in
@@ -134,6 +132,7 @@ let answer_client_hello_params_int sp ch raw =
   let hello_done = Writer.assemble_handshake ServerHelloDone in
   let packets = bufs'' @ [hello_done] in
   return (`Handshaking (params'', raw :: packets),
+          None,
           List.map (fun e -> `Record (Packet.HANDSHAKE, e)) packets,
           `Pass)
 
@@ -166,7 +165,7 @@ let answer_client_hello (ch : client_hello) raw =
 let handle_change_cipher_spec = function
   | `KeysExchanged (enc, dec, _, _) as is ->
      let ccs = change_cipher_spec in
-     return (is, [`Record ccs; `Change_enc enc], `Change_dec dec)
+     return (is, None, [`Record ccs; `Change_enc enc], `Change_dec dec)
   | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let handle_handshake is buf =
@@ -189,7 +188,7 @@ let handle_handshake is buf =
 
 let handle_record
 : tls_internal_state -> Packet.content_type -> Cstruct.t
-  -> (tls_internal_state * rec_resp list * dec_resp) or_error
+  -> (tls_internal_state * Cstruct.t option * rec_resp list * dec_resp) or_error
 = fun is ct buf ->
   Printf.printf "HANDLE_RECORD (in state %s) %s\n"
                 (state_to_string is)
@@ -200,7 +199,7 @@ let handle_record
      Printf.printf "APPLICATION DATA";
      Cstruct.hexdump buf;
      ( match is with
-       | `Established _ -> return (is, [], `Pass)
+       | `Established _ -> return (is, Some buf, [], `Pass)
        | _              -> fail Packet.UNEXPECTED_MESSAGE
      )
   | Packet.CHANGE_CIPHER_SPEC -> handle_change_cipher_spec is

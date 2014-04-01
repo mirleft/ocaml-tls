@@ -16,8 +16,15 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
         | `Error e -> C.log_s c (red "read: error")
         | `Ok buf  ->
             match TLS.handle_tls tls buf with
-              | `Ok (tls', ans) -> S.TCPV4.write flow ans >> loop tls'
-              | `Fail err       -> S.TCPV4.write flow err
+              | `Ok (tls', ans, None)      -> S.TCPV4.write flow ans >> loop tls'
+              | `Ok (tls', ans, Some data) ->
+                  C.log_s c (green "received data:")
+                  >>
+                    ( Cstruct.hexdump data;
+                      S.TCPV4.write flow ans )
+                  >>
+                    loop tls'
+              | `Fail err                  -> S.TCPV4.write flow err
     in
     let (dst, dst_port) = S.TCPV4.get_dest flow in
     C.log_s c (green "new tcp connection from %s %d"

@@ -294,7 +294,7 @@ let initialize_crypto_ctx sp premaster =
 let handle_raw_record handler state (hdr, buf) =
   (* check hdr.version in here! *)
   decrypt state.decryptor hdr.content_type buf >>= fun (dec_st, dec) ->
-  handler state.machina hdr.content_type dec >>= fun (machina, items, dec_cmd) ->
+  handler state.machina hdr.content_type dec >>= fun (machina, data, items, dec_cmd) ->
   let (encryptor, encs) =
     List.fold_left (fun (st, es) ->
                     function
@@ -310,7 +310,7 @@ let handle_raw_record handler state (hdr, buf) =
     | `Pass           -> dec_st
   in
   let fragment = state.fragment in
-  return ({ machina ; encryptor ; decryptor ; fragment }, encs)
+  return ({ machina ; encryptor ; decryptor ; fragment }, data, encs)
 
 let alert typ =
   let buf = Writer.assemble_alert typ in
@@ -320,27 +320,43 @@ let change_cipher_spec =
   (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
 
 type ret = [
-  | `Ok of (state * Cstruct.t)
+  | `Ok of (state * Cstruct.t * Cstruct.t option)
   | `Fail of Cstruct.t
 ]
 
+let maybe_app a b = match a, b with
+  | Some x, Some y -> Some (x <> y)
+  | Some x, None   -> Some x
+  | None, Some y   -> Some y
+  | None, None     -> None
+
 let handle_tls_int : (tls_internal_state -> Packet.content_type -> Cstruct.t
-      -> (tls_internal_state * rec_resp list * dec_resp) or_error) ->
+      -> (tls_internal_state * Cstruct.t option * rec_resp list * dec_resp) or_error) ->
                  state -> Cstruct.t -> ret
 = fun handler state buf ->
   match
     separate_records (state.fragment <> buf) >>= fun (in_records, frag) ->
-    foldM (fun (st, raw_rs) r ->
-           map (fun (st', raw_rs') -> (st', raw_rs @ raw_rs')) @@
+    foldM (fun (st, datas, raw_rs) r ->
+           map (fun (st', data', raw_rs') -> (st', maybe_app datas data', raw_rs @ raw_rs')) @@
              handle_raw_record handler st r)
-          (state, [])
+          (state, None, [])
           in_records
-    >>= fun (state', out_records) ->
+    >>= fun (state', data, out_records) ->
     let buf' = assemble_records out_records in
-    return ({ state' with fragment = frag }, buf')
+    return ({ state' with fragment = frag }, buf', data)
   with
   | Ok v    -> `Ok v
   | Error x -> `Fail (assemble_records [alert x])
+
+let application_data st css =
+  let ty = Packet.APPLICATION_DATA in
+  let data = assemble_records @@ List.map (fun cs -> (ty, cs)) css in
+  let encryptor, enc = encrypt st.encryptor ty data in
+  ({ st with encryptor }, enc)
+
+let state_established = function
+  | { machina = `Established _ } -> true
+  | _                            -> false
 
 let find_hostname : 'a hello -> string option =
   fun h ->
