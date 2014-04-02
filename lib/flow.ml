@@ -356,8 +356,8 @@ type tls_result = {
 }
 
 type ret = [
-  | `Ok of (state * Cstruct.t * Cstruct.t option)
-  | `Fail of Cstruct.t
+  | `Ok   of state * Cstruct.t * Cstruct.t option
+  | `Fail of Packet.alert_type * Cstruct.t
 ]
 
 let maybe_app a b = match a, b with
@@ -391,7 +391,10 @@ let handle_tls_int : (tls_internal_state -> security_parameters -> Packet.conten
     return ({ state' with fragment = frag }, buf', data)
   with
   | Ok v    -> `Ok v
-  | Error x -> `Fail (assemble_records state.security_parameters.protocol_version [alert x])
+  | Error x ->
+      let version    = state.security_parameters.protocol_version in
+      let alert_resp = assemble_records version [alert x] in
+      `Fail (x, alert_resp)
 
 let send_records (st : state) records =
   let version = st.security_parameters.protocol_version in
