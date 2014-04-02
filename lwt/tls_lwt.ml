@@ -31,7 +31,9 @@ let write_cs oc = function
 
 let network_read_and_react socket =
   Printf.printf "+ net read...\n%!";
-  lwt str = Lwt_io.read socket.input in
+  lwt str = Lwt_io.read ~count:4096 socket.input in
+  (* XXX smarter treatment of hangup *)
+  lwt ()  = if str = "" then fail End_of_file else return () in
   Cstruct.(hexdump @@ of_string str);
   match
     ( match socket.direction with
@@ -46,8 +48,12 @@ let network_read_and_react socket =
       write_cs socket.output ans >>
       return adata
   | `Fail (alert, errdata) ->
+      (* XXX kill state *)
       Printf.printf "* engine Fail\n%!";
-      write_cs socket.output errdata >> fail (Tls_alert alert)
+      write_cs socket.output errdata >>
+      match alert with
+      | Tls.Packet.CLOSE_NOTIFY -> fail End_of_file
+      | _                       -> fail (Tls_alert alert)
 
 let rec read socket =
   match socket.input_leftovers with
@@ -68,7 +74,7 @@ let writev socket css =
   | Some (state, tlsdata) ->
       socket.state <- state ;
       write_cs socket.output tlsdata
-  | None -> fail @@ Invalid_argument "tls: handshake not completed"
+  | None -> fail @@ Invalid_argument "tls: send before handshake"
 
 let write socket cs = writev socket [cs]
 
