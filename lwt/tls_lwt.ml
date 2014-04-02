@@ -84,6 +84,7 @@ let rec drain_handshake = function
   | socket ->
       Printf.printf "+ drain hs: will net read.\n%!";
       lwt res = network_read_and_react socket in
+      Printf.printf "+ drain hs: did net read.\n%!";
       ( match res with
         | None      -> ()
         | Some data ->
@@ -120,6 +121,7 @@ let connect ?fd addr =
     | Some fd -> fd in
   Lwt_unix.connect fd addr >> client_of_fd fd
 
+
 (* type event =
   | EOF
   | Error
@@ -130,4 +132,40 @@ let install_handler socket handler =
     lwt data = read socket in
     handler socket (Data data) >> loop () in
   ignore @@ loop () *)
+
+let serve port callback =
+  let open Lwt_unix in
+  let ss = socket PF_INET SOCK_STREAM 0 in
+  bind ss (ADDR_INET (Unix.inet_addr_any, port)) ;
+  listen ss 10 ;
+  let rec loop () =
+    lwt (cs, addr) = accept ss in
+    Printf.printf "[server] connect.\n%!";
+    callback cs addr >>
+    loop () in
+  Printf.printf "[server] start.\n%!";
+  loop ()
+
+let echo_server () =
+  let handler sock addr =
+    let rec loop sock =
+      Printf.printf "[handler] waiting..\n%!";
+      lwt data = read sock in
+      Printf.printf "[handler] got:\n%s\n[handler] //" (Cstruct.to_string data);
+      Printf.printf "[handler] sending\n%!";
+      write sock data >> loop sock in
+    Printf.printf "[handler] promote..\n%!";
+    server_of_fd sock >>= loop
+  in
+  Lwt_main.run @@ serve 4434 handler
+
+let google_client () =
+  lwt sock = resolve "www.google.com" "443" >>= connect in
+  let req  = "GET / HTTP/1.1\r\nHost:www.google.com\r\n\r\n" in
+  write sock (Cstruct.of_string req) >>
+  lwt resp = read sock in
+  Printf.printf "--> %s\n%!" (Cstruct.to_string resp);
+  return ()
+
+  
 
