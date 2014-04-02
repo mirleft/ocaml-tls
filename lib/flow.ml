@@ -421,6 +421,10 @@ let send_application_data (st : state) css =
       Some (send_records st data)
   | _            -> None
 
+let can_send_appdata : state -> bool = function
+  | { machina = `Established } -> true
+  | _                          -> false
+
 let find_hostname : 'a hello -> string option =
   fun h ->
     let hexts = List.filter (function
