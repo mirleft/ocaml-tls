@@ -101,9 +101,9 @@ let server_of_fd fd =
   in
   drain_handshake socket1
 
-let client_of_fd ?servername fd =
+let client_of_fd ?host fd =
   let (input, output) = io_pair_of_fd fd in
-  let (state, init) = Tls.Client.new_connection servername in
+  let (state, init) = Tls.Client.new_connection host in
   let socket1 =
     let direction       = Client
     and input_leftovers = [] in
@@ -115,11 +115,12 @@ let accept fd =
   lwt socket      = server_of_fd fd' in
   return (socket, addr)
 
-let connect ?fd addr =
+let connect ?fd ~host ~port =
+  lwt addr = resolve host port in
   let fd = match fd with
     | None    -> Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0)
     | Some fd -> fd in
-  Lwt_unix.connect fd addr >> client_of_fd fd
+  Lwt_unix.connect fd addr >> client_of_fd ~host fd
 
 
 (* type event =
@@ -160,7 +161,7 @@ let echo_server () =
   Lwt_main.run @@ serve 4434 handler
 
 let google_client () =
-  lwt sock = resolve "www.google.com" "443" >>= connect in
+  lwt sock = connect "www.google.com" "443" in
   let req  = "GET / HTTP/1.1\r\nHost:www.google.com\r\n\r\n" in
   write sock (Cstruct.of_string req) >>
   lwt resp = read sock in
