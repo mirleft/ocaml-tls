@@ -5,6 +5,6 @@ Makefile
 log
 
 main.ml
-main.native
+*.native
 mir-mirage-*
 mirage-*.xl
