@@ -13,12 +13,14 @@ type socket = {
   mutable input_leftovers : Cstruct.t list
 }
 
-(* This really belongs just about anywhere else. *)
+(* This really belongs just about anywhere else: generic unix name resolution. *)
 let resolve host service =
   let open Lwt_unix in
   lwt tcp = getprotobyname "tcp" in
   match_lwt getaddrinfo host service [AI_PROTOCOL tcp.p_proto] with
-  | []    -> fail (Invalid_argument "can't resolve host")
+  | []    ->
+      let msg = Printf.sprintf "no address for %s:%s" host service in
+      fail (Invalid_argument msg)
   | ai::_ -> return ai.ai_addr
 
 
@@ -45,6 +47,7 @@ let network_read_and_react socket =
   | `Ok (state, ans, adata) ->
       Printf.printf "* engine OK\n%!";
       socket.state <- state ;
+      Printf.printf "+ net read: to answer: %d\n%!" (Cstruct.len ans);
       write_cs socket.output ans >>
       return adata
   | `Fail (alert, errdata) ->
@@ -121,52 +124,4 @@ let connect ?fd ~host ~port =
     | None    -> Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0)
     | Some fd -> fd in
   Lwt_unix.connect fd addr >> client_of_fd ~host fd
-
-
-(* type event =
-  | EOF
-  | Error
-  | Data of Cstruct.t
-
-let install_handler socket handler =
-  let rec loop () =
-    lwt data = read socket in
-    handler socket (Data data) >> loop () in
-  ignore @@ loop () *)
-
-let serve port callback =
-  let open Lwt_unix in
-  let ss = socket PF_INET SOCK_STREAM 0 in
-  bind ss (ADDR_INET (Unix.inet_addr_any, port)) ;
-  listen ss 10 ;
-  let rec loop () =
-    lwt (cs, addr) = accept ss in
-    Printf.printf "[server] connect.\n%!";
-    callback cs addr >>
-    loop () in
-  Printf.printf "[server] start.\n%!";
-  loop ()
-
-let echo_server () =
-  let handler sock addr =
-    let rec loop sock =
-      Printf.printf "[handler] waiting..\n%!";
-      lwt data = read sock in
-      Printf.printf "[handler] got:\n%s\n[handler] //" (Cstruct.to_string data);
-      Printf.printf "[handler] sending\n%!";
-      write sock data >> loop sock in
-    Printf.printf "[handler] promote..\n%!";
-    server_of_fd sock >>= loop
-  in
-  Lwt_main.run @@ serve 4434 handler
-
-let google_client () =
-  lwt sock = connect "www.google.com" "443" in
-  let req  = "GET / HTTP/1.1\r\nHost:www.google.com\r\n\r\n" in
-  write sock (Cstruct.of_string req) >>
-  lwt resp = read sock in
-  Printf.printf "--> %s\n%!" (Cstruct.to_string resp);
-  return ()
-
-  
 

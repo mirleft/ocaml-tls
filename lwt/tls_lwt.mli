@@ -15,5 +15,3 @@ val client_of_fd : ?host:string -> Lwt_unix.file_descr -> socket Lwt.t
 val accept  : Lwt_unix.file_descr -> (socket * Lwt_unix.sockaddr) Lwt.t
 val connect : ?fd:Lwt_unix.file_descr -> host:string -> port:string -> socket Lwt.t
 
-val echo_server : unit -> unit Lwt.t
-val google_client : unit -> unit Lwt.t
