@@ -11,6 +11,11 @@ Description:
   TLS support on top of OCaml
 BuildTools:  ocamlbuild
 
+
+Flag "lwt"
+  Description: Lwt_unix backend
+  Default:     true
+
 Library "tls"
   Path: lib/
   Modules:
@@ -23,8 +28,25 @@ Library "tls"
   BuildDepends: cstruct, cstruct.syntax, nocrypto, asn1-combinators
 
 Library "tls-lwt"
+  Build        $: flag(lwt)
   FindlibName   : lwt
   FindlibParent : tls
   Path          : lwt
-  Modules       : Tls_lwt
-  BuildDepends  : tls, lwt, lwt.syntax
+  Modules       : Tls_lwt, Peruse_it
+  BuildDepends  : tls, lwt, lwt.syntax, lwt.unix
+
+Executable "echo_server"
+  Build          $: flag(lwt)
+  Path            : lwt/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : echo_server.ml
+  BuildDepends    : tls.lwt
+
+Executable "http_client"
+  Build         $: flag(lwt)
+  Path           : lwt/
+  Install        : false
+  CompiledObject : native
+  MainIs         : http_client.ml
+  BuildDepends   : tls.lwt
