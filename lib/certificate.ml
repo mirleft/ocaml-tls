@@ -252,7 +252,7 @@ let verify_certificates ?servername ~time ~anchors = function
 (* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
 let find_trusted_certs now =
   let cacert_file, ca_nss_file =
-    ("../certificates/cacert.crt", "../certificates/ca-root-nss.crt") in
+    ("certificates/cacert.crt", "certificates/ca-root-nss.crt") in
   let ((cacert, raw), nss) =
     Crypto_utils.(cert_of_file cacert_file, certs_of_file ca_nss_file) in
 
