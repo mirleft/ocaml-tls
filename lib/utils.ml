@@ -70,5 +70,5 @@ let o f g x = f (g x)
 
 let hexdump_to_str cs =
   let b = Buffer.create 16 in
-  Cstruct.hexdump_to_buffer b ;
+  Cstruct.hexdump_to_buffer b cs ;
   Buffer.contents b
