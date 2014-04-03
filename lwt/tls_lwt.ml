@@ -32,7 +32,6 @@ let write_cs oc = function
   | cs -> Lwt_io.write oc (Cstruct.to_string cs)
 
 let network_read_and_react socket =
-  Printf.printf "+ net read...\n%!";
   lwt str = Lwt_io.read ~count:4096 socket.input in
   (* XXX smarter treatment of hangup *)
   lwt ()  = if str = "" then fail End_of_file else return () in
@@ -45,14 +44,10 @@ let network_read_and_react socket =
     (Cstruct.of_string str)
   with
   | `Ok (state, ans, adata) ->
-      Printf.printf "* engine OK\n%!";
       socket.state <- state ;
-      Printf.printf "+ net read: to answer: %d\n%!" (Cstruct.len ans);
-      write_cs socket.output ans >>
-      return adata
+      write_cs socket.output ans >> return adata
   | `Fail (alert, errdata) ->
       (* XXX kill state *)
-      Printf.printf "* engine Fail\n%!";
       write_cs socket.output errdata >>
       match alert with
       | Tls.Packet.CLOSE_NOTIFY -> fail End_of_file
@@ -62,13 +57,11 @@ let rec read socket =
   match socket.input_leftovers with
   | [] ->
       let rec loop () =
-        Printf.printf "+ read: doing net read.\n%!";
         match_lwt network_read_and_react socket with
         | Some data -> return data
         | None      -> loop () in
       loop ()
   | css ->
-      Printf.printf "+ read: static read.\n%!";
       socket.input_leftovers <- [] ;
       return @@ Tls.Utils.cs_appends (List.rev css)
 
@@ -85,9 +78,7 @@ let rec drain_handshake = function
   | socket when Tls.Flow.can_send_appdata socket.state ->
       return socket
   | socket ->
-      Printf.printf "+ drain hs: will net read.\n%!";
       lwt res = network_read_and_react socket in
-      Printf.printf "+ drain hs: did net read.\n%!";
       ( match res with
         | None      -> ()
         | Some data ->
