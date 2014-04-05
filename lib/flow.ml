@@ -361,8 +361,8 @@ type ret = [
 let maybe_app a b = match a, b with
   | Some x, Some y -> Some (x <> y)
   | Some x, None   -> Some x
-  | None, Some y   -> Some y
-  | None, None     -> None
+  | None  , Some y -> Some y
+  | None  , None   -> None
 
 type tls_handle_result = {
   machina    : tls_internal_state ;
