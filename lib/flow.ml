@@ -24,9 +24,9 @@ let supported_protocol_version v =
   let lowest = Utils.last sups in
   (* implicitly assumes that sups is decreasing ordered and without any holes *)
   match (v >= highest), (v >= lowest) with
-    | true, _ -> Some highest
-    | _, true -> Some v
-    | _, _    -> None
+    | true, _    -> Some highest
+    | _   , true -> Some v
+    | _   , _    -> None
 
 let max_protocol_version = List.hd default_config.protocol_versions
 
@@ -163,9 +163,10 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
             (CBC (m, key, Random_iv), iv <> message)
 
       in
-      let ctx' =
-        { ctx with sequence  = Int64.succ ctx.sequence ;
-                   cipher_st = st' } in
+      let ctx' = { ctx with
+                     sequence  = Int64.succ ctx.sequence ;
+                     cipher_st = st' }
+      in
       (Some ctx', enc)
 
 
