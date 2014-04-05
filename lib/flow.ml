@@ -184,16 +184,15 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
   let verify ctx (st', dec) =
     verify_mac ctx ty version dec >>= fun body -> return (st', body)
 
+  (* hmac is computed in this failure branch from the encrypted data, in the
+     successful branch it is decrypted - padding (which is smaller equal than
+     encrypted data) *)
   (* This comment is borrowed from miTLS, but applies here as well: *)
-  (* We implement standard mitigation for padding oracles.
-     Still, we note a small timing leak here:
-     The time to verify the mac is linear in the plaintext length. *)
-  (* defense against
-     http://lasecwww.epfl.ch/memo/memo_ssl.shtml
-     1) in https://www.openssl.org/~bodo/tls-cbc.txt *)
-  (* hmac is computed in this failure branch from the encrypted data,
-     in the successful branch it is decrypted - padding (which is smaller equal
-     than encrypted data) *)
+  (* We implement standard mitigation for padding oracles. Still, we note a
+     small timing leak here: The time to verify the mac is linear in the
+     plaintext length. *)
+  (* defense against http://lasecwww.epfl.ch/memo/memo_ssl.shtml 1) in
+     https://www.openssl.org/~bodo/tls-cbc.txt *)
   and mask_decrypt_failure ctx =
     verify_mac ctx ty version buf >>= fun _ -> fail Packet.BAD_RECORD_MAC
   in
@@ -213,22 +212,26 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
             verify ctx (st', dec) )
 
     | CBC (m, key, Random_iv) ->
-        (* XXX check for length! *)
-        let (iv, buf) = Cstruct.split buf (Crypto.cbc_block m) in
-        match Crypto.decrypt_cbc ~cipher:m ~key ~iv buf with
-        | None          -> mask_decrypt_failure ctx
-        | Some (dec, _) ->
-            let st' = CBC (m, key, Random_iv) in
-            verify ctx (st', dec)
+        if Cstruct.len buf < Crypto.cbc_block m then
+          fail Packet.BAD_RECORD_MAC
+        else
+          let (iv, buf) = Cstruct.split buf (Crypto.cbc_block m) in
+          match Crypto.decrypt_cbc ~cipher:m ~key ~iv buf with
+            | None          -> mask_decrypt_failure ctx
+            | Some (dec, _) ->
+                let st' = CBC (m, key, Random_iv) in
+                verify ctx (st', dec)
 
   in
   match st with
   | None     -> return (st, buf)
   | Some ctx ->
       dec ctx >>= fun (st', msg) ->
-        let ctx' = { ctx with sequence  = Int64.succ ctx.sequence ;
-                              cipher_st = st' } in
-        return (Some ctx', msg)
+      let ctx' = { ctx with
+                     sequence  = Int64.succ ctx.sequence ;
+                     cipher_st = st' }
+      in
+      return (Some ctx', msg)
 
 
 (* party time *)
