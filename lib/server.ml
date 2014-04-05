@@ -24,7 +24,7 @@ let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list)
                          server_verify_data = my_checksum }
   in
   print_security_parameters params;
-  return (`Established, params, None, [`Record (Packet.HANDSHAKE, fin)], `Pass)
+  return (`Established, params, [`Record (Packet.HANDSHAKE, fin)], `Pass)
 
 let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t list) (kex : Cstruct.t) (raw : Cstruct.t) =
   ( match Ciphersuite.ciphersuite_kex sp.ciphersuite with
@@ -70,7 +70,7 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
   let client_ctx, server_ctx, params =
     initialize_crypto_ctx sp premastersecret in
   let ps = packets @ [raw] in
-  return (`KeysExchanged (Some server_ctx, Some client_ctx, ps), params, None, [], `Pass)
+  return (`KeysExchanged (Some server_ctx, Some client_ctx, ps), params, [], `Pass)
 
 let answer_client_hello_params_int sp ch raw =
   let cipher = sp.ciphersuite in
@@ -145,7 +145,6 @@ let answer_client_hello_params_int sp ch raw =
   let packets = bufs'' @ [hello_done] in
   return (`Handshaking (raw :: packets),
           params'',
-          None,
           List.map (fun e -> `Record (Packet.HANDSHAKE, e)) packets,
           `Pass)
 
@@ -193,7 +192,8 @@ let handle_handshake sp is buf =
           answer_client_finished sp bs fin buf
        | `Established, ClientHello ch -> (* key renegotiation *)
           answer_client_hello_params sp ch buf
-       | _, _-> fail Packet.HANDSHAKE_FAILURE )
+       | _, _-> fail Packet.HANDSHAKE_FAILURE ) >>= fun (sp, is, res, dec) ->
+       return (sp, is, None, res, dec)
   | _                           ->
      fail Packet.UNEXPECTED_MESSAGE
 
