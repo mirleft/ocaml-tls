@@ -59,8 +59,6 @@ type crypto_context = {
 
 type crypto_state = crypto_context option
 
-type connection_end = Server | Client
-
 type dh_state = [
     `Initial
   | `Sent     of DH.group * DH.secret
@@ -68,7 +66,6 @@ type dh_state = [
 ]
 
 type security_parameters = {
-  entity                : connection_end ;
   ciphersuite           : Ciphersuite.ciphersuite ;
   master_secret         : Cstruct.t ;
   client_random         : Cstruct.t ;
@@ -83,8 +80,7 @@ type security_parameters = {
 
 let empty_security_parameters =
   let open Cstruct in
-  { entity             = Server ;
-    ciphersuite        = List.hd default_config.ciphers ;
+  { ciphersuite        = List.hd default_config.ciphers ;
     master_secret      = create 0 ;
     client_random      = create 0 ;
     server_random      = create 0 ;
@@ -93,8 +89,7 @@ let empty_security_parameters =
     client_verify_data = create 0 ;
     server_verify_data = create 0 ;
     server_name        = None ;
-    protocol_version   = max_protocol_version
-  }
+    protocol_version   = max_protocol_version }
 
 let print_security_parameters sp =
   let open Printf in

@@ -192,7 +192,6 @@ let new_connection server =
   in
   let security_parameters =
     { state.security_parameters with
-        entity        = Client ;
         client_random = client_hello.random ;
         server_name   = server ;
     }
