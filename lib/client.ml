@@ -13,7 +13,7 @@ let answer_server_hello (p : security_parameters) bs sh raw =
   let sp' = { sp with
                 ciphersuite   = sh.ciphersuites ;
                 server_random = sh.random } in
-  return (`Handshaking (bs @ [raw]), sp', None, [], `Pass)
+  return (`Handshaking (bs @ [raw]), sp', [], `Pass)
 
 let parse_certificate c =
   match Asn_grammars.certificate_of_cstruct c with
@@ -36,7 +36,7 @@ let answer_certificate p bs cs raw =
        | `Fail _                  -> fail Packet.BAD_CERTIFICATE
        | `Ok                      ->
           let sp = { p with server_certificate = Some s } in
-          return (`Handshaking (bs @ [raw]), sp, None, [], `Pass))
+          return (`Handshaking (bs @ [raw]), sp, [], `Pass))
 
 let find_server_rsa_key = function
   | Some x -> Asn_grammars.(match x.tbs_cert.pk_info with
@@ -79,7 +79,6 @@ let answer_server_hello_done p bs raw =
   in
   return (`KeysExchanged (Some client_ctx, Some server_ctx, ps),
           p'',
-          None,
           [`Record (Packet.HANDSHAKE, ckex);
            `Record ccs;
            `Change_enc (Some client_ctx);
@@ -100,7 +99,7 @@ let answer_server_key_exchange p bs kex raw =
                 let sig_ = Hash.( MD5.digest sigdata <> SHA1.digest sigdata ) in
                 fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
                 fail_neq sig_ raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
-                return (`Handshaking (bs @ [raw]), { p with dh_state }, None, [], `Pass)
+                return (`Handshaking (bs @ [raw]), { p with dh_state }, [], `Pass)
             | None -> fail Packet.HANDSHAKE_FAILURE )
        | _ -> fail Packet.HANDSHAKE_FAILURE )
 
@@ -110,7 +109,7 @@ let answer_server_finished p bs fin =
   let computed = Crypto.finished p.master_secret "server finished" bs in
   fail_neq computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
   print_security_parameters p;
-  return (`Established, { p with server_verify_data = computed }, None, [], `Pass)
+  return (`Established, { p with server_verify_data = computed }, [], `Pass)
 
 let default_client_hello () =
   { version      = max_protocol_version ;
@@ -128,7 +127,7 @@ let answer_hello_request sp =
   let ch = { default_client_hello () with
                extensions = securereneg :: host } in
   let raw = Writer.assemble_handshake (ClientHello ch) in
-  return (`Handshaking [raw], sp, None, [`Record (Packet.HANDSHAKE, raw)], `Pass)
+  return (`Handshaking [raw], sp, [`Record (Packet.HANDSHAKE, raw)], `Pass)
 
 let handle_change_cipher_spec sp = function
   (* actually, we're the client and have already sent the kex! *)
@@ -155,7 +154,8 @@ let handle_handshake sp is buf =
           answer_server_finished sp bs fin
        | `Established, HelloRequest ->
           answer_hello_request sp
-       | _, _ -> fail Packet.HANDSHAKE_FAILURE )
+       | _, _ -> fail Packet.HANDSHAKE_FAILURE ) >>= fun (is, sp, res, dec) ->
+       return (is, sp, None, res, dec)
   | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let handle_record
