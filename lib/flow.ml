@@ -237,17 +237,19 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
 (* party time *)
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) or_error
 = fun buf ->
-  match (Cstruct.len buf) > 5 with
+  let open Cstruct in
+  match len buf > 5 with
   | false -> return ([], buf)
   | true  ->
-     match Reader.parse_hdr buf with
-     | Reader.Or_error.Ok (_, buf', len) when len > (Cstruct.len buf') ->
-        return ([], buf)
-     | Reader.Or_error.Ok (hdr, buf', len)                             ->
-        separate_records (Cstruct.shift buf' len) >>= fun (tl, frag) ->
-        return ((hdr, (Cstruct.sub buf' 0 len)) :: tl, frag)
-     | Reader.Or_error.Error _                                         ->
-        fail Packet.HANDSHAKE_FAILURE
+      let open Reader in
+      match parse_hdr buf with
+        | Or_error.Ok (_, buf', l) when l > len buf' ->
+            return ([], buf)
+        | Or_error.Ok (hdr, buf', l)                 ->
+            separate_records (shift buf' l) >>= fun (tl, frag) ->
+            return ((hdr, (sub buf' 0 l)) :: tl, frag)
+        | Or_error.Error _                           ->
+            fail Packet.HANDSHAKE_FAILURE
 
 let assemble_records : tls_version -> record list -> Cstruct.t =
   fun version ->
