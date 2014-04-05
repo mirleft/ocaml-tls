@@ -19,9 +19,8 @@ let default_config = {
 
 (* find highest version between v and supported versions *)
 let supported_protocol_version v =
-  let sups = default_config.protocol_versions in
-  let highest = List.hd sups in
-  let lowest = Utils.last sups in
+  let highest = List.hd default_config.protocol_versions in
+  let lowest = Utils.last default_config.protocol_versions in
   (* implicitly assumes that sups is decreasing ordered and without any holes *)
   match (v >= highest), (v >= lowest) with
     | true, _    -> Some highest
