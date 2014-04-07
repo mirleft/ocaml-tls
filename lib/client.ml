@@ -36,6 +36,14 @@ let answer_certificate p bs cs raw =
        | `Fail _                  -> fail Packet.BAD_CERTIFICATE
        | `Ok                      ->
           let sp = { p with server_certificate = Some s } in
+          (* due to triple-handshake (https://secure-resumption.com) we better
+             ensure that we got the same certificate *)
+          (* match p.server_certificate with
+          | Some x when x = s ->
+             return (`Handshaking (bs @ [raw]), sp, [], `Pass)
+          | Some _            ->
+             fail Packet.HANDSHAKE_FAILURE
+          | None              -> *)
           return (`Handshaking (bs @ [raw]), sp, [], `Pass))
 
 let find_server_rsa_key = function
