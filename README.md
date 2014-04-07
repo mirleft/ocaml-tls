@@ -1,7 +1,7 @@
 ocaml-tls
 ==========
 
-TLS 1.0 and TLS 1.1 support in pure (O)Caml.
+TLS 1.0 and TLS 1.1 support in pure OCaml.
 
 status
 ======
