@@ -273,7 +273,7 @@ let divide_keyblock ~version key mac iv buf =
   in
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
-let initialize_crypto_ctx sp premaster =
+let initialise_crypto_ctx sp premaster =
 
   let open Ciphersuite in
   let version = sp.protocol_version in

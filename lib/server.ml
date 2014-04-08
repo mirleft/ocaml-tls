@@ -68,7 +68,7 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
 
   >>= fun premastersecret ->
   let client_ctx, server_ctx, params =
-    initialize_crypto_ctx sp premastersecret in
+    initialise_crypto_ctx sp premastersecret in
   let ps = packets @ [raw] in
   return (`KeysExchanged (Some server_ctx, Some client_ctx, ps), params, [], `Pass)
 
