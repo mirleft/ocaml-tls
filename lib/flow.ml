@@ -10,9 +10,9 @@ type config = {
 let default_config = {
   (* ordered list (regarding preference) of supported cipher suites *)
   ciphers           = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                    TLS_RSA_WITH_3DES_EDE_CBC_SHA (* ;
+                                    TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
                                     TLS_RSA_WITH_RC4_128_SHA ;
-                                    TLS_RSA_WITH_RC4_128_MD5 *) ]) ;
+                                    TLS_RSA_WITH_RC4_128_MD5 ]) ;
   (* ordered list of decreasing protocol versions *)
   protocol_versions = [ TLS_1_1 ; TLS_1_0 ]
 }
@@ -326,14 +326,13 @@ let handle_raw_record handler state ((hdr : tls_hdr), buf) =
   handler state.machina state.security_parameters hdr.content_type dec
   >>= fun (machina, security_parameters, data, items, dec_cmd) ->
   let (encryptor, encs) =
-    List.fold_left (fun (st, es) ->
-                    function
-                    | `Change_enc st' -> (st', es)
-                    | `Record (ty, buf) ->
-                       let (st', enc) = encrypt security_parameters.protocol_version st ty buf in
-                       (st', es @ [(ty, enc)]))
-                   (state.encryptor, [])
-                   items
+    List.fold_left (fun (st, es) -> function
+      | `Change_enc st' -> (st', es)
+      | `Record (ty, buf) ->
+          let (st', enc) = encrypt security_parameters.protocol_version st ty buf in
+          (st', es @ [(ty, enc)]))
+    (state.encryptor, [])
+    items
   in
   let decryptor = match dec_cmd with
     | `Change_dec dec -> dec
