@@ -50,7 +50,7 @@ key exchange
 
 encryption
 - 3DES-CBC
-- RC4_128 (currently broken)
+- RC4_128
 
 mac
 - SHA1

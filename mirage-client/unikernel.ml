@@ -22,7 +22,7 @@ module Main (C: V1_LWT.CONSOLE) (S: V1_LWT.STACKV4) = struct
                       S.TCPV4.write flow ans )
                   >>
                     loop tls'
-              | `Fail err                  -> S.TCPV4.write flow err
+              | `Fail (_, err)             -> S.TCPV4.write flow err
     in
     let (dst, dst_port) = S.TCPV4.get_dest flow in
     C.log_s c (green "writing to tcp connection to %s %d"

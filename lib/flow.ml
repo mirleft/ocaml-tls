@@ -19,14 +19,13 @@ let default_config = {
 
 (* find highest version between v and supported versions *)
 let supported_protocol_version v =
-  let sups = default_config.protocol_versions in
-  let highest = List.hd sups in
-  let lowest = Utils.last sups in
+  let highest = List.hd default_config.protocol_versions in
+  let lowest = Utils.last default_config.protocol_versions in
   (* implicitly assumes that sups is decreasing ordered and without any holes *)
   match (v >= highest), (v >= lowest) with
-    | true, _ -> Some highest
-    | _, true -> Some v
-    | _, _    -> None
+    | true, _    -> Some highest
+    | _   , true -> Some v
+    | _   , _    -> None
 
 let max_protocol_version = List.hd default_config.protocol_versions
 
@@ -59,8 +58,6 @@ type crypto_context = {
 
 type crypto_state = crypto_context option
 
-type connection_end = Server | Client
-
 type dh_state = [
     `Initial
   | `Sent     of DH.group * DH.secret
@@ -68,7 +65,6 @@ type dh_state = [
 ]
 
 type security_parameters = {
-  entity                : connection_end ;
   ciphersuite           : Ciphersuite.ciphersuite ;
   master_secret         : Cstruct.t ;
   client_random         : Cstruct.t ;
@@ -83,8 +79,7 @@ type security_parameters = {
 
 let empty_security_parameters =
   let open Cstruct in
-  { entity             = Server ;
-    ciphersuite        = List.hd default_config.ciphers ;
+  { ciphersuite        = List.hd default_config.ciphers ;
     master_secret      = create 0 ;
     client_random      = create 0 ;
     server_random      = create 0 ;
@@ -93,8 +88,7 @@ let empty_security_parameters =
     client_verify_data = create 0 ;
     server_verify_data = create 0 ;
     server_name        = None ;
-    protocol_version   = max_protocol_version
-  }
+    protocol_version   = max_protocol_version }
 
 let print_security_parameters sp =
   let open Printf in
@@ -168,9 +162,10 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
             (CBC (m, key, Random_iv), iv <> message)
 
       in
-      let ctx' =
-        { ctx with sequence  = Int64.succ ctx.sequence ;
-                   cipher_st = st' } in
+      let ctx' = { ctx with
+                     sequence  = Int64.succ ctx.sequence ;
+                     cipher_st = st' }
+      in
       (Some ctx', enc)
 
 
@@ -189,16 +184,15 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
   let verify ctx (st', dec) =
     verify_mac ctx ty version dec >>= fun body -> return (st', body)
 
+  (* hmac is computed in this failure branch from the encrypted data, in the
+     successful branch it is decrypted - padding (which is smaller equal than
+     encrypted data) *)
   (* This comment is borrowed from miTLS, but applies here as well: *)
-  (* We implement standard mitigation for padding oracles.
-     Still, we note a small timing leak here:
-     The time to verify the mac is linear in the plaintext length. *)
-  (* defense against
-     http://lasecwww.epfl.ch/memo/memo_ssl.shtml
-     1) in https://www.openssl.org/~bodo/tls-cbc.txt *)
-  (* hmac is computed in this failure branch from the encrypted data,
-     in the successful branch it is decrypted - padding (which is smaller equal
-     than encrypted data) *)
+  (* We implement standard mitigation for padding oracles. Still, we note a
+     small timing leak here: The time to verify the mac is linear in the
+     plaintext length. *)
+  (* defense against http://lasecwww.epfl.ch/memo/memo_ssl.shtml 1) in
+     https://www.openssl.org/~bodo/tls-cbc.txt *)
   and mask_decrypt_failure ctx =
     verify_mac ctx ty version buf >>= fun _ -> fail Packet.BAD_RECORD_MAC
   in
@@ -218,38 +212,44 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
             verify ctx (st', dec) )
 
     | CBC (m, key, Random_iv) ->
-        (* XXX check for length! *)
-        let (iv, buf) = Cstruct.split buf (Crypto.cbc_block m) in
-        match Crypto.decrypt_cbc ~cipher:m ~key ~iv buf with
-        | None          -> mask_decrypt_failure ctx
-        | Some (dec, _) ->
-            let st' = CBC (m, key, Random_iv) in
-            verify ctx (st', dec)
+        if Cstruct.len buf < Crypto.cbc_block m then
+          fail Packet.BAD_RECORD_MAC
+        else
+          let (iv, buf) = Cstruct.split buf (Crypto.cbc_block m) in
+          match Crypto.decrypt_cbc ~cipher:m ~key ~iv buf with
+            | None          -> mask_decrypt_failure ctx
+            | Some (dec, _) ->
+                let st' = CBC (m, key, Random_iv) in
+                verify ctx (st', dec)
 
   in
   match st with
   | None     -> return (st, buf)
   | Some ctx ->
       dec ctx >>= fun (st', msg) ->
-        let ctx' = { ctx with sequence  = Int64.succ ctx.sequence ;
-                              cipher_st = st' } in
-        return (Some ctx', msg)
+      let ctx' = { ctx with
+                     sequence  = Int64.succ ctx.sequence ;
+                     cipher_st = st' }
+      in
+      return (Some ctx', msg)
 
 
 (* party time *)
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) or_error
 = fun buf ->
-  match (Cstruct.len buf) > 5 with
+  let open Cstruct in
+  match len buf > 5 with
   | false -> return ([], buf)
   | true  ->
-     match Reader.parse_hdr buf with
-     | Reader.Or_error.Ok (_, buf', len) when len > (Cstruct.len buf') ->
-        return ([], buf)
-     | Reader.Or_error.Ok (hdr, buf', len)                             ->
-        separate_records (Cstruct.shift buf' len) >>= fun (tl, frag) ->
-        return ((hdr, (Cstruct.sub buf' 0 len)) :: tl, frag)
-     | Reader.Or_error.Error _                                         ->
-        fail Packet.HANDSHAKE_FAILURE
+      let open Reader in
+      match parse_hdr buf with
+        | Or_error.Ok (_, buf', l) when l > len buf' ->
+            return ([], buf)
+        | Or_error.Ok (hdr, buf', l)                 ->
+            separate_records (shift buf' l) >>= fun (tl, frag) ->
+            return ((hdr, (sub buf' 0 l)) :: tl, frag)
+        | Or_error.Error _                           ->
+            fail Packet.HANDSHAKE_FAILURE
 
 let assemble_records : tls_version -> record list -> Cstruct.t =
   fun version ->
@@ -273,7 +273,7 @@ let divide_keyblock ~version key mac iv buf =
   in
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
-let initialize_crypto_ctx sp premaster =
+let initialise_crypto_ctx sp premaster =
 
   let open Ciphersuite in
   let version = sp.protocol_version in
@@ -362,8 +362,8 @@ type ret = [
 let maybe_app a b = match a, b with
   | Some x, Some y -> Some (x <> y)
   | Some x, None   -> Some x
-  | None, Some y   -> Some y
-  | None, None     -> None
+  | None  , Some y -> Some y
+  | None  , None   -> None
 
 type tls_handle_result = {
   machina    : tls_internal_state ;
