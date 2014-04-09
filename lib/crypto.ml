@@ -129,16 +129,25 @@ let padPKCS1_and_encryptRSA pubkey data =
   Rsa.encrypt ~key:pubkey msg
 
 let decryptRSA_unpadPKCS1 key msg =
-  (* might fail if len msg > keysize! *)
-  let dec = Rsa.decrypt ~key msg in
-  (* we're branching -- do same computation in both branches! *)
-  if (Cstruct.get_uint8 dec 0 = 0) && (Cstruct.get_uint8 dec 1 = 2) then
-    let rec not0 idx =
-      match Cstruct.get_uint8 dec idx with
-      | 0 -> succ idx
-      | _ -> not0 (succ idx)
+  (* XXX XXX temp *)
+  let msglen = Rsa.priv_bits key / 8 in
+
+  let open Cstruct in
+  if msglen == len msg then
+    let dec = Rsa.decrypt ~key msg in
+    let rec check_padding cur start = function
+      | 0                  -> let res = get_uint8 dec 0 = 0 in
+                              check_padding (res && cur) 1 1
+      | 1                  -> let res = get_uint8 dec 1 = 2 in
+                              check_padding (res && cur) 2 2
+      | n when n >= msglen -> start
+      | n                  -> let res = get_uint8 dec n = 0 in
+                              let nxt = succ n in
+                              match cur, res with
+                              | true, true -> check_padding false nxt nxt
+                              | x   , _    -> check_padding x start nxt
     in
-    let start = not0 2 in
+    let start = check_padding true 0 0 in
     Some (Cstruct.shift dec start)
   else
     None
