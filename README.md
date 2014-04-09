@@ -33,11 +33,12 @@ trusted code base
 - this library
 - cstruct https://github.com/avsm/ocaml-cstruct
 - crypto from https://github.com/mirleft/ocaml-nocrypto (using C implementations of symmetric ciphers and hashes)
-- uses zarith package (which interfaces libgmp)
+- uses zarith (https://forge.ocamlcore.org/projects/zarith/) package (which interfaces libgmp https://gmplib.org/)
 - asn.1 parser combinator https://github.com/pqwy/ocaml-asn1-combinators
 - OCaml runtime
-
-plus obviously OCaml compiler, operating system, hardware
+- operating system (none if used with mirage http://www.openmirage.org)
+- hardware
+- OCaml compiler (which hopefully preserves semantics)
 
 ciphersuites
 ============
