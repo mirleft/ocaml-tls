@@ -97,12 +97,28 @@ let padPKCS1_and_encryptRSA pubkey data =
 
   (* the non-zero random *)
   let rlength = padlen - 3 in
-  let random = Rng.generate rlength in
-  let notz n = succ (n mod 255) in
-  for i = 0 to pred rlength do
-    let rnd = get_uint8 random i in
-    set_uint8 random i (notz rnd)
-  done;
+  let random, backup = split (Rng.generate (2 * rlength)) rlength in
+  let rec notz rnd =
+    match len rnd with
+    | 0 -> notz (Rng.generate (2 * rlength))
+    | _ -> let fst = get_uint8 rnd 0 in
+           let rest = shift rnd 1 in
+           match fst with
+           | 0 -> notz rest
+           | n -> (n, rest)
+  in
+  let rec check_padding rand = function
+    | 0 -> ()
+    | n -> let idx = pred n in
+           let rnd = match get_uint8 random idx with
+             | 0 -> let r, rest = notz rand in
+                    set_uint8 random idx r;
+                    rest
+             | _ -> rand
+           in
+           check_padding rnd idx
+  in
+  check_padding backup rlength;
 
   (* footer 0x00 *)
   let footer = create 1 in
