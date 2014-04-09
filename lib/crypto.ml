@@ -88,44 +88,36 @@ let padPKCS1_and_encryptRSA pubkey data =
   (* XXX XXX this is temp. *)
   let msglen = Rsa.pub_bits pubkey / 8 in
 
-  (* the header 0x00 0x02 *)
   let open Cstruct in
   let padlen = msglen - (len data) in
-  let padhdr = create 2 in
-  set_uint8 padhdr 0 0;
-  set_uint8 padhdr 1 2;
+  let msg = create msglen in
+
+  (* the header 0x00 0x02 *)
+  set_uint8 msg 0 0;
+  set_uint8 msg 1 2;
+
+  let produce_random () = Rng.generate (2 * padlen) in
 
   (* the non-zero random *)
-  let rlength = padlen - 3 in
-  let random, backup = split (Rng.generate (2 * rlength)) rlength in
-  let rec notz rnd =
-    match len rnd with
-    | 0 -> notz (Rng.generate (2 * rlength))
-    | _ -> let fst = get_uint8 rnd 0 in
-           let rest = shift rnd 1 in
-           match fst with
-           | 0 -> notz rest
-           | n -> (n, rest)
+  let rec copybyte random = function
+    | x when x = pred padlen -> ()
+    | n                      ->
+       if len random = 0 then
+         copybyte (produce_random ()) n
+       else
+         let rest = shift random 1 in
+         match get_uint8 random 0 with
+         | 0 -> copybyte rest n
+         | r -> set_uint8 msg n r;
+                copybyte rest (succ n)
   in
-  let rec check_padding rand = function
-    | 0 -> ()
-    | n -> let idx = pred n in
-           let rnd = match get_uint8 random idx with
-             | 0 -> let r, rest = notz rand in
-                    set_uint8 random idx r;
-                    rest
-             | _ -> rand
-           in
-           check_padding rnd idx
-  in
-  check_padding backup rlength;
+  copybyte (produce_random ()) 2;
 
   (* footer 0x00 *)
-  let footer = create 1 in
-  set_uint8 footer 0 0;
+  set_uint8 msg (pred padlen) 0;
 
   (* merging all together *)
-  let msg = padhdr <> random <> footer <> data in
+  blit data 0 msg padlen (len data);
   Rsa.encrypt ~key:pubkey msg
 
 let decryptRSA_unpadPKCS1 key msg =
