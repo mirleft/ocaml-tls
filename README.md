@@ -33,16 +33,15 @@ trusted code base
 - this library
 - cstruct https://github.com/avsm/ocaml-cstruct
 - crypto from https://github.com/mirleft/ocaml-nocrypto (using C implementations of symmetric ciphers and hashes)
-- uses zarith package (which interfaces libgmp)
-- asn.1 parser combinator https://github.com/pqwy/ocaml-asn1-combinators
+- zarith from https://forge.ocamlcore.org/projects/zarith/ (which interfaces libgmp https://gmplib.org/)
+- asn.1 parser combinator from https://github.com/pqwy/ocaml-asn1-combinators
 - OCaml runtime
-
-plus obviously OCaml compiler, operating system, hardware
+- operating system
+- hardware
+- OCaml compiler
 
 ciphersuites
 ============
-
-currently we use the primitives from cryptokit (but are in the process of switching to ocaml-nocrypto).
 
 key exchange
 - DHE_RSA
