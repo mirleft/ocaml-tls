@@ -50,11 +50,11 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
             if c_ver <= TLS_1_2 then return k else return other
          | true, Reader.Or_error.Ok c_ver, v       ->
             if c_ver = v then return k else return other
-         | _, Reader.Or_error.Error _, _           ->
-            (* I should have a similar conditional here, shouldn't I? *)
+         | _, _, _                                 ->
+            (* should we have a similar conditional here? *)
             return other
        in
-       ( match Crypto.decryptRSA_unpadPKCS private_key kex with
+       ( match Crypto.decryptRSA_unpadPKCS1 private_key kex with
          | None   -> validate_premastersecret other
          | Some k -> validate_premastersecret k )
 

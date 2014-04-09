@@ -128,7 +128,7 @@ let padPKCS1_and_encryptRSA pubkey data =
   let msg = padhdr <> random <> footer <> data in
   Rsa.encrypt ~key:pubkey msg
 
-let decryptRSA_unpadPKCS key msg =
+let decryptRSA_unpadPKCS1 key msg =
   (* might fail if len msg > keysize! *)
   let dec = Rsa.decrypt ~key msg in
   (* we're branching -- do same computation in both branches! *)
