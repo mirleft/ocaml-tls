@@ -88,41 +88,58 @@ let padPKCS1_and_encryptRSA pubkey data =
   (* XXX XXX this is temp. *)
   let msglen = Rsa.pub_bits pubkey / 8 in
 
-  (* the header 0x00 0x02 *)
   let open Cstruct in
   let padlen = msglen - (len data) in
-  let padhdr = create 2 in
-  set_uint8 padhdr 0 0;
-  set_uint8 padhdr 1 2;
+  let msg = create msglen in
+
+  (* the header 0x00 0x02 *)
+  set_uint8 msg 0 0;
+  set_uint8 msg 1 2;
+
+  let produce_random () = Rng.generate (2 * padlen) in
 
   (* the non-zero random *)
-  let rlength = padlen - 3 in
-  let random = Rng.generate rlength in
-  let notz n = succ (n mod 255) in
-  for i = 0 to pred rlength do
-    let rnd = get_uint8 random i in
-    set_uint8 random i (notz rnd)
-  done;
+  let rec copybyte random = function
+    | x when x = pred padlen -> ()
+    | n                      ->
+       if len random = 0 then
+         copybyte (produce_random ()) n
+       else
+         let rest = shift random 1 in
+         match get_uint8 random 0 with
+         | 0 -> copybyte rest n
+         | r -> set_uint8 msg n r;
+                copybyte rest (succ n)
+  in
+  copybyte (produce_random ()) 2;
 
   (* footer 0x00 *)
-  let footer = create 1 in
-  set_uint8 footer 0 0;
+  set_uint8 msg (pred padlen) 0;
 
   (* merging all together *)
-  let msg = padhdr <> random <> footer <> data in
+  blit data 0 msg padlen (len data);
   Rsa.encrypt ~key:pubkey msg
 
-let decryptRSA_unpadPKCS key msg =
-  (* might fail if len msg > keysize! *)
-  let dec = Rsa.decrypt ~key msg in
-  (* we're branching -- do same computation in both branches! *)
-  if (Cstruct.get_uint8 dec 0 = 0) && (Cstruct.get_uint8 dec 1 = 2) then
-    let rec not0 idx =
-      match Cstruct.get_uint8 dec idx with
-      | 0 -> succ idx
-      | _ -> not0 (succ idx)
+let decryptRSA_unpadPKCS1 key msg =
+  (* XXX XXX temp *)
+  let msglen = Rsa.priv_bits key / 8 in
+
+  let open Cstruct in
+  if msglen == len msg then
+    let dec = Rsa.decrypt ~key msg in
+    let rec check_padding cur start = function
+      | 0                  -> let res = get_uint8 dec 0 = 0 in
+                              check_padding (res && cur) 1 1
+      | 1                  -> let res = get_uint8 dec 1 = 2 in
+                              check_padding (res && cur) 2 2
+      | n when n >= msglen -> start
+      | n                  -> let res = get_uint8 dec n = 0 in
+                              let nxt = succ n in
+                              match cur, res with
+                              | true, true -> check_padding false nxt nxt
+                              | x   , _    -> check_padding x start nxt
     in
-    let start = not0 2 in
+    let start = check_padding true 0 0 in
     Some (Cstruct.shift dec start)
   else
     None
