@@ -43,8 +43,6 @@ trusted code base
 ciphersuites
 ============
 
-currently we use the primitives from cryptokit (but are in the process of switching to ocaml-nocrypto).
-
 key exchange
 - DHE_RSA
 - RSA
