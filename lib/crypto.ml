@@ -86,18 +86,31 @@ let padPKCS1_and_encryptRSA pubkey data =
      0x00 0x02 <random_not_zero> 0x00 data *)
 
   (* XXX XXX this is temp. *)
+  let msglen = Rsa.pub_bits pubkey / 8 in
 
-  let len = Rsa.pub_bits pubkey / 8 in
-  let padlen = len - (Cstruct.len data) in
-  let pad = Cstruct.create len in
-  Cstruct.set_uint8 pad 0 0;
-  Cstruct.set_uint8 pad 1 2;
-  for i = 2 to padlen - 2 do
-    Cstruct.set_uint8 pad i 0xAA; (* TODO: might use better random *)
+  (* the header 0x00 0x02 *)
+  let open Cstruct in
+  let padlen = msglen - (len data) in
+  let padhdr = create 2 in
+  set_uint8 padhdr 0 0;
+  set_uint8 padhdr 1 2;
+
+  (* the non-zero random *)
+  let rlength = padlen - 3 in
+  let random = Rng.generate rlength in
+  let notz n = succ (n mod 255) in
+  for i = 0 to pred rlength do
+    let rnd = get_uint8 random i in
+    set_uint8 random i (notz rnd)
   done;
-  Cstruct.set_uint8 pad (pred padlen) 0;
-  Cstruct.blit data 0 pad padlen (Cstruct.len data);
-  Rsa.encrypt ~key:pubkey pad
+
+  (* footer 0x00 *)
+  let footer = create 1 in
+  set_uint8 footer 0 0;
+
+  (* merging all together *)
+  let msg = padhdr <> random <> footer <> data in
+  Rsa.encrypt ~key:pubkey msg
 
 let decryptRSA_unpadPKCS key msg =
   (* might fail if len msg > keysize! *)
