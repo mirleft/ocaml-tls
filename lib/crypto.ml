@@ -262,20 +262,36 @@ let cbc_pad ~block data =
   pad
 
 let cbc_unpad ~block data =
+  (* carefully written without data-dependent branches to mitigate lucky 13 *)
   let open Cstruct in
 
   let len = len data in
   let padlen = get_uint8 data (pred len) in
-  let (res, pad) = split data (len - padlen - 1) in
 
-  let rec check = function
-    | i when i > padlen -> true
-    | i -> (get_uint8 pad i = padlen) && check (succ i) in
+  let padstart = len - padlen - 1 in
 
-  try
-    if check 0 then Some res else None
-  with Invalid_argument _ -> None
+  let rec check active = function
+    | idx when idx = len            -> (* base case, finished reading all bytes *)
+       active
+    | idx when idx = (padstart - 1) -> (* start to compare *)
+       let _r = get_uint8 data idx in
+       check true (succ idx)
+    | idx                           -> (* common case, read and succeed *)
+       match active, get_uint8 data idx = padlen with
+       | true , true  -> check true  (succ idx)
+       | true , false -> check false (succ idx)
+       | false, _     -> check false (succ idx)
+  in
 
+  let tocheck = min len 256 in (* up to 255 padding bytes *)
+  let res, good = if (padstart >= 0) && (padstart <= len) then
+                    (sub data 0 padstart, true)
+                  else
+                    (sub data 0 tocheck, false)
+  in
+  match check false (len - tocheck), good with
+  | true, true -> Some res
+  | _   , _    -> None
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
   let module C = (val cipher : CBC_T with type key = a) in
