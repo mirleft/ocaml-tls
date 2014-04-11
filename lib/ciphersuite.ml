@@ -26,8 +26,12 @@ let needs_certificate = function
   | _ -> true
 
 let needs_server_kex = function
-  | DHE_DSS | DHE_RSA | DH_anon | ECDHE_ECDSA | ECDHE_RSA | ECDH_anon -> true
-  | _ -> false
+  | DHE_DSS | DHE_RSA
+  | DH_anon
+  | ECDHE_ECDSA | ECDHE_RSA
+  | ECDH_anon | ECDH_ECDSA | ECDH_RSA -> true
+
+  | RSA | DH_DSS | DH_RSA -> false
 
 type encryption_algorithm =
   | NULL
