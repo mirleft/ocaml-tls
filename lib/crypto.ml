@@ -210,6 +210,16 @@ module Ciphers = struct
         let open Block.DES in
         K_CBC ( (module CBC : CBC_T with type key = CBC.key),
                 CBC.of_secret secret )
+
+    | AES_128_CBC ->
+        let open Block.AES in
+        K_CBC ( (module CBC : CBC_T with type key = CBC.key),
+                CBC.of_secret secret )
+
+    | AES_256_CBC ->
+        let open Block.AES in
+        K_CBC ( (module CBC : CBC_T with type key = CBC.key),
+                CBC.of_secret secret )
 end
 
 let signature (hash, secret) seq ty (v_major, v_minor) data =

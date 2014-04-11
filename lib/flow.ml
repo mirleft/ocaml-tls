@@ -9,10 +9,14 @@ type config = {
 
 let default_config = {
   (* ordered list (regarding preference) of supported cipher suites *)
-  ciphers           = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                    TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                    TLS_RSA_WITH_RC4_128_SHA ;
-                                    TLS_RSA_WITH_RC4_128_MD5 ]) ;
+  ciphers           = Ciphersuite.([ TLS_RSA_WITH_AES_256_CBC_SHA ;
+                                     TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
+                                     TLS_RSA_WITH_AES_128_CBC_SHA ;
+                                     TLS_DHE_RSA_WITH_AES_128_CBC_SHA ;
+                                     TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                     TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                     TLS_RSA_WITH_RC4_128_SHA ;
+                                     TLS_RSA_WITH_RC4_128_MD5 ]) ;
   (* ordered list of decreasing protocol versions *)
   protocol_versions = [ TLS_1_1 ; TLS_1_0 ]
 }

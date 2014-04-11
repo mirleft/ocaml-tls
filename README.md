@@ -48,7 +48,9 @@ key exchange
 - RSA
 
 encryption
-- 3DES-CBC
+- 3DES
+- AES_128
+- AES_256
 - RC4_128
 
 mac
