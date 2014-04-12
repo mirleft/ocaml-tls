@@ -9,12 +9,16 @@ type config = {
 
 let default_config = {
   (* ordered list (regarding preference) of supported cipher suites *)
-  ciphers           = Ciphersuite.([TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                    TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
-                                    TLS_RSA_WITH_RC4_128_SHA ;
-                                    TLS_RSA_WITH_RC4_128_MD5 ]) ;
+  ciphers           = Ciphersuite.([ TLS_RSA_WITH_AES_256_CBC_SHA ;
+                                     TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
+                                     TLS_RSA_WITH_AES_128_CBC_SHA ;
+                                     TLS_DHE_RSA_WITH_AES_128_CBC_SHA ;
+                                     TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                     TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+                                     TLS_RSA_WITH_RC4_128_SHA ;
+                                     TLS_RSA_WITH_RC4_128_MD5 ]) ;
   (* ordered list of decreasing protocol versions *)
-  protocol_versions = [ TLS_1_1 ; TLS_1_0 ]
+  protocol_versions = [ TLS_1_2 ; TLS_1_1 ; TLS_1_0 ]
 }
 
 (* find highest version between v and supported versions *)
@@ -268,8 +272,8 @@ let divide_keyblock ~version key mac iv buf =
   let c_key, rt2 = split rt1 key in
   let s_key, rt3 = split rt2 key in
   let c_iv , s_iv = match version with
-    | TLS_1_0 -> split rt3 iv
-    | TLS_1_1 -> (create 0, create 0)
+    | TLS_1_0           -> split rt3 iv
+    | TLS_1_1 | TLS_1_2 -> (create 0, create 0)
   in
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
@@ -278,16 +282,16 @@ let initialise_crypto_ctx sp premaster =
   let open Ciphersuite in
   let version = sp.protocol_version in
 
-  let master = Crypto.generate_master_secret premaster
+  let master = Crypto.generate_master_secret version premaster
                 (sp.client_random <> sp.server_random) in
 
   let key, iv, mac = ciphersuite_cipher_mac_length sp.ciphersuite in
   let kblen = match version with
-    | TLS_1_0 -> 2 * key + 2 * mac + 2 * iv
-    | TLS_1_1 -> 2 * key + 2 * mac
+    | TLS_1_0           -> 2 * key + 2 * mac + 2 * iv
+    | TLS_1_1 | TLS_1_2 -> 2 * key + 2 * mac
   in
   let rand = sp.server_random <> sp.client_random in
-  let keyblock = Crypto.key_block kblen master rand in
+  let keyblock = Crypto.key_block version kblen master rand in
 
   let c_mac, s_mac, c_key, s_key, c_iv, s_iv =
     divide_keyblock ~version key mac iv keyblock in
@@ -302,6 +306,7 @@ let initialise_crypto_ctx sp premaster =
       | (K_Stream (cip, st), _      ) -> Stream (cip, st)
       | (K_CBC    (cip, st), TLS_1_0) -> CBC (cip, st, Iv iv)
       | (K_CBC    (cip, st), TLS_1_1) -> CBC (cip, st, Random_iv)
+      | (K_CBC    (cip, st), TLS_1_2) -> CBC (cip, st, Random_iv)
     and mac = (get_hash mac, mac_k)
     and sequence = 0L in
     { cipher_st ; mac ; sequence }

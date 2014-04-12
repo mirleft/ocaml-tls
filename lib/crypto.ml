@@ -25,23 +25,32 @@ let rec p_hash (hmac, hmac_n) key seed len =
   in
   expand (hmac ~key seed) len
 
-let pseudo_random_function len secret label seed =
-  let (s1, s2) = halve secret
-  and labelled = Cstruct.of_string label <> seed in
-  let md5 = p_hash (MD5.hmac, 16) s1 labelled len
-  and sha = p_hash (SHA1.hmac, 20) s2 labelled len in
-  CS.xor md5 sha
+let pseudo_random_function version len secret label seed =
+  let labelled = Cstruct.of_string label <> seed in
+  let open Core in
+  match version with
+  | TLS_1_2           ->
+     p_hash (SHA256.hmac, 32) secret labelled len
+  | TLS_1_1 | TLS_1_0 ->
+     let (s1, s2) = halve secret in
+     let md5 = p_hash (MD5.hmac, 16) s1 labelled len
+     and sha = p_hash (SHA1.hmac, 20) s2 labelled len in
+     CS.xor md5 sha
 
-let generate_master_secret pre_master_secret seed =
-  pseudo_random_function 48 pre_master_secret "master secret" seed
+let generate_master_secret version pre_master_secret seed =
+  pseudo_random_function version 48 pre_master_secret "master secret" seed
 
-let key_block len master_secret seed =
-  pseudo_random_function len master_secret "key expansion" seed
+let key_block version len master_secret seed =
+  pseudo_random_function version len master_secret "key expansion" seed
 
-let finished master_secret label ps =
+let finished version master_secret label ps =
   let data = Utils.cs_appends ps in
-  let seed = MD5.digest data <> SHA1.digest data in
-  pseudo_random_function 12 master_secret label seed
+  let open Core in
+  match version with
+  | TLS_1_0 | TLS_1_1 -> let seed = MD5.digest data <> SHA1.digest data in
+                         pseudo_random_function version 12 master_secret label seed
+  | TLS_1_2 -> let seed = SHA256.digest data in
+               pseudo_random_function version 12 master_secret label seed
 
 let padPKCS1_and_signRSA key msg =
 
@@ -208,6 +217,16 @@ module Ciphers = struct
 
     | TRIPLE_DES_EDE_CBC ->
         let open Block.DES in
+        K_CBC ( (module CBC : CBC_T with type key = CBC.key),
+                CBC.of_secret secret )
+
+    | AES_128_CBC ->
+        let open Block.AES in
+        K_CBC ( (module CBC : CBC_T with type key = CBC.key),
+                CBC.of_secret secret )
+
+    | AES_256_CBC ->
+        let open Block.AES in
         K_CBC ( (module CBC : CBC_T with type key = CBC.key),
                 CBC.of_secret secret )
 end

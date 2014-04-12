@@ -80,7 +80,7 @@ let answer_server_hello_done p bs raw =
   let ccs = change_cipher_spec in
   let client_ctx, server_ctx, p' = initialise_crypto_ctx p premaster in
   let to_fin = bs @ [raw; ckex] in
-  let checksum = Crypto.finished p'.master_secret "client finished" to_fin in
+  let checksum = Crypto.finished p.protocol_version p'.master_secret "client finished" to_fin in
   let fin = Writer.assemble_handshake (Finished checksum) in
   let p'' = { p' with client_verify_data = checksum } in
   let ps = to_fin @ [fin]
@@ -114,7 +114,7 @@ let answer_server_key_exchange p bs kex raw =
   | _ -> fail Packet.UNEXPECTED_MESSAGE
 
 let answer_server_finished p bs fin =
-  let computed = Crypto.finished p.master_secret "server finished" bs in
+  let computed = Crypto.finished p.protocol_version p.master_secret "server finished" bs in
   fail_neq computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
   print_security_parameters p;
   return (`Established, { p with server_verify_data = computed }, [], `Pass)
