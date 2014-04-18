@@ -60,7 +60,7 @@ let http_client_main () =
 
 let echo_server_main () =
   let port =
-    try int_of_string Sys.argv.(0) with _ -> 4433
+    try int_of_string Sys.argv.(1) with _ -> 4433
   in
   Lwt_main.run (echo_server port)
 
