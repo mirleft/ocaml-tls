@@ -209,9 +209,19 @@ let parse_extension buf =
     | Some RENEGOTIATION_INFO ->
        check_length 1 buf >>= fun () ->
        return (SecureRenegotiation (Cstruct.shift buf 1))
-    | Some x ->
-       return (Unhandled (x, buf))
-    | _ -> fail (Unknown ("extension: " ^ string_of_int etype)) ) >>= fun (data) ->
+    | Some PADDING ->
+       check_length len buf >>= fun () ->
+       let rec check = function
+         | 0 -> return (Padding len)
+         | n -> let idx = pred n in
+                if Cstruct.get_uint8 buf idx != 0 then
+                  fail (Unknown "bad padding in padding extension")
+                else
+                  check idx
+       in
+       check len
+    | _ ->
+       return (UnknownExtension (etype, buf)) ) >>= fun (data) ->
   return (data, 4 + len)
 
 let parse_extensions buf =

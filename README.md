@@ -17,14 +17,15 @@ You can pass ``openssl s_server`` a ``-cipher`` argument (following values work 
 implemented
 
 - RFC 2246 - TLS Protocol version 1.0
+- RFC 3268 - AES Ciphersuites for TLS
 - RFC 4346 - TLS Protocol version 1.1
 - RFC 4366 - TLS extensions
 - RFC 5746 - TLS Renegotiation Indication Extension
+- draft-agl-tls-padding-03 - A TLS padding extension
 
 work in progress
 
 - RFC 6520 - TLS Heartbeat extension
-- RFC 3268 - AES Ciphersuites for TLS
 - RFC 4492 - Elliptic Curve Cryptography Ciphersuites for TLS
 
 trusted code base

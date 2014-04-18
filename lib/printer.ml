@@ -27,7 +27,8 @@ let extension_to_string = function
                                (String.concat ", " (List.map named_curve_type_to_string curves))
   | ECPointFormats formats -> "Elliptic Curve formats: " ^ (String.concat ", " (List.map ec_point_format_to_string formats))
   | SecureRenegotiation _ -> "secure renegotiation"
-  | Unhandled _ -> "Unhandled extension"
+  | Padding _ -> "padding"
+  | UnknownExtension _ -> "Unhandled extension"
 
 let client_hello_to_string c_h =
   sprintf "client hello: protocol %s\n  ciphers %s\n  extensions %s"

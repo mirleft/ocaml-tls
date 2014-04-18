@@ -38,7 +38,8 @@ type extension =
   | EllipticCurves of named_curve_type list
   | ECPointFormats of ec_point_format list
   | SecureRenegotiation of Cstruct.t
-  | Unhandled of (extension_type * Cstruct.t)
+  | Padding of int
+  | UnknownExtension of (int * Cstruct.t)
 
 type 'a hello = {
   version      : tls_version;
