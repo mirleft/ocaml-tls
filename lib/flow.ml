@@ -21,17 +21,16 @@ let default_config = {
   protocol_versions = [ TLS_1_2 ; TLS_1_1 ; TLS_1_0 ]
 }
 
+let max_protocol_version = List.hd default_config.protocol_versions
+let min_protocol_version = Utils.last default_config.protocol_versions
+
 (* find highest version between v and supported versions *)
 let supported_protocol_version v =
-  let highest = List.hd default_config.protocol_versions in
-  let lowest = Utils.last default_config.protocol_versions in
   (* implicitly assumes that sups is decreasing ordered and without any holes *)
-  match (v >= highest), (v >= lowest) with
-    | true, _    -> Some highest
+  match (v >= max_protocol_version), (v >= min_protocol_version) with
+    | true, _    -> Some max_protocol_version
     | _   , true -> Some v
     | _   , _    -> None
-
-let max_protocol_version = List.hd default_config.protocol_versions
 
 module Or_alert =
   Control.Or_error_make (struct type err = Packet.alert_type end)

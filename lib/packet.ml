@@ -122,6 +122,7 @@ cenum extension_type {
   SIGNED_CERTIFICATE_TIMESTAMP           = 18; (*RFC6962*)
   CLIENT_CERTIFICATE_TYPE                = 19; (*RFC-ietf-tls-oob-pubkey-11*)
   SERVER_CERTIFICATE_TYPE                = 20; (*RFC-ietf-tls-oob-pubkey-11*)
+  PADDING                                = 21; (*draft-agl-tls-padding*)
   SESSIONTICKET_TLS                      = 35; (*RFC4507*)
   RENEGOTIATION_INFO                     = 0xFF01; (*RFC5746*)
 } as uint16_t

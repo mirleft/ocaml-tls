@@ -1,7 +1,7 @@
 ocaml-tls
 ==========
 
-TLS 1.0 and TLS 1.1 support in pure OCaml.
+TLS 1.0, TLS 1.1, and TLS 1.2 support in pure OCaml.
 
 status
 ======
@@ -12,19 +12,20 @@ The mirage-server uses a mirage socket_stackv4 and listens on port 4433. Run the
 
 The mirage-client uses a mirage socket_stackv4 and connects to 127.0.0.1 port 4433. Run ``openssl s_server -key server.key -cert server.pem -msg`` before running ``./mir-mirage-tls-client``.
 
-You can pass ``openssl s_server`` a ``-cipher`` argument (following values work at the moment: ``EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA RC4-SHA RC4-MD5``.
+You can pass ``openssl s_server`` a ``-cipher`` argument (following values work at the moment: ``DHE-RSA-AES256-SHA AES256-SHA DHE-RSA-AES128-SHA AES128-SHA AES128-SHA EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA RC4-SHA RC4-MD5``.
 
 implemented
 
 - RFC 2246 - TLS Protocol version 1.0
+- RFC 3268 - AES Ciphersuites for TLS
 - RFC 4346 - TLS Protocol version 1.1
 - RFC 4366 - TLS extensions
 - RFC 5746 - TLS Renegotiation Indication Extension
+- draft-agl-tls-padding-03 - A TLS padding extension
 
 work in progress
 
 - RFC 6520 - TLS Heartbeat extension
-- RFC 3268 - AES Ciphersuites for TLS
 - RFC 4492 - Elliptic Curve Cryptography Ciphersuites for TLS
 
 trusted code base
