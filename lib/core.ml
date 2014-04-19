@@ -19,7 +19,7 @@ let pair_of_tls_version = function
   | TLS_1_2 -> (3, 3)
 
 let tls_version_of_pair = function
-  | (2, _) -> Some SSL_2
+  | (0, 2) -> Some SSL_2
   | (3, 0) -> Some SSL_3
   | (3, 1) -> Some TLS_1_0
   | (3, 2) -> Some TLS_1_1
