@@ -247,17 +247,20 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
     let open Reader in
     let payload = shift buf 5 in
     match parse_hdr buf with
-    | (Some content_type, Some version, size) when size > len payload ->
+    | (Some content_type, _, size) when size > len payload ->
        return ([], buf)
-    | (Some content_type, Some version, size)                         ->
+    | (Some content_type, Some version, size)              ->
        separate_records (shift payload size) >>= fun (tl, frag) ->
        let packet = ({ content_type ; version }, sub payload 0 size) in
        return (packet :: tl, frag)
-    | (None, _, _)                                              ->
+    | (Some content_type, None, size)                      ->
+       separate_records (shift payload size) >>= fun (tl, frag) ->
+       let hdr = { content_type ; version = max_protocol_version } in
+       let packet = (hdr, sub payload 0 size) in
+       return (packet :: tl, frag)
+    | (None, _, _)                                         ->
        (* XXX: or should messages with unknown content type be dropped? *)
        fail Packet.UNEXPECTED_MESSAGE
-    | (_, None, _)                                              ->
-       fail Packet.PROTOCOL_VERSION
 
 let assemble_records : tls_version -> record list -> Cstruct.t =
   fun version ->
