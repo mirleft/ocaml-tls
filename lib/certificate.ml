@@ -75,8 +75,9 @@ let validate_signature trusted cert raw =
                let compare_hashes hashfn = Utils.cs_eq hash (hashfn tbs_raw) in
                let open Algorithm in
                match (cert.signature_algo, algo) with
-               | (MD5_RSA , MD5 ) -> compare_hashes Hash.MD5.digest
-               | (SHA1_RSA, SHA1) -> compare_hashes Hash.SHA1.digest
+               | (MD5_RSA , MD5 )     -> compare_hashes Hash.MD5.digest
+               | (SHA1_RSA, SHA1)     -> compare_hashes Hash.SHA1.digest
+               | (SHA256_RSA, SHA256) -> compare_hashes Hash.SHA256.digest
                | _ -> false )
        | None -> false )
 
