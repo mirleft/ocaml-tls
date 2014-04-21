@@ -261,7 +261,6 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
     | (_, None, _)                                         ->
        fail Packet.PROTOCOL_VERSION
     | (None, _, _)                                         ->
-       (* XXX: or should messages with unknown content type be dropped? *)
        fail Packet.UNEXPECTED_MESSAGE
 
 let assemble_records : tls_version -> record list -> Cstruct.t =
