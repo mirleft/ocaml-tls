@@ -15,28 +15,30 @@ let check_length : int -> Cstruct.t -> unit or_error =
   | false -> fail Overflow
   | true  -> return ()
 
+let parse_version_int : Cstruct.t -> int * int =
+  fun buf ->
+  let major = Cstruct.get_uint8 buf 0 in
+  let minor = Cstruct.get_uint8 buf 1 in
+  (major, minor)
+
 let parse_version : Cstruct.t -> tls_version or_error =
   fun buf ->
   check_length 2 buf >>= fun () ->
-  let major = Cstruct.get_uint8 buf 0 in
-  let minor = Cstruct.get_uint8 buf 1 in
-  match tls_version_of_pair (major, minor) with
+  let version = parse_version_int buf in
+  match tls_version_of_pair version with
   | Some x -> return x
-  | None   -> fail (Unknown ("version: " ^
-                               string_of_int major ^ "." ^ string_of_int minor))
+  | None   ->
+     let major, minor = version in
+     fail (Unknown ("version: " ^ string_of_int major ^ "." ^ string_of_int minor))
 
-let parse_hdr : Cstruct.t -> (tls_hdr * Cstruct.t * int) or_error =
+(* calling convention is that the buffer length is >= 5! *)
+let parse_hdr : Cstruct.t -> content_type option * tls_version option * int =
   fun buf ->
-  check_length 5 buf >>= fun () ->
-  let typ = Cstruct.get_uint8 buf 0 in
-  match int_to_content_type typ with
-  | None              ->
-     fail (Unknown ("content type " ^ string_of_int typ))
-  | Some content_type ->
-     parse_version (Cstruct.shift buf 1) >>= fun (version) ->
-     let len = Cstruct.BE.get_uint16 buf 3 in
-     let payload = Cstruct.shift buf 5 in
-     return ({ content_type; version }, payload, len)
+  let open Cstruct in
+  let typ = get_uint8 buf 0 in
+  let version = parse_version_int (shift buf 1) in
+  let len = BE.get_uint16 buf 3 in
+  (int_to_content_type typ, tls_version_of_pair version, len)
 
 let parse_alert buf =
   check_length 2 buf >>= fun () ->
