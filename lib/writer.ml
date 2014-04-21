@@ -89,6 +89,12 @@ let assemble_extension e =
        (assemble_hostnames [name], SERVER_NAME)
     | Hostname None ->
        (Cstruct.create 0, SERVER_NAME)
+    | Padding x ->
+       let buf = Cstruct.create x in
+       for i = 0 to pred x do
+         Cstruct.set_uint8 buf i 0
+       done;
+       (buf, PADDING)
   in
   let buf = Cstruct.create 4 in
   Cstruct.BE.set_uint16 buf 0 (extension_type_to_int typ);
@@ -96,11 +102,10 @@ let assemble_extension e =
   buf <> pay
 
 let assemble_extensions = function
-  | [] -> Cstruct.create 0
+  | [] -> (Cstruct.create 0, 0)
   | es -> let exts = Utils.cs_appends (List.map assemble_extension es) in
-          let lenbuf = Cstruct.create 2 in
-          Cstruct.BE.set_uint16 lenbuf 0 (Cstruct.len exts);
-          lenbuf <> exts
+          let l = Cstruct.len exts in
+          (exts, l)
 
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let slen = match cl.sessionid with
@@ -128,7 +133,18 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   Cstruct.set_uint8 buf 0 1;
   let buf = Cstruct.shift buf 1 in
   assemble_compression_methods buf [NULL];
-  bbuf <> (assemble_extensions cl.extensions)
+  (* some widely deployed firewalls drop ClientHello messages which are
+     > 256 and < 511 byte, insert PADDING extension for these *)
+  let extensions, extlen = assemble_extensions cl.extensions in
+  let buflen = Cstruct.len bbuf + extlen in
+  let extra = if buflen >= 256 && buflen <= 511 then
+                assemble_extension (Padding (512 - (buflen - 4)))
+              else
+                Cstruct.create 0
+  in
+  let extlenbuf = Cstruct.create 2 in
+  Cstruct.BE.set_uint16 extlenbuf 0 (extlen + Cstruct.len extra);
+  bbuf <> extlenbuf <> extensions <> extra
 
 let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let slen = match sh.sessionid with
@@ -148,7 +164,10 @@ let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let buf = assemble_ciphersuite buf sh.ciphersuites in
   (* useless compression method *)
   let _ = assemble_compression_method buf NULL in
-  bbuf <> (assemble_extensions sh.extensions)
+  let exts, extlen = assemble_extensions sh.extensions in
+  let extlenbuf = Cstruct.create 2 in
+  Cstruct.BE.set_uint16 extlenbuf 0 extlen;
+  bbuf <> extlenbuf <> exts
 
 let assemble_ec_prime_parameters buf pp = 0
 
