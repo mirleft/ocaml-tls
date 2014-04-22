@@ -200,8 +200,14 @@ module Ciphers = struct
 
   (* XXX partial *)
   let get_hash = function
-    | MD5 -> (module Hash.MD5  : Hash_T)
-    | SHA -> (module Hash.SHA1 : Hash_T)
+    | MD5    -> (module Hash.MD5    : Hash_T)
+    | SHA    -> (module Hash.SHA1   : Hash_T)
+(* XXX needs either divorcing hash selection from hmac selection, or a bit of
+ * structural subtyping magic as SHA224 has no defined HMAC. (?) *)
+(*     | SHA224 -> (module Hash.SHA224 : Hash_T) *)
+    | SHA256 -> (module Hash.SHA256 : Hash_T)
+    | SHA384 -> (module Hash.SHA384 : Hash_T)
+    | SHA512 -> (module Hash.SHA512 : Hash_T)
 
   type keyed =
     | K_Stream : 'k stream_cipher * 'k -> keyed
