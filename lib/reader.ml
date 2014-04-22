@@ -323,13 +323,26 @@ let parse_dh_parameters raw =
   let rawparams = Cstruct.sub raw 0 (plength + glength + yslength + 6) in
   return ({ dh_p ; dh_g ; dh_Ys }, rawparams, buf)
 
-let parse_dh_parameters_and_signature raw =
-  parse_dh_parameters raw >>= fun (params, rawp, buf) ->
+let parse_digitally_signed buf =
   check_length 2 buf >>= fun () ->
   let siglen = Cstruct.BE.get_uint16 buf 0 in
   check_length (2 + siglen) buf >>= fun () ->
   let sign = Cstruct.sub buf 2 siglen in
-  return (params, sign, rawp)
+  return sign
+
+let parse_digitally_signed_1_2 buf =
+  (* hash algorithm *)
+  check_length 2 buf >>= fun () ->
+  let hash = Cstruct.get_uint8 buf 0 in
+  (* signature algorithm *)
+  let sign = Cstruct.get_uint8 buf 1 in
+  match int_to_hash_algorithm_type hash,
+        int_to_signature_algorithm_type sign with
+  | Some hash', Some sign' ->
+     parse_digitally_signed (Cstruct.shift buf 2) >>= fun (signature) ->
+     return (hash', sign', signature)
+  | _ , _                  -> fail (Unknown "hash or signature algorithm")
+
 
 let parse_ec_curve buf =
   check_length 1 buf >>= fun () ->

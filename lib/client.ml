@@ -96,18 +96,54 @@ let answer_server_hello_done p bs raw =
 let answer_server_key_exchange p bs kex raw =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
   | Ciphersuite.DHE_RSA ->
-    ( match Reader.parse_dh_parameters_and_signature kex with
-      | Reader.Or_error.Ok (dh_params, signature, raw_params) ->
+     find_server_rsa_key p.server_certificate
+     >>= fun pubkey ->
+     ( match Reader.parse_dh_parameters kex with
+       | Reader.Or_error.Ok (dh_params, raw_params, rest) ->
           let dh_state = `Received (Crypto.dh_params_unpack dh_params) in
-          find_server_rsa_key p.server_certificate
-          >>= fun pubkey ->
+          ( match p.protocol_version with
+            | TLS_1_0 | TLS_1_1 ->
+               ( match Reader.parse_digitally_signed rest with
+                 | Reader.Or_error.Ok signature ->
+                    let cm should data =
+                      let csig = Hash.( MD5.digest data <> SHA1.digest data) in
+                      fail_neq should csig Packet.HANDSHAKE_FAILURE
+                    in
+                    return (signature, cm)
+                 | _ -> fail Packet.UNEXPECTED_MESSAGE )
+            | TLS_1_2 ->
+               ( match Reader.parse_digitally_signed_1_2 rest with
+                 | Reader.Or_error.Ok (hasha, signa, signature) ->
+                    let open Packet in
+                    let open Asn_grammars in
+                    ( match signa with
+                      | RSA -> return ()
+                      | _   -> fail UNEXPECTED_MESSAGE ) >>= fun () ->
+                    let cmp should to_hash =
+                      ( match pkcs1_digest_info_of_cstruct should with
+                        | Some (halgo, data) ->
+                           let check hashfn =
+                             let chash = hashfn to_hash in
+                             fail_neq data chash HANDSHAKE_FAILURE
+                           in
+                           ( match halgo, hasha with
+                             | Algorithm.MD5, MD5       -> check Hash.MD5.digest
+                             | Algorithm.SHA1, SHA1     -> check Hash.SHA1.digest
+                             | Algorithm.SHA224, SHA224 -> check Hash.SHA224.digest
+                             | Algorithm.SHA256, SHA256 -> check Hash.SHA256.digest
+                             | Algorithm.SHA384, SHA384 -> check Hash.SHA384.digest
+                             | Algorithm.SHA512, SHA512 -> check Hash.SHA512.digest
+                             | _                        -> fail UNEXPECTED_MESSAGE )
+                        | None -> fail UNEXPECTED_MESSAGE )
+                    in
+                    return (signature, cmp)
+                 | _ -> fail Packet.UNEXPECTED_MESSAGE ) )
+          >>= fun (signature, csig) ->
           ( match Crypto.verifyRSA_and_unpadPKCS1 pubkey signature with
             | Some raw_sig ->
-                let sigdata = p.client_random <> p.server_random <> raw_params in
-                let sig_ = Hash.( MD5.digest sigdata <> SHA1.digest sigdata ) in
-                fail_false (Cstruct.len raw_sig = 36) Packet.HANDSHAKE_FAILURE >>= fun () ->
-                fail_neq sig_ raw_sig Packet.HANDSHAKE_FAILURE >>= fun () ->
-                return (`Handshaking (bs @ [raw]), { p with dh_state }, [], `Pass)
+               let sigdata = p.client_random <> p.server_random <> raw_params in
+               csig raw_sig sigdata >>= fun () ->
+               return (`Handshaking (bs @ [raw]), { p with dh_state }, [], `Pass)
             | None -> fail Packet.HANDSHAKE_FAILURE )
        | _ -> fail Packet.HANDSHAKE_FAILURE )
 
