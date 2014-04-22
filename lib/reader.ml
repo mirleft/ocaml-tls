@@ -336,7 +336,8 @@ let parse_digitally_signed_1_2 buf =
   let hash = Cstruct.get_uint8 buf 0 in
   (* signature algorithm *)
   let sign = Cstruct.get_uint8 buf 1 in
-  match int_to_hash_algorithm_type hash,
+  (* XXX project packet-level algorithm_type into something from Ciphersuite. *)
+  match int_to_hash_algorithm hash,
         int_to_signature_algorithm_type sign with
   | Some hash', Some sign' ->
      parse_digitally_signed (Cstruct.shift buf 2) >>= fun (signature) ->

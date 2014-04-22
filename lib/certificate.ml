@@ -62,6 +62,9 @@ let raw_cert_hack cert raw =
   Cstruct.(sub raw 4 (len raw - (siglen + 4 + 19 + off)))
 
 let validate_signature trusted cert raw =
+  let module A  = Algorithm in
+  let module Cs = Ciphersuite in
+
   let tbs_raw = raw_cert_hack cert raw in
   match trusted.tbs_cert.pk_info with
 
@@ -69,17 +72,20 @@ let validate_signature trusted cert raw =
 
      ( match Crypto.verifyRSA_and_unpadPKCS1 issuing_key cert.signature_val with
        | Some signature ->
-          ( match pkcs1_digest_info_of_cstruct signature with
+          ( match Crypto.pkcs1_digest_info_of_cstruct signature with
             | None              -> false
             | Some (algo, hash) ->
-               let compare_hashes hashfn = Utils.cs_eq hash (hashfn tbs_raw) in
-               let open Algorithm in
-               match (cert.signature_algo, algo) with
-               | (MD5_RSA , MD5 )     -> compare_hashes Hash.MD5.digest
-               | (SHA1_RSA, SHA1)     -> compare_hashes Hash.SHA1.digest
-               | (SHA256_RSA, SHA256) -> compare_hashes Hash.SHA256.digest
-               | (SHA384_RSA, SHA384) -> compare_hashes Hash.SHA384.digest
-               | _ -> false )
+                let matches =
+                  Crypto.hash_eq algo ~target:hash tbs_raw in
+                (* XXX make something that extracts just the hash part of an asn
+                 * algorithm as a ciphersuite hash, then simply check equality
+                 * instead of this. *)
+                match (cert.signature_algo, algo) with
+                | (A.MD5_RSA   , Cs.MD5)    -> matches
+                | (A.SHA1_RSA  , Cs.SHA)    -> matches
+                | (A.SHA256_RSA, Cs.SHA256) -> matches
+                | (A.SHA384_RSA, Cs.SHA384) -> matches
+                | _                         -> false )
        | None -> false )
 
   | _ -> false

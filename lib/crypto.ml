@@ -200,8 +200,14 @@ module Ciphers = struct
 
   (* XXX partial *)
   let get_hash = function
-    | MD5 -> (module Hash.MD5  : Hash_T)
-    | SHA -> (module Hash.SHA1 : Hash_T)
+    | MD5    -> (module Hash.MD5    : Hash_T)
+    | SHA    -> (module Hash.SHA1   : Hash_T)
+(* XXX needs either divorcing hash selection from hmac selection, or a bit of
+ * structural subtyping magic as SHA224 has no defined HMAC. (?) *)
+(*     | SHA224 -> (module Hash.SHA224 : Hash_T) *)
+    | SHA256 -> (module Hash.SHA256 : Hash_T)
+    | SHA384 -> (module Hash.SHA384 : Hash_T)
+    | SHA512 -> (module Hash.SHA512 : Hash_T)
 
   type keyed =
     | K_Stream : 'k stream_cipher * 'k -> keyed
@@ -231,7 +237,25 @@ module Ciphers = struct
                 CBC.of_secret secret )
 end
 
-let signature (hash, secret) seq ty (v_major, v_minor) data =
+let hash hash_ctor cs =
+  let hasht = Ciphers.get_hash hash_ctor in
+  let module H = (val hasht : Hash_T) in
+  H.digest cs
+
+let hash_eq hash_ctor ~target cs =
+  Utils.cs_eq target (hash hash_ctor cs)
+
+(* Decoder + project asn algos into hashes we understand. *)
+let pkcs1_digest_info_of_cstruct cs =
+  match Asn_grammars.pkcs1_digest_info_of_cstruct cs with
+  | None -> None
+  | Some (asn_algo, digest) ->
+      match Ciphersuite.asn_to_hash_algorithm asn_algo with
+      | Some hash -> Some (hash, digest)
+      | None      -> None
+
+
+let mac (hash, secret) seq ty (v_major, v_minor) data =
   let open Cstruct in
 
   let prefix = create 13

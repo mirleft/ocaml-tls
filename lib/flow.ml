@@ -141,7 +141,7 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
   | Some ctx ->
       let signature =
         let ver = pair_of_tls_version version in
-        Crypto.signature ctx.mac ctx.sequence ty ver buf in
+        Crypto.mac ctx.mac ctx.sequence ty ver buf in
 
       let to_encrypt = buf <> signature in
 
@@ -178,7 +178,7 @@ let verify_mac { mac = (hash, _) as mac ; sequence } ty ver decrypted =
     let (body, mmac) = Cstruct.split decrypted macstart in
     let cmac =
       let ver = pair_of_tls_version ver in
-      Crypto.signature mac sequence ty ver body in
+      Crypto.mac mac sequence ty ver body in
     fail_neq cmac mmac Packet.BAD_RECORD_MAC >>= fun () -> return body
 
 

@@ -143,21 +143,23 @@ cenum signature_algorithm_type {
   ECDSA     = 3;
 } as uint8_t
 
-cenum hash_algorithm_type {
-  NONE   = 0;
-  MD5    = 1;
-  SHA1   = 2;
-  SHA224 = 3;
-  SHA256 = 4;
-  SHA384 = 5;
-  SHA512 = 6;
-} as uint8_t
+let int_to_hash_algorithm i =
+  let open Ciphersuite in
+  match i with
+  | 0 -> Some NULL
+  | 1 -> Some MD5
+  | 2 -> Some SHA
+  | 3 -> Some SHA224
+  | 4 -> Some SHA256
+  | 5 -> Some SHA384
+  | 6 -> Some SHA512
+  | _ -> None
 
 (* EC RFC4492*)
 cenum ec_curve_type {
   EXPLICIT_PRIME = 1;
   EXPLICIT_CHAR2 = 2;
-  NAMED_CURVE = 3
+  NAMED_CURVE    = 3
 } as uint8_t
 
 cenum named_curve_type {
