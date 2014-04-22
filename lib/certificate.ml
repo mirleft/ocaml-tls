@@ -78,6 +78,7 @@ let validate_signature trusted cert raw =
                | (MD5_RSA , MD5 )     -> compare_hashes Hash.MD5.digest
                | (SHA1_RSA, SHA1)     -> compare_hashes Hash.SHA1.digest
                | (SHA256_RSA, SHA256) -> compare_hashes Hash.SHA256.digest
+               | (SHA384_RSA, SHA384) -> compare_hashes Hash.SHA384.digest
                | _ -> false )
        | None -> false )
 
