@@ -241,18 +241,27 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) or_error
 = fun buf ->
   let open Cstruct in
-  match len buf > 5 with
-  | false -> return ([], buf)
-  | true  ->
-      let open Reader in
-      match parse_hdr buf with
-        | Or_error.Ok (_, buf', l) when l > len buf' ->
-            return ([], buf)
-        | Or_error.Ok (hdr, buf', l)                 ->
-            separate_records (shift buf' l) >>= fun (tl, frag) ->
-            return ((hdr, (sub buf' 0 l)) :: tl, frag)
-        | Or_error.Error _                           ->
-            fail Packet.HANDSHAKE_FAILURE
+  if len buf <= 5 then
+    return ([], buf)
+  else
+    let open Reader in
+    let payload = shift buf 5 in
+    match parse_hdr buf with
+    | (Some _, Some _, size) when size > (1 lsl 14 + 2048) ->
+       (* 2 ^ 14 + 2048 for TLSCiphertext
+          2 ^ 14 + 1024 for TLSCompressed
+          2 ^ 14 for TLSPlaintext *)
+       fail Packet.RECORD_OVERFLOW
+    | (Some _, Some _, size) when size > len payload       ->
+       return ([], buf)
+    | (Some content_type, Some version, size)              ->
+       separate_records (shift payload size) >>= fun (tl, frag) ->
+       let packet = ({ content_type ; version }, sub payload 0 size) in
+       return (packet :: tl, frag)
+    | (_, None, _)                                         ->
+       fail Packet.PROTOCOL_VERSION
+    | (None, _, _)                                         ->
+       fail Packet.UNEXPECTED_MESSAGE
 
 let assemble_records : tls_version -> record list -> Cstruct.t =
   fun version ->

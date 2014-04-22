@@ -15,28 +15,30 @@ let check_length : int -> Cstruct.t -> unit or_error =
   | false -> fail Overflow
   | true  -> return ()
 
+let parse_version_int : Cstruct.t -> int * int =
+  fun buf ->
+  let major = Cstruct.get_uint8 buf 0 in
+  let minor = Cstruct.get_uint8 buf 1 in
+  (major, minor)
+
 let parse_version : Cstruct.t -> tls_version or_error =
   fun buf ->
   check_length 2 buf >>= fun () ->
-  let major = Cstruct.get_uint8 buf 0 in
-  let minor = Cstruct.get_uint8 buf 1 in
-  match tls_version_of_pair (major, minor) with
+  let version = parse_version_int buf in
+  match tls_version_of_pair version with
   | Some x -> return x
-  | None   -> fail (Unknown ("version: " ^
-                               string_of_int major ^ "." ^ string_of_int minor))
+  | None   ->
+     let major, minor = version in
+     fail (Unknown ("version: " ^ string_of_int major ^ "." ^ string_of_int minor))
 
-let parse_hdr : Cstruct.t -> (tls_hdr * Cstruct.t * int) or_error =
+(* calling convention is that the buffer length is >= 5! *)
+let parse_hdr : Cstruct.t -> content_type option * tls_version option * int =
   fun buf ->
-  check_length 5 buf >>= fun () ->
-  let typ = Cstruct.get_uint8 buf 0 in
-  match int_to_content_type typ with
-  | None              ->
-     fail (Unknown ("content type " ^ string_of_int typ))
-  | Some content_type ->
-     parse_version (Cstruct.shift buf 1) >>= fun (version) ->
-     let len = Cstruct.BE.get_uint16 buf 3 in
-     let payload = Cstruct.shift buf 5 in
-     return ({ content_type; version }, payload, len)
+  let open Cstruct in
+  let typ = get_uint8 buf 0 in
+  let version = parse_version_int (shift buf 1) in
+  let len = BE.get_uint16 buf 3 in
+  (int_to_content_type typ, tls_version_of_pair version, len)
 
 let parse_alert buf =
   check_length 2 buf >>= fun () ->
@@ -302,7 +304,7 @@ let parse_rsa_parameters buf =
   let rsa_exponent = Cstruct.sub buf 2 elength in
   return ({ rsa_modulus ; rsa_exponent }, 4 + mlength + elength)
 
-let parse_dh_parameters_and_signature raw =
+let parse_dh_parameters raw =
   check_length 2 raw >>= fun () ->
   let plength = Cstruct.BE.get_uint16 raw 0 in
   check_length (2 + plength) raw >>= fun () ->
@@ -318,12 +320,29 @@ let parse_dh_parameters_and_signature raw =
   check_length (2 + yslength) buf >>= fun () ->
   let dh_Ys = Cstruct.sub buf 2 yslength in
   let buf = Cstruct.shift buf (2 + yslength) in
+  let rawparams = Cstruct.sub raw 0 (plength + glength + yslength + 6) in
+  return ({ dh_p ; dh_g ; dh_Ys }, rawparams, buf)
+
+let parse_digitally_signed buf =
   check_length 2 buf >>= fun () ->
   let siglen = Cstruct.BE.get_uint16 buf 0 in
   check_length (2 + siglen) buf >>= fun () ->
   let sign = Cstruct.sub buf 2 siglen in
-  return ({ dh_p ; dh_g; dh_Ys }, sign,
-          Cstruct.sub raw 0 (plength + glength + yslength + 6) )
+  return sign
+
+let parse_digitally_signed_1_2 buf =
+  (* hash algorithm *)
+  check_length 2 buf >>= fun () ->
+  let hash = Cstruct.get_uint8 buf 0 in
+  (* signature algorithm *)
+  let sign = Cstruct.get_uint8 buf 1 in
+  match int_to_hash_algorithm_type hash,
+        int_to_signature_algorithm_type sign with
+  | Some hash', Some sign' ->
+     parse_digitally_signed (Cstruct.shift buf 2) >>= fun (signature) ->
+     return (hash', sign', signature)
+  | _ , _                  -> fail (Unknown "hash or signature algorithm")
+
 
 let parse_ec_curve buf =
   check_length 1 buf >>= fun () ->

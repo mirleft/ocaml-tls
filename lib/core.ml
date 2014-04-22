@@ -6,7 +6,6 @@ let o f g x = f (g x)
 let (<>) = Utils.cs_append
 
 type tls_version =
-  | SSL_2
   | SSL_3
   | TLS_1_0
   | TLS_1_1
@@ -19,7 +18,6 @@ let pair_of_tls_version = function
   | TLS_1_2 -> (3, 3)
 
 let tls_version_of_pair = function
-  | (2, _) -> Some SSL_2
   | (3, 0) -> Some SSL_3
   | (3, 1) -> Some TLS_1_0
   | (3, 2) -> Some TLS_1_1
