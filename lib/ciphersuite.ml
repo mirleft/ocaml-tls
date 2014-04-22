@@ -61,23 +61,23 @@ type encryption_algorithm =
   | ARIA_256_CBC
 
 (* encryption_algorithm ->
-   (key_material          : int, -- bytes from key_block to generate write keys
-    iv_size               : int option, -- length of IV, None for stream ciphers *)
+   (key_material          : int -- bytes from key_block to generate write keys
+    iv_size               : int -- length of IV, 0 for stream ciphers *)
 let key_lengths = function
-  | IDEA_CBC -> (16, Some 8)
-  | RC4_128 -> (16, None)
-  | TRIPLE_DES_EDE_CBC -> (24, Some 8)
-  | SEED_CBC -> (16, Some 16)
-  | AES_128_CBC -> (16, Some 16)
-  | AES_256_CBC -> (32, Some 16)
+  | IDEA_CBC -> (16, 8)
+  | RC4_128 -> (16, 0)
+  | TRIPLE_DES_EDE_CBC -> (24, 8)
+  | SEED_CBC -> (16, 16)
+  | AES_128_CBC -> (16, 16)
+  | AES_256_CBC -> (32, 16)
 (*  | AES_128_GCM
   | AES_256_GCM
   | AES_128_CCM
   | AES_256_CCM
   | AES_128_CCM_8
   | AES_256_CCM_8 *)
-  | CAMELLIA_128_CBC -> (16, Some 16)
-  | CAMELLIA_256_CBC -> (32, Some 16)
+  | CAMELLIA_128_CBC -> (16, 16)
+  | CAMELLIA_256_CBC -> (32, 16)
 (*  | CAMELLIA_128_GCM
   | CAMELLIA_256_GCM
   | ARIA_128_GCM
@@ -104,18 +104,6 @@ let asn_to_hash_algorithm a =
   | A.SHA384 -> Some SHA384
   | A.SHA512 -> Some SHA512
   | _        -> None
-
-let hash_length_padding = function
-    (* so far padding is unused... wonder where it will come into play
-       and whether the values here are correct (found on the internet ;) *)
-  | MD5 -> (16, 48)
-  | SHA -> (20, 40)
-  | SHA256 -> (32, 0)
-(*  | SHA384 -> ()
-  | SHA512 -> () *)
-
-let hash_length h =
-  let (l, _) = hash_length_padding h in l
 
 (* TLS ciphersuites *)
 cenum ciphersuite {
@@ -768,11 +756,4 @@ let ciphersuite_mac c = let (_, _, k) = get_kex_enc_hash c in k
 
 let ciphersuite_cipher_mac_length c =
   let cipher = ciphersuite_cipher c in
-  let key, iv' = key_lengths cipher in
-  let iv = match iv' with
-    | None -> 0
-    | Some x -> x
-  in
-  let mac = ciphersuite_mac c in
-  let hlen = hash_length mac in
-  (key, iv, hlen)
+  key_lengths cipher
