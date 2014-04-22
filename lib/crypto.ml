@@ -237,6 +237,16 @@ module Ciphers = struct
                 CBC.of_secret secret )
 end
 
+
+let hash hash_ctor cs =
+  let hasht = Ciphers.get_hash hash_ctor in
+  let module H = (val hasht : Hash_T) in
+  H.digest cs
+
+let hash_eq hash_ctor ~target cs =
+  Utils.cs_eq target (hash hash_ctor cs)
+
+
 let mac (hash, secret) seq ty (v_major, v_minor) data =
   let open Cstruct in
 
