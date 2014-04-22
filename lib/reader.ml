@@ -304,7 +304,7 @@ let parse_rsa_parameters buf =
   let rsa_exponent = Cstruct.sub buf 2 elength in
   return ({ rsa_modulus ; rsa_exponent }, 4 + mlength + elength)
 
-let parse_dh_parameters_and_signature raw =
+let parse_dh_parameters raw =
   check_length 2 raw >>= fun () ->
   let plength = Cstruct.BE.get_uint16 raw 0 in
   check_length (2 + plength) raw >>= fun () ->
@@ -320,12 +320,16 @@ let parse_dh_parameters_and_signature raw =
   check_length (2 + yslength) buf >>= fun () ->
   let dh_Ys = Cstruct.sub buf 2 yslength in
   let buf = Cstruct.shift buf (2 + yslength) in
+  let rawparams = Cstruct.sub raw 0 (plength + glength + yslength + 6) in
+  return ({ dh_p ; dh_g ; dh_Ys }, rawparams, buf)
+
+let parse_dh_parameters_and_signature raw =
+  parse_dh_parameters raw >>= fun (params, rawp, buf) ->
   check_length 2 buf >>= fun () ->
   let siglen = Cstruct.BE.get_uint16 buf 0 in
   check_length (2 + siglen) buf >>= fun () ->
   let sign = Cstruct.sub buf 2 siglen in
-  return ({ dh_p ; dh_g; dh_Ys }, sign,
-          Cstruct.sub raw 0 (plength + glength + yslength + 6) )
+  return (params, sign, rawp)
 
 let parse_ec_curve buf =
   check_length 1 buf >>= fun () ->
