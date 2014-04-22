@@ -104,6 +104,17 @@ type hash_algorithm =
   | SHA384
   | SHA512
 
+let asn_to_hash_algorithm a =
+  let module A = Asn_grammars.Algorithm in
+  match a with
+  | A.MD5    -> Some MD5
+  | A.SHA1   -> Some SHA
+  | A.SHA224 -> Some SHA224
+  | A.SHA256 -> Some SHA256
+  | A.SHA384 -> Some SHA384
+  | A.SHA512 -> Some SHA512
+  | _        -> None
+
 let hash_length_padding = function
     (* so far padding is unused... wonder where it will come into play
        and whether the values here are correct (found on the internet ;) *)
