@@ -94,6 +94,7 @@ let answer_server_hello_done p bs raw =
           `Pass)
 
 let answer_server_key_exchange p bs kex raw =
+  let open Packet in
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
   | Ciphersuite.DHE_RSA ->
      find_server_rsa_key p.server_certificate
@@ -107,47 +108,34 @@ let answer_server_key_exchange p bs kex raw =
                  | Reader.Or_error.Ok signature ->
                     let cm should data =
                       let csig = Hash.( MD5.digest data <> SHA1.digest data) in
-                      fail_neq should csig Packet.HANDSHAKE_FAILURE
+                      fail_neq should csig HANDSHAKE_FAILURE
                     in
                     return (signature, cm)
-                 | _ -> fail Packet.UNEXPECTED_MESSAGE )
+                 | _ -> fail UNEXPECTED_MESSAGE )
             | TLS_1_2 ->
-               ( match Reader.parse_digitally_signed_1_2 rest with
-                 | Reader.Or_error.Ok (hasha, signa, signature) ->
-                    let open Packet in
-                    let open Asn_grammars in
-                    ( match signa with
-                      | RSA -> return ()
-                      | _   -> fail UNEXPECTED_MESSAGE ) >>= fun () ->
-                    let cmp should to_hash =
-                      ( match pkcs1_digest_info_of_cstruct should with
-                        | Some (halgo, data) ->
-                           let check hashfn =
-                             let chash = hashfn to_hash in
-                             fail_neq data chash HANDSHAKE_FAILURE
-                           in
-                           ( match halgo, hasha with
-                             | Algorithm.MD5, MD5       -> check Hash.MD5.digest
-                             | Algorithm.SHA1, SHA      -> check Hash.SHA1.digest
-                             | Algorithm.SHA224, SHA224 -> check Hash.SHA224.digest
-                             | Algorithm.SHA256, SHA256 -> check Hash.SHA256.digest
-                             | Algorithm.SHA384, SHA384 -> check Hash.SHA384.digest
-                             | Algorithm.SHA512, SHA512 -> check Hash.SHA512.digest
-                             | _                        -> fail UNEXPECTED_MESSAGE )
-                        | None -> fail UNEXPECTED_MESSAGE )
-                    in
-                    return (signature, cmp)
-                 | _ -> fail Packet.UNEXPECTED_MESSAGE ) )
+               match Reader.parse_digitally_signed_1_2 rest with
+               | Reader.Or_error.Ok (hasha, RSA, signature) ->
+                   let cmp should to_hash =
+                     match Asn_grammars.pkcs1_digest_info_of_cstruct should with
+                     | Some (halgo, target)
+                        when Ciphersuite.asn_to_hash_algorithm halgo = Some hasha ->
+                        if Crypto.hash_eq hasha ~target to_hash then
+                          return ()
+                        else fail HANDSHAKE_FAILURE
+                     | _ -> fail UNEXPECTED_MESSAGE
+                   in
+                   return (signature, cmp)
+               | _ -> fail UNEXPECTED_MESSAGE )
           >>= fun (signature, csig) ->
           ( match Crypto.verifyRSA_and_unpadPKCS1 pubkey signature with
             | Some raw_sig ->
                let sigdata = p.client_random <> p.server_random <> raw_params in
                csig raw_sig sigdata >>= fun () ->
                return (`Handshaking (bs @ [raw]), { p with dh_state }, [], `Pass)
-            | None -> fail Packet.HANDSHAKE_FAILURE )
-       | _ -> fail Packet.HANDSHAKE_FAILURE )
+            | None -> fail HANDSHAKE_FAILURE )
+       | _ -> fail HANDSHAKE_FAILURE )
 
-  | _ -> fail Packet.UNEXPECTED_MESSAGE
+  | _ -> fail UNEXPECTED_MESSAGE
 
 let answer_server_finished p bs fin =
   let computed = Crypto.finished p.protocol_version p.master_secret "server finished" bs in
