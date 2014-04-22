@@ -116,9 +116,8 @@ let answer_server_key_exchange p bs kex raw =
                match Reader.parse_digitally_signed_1_2 rest with
                | Reader.Or_error.Ok (hasha, RSA, signature) ->
                    let cmp should to_hash =
-                     match Asn_grammars.pkcs1_digest_info_of_cstruct should with
-                     | Some (halgo, target)
-                        when Ciphersuite.asn_to_hash_algorithm halgo = Some hasha ->
+                     match Crypto.pkcs1_digest_info_of_cstruct should with
+                     | Some (hasha', target) when hasha = hasha' ->
                         if Crypto.hash_eq hasha ~target to_hash then
                           return ()
                         else fail HANDSHAKE_FAILURE

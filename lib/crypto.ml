@@ -237,7 +237,6 @@ module Ciphers = struct
                 CBC.of_secret secret )
 end
 
-
 let hash hash_ctor cs =
   let hasht = Ciphers.get_hash hash_ctor in
   let module H = (val hasht : Hash_T) in
@@ -245,6 +244,15 @@ let hash hash_ctor cs =
 
 let hash_eq hash_ctor ~target cs =
   Utils.cs_eq target (hash hash_ctor cs)
+
+(* Decoder + project asn algos into hashes we understand. *)
+let pkcs1_digest_info_of_cstruct cs =
+  match Asn_grammars.pkcs1_digest_info_of_cstruct cs with
+  | None -> None
+  | Some (asn_algo, digest) ->
+      match Ciphersuite.asn_to_hash_algorithm asn_algo with
+      | Some hash -> Some (hash, digest)
+      | None      -> None
 
 
 let mac (hash, secret) seq ty (v_major, v_minor) data =
