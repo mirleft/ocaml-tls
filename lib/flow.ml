@@ -293,18 +293,21 @@ let initialise_crypto_ctx sp premaster =
   let master = Crypto.generate_master_secret version premaster
                 (sp.client_random <> sp.server_random) in
 
-  let key, iv, mac = ciphersuite_cipher_mac_length sp.ciphersuite in
+  let key_len, iv_len = ciphersuite_cipher_mac_length sp.ciphersuite in
+
+  let mac_algo = Crypto.Ciphers.get_hash (ciphersuite_mac sp.ciphersuite) in
+  let mac_len = Crypto.digest_size mac_algo in
+
   let kblen = match version with
-    | TLS_1_0           -> 2 * key + 2 * mac + 2 * iv
-    | TLS_1_1 | TLS_1_2 -> 2 * key + 2 * mac
+    | TLS_1_0           -> 2 * key_len + 2 * mac_len + 2 * iv_len
+    | TLS_1_1 | TLS_1_2 -> 2 * key_len + 2 * mac_len
   in
   let rand = sp.server_random <> sp.client_random in
   let keyblock = Crypto.key_block version kblen master rand in
 
   let c_mac, s_mac, c_key, s_key, c_iv, s_iv =
-    divide_keyblock ~version key mac iv keyblock in
+    divide_keyblock ~version key_len mac_len iv_len keyblock in
 
-  let mac    = ciphersuite_mac sp.ciphersuite in
   let cipher = ciphersuite_cipher sp.ciphersuite in
 
   let context cipher_k iv mac_k =
@@ -315,7 +318,7 @@ let initialise_crypto_ctx sp premaster =
       | (K_CBC    (cip, st), TLS_1_0) -> CBC (cip, st, Iv iv)
       | (K_CBC    (cip, st), TLS_1_1) -> CBC (cip, st, Random_iv)
       | (K_CBC    (cip, st), TLS_1_2) -> CBC (cip, st, Random_iv)
-    and mac = (get_hash mac, mac_k)
+    and mac = (mac_algo, mac_k)
     and sequence = 0L in
     { cipher_st ; mac ; sequence }
   in
