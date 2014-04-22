@@ -99,6 +99,7 @@ type hash_algorithm =
   | NULL
   | MD5
   | SHA
+  | SHA224
   | SHA256
   | SHA384
   | SHA512

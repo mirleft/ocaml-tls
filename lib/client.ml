@@ -128,7 +128,7 @@ let answer_server_key_exchange p bs kex raw =
                            in
                            ( match halgo, hasha with
                              | Algorithm.MD5, MD5       -> check Hash.MD5.digest
-                             | Algorithm.SHA1, SHA1     -> check Hash.SHA1.digest
+                             | Algorithm.SHA1, SHA      -> check Hash.SHA1.digest
                              | Algorithm.SHA224, SHA224 -> check Hash.SHA224.digest
                              | Algorithm.SHA256, SHA256 -> check Hash.SHA256.digest
                              | Algorithm.SHA384, SHA384 -> check Hash.SHA384.digest
