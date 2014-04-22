@@ -231,7 +231,7 @@ module Ciphers = struct
                 CBC.of_secret secret )
 end
 
-let signature (hash, secret) seq ty (v_major, v_minor) data =
+let mac (hash, secret) seq ty (v_major, v_minor) data =
   let open Cstruct in
 
   let prefix = create 13
