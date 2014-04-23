@@ -105,6 +105,17 @@ let asn_to_hash_algorithm a =
   | A.SHA512 -> Some SHA512
   | _        -> None
 
+let hash_algorithm_to_asn h =
+  let module A = Asn_grammars.Algorithm in
+  match h with
+  | MD5    -> Some A.MD5
+  | SHA    -> Some A.SHA1
+  | SHA224 -> Some A.SHA224
+  | SHA256 -> Some A.SHA256
+  | SHA384 -> Some A.SHA384
+  | SHA512 -> Some A.SHA512
+  | _      -> None
+
 (* TLS ciphersuites *)
 cenum ciphersuite {
   TLS_NULL_WITH_NULL_NULL                = 0x0000;

@@ -59,10 +59,10 @@ let padPKCS1_and_signRSA key msg =
 
   (* inspiration from RFC3447 EMSA-PKCS1-v1_5 and rsa_sign.c from OpenSSL *)
   (* also ocaml-ssh kex.ml *)
-  (* msg.length must be 36 (16 MD5 + 20 SHA1)! *)
+  (* msg.length must be 36 (16 MD5 + 20 SHA1) in TLS-1.0/1.1! *)
   let mlen = Cstruct.len msg in
   let padlen = len - mlen in
-  if (padlen > 3) && (mlen = 36) then
+  if padlen > 3 then
     let out = Cstruct.create len in
     Cstruct.set_uint8 out 0 0;
     Cstruct.set_uint8 out 1 1;
@@ -254,6 +254,11 @@ let pkcs1_digest_info_of_cstruct cs =
       | Some hash -> Some (hash, digest)
       | None      -> None
 
+let pkcs1_digest_info_to_cstruct hashalgo data =
+  let signature = hash hashalgo data in
+  match Ciphersuite.hash_algorithm_to_asn hashalgo with
+  | Some x -> Some (Asn_grammars.pkcs1_digest_info_to_cstruct (x, signature))
+  | None   -> None
 
 let mac (hash, secret) seq ty (v_major, v_minor) data =
   let open Cstruct in
