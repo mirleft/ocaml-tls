@@ -155,6 +155,17 @@ let int_to_hash_algorithm i =
   | 6 -> Some SHA512
   | _ -> None
 
+let hash_algorithm_to_int h =
+  let open Ciphersuite in
+  match h with
+  | NULL   -> 0
+  | MD5    -> 1
+  | SHA    -> 2
+  | SHA224 -> 3
+  | SHA256 -> 4
+  | SHA384 -> 5
+  | SHA512 -> 6
+
 (* EC RFC4492*)
 cenum ec_curve_type {
   EXPLICIT_PRIME = 1;

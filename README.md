@@ -19,7 +19,8 @@ implemented
 - RFC 2246 - TLS Protocol version 1.0
 - RFC 3268 - AES Ciphersuites for TLS
 - RFC 4346 - TLS Protocol version 1.1
-- RFC 4366 - TLS extensions
+- RFC 4366 - TLS Extensions (notably Server Name Indication - SNI)
+- RFC 5246 - TLS Protocol version 1.2
 - RFC 5746 - TLS Renegotiation Indication Extension
 - draft-agl-tls-padding-03 - A TLS padding extension
 
@@ -55,8 +56,11 @@ encryption
 - RC4_128
 
 mac
-- SHA1
 - MD5
+- SHA1
+- SHA256
+- SHA384
+- SHA512
 
 TODO (before any deployment)
 ============================

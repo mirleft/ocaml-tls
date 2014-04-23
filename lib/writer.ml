@@ -199,12 +199,16 @@ let assemble_dh_parameters p =
   Cstruct.blit p.dh_Ys 0 buf (6 + plen + glen) yslen;
   buf
 
-let assemble_dh_parameters_and_signature pbuf signature =
-  let plen = Cstruct.len pbuf in
-  let buf = Cstruct.create (2 + plen) in
-  Cstruct.BE.set_uint16 buf plen (Cstruct.len signature);
-  Cstruct.blit pbuf 0 buf 0 plen;
-  buf <> signature
+let assemble_digitally_signed signature =
+  let lenbuf = Cstruct.create 2 in
+  Cstruct.BE.set_uint16 lenbuf 0 (Cstruct.len signature);
+  lenbuf <> signature
+
+let assemble_digitally_signed_1_2 hashalgo sigalgo signature =
+  let algobuf = Cstruct.create 2 in
+  Cstruct.set_uint8 algobuf 0 (hash_algorithm_to_int hashalgo);
+  Cstruct.set_uint8 algobuf 1 (signature_algorithm_type_to_int sigalgo);
+  algobuf <> (assemble_digitally_signed signature)
 
 let assemble_client_key_exchange kex =
   let len = Cstruct.len kex in

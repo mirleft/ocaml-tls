@@ -122,7 +122,15 @@ let answer_client_hello_params_int sp ch raw =
             let dh_param = Crypto.dh_params_pack group msg in
             Writer.assemble_dh_parameters dh_param in
           let data    = params'.client_random <> params'.server_random <> written in
-          let signing = Hash.( MD5.digest data <> SHA1.digest data ) in
+
+          (* if no signature_algorithms extension is sent by the client,
+             support for md5 and sha1 can be safely assumed! *)
+          ( match sp.protocol_version with
+            | TLS_1_0 | TLS_1_1 -> return Hash.( MD5.digest data <> SHA1.digest data )
+            | TLS_1_2 ->
+               match Crypto.pkcs1_digest_info_to_cstruct Ciphersuite.SHA data with
+               | Some x -> return x
+               | None   -> fail Packet.HANDSHAKE_FAILURE ) >>= fun (signing) ->
 
           match
             Crypto.padPKCS1_and_signRSA
@@ -130,10 +138,13 @@ let answer_client_hello_params_int sp ch raw =
                 signing
           with
           | Some sign ->
-              let kex =
-                Writer.assemble_dh_parameters_and_signature written sign in
-              return ( bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)]
-                     , { params' with dh_state } )
+             let signature = match sp.protocol_version with
+               | TLS_1_0 | TLS_1_1 -> Writer.assemble_digitally_signed sign
+               | TLS_1_2 -> Writer.assemble_digitally_signed_1_2 Ciphersuite.SHA Packet.RSA sign
+             in
+             let kex = written <> signature in
+             return ( bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)]
+                    , { params' with dh_state } )
 
           | None -> fail Packet.HANDSHAKE_FAILURE
 
