@@ -144,11 +144,18 @@ let answer_server_finished p bs fin =
   return (`Established, { p with server_verify_data = computed }, [], `Pass)
 
 let default_client_hello () =
-  { version      = max_protocol_version ;
+  let version = max_protocol_version in
+  let extensions = match version with
+    | TLS_1_0 | TLS_1_1 -> []
+    | TLS_1_2 ->
+       let supported = List.map (fun h -> (h, Packet.RSA)) default_config.hashes in
+       [SignatureAlgorithms supported]
+  in
+  { version ;
     random       = Rng.generate 32 ;
     sessionid    = None ;
     ciphersuites = default_config.ciphers ;
-    extensions   = [] }
+    extensions }
 
 let answer_hello_request sp =
   let host = match sp.server_name with
@@ -156,8 +163,9 @@ let answer_hello_request sp =
     | Some x -> [Hostname (Some x)]
   in
   let securereneg = SecureRenegotiation sp.client_verify_data in
-  let ch = { default_client_hello () with
-               extensions = securereneg :: host } in
+  let dch = default_client_hello () in
+  let ch = { dch with
+               extensions = securereneg :: host @ dch.extensions } in
   let raw = Writer.assemble_handshake (ClientHello ch) in
   return (`Handshaking [raw], sp, [`Record (Packet.HANDSHAKE, raw)], `Pass)
 
@@ -219,7 +227,7 @@ let new_connection ?cert ~validator ~server =
     let dch = default_client_hello () in
       { dch with
           ciphersuites = dch.ciphersuites @ [Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV];
-          extensions   = host
+          extensions   = host @ dch.extensions
       }
   in
   let security_parameters =

@@ -166,6 +166,18 @@ let hash_algorithm_to_int h =
   | SHA384 -> 5
   | SHA512 -> 6
 
+let hash_algorithm_to_string h =
+  let open Ciphersuite in
+  match h with
+  | NULL   -> "NULL"
+  | MD5    -> "MD5"
+  | SHA    -> "SHA1"
+  | SHA224 -> "SHA224"
+  | SHA256 -> "SHA256"
+  | SHA384 -> "SHA384"
+  | SHA512 -> "SHA512"
+
+
 (* EC RFC4492*)
 cenum ec_curve_type {
   EXPLICIT_PRIME = 1;

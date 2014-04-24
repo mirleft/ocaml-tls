@@ -17,6 +17,9 @@ let header_to_string (header : tls_hdr) =
 let certificate_request_to_string cr =
   "FOOO"
 
+let hash_sig_to_string (h, s) =
+  hash_algorithm_to_string h ^ " with " ^ signature_algorithm_type_to_string s
+
 let extension_to_string = function
   | Hostname host -> "Hostname: " ^ (match host with
                                      | None   -> "NONE"
@@ -27,6 +30,7 @@ let extension_to_string = function
   | ECPointFormats formats -> "Elliptic Curve formats: " ^ (String.concat ", " (List.map ec_point_format_to_string formats))
   | SecureRenegotiation _ -> "secure renegotiation"
   | Padding _ -> "padding"
+  | SignatureAlgorithms xs -> "Signature algs: " ^ (String.concat ", " (List.map hash_sig_to_string xs))
   | UnknownExtension _ -> "Unhandled extension"
 
 let client_hello_to_string c_h =

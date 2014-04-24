@@ -79,6 +79,20 @@ let assemble_hostnames hosts =
   Cstruct.BE.set_uint16 buf 0 (Cstruct.len names);
   buf <> names
 
+let assemble_signature_algorithms s =
+  let rec assemble_sig buf = function
+    | []        -> ()
+    | (h,s)::xs ->
+       Cstruct.set_uint8 buf 0 (hash_algorithm_to_int h);
+       Cstruct.set_uint8 buf 1 (signature_algorithm_type_to_int s);
+       assemble_sig (Cstruct.shift buf 2) xs
+  in
+  let len = 2 * (List.length s) in
+  let buf = Cstruct.create (2 + len) in
+  Cstruct.BE.set_uint16 buf 0 len;
+  assemble_sig (Cstruct.shift buf 2) s;
+  buf
+
 let assemble_extension e =
   let pay, typ = match e with
     | SecureRenegotiation x ->
@@ -95,6 +109,8 @@ let assemble_extension e =
          Cstruct.set_uint8 buf i 0
        done;
        (buf, PADDING)
+    | SignatureAlgorithms s ->
+       (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
   in
   let buf = Cstruct.create 4 in
   Cstruct.BE.set_uint16 buf 0 (extension_type_to_int typ);
