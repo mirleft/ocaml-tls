@@ -22,7 +22,8 @@ Library "tls"
    Ciphersuite, Utils, Packet, Core, Certificate,
    Printer, Reader, Writer,
    Crypto, Crypto_utils,
-   Flow, Server, Client
+   Flow, Server, Client,
+   X509
   InternalModules: Registry, Asn_grammars, Control
   Pack: true
   BuildDepends: cstruct, cstruct.syntax, nocrypto, asn1-combinators
@@ -32,7 +33,7 @@ Library "tls-lwt"
   FindlibName   : lwt
   FindlibParent : tls
   Path          : lwt
-  Modules       : Tls_lwt, Peruse_it
+  Modules       : Tls_lwt, X509_lwt, Peruse_it
   BuildDepends  : tls, lwt, lwt.syntax, lwt.unix
 
 Executable "echo_server"
