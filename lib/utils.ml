@@ -72,3 +72,16 @@ let hexdump_to_str cs =
   let b = Buffer.create 16 in
   Cstruct.hexdump_to_buffer b cs ;
   Buffer.contents b
+
+let cs_begins_with cs target =
+  let open Cstruct in
+  let l1 = len cs and l2 = len target in
+  l1 >= l2 && cs_eq (sub cs 0 l2) target
+
+let cs_ends_with cs target =
+  let open Cstruct in
+  let l1 = len cs and l2 = len target in
+  l1 >= l2 && cs_eq (sub cs (l1 - l2) l2) target
+
+let cs_empty = Cstruct.create 0
+
