@@ -68,7 +68,9 @@ let exactly_one ~what = function
 
 module Cert = struct
 
-  type t = { asn : Asn_grammars.certificate ; raw : Cstruct.t }
+  open Certificate
+
+  type t = certificate
 
   let of_pem_cstruct cs =
     List.fold_left (fun certs -> function

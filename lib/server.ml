@@ -107,7 +107,7 @@ let answer_client_hello_params_int sp ch raw =
   ( match sp.own_certificate, Ciphersuite.needs_certificate kex with
     | (`Cert_private (cert, _), true) ->
         let record =
-          Writer.assemble_handshake (Certificate [cert.X509.Cert.raw]) in
+          Writer.assemble_handshake (Certificate [cert.Certificate.raw]) in
         return (bufs @ [record], params)
     | (_, false) -> return (bufs, params)
     | _          -> fail Packet.HANDSHAKE_FAILURE )

@@ -69,12 +69,12 @@ type dh_state = [
 
 type peer_cert = [
     `Cert_unknown
-  | `Cert_public of X509.Cert.t
+  | `Cert_public of Certificate.certificate
 ]
 
 type own_cert = [
     `Cert_none
-  | `Cert_private of X509.Cert.t * Rsa.priv
+  | `Cert_private of Certificate.certificate * Rsa.priv
 ]
 
 type security_parameters = {

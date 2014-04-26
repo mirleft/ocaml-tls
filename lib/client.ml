@@ -30,9 +30,8 @@ let answer_certificate p bs cs raw =
   | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
   | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
   | `Fail _                  -> fail Packet.BAD_CERTIFICATE
-  | `Ok (asn_c, raw_c)       ->
-      let peer = `Cert_public X509.Cert.({ raw = raw_c ; asn = asn_c }) in
-      let sp   = { p with peer_certificate = peer } in
+  | `Ok server               ->
+      let sp = { p with peer_certificate = `Cert_public server } in
       (* due to triple-handshake (https://secure-resumption.com) we better
          ensure that we got the same certificate *)
       (* match p.server_certificate with
@@ -46,7 +45,7 @@ let answer_certificate p bs cs raw =
 let peer_rsa_key = function
   | `Cert_public cert ->
       let open Asn_grammars in
-      ( match cert.X509.Cert.asn.tbs_cert.pk_info with
+      ( match cert.Certificate.asn.tbs_cert.pk_info with
         | PK.RSA key -> return key
         | _          -> fail Packet.HANDSHAKE_FAILURE )
   | `Cert_unknown -> fail Packet.HANDSHAKE_FAILURE
