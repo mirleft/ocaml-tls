@@ -6,6 +6,16 @@ open Utils
 open Nocrypto
 
 
+(*
+ * There are two reasons to carry Cstruct.t around:
+ * - we still need to hack on the cstruct to get bytes to hash
+ *   ( this needs to go )
+ * - we need a cs to send to the peer
+ * It's a bit ugly to have two levels, and both are better solved by extending
+ * the asn parser and writer respectively, but until then there needs to be one
+ * place that hides the existence of this pair.
+ *)
+
 type certificate = {
   asn : Asn_grammars.certificate ;
   raw : Cstruct.t
