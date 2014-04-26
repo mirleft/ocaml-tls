@@ -24,7 +24,7 @@ let parse_certificate c =
 let answer_certificate p bs cs raw =
   let open Certificate in
   match
-    verify_certificates_debug ?servername:p.server_name cs
+    X509.Validator.validate p.validator ?servername:p.server_name cs
   with
   | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
   | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
@@ -204,7 +204,7 @@ let handle_record
 
 let handle_tls = handle_tls_int handle_record
 
-let new_connection ?cert server =
+let new_connection ?cert ~validator ~server =
   let state = new_state ?cert () in
   let host = match server with
     | None   -> []
@@ -221,6 +221,7 @@ let new_connection ?cert server =
     { state.security_parameters with
         client_random = client_hello.random ;
         server_name   = server ;
+        validator
     }
   in
   let raw = Writer.assemble_handshake (ClientHello client_hello) in

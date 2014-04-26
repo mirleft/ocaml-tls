@@ -89,6 +89,7 @@ type security_parameters = {
   server_verify_data    : Cstruct.t ;
   server_name           : string option ;
   protocol_version      : tls_version ;
+  validator             : X509.Validator.t ;
 }
 
 let empty_security_parameters =
@@ -103,7 +104,9 @@ let empty_security_parameters =
     client_verify_data = create 0 ;
     server_verify_data = create 0 ;
     server_name        = None ;
-    protocol_version   = max_protocol_version }
+    protocol_version   = max_protocol_version ;
+    validator          = X509.Validator.null
+  }
 
 let print_security_parameters sp =
   let open Printf in
