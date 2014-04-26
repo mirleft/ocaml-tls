@@ -24,8 +24,10 @@ module Or_error =
 
 let success = Or_error.return ()
 
+let success_with = Or_error.return
+
 let lower = function
-  | Or_error.Ok ()     -> `Ok
+  | Or_error.Ok    res -> `Ok res
   | Or_error.Error err -> `Fail err
 
 (* TODO RFC 5280: A certificate MUST NOT include more than
@@ -35,6 +37,8 @@ let issuer_matches_subject parent cert =
   Name.equal parent.tbs_cert.subject cert.tbs_cert.issuer
 
 let is_self_signed cert = issuer_matches_subject cert cert
+(* let is_self_signed { tbs_cert = { subject } } =
+  Name.equal subject subject *)
 
 let subject cert =
   map_find cert.tbs_cert.subject
@@ -230,32 +234,40 @@ let find_issuer trusted cert =
   | _   -> None
 
 
-(* this is the API for the user (Cstruct.t will go away) *)
-let verify_certificates ?servername ~time ~anchors = function
-  | []                                    -> `Fail InvalidInput
-  | (server, server_raw) :: certs_and_raw ->
-      let open Or_error in
+open Or_error
 
-      let rec climb pathlen cert cert_raw = function
-        | (super, super_raw) :: certs ->
-            signs pathlen super cert cert_raw >>= fun () ->
-            climb (succ pathlen) super super_raw certs
-        | [] ->
-            match find_issuer anchors cert with
-            | None when is_self_signed cert             -> fail SelfSigned
-            | None                                      -> fail NoTrustAnchor
-            | Some anchor when validate_time time anchor ->
-                signs pathlen anchor cert cert_raw
-            | Some _                                    -> fail CertificateExpired
-      in
+let rec parse_chain css =
+  let rec loop certs = function
+    | [] -> success_with (List.rev certs)
+    | raw :: css ->
+      ( match Asn_grammars.certificate_of_cstruct raw with
+        | None     -> Or_error.fail InvalidInput
+        | Some asn -> loop ((asn, raw) :: certs) css ) in
+  loop [] css
 
-      let res =
+let verify_chain_of_trust ?servername ~time ~anchors stack =
+  let res = parse_chain stack >>= function
+    | []                                    -> fail InvalidInput
+    | (server, server_raw) :: certs_and_raw ->
+
+        let rec climb pathlen cert cert_raw = function
+          | (super, super_raw) :: certs ->
+              signs pathlen super cert cert_raw >>= fun () ->
+              climb (succ pathlen) super super_raw certs
+          | [] ->
+              match find_issuer anchors cert with
+              | None when is_self_signed cert             -> fail SelfSigned
+              | None                                      -> fail NoTrustAnchor
+              | Some anchor when validate_time time anchor ->
+                  signs pathlen anchor cert cert_raw
+              | Some _                                    -> fail CertificateExpired
+        in
         is_server_cert_valid ?servername time server     >>= fun () ->
         mapM_ (o (is_cert_valid time) fst) certs_and_raw >>= fun () ->
-        climb 0 server server_raw certs_and_raw
-      in lower res
-
-
+        climb 0 server server_raw certs_and_raw          >>= fun () ->
+        return (server, server_raw)
+  in
+  lower res
 
 (* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
 let find_trusted_certs now =
@@ -275,7 +287,7 @@ let find_trusted_certs now =
 let verify_certificates_debug ?servername chain =
   let time    = Unix.gettimeofday () in
   let anchors = find_trusted_certs time in
-  verify_certificates ?servername ~time ~anchors chain
+  verify_chain_of_trust ?servername ~time ~anchors chain
 
 
 (* TODO: how to deal with
