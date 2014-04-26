@@ -21,6 +21,10 @@ let yap ~tag msg = Lwt_io.printf "[%s] %s\n%!" tag msg
 
 let serve_ssl port callback =
 
+  lwt cert =
+    X509_lwt.cert_of_pems ~cert:"server.pem" ~priv_key:"server.key"
+  in
+
   let server_s =
     let open Lwt_unix in
     let s = socket PF_INET SOCK_STREAM 0 in
@@ -29,7 +33,7 @@ let serve_ssl port callback =
     s in
 
   let rec loop () =
-    lwt (socket, addr) = Tls_lwt.accept server_s in
+    lwt (socket, addr) = Tls_lwt.accept ~cert server_s in
     yap ~tag:"server" "-> connect" >>
     let _ =
       try_lwt callback socket addr with
