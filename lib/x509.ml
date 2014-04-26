@@ -104,3 +104,35 @@ module PK = struct
     o (exactly_one ~what:"rsa keys") of_pem_cstruct
 end
 
+module Validator : sig
+
+  type t
+
+  val validate : t -> ?servername:string -> Cstruct.t list ->
+                  [ `Ok of Cert.t | `Fail of Certificate.certificate_failure ]
+
+  val chain_of_trust : time:int -> Cert.t list -> t
+  val null : t
+end
+  =
+struct
+
+  (* XXX Validator returns server cert since it does the parsing.
+   * Factor this out to avoid the crock? *)
+  type t = ?servername:string -> time:int -> Cstruct.t list ->
+              [ `Ok of Cert.t | `Fail of Certificate.certificate_failure ]
+
+  let validate t ?servername stack =
+    t ?servername ~time:0 stack
+
+  (* XXX
+   * Validator just hands off a list of certs. Should be indexed. *)
+  let chain_of_trust ~time cas =
+    let cas = Certificate.validate_cas ~time cas in
+    fun ?servername ~time stack ->
+      Certificate.verify_chain_of_trust ?servername ~time ~anchors:cas stack
+
+  let null ?servername:_ ~time:_ = Certificate.server_of_stack
+
+end
+

@@ -250,7 +250,7 @@ let find_issuer trusted cert =
   | _   -> None
 
 
-let rec parse_chain css =
+let rec parse_stack css =
   let rec loop certs = function
     | [] -> return @@ List.rev certs
     | raw :: css ->
@@ -260,7 +260,7 @@ let rec parse_chain css =
   loop [] css
 
 let verify_chain_of_trust ?servername ~time ~anchors stack =
-  let res = parse_chain stack >>= function
+  let res = parse_stack stack >>= function
     | []             -> fail InvalidInput
     | server :: certs ->
         let rec climb pathlen cert = function
@@ -281,6 +281,16 @@ let verify_chain_of_trust ?servername ~time ~anchors stack =
         return server
   in
   lower res
+
+let validate_cas ~time cas =
+  List.filter
+    (fun cert -> is_success @@ is_ca_cert_valid time cert)
+    cas
+
+let server_of_stack stack =
+  lower ( parse_stack stack >>= function
+    | []          -> fail InvalidInput
+    | server :: _ -> return server )
 
 (* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
 let find_trusted_certs now =
