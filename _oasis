@@ -20,8 +20,7 @@ Library "tls"
   Path: lib/
   Modules:
    Ciphersuite, Utils, Packet, Core, Certificate,
-   Printer, Reader, Writer,
-   Crypto, Crypto_utils,
+   Printer, Reader, Writer, Crypto,
    Flow, Server, Client,
    X509
   InternalModules: Registry, Asn_grammars, Control

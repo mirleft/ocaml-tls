@@ -292,28 +292,6 @@ let server_of_stack stack =
     | []          -> fail InvalidInput
     | server :: _ -> return server )
 
-(* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
-let find_trusted_certs now =
-  let cacert_file, ca_nss_file =
-    ("certificates/cacert.crt", "certificates/ca-root-nss.crt") in
-  let ((cacert, raw), nss) =
-    Crypto_utils.(cert_of_file cacert_file, certs_of_file ca_nss_file) in
-  let cacert = { asn = cacert ; raw = raw }
-  and nss    = List.map (fun (asn, raw) -> { asn ; raw }) nss in
-
-  let cas   = List.append nss [cacert] in
-  let valid =
-    List.filter
-      (fun cert -> is_success @@ is_ca_cert_valid now cert)
-      cas in
-  Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
-  valid
-
-let verify_certificates_debug ?servername chain =
-  let time    = Unix.gettimeofday () in
-  let anchors = find_trusted_certs time in
-  verify_chain_of_trust ?servername ~time ~anchors chain
-
 
 (* TODO: how to deal with
     2.16.840.1.113730.1.1 - Netscape certificate type
