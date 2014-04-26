@@ -11,8 +11,9 @@ let rec unlines = function
 let cs_of_lines = o Cstruct.of_string unlines
 
 let http_client host port =
-  lwt sock = Tls_lwt.connect host port in
-  let req  = cs_of_lines [
+  lwt validator = X509_lwt.validator (`Ca_dir "./certificates") in
+  lwt sock      = Tls_lwt.connect validator host port in
+  let req       = cs_of_lines [
     "GET / HTTP/1.1" ; "Host: " ^ host ; "" ; "" ;
   ] in
   Tls_lwt.write sock req >> Tls_lwt.read sock >>= o Lwt_io.print Cstruct.to_string
@@ -22,8 +23,7 @@ let yap ~tag msg = Lwt_io.printf "[%s] %s\n%!" tag msg
 let serve_ssl port callback =
 
   lwt cert =
-    X509_lwt.cert_of_pems ~cert:"server.pem" ~priv_key:"server.key"
-  in
+    X509_lwt.cert_of_pems ~cert:"server.pem" ~priv_key:"server.key" in
 
   let server_s =
     let open Lwt_unix in
