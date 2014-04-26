@@ -28,13 +28,13 @@ type certificate_failure =
 module Or_error =
   Control.Or_error_make ( struct type err = certificate_failure end )
 
-let success = Or_error.return ()
+open Or_error
 
-let success_with = Or_error.return
+let success = return ()
 
 let lower = function
-  | Or_error.Ok    res -> `Ok res
-  | Or_error.Error err -> `Fail err
+  | Ok    res -> `Ok res
+  | Error err -> `Fail err
 
 (* TODO RFC 5280: A certificate MUST NOT include more than
                   one instance of a particular extension. *)
@@ -166,8 +166,8 @@ let is_cert_valid now cert =
       validate_ca_extensions cert
     with
     | (true, true) -> success
-    | (false, _)   -> Or_error.fail CertificateExpired
-    | (_, false)   -> Or_error.fail InvalidExtensions
+    | (false, _)   -> fail CertificateExpired
+    | (_, false)   -> fail InvalidExtensions
 
 let is_ca_cert_valid now cert =
   Printf.printf "verifying CA cert %s: " (common_name_to_string cert.asn);
@@ -178,10 +178,10 @@ let is_ca_cert_valid now cert =
     validate_ca_extensions cert
   with
   | (true, true, true, true) -> success
-  | (false, _, _, _)         -> Or_error.fail InvalidCA
-  | (_, false, _, _)         -> Or_error.fail InvalidSignature
-  | (_, _, false, _)         -> Or_error.fail CertificateExpired
-  | (_, _, _, false)         -> Or_error.fail InvalidExtensions
+  | (false, _, _, _)         -> fail InvalidCA
+  | (_, false, _, _)         -> fail InvalidSignature
+  | (_, _, false, _)         -> fail CertificateExpired
+  | (_, _, _, false)         -> fail InvalidExtensions
 
 let is_server_cert_valid ?servername now cert =
   Printf.printf "verify server certificate %s\n"
@@ -192,9 +192,9 @@ let is_server_cert_valid ?servername now cert =
     validate_server_extensions cert
   with
   | (true, true, true) -> success
-  | (false, _, _)      -> Or_error.fail CertificateExpired
-  | (_, false, _)      -> Or_error.fail InvalidServerName
-  | (_, _, false)      -> Or_error.fail InvalidServerExtensions
+  | (false, _, _)      -> fail CertificateExpired
+  | (_, false, _)      -> fail InvalidServerName
+  | (_, _, false)      -> fail InvalidServerExtensions
 
 
 let ext_authority_matches_subject trusted cert =
@@ -221,10 +221,10 @@ let signs pathlen trusted cert =
     validate_path_len pathlen trusted
   with
   | (true, true, true, true) -> success
-  | (false, _, _, _)         -> Or_error.fail InvalidCertificate
-  | (_, false, _, _)         -> Or_error.fail InvalidExtensions
-  | (_, _, false, _)         -> Or_error.fail InvalidSignature
-  | (_, _, _, false)         -> Or_error.fail InvalidPathlen
+  | (false, _, _, _)         -> fail InvalidCertificate
+  | (_, false, _, _)         -> fail InvalidExtensions
+  | (_, _, false, _)         -> fail InvalidSignature
+  | (_, _, _, false)         -> fail InvalidPathlen
 
 
 let find_issuer trusted cert =
@@ -240,14 +240,12 @@ let find_issuer trusted cert =
   | _   -> None
 
 
-open Or_error
-
 let rec parse_chain css =
   let rec loop certs = function
-    | [] -> success_with (List.rev certs)
+    | [] -> return @@ List.rev certs
     | raw :: css ->
       ( match Asn_grammars.certificate_of_cstruct raw with
-        | None     -> Or_error.fail InvalidInput
+        | None     -> fail InvalidInput
         | Some asn -> loop ({ asn ; raw } :: certs) css ) in
   loop [] css
 
@@ -286,7 +284,7 @@ let find_trusted_certs now =
   let cas   = List.append nss [cacert] in
   let valid =
     List.filter
-      (fun cert -> Or_error.is_success @@ is_ca_cert_valid now cert)
+      (fun cert -> is_success @@ is_ca_cert_valid now cert)
       cas in
   Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
   valid
