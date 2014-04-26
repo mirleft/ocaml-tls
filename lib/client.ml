@@ -35,7 +35,12 @@ let answer_certificate p bs cs raw =
        | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
        | `Fail _                  -> fail Packet.BAD_CERTIFICATE
        | `Ok                      ->
-          let sp = { p with server_certificate = Some s } in
+
+          let sp =
+            let (asn, raw) = List.hd certificates in
+            let peer = `Cert_public X509.Cert.({ raw ; asn }) in
+            { p with peer_certificate = peer } in
+
           (* due to triple-handshake (https://secure-resumption.com) we better
              ensure that we got the same certificate *)
           (* match p.server_certificate with
@@ -46,11 +51,13 @@ let answer_certificate p bs cs raw =
           | None              -> *)
           return (`Handshaking (bs @ [raw]), sp, [], `Pass))
 
-let find_server_rsa_key = function
-  | Some x -> Asn_grammars.(match x.tbs_cert.pk_info with
-                            | PK.RSA key -> return key
-                            | _          -> fail Packet.HANDSHAKE_FAILURE)
-  | None   -> fail Packet.HANDSHAKE_FAILURE
+let peer_rsa_key = function
+  | `Cert_public cert ->
+      let open Asn_grammars in
+      ( match cert.X509.Cert.asn.tbs_cert.pk_info with
+        | PK.RSA key -> return key
+        | _          -> fail Packet.HANDSHAKE_FAILURE )
+  | `Cert_unknown -> fail Packet.HANDSHAKE_FAILURE
 
 let find_premaster p =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
@@ -58,8 +65,7 @@ let find_premaster p =
   | Ciphersuite.RSA ->
      let ver = Writer.assemble_protocol_version p.protocol_version in
      let premaster = ver <> Rng.generate 46 in
-     find_server_rsa_key p.server_certificate
-     >>= fun pubkey ->
+     peer_rsa_key p.peer_certificate >>= fun pubkey ->
      return (Crypto.padPKCS1_and_encryptRSA pubkey premaster, premaster)
 
   | Ciphersuite.DHE_RSA ->
@@ -97,8 +103,7 @@ let answer_server_key_exchange p bs kex raw =
   let open Packet in
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
   | Ciphersuite.DHE_RSA ->
-     find_server_rsa_key p.server_certificate
-     >>= fun pubkey ->
+     peer_rsa_key p.peer_certificate >>= fun pubkey ->
      ( match Reader.parse_dh_parameters kex with
        | Reader.Or_error.Ok (dh_params, raw_params, rest) ->
           let dh_state = `Received (Crypto.dh_params_unpack dh_params) in
@@ -208,8 +213,8 @@ let handle_record
 
 let handle_tls = handle_tls_int handle_record
 
-let new_connection server =
-  let state = empty_state in
+let new_connection ?cert server =
+  let state = new_state ?cert () in
   let host = match server with
     | None   -> []
     | Some _ -> [Hostname server]
