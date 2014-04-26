@@ -60,3 +60,45 @@ module Pem = struct
   let parse = o combine lines
 
 end
+
+let exactly_one ~what = function
+  | []  -> invalid_arg ("No " ^ what)
+  | [x] -> x
+  | _   -> invalid_arg ("Multiple " ^ what)
+
+module Cert = struct
+
+  type t = { asn : Asn_grammars.certificate ; raw : Cstruct.t }
+
+  let of_pem_cstruct cs =
+    List.fold_left (fun certs -> function
+      | ("CERTIFICATE", raw) ->
+        ( match Asn_grammars.certificate_of_cstruct raw with
+          | Some asn -> { asn ; raw } :: certs
+          | None -> invalid_arg "X509: failed to parse certificate" )
+      | _ -> certs)
+    []
+    (Pem.parse cs)
+
+  let of_pem_cstruct1 =
+    o (exactly_one ~what:"certificates") of_pem_cstruct
+end
+
+module PK = struct
+
+  type t = Nocrypto.Rsa.priv
+
+  let of_pem_cstruct cs =
+    List.fold_left (fun pks -> function
+      | ("RSA PRIVATE KEY", cs) ->
+        ( match Asn_grammars.PK.rsa_private_of_cstruct cs with
+          | Some pk -> pk :: pks
+          | None    -> invalid_arg "X509: failed to parse rsa private key" )
+      | _ -> pks)
+    []
+    (Pem.parse cs)
+
+  let of_pem_cstruct1 =
+    o (exactly_one ~what:"rsa keys") of_pem_cstruct
+end
+
