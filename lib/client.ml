@@ -50,7 +50,7 @@ let answer_certificate p bs cs raw =
 let peer_rsa_key = function
   | `Cert_public cert ->
       let open Asn_grammars in
-      ( match cert.Certificate.asn.tbs_cert.pk_info with
+      ( match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
         | PK.RSA key -> return key
         | _          -> fail Packet.HANDSHAKE_FAILURE )
   | `Cert_unknown -> fail Packet.HANDSHAKE_FAILURE

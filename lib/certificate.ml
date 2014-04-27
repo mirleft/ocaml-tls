@@ -21,6 +21,9 @@ type certificate = {
   raw : Cstruct.t
 }
 
+let cs_of_cert  { raw ; _ } = raw
+let asn_of_cert { asn ; _ } = asn
+
 type stack = certificate * certificate list
 
 let parse cs =
