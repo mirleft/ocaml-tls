@@ -21,6 +21,8 @@ type certificate = {
   raw : Cstruct.t
 }
 
+type stack = certificate * certificate list
+
 let parse cs =
   match Asn_grammars.certificate_of_cstruct cs with
   | None     -> None
@@ -48,7 +50,7 @@ open Or_error
 let success = return ()
 
 let lower = function
-  | Ok    res -> `Ok res
+  | Ok _      -> `Ok
   | Error err -> `Fail err
 
 (* TODO RFC 5280: A certificate MUST NOT include more than
@@ -255,47 +257,42 @@ let find_issuer trusted cert =
   | _   -> None
 
 
-let rec parse_stack css =
+let parse_stack css =
   let rec loop certs = function
-    | [] -> return @@ List.rev certs
+    | [] ->
+      ( match List.rev certs with
+        | []              -> None
+        | server :: certs -> Some (server, certs ) )
     | cs :: css ->
-      ( match parse cs with
-        | None      -> fail InvalidInput
-        | Some cert -> loop (cert :: certs) css ) in
+        match parse cs with
+        | None      -> None
+        | Some cert -> loop (cert :: certs) css in
   loop [] css
 
-let verify_chain_of_trust ?host ~time ~anchors stack =
-  let res = parse_stack stack >>= function
-    | []             -> fail InvalidInput
-    | server :: certs ->
-        let rec climb pathlen cert = function
-          | super :: certs ->
-              signs pathlen super cert >>= fun () ->
-              climb (succ pathlen) super certs
-          | [] ->
-              match find_issuer anchors cert with
-              | None when is_self_signed cert             -> fail SelfSigned
-              | None                                      -> fail NoTrustAnchor
-              | Some anchor when validate_time time anchor ->
-                  signs pathlen anchor cert
-              | Some _                                    -> fail CertificateExpired
-        in
-        is_server_cert_valid ?host time server >>= fun () ->
-        mapM_ (is_cert_valid time) certs       >>= fun () ->
-        climb 0 server certs                   >>= fun () ->
-        return server
+let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
+  let res =
+    let rec climb pathlen cert = function
+      | super :: certs ->
+          signs pathlen super cert >>= fun () ->
+          climb (succ pathlen) super certs
+      | [] ->
+          match find_issuer anchors cert with
+          | None when is_self_signed cert             -> fail SelfSigned
+          | None                                      -> fail NoTrustAnchor
+          | Some anchor when validate_time time anchor ->
+              signs pathlen anchor cert
+          | Some _                                    -> fail CertificateExpired
+    in
+    is_server_cert_valid ?host time server >>= fun () ->
+    mapM_ (is_cert_valid time) certs       >>= fun () ->
+    climb 0 server certs
   in
   lower res
 
-let validate_cas ~time cas =
+let valid_cas ~time cas =
   List.filter
     (fun cert -> is_success @@ is_ca_cert_valid time cert)
     cas
-
-let server_of_stack stack =
-  lower ( parse_stack stack >>= function
-    | []          -> fail InvalidInput
-    | server :: _ -> return server )
 
 
 (* TODO: how to deal with

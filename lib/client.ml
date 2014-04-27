@@ -15,32 +15,37 @@ let answer_server_hello (p : security_parameters) bs sh raw =
                 server_random = sh.random } in
   return (`Handshaking (bs @ [raw]), sp', [], `Pass)
 
-let parse_certificate c =
-  match Asn_grammars.certificate_of_cstruct c with
-  | None      -> fail Packet.BAD_CERTIFICATE
-  | Some cert -> return cert
 
 (* sends nothing *)
 let answer_certificate p bs cs raw =
   let open Certificate in
-  match
-    X509.Validator.validate p.validator ?host:p.server_name cs
-  with
-  | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
-  | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
-  | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
-  | `Fail _                  -> fail Packet.BAD_CERTIFICATE
-  | `Ok server               ->
-      let sp = { p with peer_certificate = `Cert_public server } in
-      (* due to triple-handshake (https://secure-resumption.com) we better
-         ensure that we got the same certificate *)
-      (* match p.server_certificate with
-      | Some x when x = s ->
-         return (`Handshaking (bs @ [raw]), sp, [], `Pass)
-      | Some _            ->
-         fail Packet.HANDSHAKE_FAILURE
-      | None              -> *)
-      return (`Handshaking (bs @ [raw]), sp, [], `Pass)
+
+  let parse css =
+    match parse_stack css with
+    | None       -> fail Packet.BAD_CERTIFICATE
+    | Some stack -> return stack
+
+  and validate ((server, _) as stack) =
+    match
+      X509.Validator.validate p.validator ?host:p.server_name stack
+    with
+    | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
+    | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
+    | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
+    | `Fail _                  -> fail Packet.BAD_CERTIFICATE
+    | `Ok                      ->
+        let sp = { p with peer_certificate = `Cert_public server } in
+        (* due to triple-handshake (https://secure-resumption.com) we better
+          ensure that we got the same certificate *)
+        (* match p.server_certificate with
+        | Some x when x = s ->
+          return (`Handshaking (bs @ [raw]), sp, [], `Pass)
+        | Some _            ->
+          fail Packet.HANDSHAKE_FAILURE
+        | None              -> *)
+        return (`Handshaking (bs @ [raw]), sp, [], `Pass)
+  in
+  parse cs >>= validate
 
 let peer_rsa_key = function
   | `Cert_public cert ->
