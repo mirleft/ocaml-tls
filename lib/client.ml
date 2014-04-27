@@ -24,7 +24,7 @@ let parse_certificate c =
 let answer_certificate p bs cs raw =
   let open Certificate in
   match
-    X509.Validator.validate p.validator ?servername:p.server_name cs
+    X509.Validator.validate p.validator ?host:p.server_name cs
   with
   | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
   | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA

@@ -10,10 +10,15 @@ let rec unlines = function
 
 let cs_of_lines = o Cstruct.of_string unlines
 
+let ca_cert_dir = "./certificates"
+let server_cert = "./certificates/server.pem"
+let server_key  = "./certificates/server.key"
+
 let http_client host port =
-  lwt validator = X509_lwt.validator (`Ca_dir "./certificates") in
-  lwt sock      = Tls_lwt.connect validator host port in
-  let req       = cs_of_lines [
+  lwt validator = X509_lwt.validator (`Ca_dir ca_cert_dir) in
+  lwt sock      = Tls_lwt.connect validator host port
+  in
+  let req = cs_of_lines [
     "GET / HTTP/1.1" ; "Host: " ^ host ; "" ; "" ;
   ] in
   Tls_lwt.write sock req >> Tls_lwt.read sock >>= o Lwt_io.print Cstruct.to_string
@@ -23,7 +28,9 @@ let yap ~tag msg = Lwt_io.printf "[%s] %s\n%!" tag msg
 let serve_ssl port callback =
 
   lwt cert =
-    X509_lwt.cert_of_pems ~cert:"server.pem" ~priv_key:"server.key" in
+    X509_lwt.private_of_pems
+      ~cert:server_cert
+      ~priv_key:server_key in
 
   let server_s =
     let open Lwt_unix in
@@ -36,8 +43,8 @@ let serve_ssl port callback =
     lwt (socket, addr) = Tls_lwt.accept ~cert server_s in
     yap ~tag:"server" "-> connect" >>
     let _ =
-      try_lwt callback socket addr with
-      | exn -> yap ~tag:"server" "+ handler error" in
+      try_lwt callback socket addr
+      with exn -> yap ~tag:"server" "+ handler error" in
     loop () in
   yap ~tag:"server" ("-> start @ " ^ string_of_int port) >>
   loop ()
@@ -50,8 +57,7 @@ let echo_server port =
       try_lwt
         lwt data = Tls_lwt.read socket in
         yap ~tag:"handler" ("recv: " ^ Cstruct.to_string data) >>
-        Tls_lwt.write socket data >>
-        loop ()
+        Tls_lwt.write socket data >> loop ()
       with End_of_file -> yap ~tag:"handler" "eof."
     in
     loop ()

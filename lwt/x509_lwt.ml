@@ -3,11 +3,26 @@ open Lwt
 
 type cert = Tls.X509.Cert.t * Tls.X509.PK.t
 
+type validator = Tls.X509.Validator.t
+
+
+let failure msg = fail @@ Failure msg
+
+let catch_invalid_arg th h =
+  try_lwt th with
+  | Invalid_argument msg -> h msg
+  | exn                  -> fail exn
+
+
+let (</>) a b = a ^ "/" ^ b
+
+let o f g x = f (g x)
+
 let read_file path =
   let open Lwt_io in
   lwt file = open_file ~mode:Input path in
-  lwt str  = read file in
-  close file >> return (Cstruct.of_string str)
+  lwt cs   = read file >|= Cstruct.of_string in
+  close file >> return cs
 
 let read_dir path =
   let open Lwt_unix in
@@ -24,39 +39,35 @@ let read_dir path =
 let extension str =
   let n = String.length str in
   let rec scan = function
-    | i when i = 0         -> None
+    | i when i = 0 -> None
     | i when str.[i - 1] = '.' ->
         Some (String.sub str i (n - i))
-    | i                    -> scan (pred i) in
+    | i -> scan (pred i) in
   scan n
 
-let (</>) a b = a ^ "/" ^ b
 
-let cert_of_pems ~cert ~priv_key =
-  lwt cs_cert = read_file cert
-  and cs_pk   = read_file priv_key in
-  let open Tls.X509 in
+let private_of_pems ~cert ~priv_key =
   lwt cert =
-    try return @@ Cert.of_pem_cstruct1 cs_cert
-    with Invalid_argument msg -> fail (Failure ("certificate: " ^ msg))
-  and pk   =
-    try return @@ PK.of_pem_cstruct1 cs_pk
-    with Invalid_argument msg -> fail (Failure ("key: " ^ msg))
-  in
-  return (cert, pk)
+    catch_invalid_arg
+      (read_file cert >|= Tls.X509.Cert.of_pem_cstruct1)
+      (o failure @@ Printf.sprintf "Private cert (%s): %s" cert)
+  and pk =
+    catch_invalid_arg
+      (read_file priv_key >|= Tls.X509.PK.of_pem_cstruct1)
+      (o failure @@ Printf.sprintf "Private key (%s): %s" priv_key)
+  in return (cert, pk)
 
 let certs_of_pem path =
-  lwt cs_certs = read_file path in
-  try
-    return @@ Tls.X509.Cert.of_pem_cstruct cs_certs
-  with Invalid_argument msg -> fail (Failure ("certificates: " ^ msg))
+  catch_invalid_arg
+    (read_file path >|= Tls.X509.Cert.of_pem_cstruct)
+    (o failure @@ Printf.sprintf "Certificates in %s: %s" path)
 
 let certs_of_pem_dir path =
-  lwt files = read_dir path in
-  files
-  |> List.filter (fun file -> extension file = Some "crt")
-  |> Lwt_list.map_p (fun file -> certs_of_pem (path </> file))
+  read_dir path
+  >|= List.filter (fun file -> extension file = Some "crt")
+  >>= Lwt_list.map_p (fun file -> certs_of_pem (path </> file))
   >|= List.concat
+
 
 let validator = function
   | `Ca_file path ->

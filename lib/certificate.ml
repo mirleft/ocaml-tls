@@ -21,6 +21,11 @@ type certificate = {
   raw : Cstruct.t
 }
 
+let parse cs =
+  match Asn_grammars.certificate_of_cstruct cs with
+  | None     -> None
+  | Some asn -> Some { asn ; raw = cs }
+
 type certificate_failure =
   | InvalidCertificate
   | InvalidSignature
@@ -193,12 +198,12 @@ let is_ca_cert_valid now cert =
   | (_, _, false, _)         -> fail CertificateExpired
   | (_, _, _, false)         -> fail InvalidExtensions
 
-let is_server_cert_valid ?servername now cert =
+let is_server_cert_valid ?host now cert =
   Printf.printf "verify server certificate %s\n"
                 (common_name_to_string cert.asn);
   match
     validate_time now cert,
-    option false (hostname_matches cert) servername,
+    option false (hostname_matches cert) host,
     validate_server_extensions cert
   with
   | (true, true, true) -> success
@@ -253,13 +258,13 @@ let find_issuer trusted cert =
 let rec parse_stack css =
   let rec loop certs = function
     | [] -> return @@ List.rev certs
-    | raw :: css ->
-      ( match Asn_grammars.certificate_of_cstruct raw with
-        | None     -> fail InvalidInput
-        | Some asn -> loop ({ asn ; raw } :: certs) css ) in
+    | cs :: css ->
+      ( match parse cs with
+        | None      -> fail InvalidInput
+        | Some cert -> loop (cert :: certs) css ) in
   loop [] css
 
-let verify_chain_of_trust ?servername ~time ~anchors stack =
+let verify_chain_of_trust ?host ~time ~anchors stack =
   let res = parse_stack stack >>= function
     | []             -> fail InvalidInput
     | server :: certs ->
@@ -275,9 +280,9 @@ let verify_chain_of_trust ?servername ~time ~anchors stack =
                   signs pathlen anchor cert
               | Some _                                    -> fail CertificateExpired
         in
-        is_server_cert_valid ?servername time server >>= fun () ->
-        mapM_ (is_cert_valid time) certs     >>= fun () ->
-        climb 0 server certs              >>= fun () ->
+        is_server_cert_valid ?host time server >>= fun () ->
+        mapM_ (is_cert_valid time) certs       >>= fun () ->
+        climb 0 server certs                   >>= fun () ->
         return server
   in
   lower res

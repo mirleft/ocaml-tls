@@ -74,10 +74,10 @@ module Cert = struct
 
   let of_pem_cstruct cs =
     List.fold_left (fun certs -> function
-      | ("CERTIFICATE", raw) ->
-        ( match Asn_grammars.certificate_of_cstruct raw with
-          | Some asn -> { asn ; raw } :: certs
-          | None -> invalid_arg "X509: failed to parse certificate" )
+      | ("CERTIFICATE", cs) ->
+        ( match Certificate.parse cs with
+          | Some cert -> cert :: certs
+          | None      -> invalid_arg "X509: failed to parse certificate" )
       | _ -> certs)
     []
     (Pem.parse cs)
@@ -101,14 +101,14 @@ module PK = struct
     (Pem.parse cs)
 
   let of_pem_cstruct1 =
-    o (exactly_one ~what:"rsa keys") of_pem_cstruct
+    o (exactly_one ~what:"RSA keys") of_pem_cstruct
 end
 
 module Validator : sig
 
   type t
 
-  val validate : t -> ?servername:string -> Cstruct.t list ->
+  val validate : t -> ?host:string -> Cstruct.t list ->
                   [ `Ok of Cert.t | `Fail of Certificate.certificate_failure ]
 
   val chain_of_trust : time:int -> Cert.t list -> t
@@ -119,20 +119,19 @@ struct
 
   (* XXX Validator returns server cert since it does the parsing.
    * Factor this out to avoid the crock? *)
-  type t = ?servername:string -> time:int -> Cstruct.t list ->
+  type t = ?host:string -> time:int -> Cstruct.t list ->
               [ `Ok of Cert.t | `Fail of Certificate.certificate_failure ]
 
-  let validate t ?servername stack =
-    t ?servername ~time:0 stack
+  let validate t ?host stack = t ?host ~time:0 stack
 
   (* XXX
    * Validator just hands off a list of certs. Should be indexed. *)
   let chain_of_trust ~time cas =
     let cas = Certificate.validate_cas ~time cas in
-    fun ?servername ~time stack ->
-      Certificate.verify_chain_of_trust ?servername ~time ~anchors:cas stack
+    fun ?host ~time stack ->
+      Certificate.verify_chain_of_trust ?host ~time ~anchors:cas stack
 
-  let null ?servername:_ ~time:_ = Certificate.server_of_stack
+  let null ?host:_ ~time:_ = Certificate.server_of_stack
 
 end
 
