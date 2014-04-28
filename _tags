@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 7d9e73a11b9d42523cf4fd7053fb5ffd)
+# DO NOT EDIT (digest: 6b3e046705b7b834dede68f563052691)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -35,6 +35,14 @@
 <lib/*.ml{,i}>: pkg_cstruct
 <lib/*.ml{,i}>: pkg_cstruct.syntax
 <lib/*.ml{,i}>: pkg_nocrypto
+# Library tests
+"tests/tests.cmxs": use_tests
+<tests/*.ml{,i}>: pkg_asn1-combinators
+<tests/*.ml{,i}>: pkg_cstruct
+<tests/*.ml{,i}>: pkg_cstruct.syntax
+<tests/*.ml{,i}>: pkg_nocrypto
+<tests/*.ml{,i}>: pkg_oUnit
+<tests/*.ml{,i}>: use_tls
 # Library tls-lwt
 "lwt/tls-lwt.cmxs": use_tls-lwt
 <lwt/*.ml{,i}>: pkg_asn1-combinators
