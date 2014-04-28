@@ -76,5 +76,5 @@ let validator = function
   | `Ca_dir path ->
       certs_of_pem_dir path >|= fun cas ->
         Tls.X509.Validator.chain_of_trust ~time:0 cas
-  | `No_validation -> return Tls.X509.Validator.null
+  | `No_validation_I'M_STUPID -> return Tls.X509.Validator.null
 
