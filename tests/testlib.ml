@@ -17,9 +17,7 @@ module Flow = struct
     Tls.Flow.can_send_appdata (unwrap_st st)
 
   let send_application_data state data =
-    match
-      Tls.Flow.send_application_data (unwrap_st state) data
-    with
+    match Tls.Flow.send_application_data (unwrap_st state) data with
     | None           -> None
     | Some (st', cs) -> Some (rewrap_st (state, st'), cs)
 
@@ -30,8 +28,7 @@ module Flow = struct
     match handler msg with
     | `Fail _                 ->
         failwith @@ Printf.sprintf "[%s] error in %s" tag descr
-    | `Ok (st', ans, appdata) ->
-        (rewrap_st (state, st'), ans, appdata)
+    | `Ok (st', ans, appdata) -> (rewrap_st (state, st'), ans, appdata)
 end
 
 let loop_chatter ~cert ~loops ~size =
@@ -41,8 +38,8 @@ let loop_chatter ~cert ~loops ~size =
   let message  = Nocrypto.Rng.generate size
   and server   = Tls.Server.new_connection ~cert ()
   and (client, init) =
-    Tls.Client.new_connection ~validator:Tls.X509.Validator.null () in
-
+    Tls.Client.new_connection ~validator:Tls.X509.Validator.null ()
+  in
   time @@ fun () ->
 
     let rec handshake srv cli cli_msg =
@@ -53,26 +50,23 @@ let loop_chatter ~cert ~loops ~size =
       else handshake srv cli ans
 
     and chat srv cli data = function
-      | 0 -> `Done
+      | 0 -> data
       | n ->
+          let tag = "chat" in
           let simplex sender recv data =
             match Flow.send_application_data sender [data] with
-            | None                -> `Can't_send (sender, data)
+            | None                -> failwith @@ "can't send"
             | Some (sender', msg) ->
-                match Flow.handle_tls ~tag:"chat" recv msg with
-                | (recv', _, Some data') when cs_eq data data' ->
-                    `Ok (sender', recv')
-                | (recv', _, Some data') ->
-                    `Chinese_whispers (sender, data, recv, data')
-                | (_, _, None) -> failwith "expected data"
+                match Flow.handle_tls ~tag recv msg with
+                | (recv', _, Some data') -> (sender', recv', data')
+                | (_, _, None)           -> failwith "expected data"
           in
-          match simplex cli srv data with
-          | `Ok (cli, srv) ->
-            ( match simplex srv cli data with
-              | `Ok (srv, cli) -> chat srv cli data (pred n)
-              | err            -> err )
-          | err -> err
+          let (cli, srv, data1) = simplex cli srv data in
+          let (srv, cli, data2) = simplex srv cli data1 in
+          chat srv cli data2 (pred n)
     in
     let (srv, cli) = handshake (`S server) (`C client) init in
-    chat srv cli message loops
+    let message' = chat srv cli message loops in
+    if cs_eq message message' then ()
+    else failwith @@ "the message got corrupted :("
 

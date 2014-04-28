@@ -14,7 +14,5 @@ let _ =
     try int_of_string Sys.argv.(2) with _ -> 1024
   and cert  = load_priv ()
   in
-  match Testlib.loop_chatter ~cert ~loops ~size with
-  | `Done -> ()
-  | _     -> failwith "nope"
+  Testlib.loop_chatter ~cert ~loops ~size
 
