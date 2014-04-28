@@ -280,15 +280,11 @@ let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
           signs pathlen super cert >>= fun () ->
           climb (succ pathlen) super certs
       | [] ->
-          match find_issuer anchors cert with
+          match List.filter (validate_time time) (find_issuer anchors cert) with
           | [] when is_self_signed cert -> fail SelfSigned
           | []                          -> fail NoTrustAnchor
           | anchors                     ->
-             let valid_anchors = List.filter (validate_time time) anchors in
-             if List.length valid_anchors == 0 then
-               fail CertificateExpired
-             else
-               validate_anchors pathlen cert valid_anchors
+             validate_anchors pathlen cert anchors
     in
     is_server_cert_valid ?host time server >>= fun () ->
     mapM_ (is_cert_valid time) certs       >>= fun () ->
