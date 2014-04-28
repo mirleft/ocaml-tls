@@ -10,6 +10,6 @@ val certs_of_pem_dir : Lwt_io.file_name -> Tls.X509.Cert.t list Lwt.t
 val validator :
   [ `Ca_file of Lwt_io.file_name
   | `Ca_dir  of Lwt_io.file_name
-  | `No_validation ]
+  | `No_validation_I'M_STUPID ]
   -> validator Lwt.t
 

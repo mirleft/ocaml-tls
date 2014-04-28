@@ -3,7 +3,7 @@ open Ex_common
 open Lwt
 
 let echo_client host port =
-  lwt validator = X509_lwt.validator (`No_validation) in
+  lwt validator = X509_lwt.validator (`No_validation_I'M_STUPID) in
   lwt sock      = Tls_lwt.connect validator host port
   in
   let rec network () =
