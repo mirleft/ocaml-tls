@@ -5,6 +5,32 @@ open Utils
 
 open Nocrypto
 
+
+(*
+ * There are two reasons to carry Cstruct.t around:
+ * - we still need to hack on the cstruct to get bytes to hash
+ *   ( this needs to go )
+ * - we need a cs to send to the peer
+ * It's a bit ugly to have two levels, and both are better solved by extending
+ * the asn parser and writer respectively, but until then there needs to be one
+ * place that hides the existence of this pair.
+ *)
+
+type certificate = {
+  asn : Asn_grammars.certificate ;
+  raw : Cstruct.t
+}
+
+let cs_of_cert  { raw ; _ } = raw
+let asn_of_cert { asn ; _ } = asn
+
+type stack = certificate * certificate list
+
+let parse cs =
+  match Asn_grammars.certificate_of_cstruct cs with
+  | None     -> None
+  | Some asn -> Some { asn ; raw = cs }
+
 type certificate_failure =
   | InvalidCertificate
   | InvalidSignature
@@ -22,19 +48,23 @@ type certificate_failure =
 module Or_error =
   Control.Or_error_make ( struct type err = certificate_failure end )
 
-let success = Or_error.return ()
+open Or_error
+
+let success = return ()
 
 let lower = function
-  | Or_error.Ok ()     -> `Ok
-  | Or_error.Error err -> `Fail err
+  | Ok _      -> `Ok
+  | Error err -> `Fail err
 
 (* TODO RFC 5280: A certificate MUST NOT include more than
                   one instance of a particular extension. *)
 
-let issuer_matches_subject parent cert =
+let issuer_matches_subject { asn = parent } { asn = cert } =
   Name.equal parent.tbs_cert.subject cert.tbs_cert.issuer
 
 let is_self_signed cert = issuer_matches_subject cert cert
+(* let is_self_signed { tbs_cert = { subject } } =
+  Name.equal subject subject *)
 
 let subject cert =
   map_find cert.tbs_cert.subject
@@ -45,7 +75,7 @@ let common_name_to_string cert =
   | None   -> "NO commonName:" ^ Utils.hexdump_to_str cert.signature_val
   | Some x -> x
 
-let hostname_matches cert name =
+let hostname_matches { asn = cert } name =
   let open Extension in
   match extn_subject_alt_name cert with
   | Some (_, Subject_alt_name names) ->
@@ -56,21 +86,21 @@ let hostname_matches cert name =
 
 
 (* XXX should return the tbs_cert blob from the parser, this is insane *)
-let raw_cert_hack cert raw =
-  let siglen = Cstruct.len cert.signature_val in
+let raw_cert_hack { asn ; raw } =
+  let siglen = Cstruct.len asn.signature_val in
   let off    = if siglen > 128 then 1 else 0 in
   Cstruct.(sub raw 4 (len raw - (siglen + 4 + 19 + off)))
 
-let validate_signature trusted cert raw =
+let validate_signature { asn = trusted } cert =
   let module A  = Algorithm in
   let module Cs = Ciphersuite in
 
-  let tbs_raw = raw_cert_hack cert raw in
+  let tbs_raw = raw_cert_hack cert in
   match trusted.tbs_cert.pk_info with
 
   | PK.RSA issuing_key ->
 
-     ( match Crypto.verifyRSA_and_unpadPKCS1 issuing_key cert.signature_val with
+     ( match Crypto.verifyRSA_and_unpadPKCS1 issuing_key cert.asn.signature_val with
        | Some signature ->
           ( match Crypto.pkcs1_digest_info_of_cstruct signature with
             | None              -> false
@@ -80,7 +110,7 @@ let validate_signature trusted cert raw =
                 (* XXX make something that extracts just the hash part of an asn
                  * algorithm as a ciphersuite hash, then simply check equality
                  * instead of this. *)
-                match (cert.signature_algo, algo) with
+                match (cert.asn.signature_algo, algo) with
                 | (A.MD5_RSA   , Cs.MD5)    -> matches
                 | (A.SHA1_RSA  , Cs.SHA)    -> matches
                 | (A.SHA256_RSA, Cs.SHA256) -> matches
@@ -95,14 +125,14 @@ let validate_time now cert =
 (* TODO:  from < now && now < till *)
   true
 
-let validate_path_len pathlen cert =
+let validate_path_len pathlen { asn = cert } =
   let open Extension in
   match extn_basic_constr cert with
   | Some (_ , Basic_constraints (true, None))   -> true
   | Some (_ , Basic_constraints (true, Some n)) -> n >= pathlen
   | _                                           -> false
 
-let validate_ca_extensions cert =
+let validate_ca_extensions { asn = cert } =
   let open Extension in
   (* comments from RFC5280 *)
   (* 4.2.1.9 Basic Constraints *)
@@ -133,7 +163,7 @@ let validate_ca_extensions cert =
       | (crit, _)                   -> not crit )
     cert.tbs_cert.extensions
 
-let validate_server_extensions cert =
+let validate_server_extensions { asn = cert } =
   let open Extension in
   List.for_all (function
       | (_, Basic_constraints (true, _))  -> false
@@ -150,47 +180,47 @@ let validate_server_extensions cert =
 
 let is_cert_valid now cert =
     Printf.printf "verify intermediate certificate %s\n"
-                  (common_name_to_string cert);
+                  (common_name_to_string cert.asn);
     match
       validate_time now cert,
       validate_ca_extensions cert
     with
     | (true, true) -> success
-    | (false, _)   -> Or_error.fail CertificateExpired
-    | (_, false)   -> Or_error.fail InvalidExtensions
+    | (false, _)   -> fail CertificateExpired
+    | (_, false)   -> fail InvalidExtensions
 
-let is_ca_cert_valid now cert raw =
-  Printf.printf "verifying CA cert %s: " (common_name_to_string cert);
+let is_ca_cert_valid now cert =
+  Printf.printf "verifying CA cert %s: " (common_name_to_string cert.asn);
   match
     is_self_signed cert,
-    validate_signature cert cert raw,
+    validate_signature cert cert,
     validate_time now cert,
     validate_ca_extensions cert
   with
   | (true, true, true, true) -> success
-  | (false, _, _, _)         -> Or_error.fail InvalidCA
-  | (_, false, _, _)         -> Or_error.fail InvalidSignature
-  | (_, _, false, _)         -> Or_error.fail CertificateExpired
-  | (_, _, _, false)         -> Or_error.fail InvalidExtensions
+  | (false, _, _, _)         -> fail InvalidCA
+  | (_, false, _, _)         -> fail InvalidSignature
+  | (_, _, false, _)         -> fail CertificateExpired
+  | (_, _, _, false)         -> fail InvalidExtensions
 
-let is_server_cert_valid ?servername now cert =
+let is_server_cert_valid ?host now cert =
   Printf.printf "verify server certificate %s\n"
-                (common_name_to_string cert);
+                (common_name_to_string cert.asn);
   match
     validate_time now cert,
-    option false (hostname_matches cert) servername,
+    option false (hostname_matches cert) host,
     validate_server_extensions cert
   with
   | (true, true, true) -> success
-  | (false, _, _)      -> Or_error.fail CertificateExpired
-  | (_, false, _)      -> Or_error.fail InvalidServerName
-  | (_, _, false)      -> Or_error.fail InvalidServerExtensions
+  | (false, _, _)      -> fail CertificateExpired
+  | (_, false, _)      -> fail InvalidServerName
+  | (_, _, false)      -> fail InvalidServerExtensions
 
 
 let ext_authority_matches_subject trusted cert =
   let open Extension in
   match
-    extn_authority_key_id cert, extn_subject_key_id trusted
+    extn_authority_key_id cert.asn, extn_subject_key_id trusted.asn
   with
   | Some (_, Authority_key_id (Some auth, _, _)),
     Some (_, Subject_key_id au)                -> Utils.cs_eq auth au
@@ -199,28 +229,28 @@ let ext_authority_matches_subject trusted cert =
   | None, _                                    -> true (* not mandatory *)
   | _, _                                       -> false
 
-let signs pathlen trusted cert raw_cert =
+let signs pathlen trusted cert =
   Printf.printf "verifying relation of %s -> %s (pathlen %d)\n"
-                (common_name_to_string trusted)
-                (common_name_to_string cert)
+                (common_name_to_string trusted.asn)
+                (common_name_to_string cert.asn)
                 pathlen;
   match
     issuer_matches_subject trusted cert,
     ext_authority_matches_subject trusted cert,
-    validate_signature trusted cert raw_cert,
+    validate_signature trusted cert,
     validate_path_len pathlen trusted
   with
   | (true, true, true, true) -> success
-  | (false, _, _, _)         -> Or_error.fail InvalidCertificate
-  | (_, false, _, _)         -> Or_error.fail InvalidExtensions
-  | (_, _, false, _)         -> Or_error.fail InvalidSignature
-  | (_, _, _, false)         -> Or_error.fail InvalidPathlen
+  | (false, _, _, _)         -> fail InvalidCertificate
+  | (_, false, _, _)         -> fail InvalidExtensions
+  | (_, _, false, _)         -> fail InvalidSignature
+  | (_, _, _, false)         -> fail InvalidPathlen
 
 
 let find_issuer trusted cert =
   (* first have to find issuer of ``c`` in ``trusted`` *)
   Printf.printf "looking for issuer of %s (%d CAs)\n"
-                (common_name_to_string cert)
+                (common_name_to_string cert.asn)
                 (List.length trusted);
   match List.filter (fun p -> issuer_matches_subject p cert) trusted with
   | []  -> None
@@ -230,52 +260,42 @@ let find_issuer trusted cert =
   | _   -> None
 
 
-(* this is the API for the user (Cstruct.t will go away) *)
-let verify_certificates ?servername ~time ~anchors = function
-  | []                                    -> `Fail InvalidInput
-  | (server, server_raw) :: certs_and_raw ->
-      let open Or_error in
+let parse_stack css =
+  let rec loop certs = function
+    | [] ->
+      ( match List.rev certs with
+        | []              -> None
+        | server :: certs -> Some (server, certs ) )
+    | cs :: css ->
+        match parse cs with
+        | None      -> None
+        | Some cert -> loop (cert :: certs) css in
+  loop [] css
 
-      let rec climb pathlen cert cert_raw = function
-        | (super, super_raw) :: certs ->
-            signs pathlen super cert cert_raw >>= fun () ->
-            climb (succ pathlen) super super_raw certs
-        | [] ->
-            match find_issuer anchors cert with
-            | None when is_self_signed cert             -> fail SelfSigned
-            | None                                      -> fail NoTrustAnchor
-            | Some anchor when validate_time time anchor ->
-                signs pathlen anchor cert cert_raw
-            | Some _                                    -> fail CertificateExpired
-      in
+let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
+  let res =
+    let rec climb pathlen cert = function
+      | super :: certs ->
+          signs pathlen super cert >>= fun () ->
+          climb (succ pathlen) super certs
+      | [] ->
+          match find_issuer anchors cert with
+          | None when is_self_signed cert             -> fail SelfSigned
+          | None                                      -> fail NoTrustAnchor
+          | Some anchor when validate_time time anchor ->
+              signs pathlen anchor cert
+          | Some _                                    -> fail CertificateExpired
+    in
+    is_server_cert_valid ?host time server >>= fun () ->
+    mapM_ (is_cert_valid time) certs       >>= fun () ->
+    climb 0 server certs
+  in
+  lower res
 
-      let res =
-        is_server_cert_valid ?servername time server     >>= fun () ->
-        mapM_ (o (is_cert_valid time) fst) certs_and_raw >>= fun () ->
-        climb 0 server server_raw certs_and_raw
-      in lower res
-
-
-
-(* XXX OHHH, i soooo want to be parameterized by (pre-parsed) trusted certs...  *)
-let find_trusted_certs now =
-  let cacert_file, ca_nss_file =
-    ("certificates/cacert.crt", "certificates/ca-root-nss.crt") in
-  let ((cacert, raw), nss) =
-    Crypto_utils.(cert_of_file cacert_file, certs_of_file ca_nss_file) in
-
-  let cas   = List.append nss [(cacert, raw)] in
-  let valid = List.filter (fun (cert, raw) ->
-                  Or_error.is_success @@ is_ca_cert_valid now cert raw)
-                cas in
-  Printf.printf "read %d certificates, could validate %d\n" (List.length cas) (List.length valid);
-  let certs, _ = List.split valid in
-  certs
-
-let verify_certificates_debug ?servername chain =
-  let time    = Unix.gettimeofday () in
-  let anchors = find_trusted_certs time in
-  verify_certificates ?servername ~time ~anchors chain
+let valid_cas ~time cas =
+  List.filter
+    (fun cert -> is_success @@ is_ca_cert_valid time cert)
+    cas
 
 
 (* TODO: how to deal with

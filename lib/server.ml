@@ -30,7 +30,12 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
   ( match Ciphersuite.ciphersuite_kex sp.ciphersuite with
 
     | Ciphersuite.RSA ->
-       let private_key = Crypto_utils.get_key default_server_config.key_file in
+       let private_key = match sp.own_certificate with
+          | `Cert_private (_, pk) -> pk
+          | `Cert_none            -> assert false in
+          (* ^^^ Rig ciphersuite selection never to end up here if we haven't
+           * got a cert. *)
+
        (* due to bleichenbacher attach, we should use a random pms *)
        (* then we do not leak any decryption or padding errors! *)
        let other = Writer.assemble_protocol_version sp.protocol_version <> Rng.generate 46 in
@@ -98,14 +103,16 @@ let answer_client_hello_params_int sp ch raw =
       extensions   = secren :: host } in
   let bufs = [Writer.assemble_handshake (ServerHello server_hello)] in
   let kex = Ciphersuite.ciphersuite_kex cipher in
-  ( if Ciphersuite.needs_certificate kex then
-      let pem = Crypto_utils.read_pem_file default_server_config.certificate_file in
-      let cert = Crypto_utils.pem_to_cstruct pem in
-      let asn = Crypto_utils.pem_to_cert pem in
-      return (bufs @ [Writer.assemble_handshake (Certificate [cert])],
-              { params with server_certificate = Some asn })
-    else
-      return (bufs, params) )
+
+  ( match sp.own_certificate, Ciphersuite.needs_certificate kex with
+    | (`Cert_private (cert, _), true) ->
+        let record =
+          Writer.assemble_handshake (Certificate [Certificate.cs_of_cert cert]) in
+        return (bufs @ [record], params)
+    | (_, false) -> return (bufs, params)
+    | _          -> fail Packet.HANDSHAKE_FAILURE )
+    (* ^^^ Rig ciphersuite selection never to end up with one than needs a cert
+     * if we haven't got one. *)
 
   >>= fun (bufs', params') ->
   ( if Ciphersuite.needs_server_kex kex then
@@ -134,8 +141,10 @@ let answer_client_hello_params_int sp ch raw =
 
           match
             Crypto.padPKCS1_and_signRSA
-                (Crypto_utils.get_key default_server_config.key_file)
-                signing
+              ( match sp.own_certificate with
+                | `Cert_private (_, pk) -> pk
+                | `Cert_none            -> assert false ) (* <- XXX XXX *)
+              signing
           with
           | Some sign ->
              let signature = match sp.protocol_version with
@@ -226,3 +235,6 @@ let handle_record
   | Packet.HANDSHAKE -> handle_handshake sp is buf
 
 let handle_tls = handle_tls_int handle_record
+
+let new_connection ?cert () = new_state ?cert ()
+

@@ -67,17 +67,29 @@ type dh_state = [
   | `Received of DH.group * Cstruct.t
 ]
 
+type peer_cert = [
+    `Cert_unknown
+  | `Cert_public of Certificate.certificate
+]
+
+type own_cert = [
+    `Cert_none
+  | `Cert_private of Certificate.certificate * Rsa.priv
+]
+
 type security_parameters = {
   ciphersuite           : Ciphersuite.ciphersuite ;
   master_secret         : Cstruct.t ;
   client_random         : Cstruct.t ;
   server_random         : Cstruct.t ;
   dh_state              : dh_state ;
-  server_certificate    : Asn_grammars.certificate option ;
+  peer_certificate      : peer_cert ;
+  own_certificate       : own_cert  ;
   client_verify_data    : Cstruct.t ;
   server_verify_data    : Cstruct.t ;
   server_name           : string option ;
   protocol_version      : tls_version ;
+  validator             : X509.Validator.t ;
 }
 
 let empty_security_parameters =
@@ -87,11 +99,14 @@ let empty_security_parameters =
     client_random      = create 0 ;
     server_random      = create 0 ;
     dh_state           = `Initial ;
-    server_certificate = None ;
+    peer_certificate   = `Cert_unknown ;
+    own_certificate    = `Cert_none ;
     client_verify_data = create 0 ;
     server_verify_data = create 0 ;
     server_name        = None ;
-    protocol_version   = max_protocol_version }
+    protocol_version   = max_protocol_version ;
+    validator          = X509.Validator.null
+  }
 
 let print_security_parameters sp =
   let open Printf in
@@ -126,13 +141,17 @@ type state = {
   fragment            : Cstruct.t ;
 }
 
-let empty_state = {
-  machina             = `Initial ;
-  security_parameters = empty_security_parameters ;
-  decryptor           = None ;
-  encryptor           = None ;
-  fragment            = Cstruct.create 0
-}
+let new_state ?cert () =
+  let own_certificate = match cert with
+    | None            -> `Cert_none
+    | Some (cert, pk) -> `Cert_private (cert, pk) in
+  {
+    machina             = `Initial ;
+    security_parameters = { empty_security_parameters with own_certificate } ;
+    decryptor           = None ;
+    encryptor           = None ;
+    fragment            = Cstruct.create 0
+  }
 
 (* well-behaved pure encryptor *)
 let encrypt (version : tls_version) (st : crypto_state) ty buf =

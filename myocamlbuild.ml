@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 6a0b61d72358c7dae2447356828f6e16) *)
+(* DO NOT EDIT (digest: 9f7d3dfc56b6fefebb8eb234174f9b46) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -599,7 +599,7 @@ let package_default =
        [("tls", ["lib"], []); ("tls-lwt", ["lwt"], [])];
      lib_c = [];
      flags = [];
-     includes = [("lwt", ["lib"])]
+     includes = [("lwt/examples", ["lwt"]); ("lwt", ["lib"])]
   }
   ;;
 

@@ -15,42 +15,45 @@ let answer_server_hello (p : security_parameters) bs sh raw =
                 server_random = sh.random } in
   return (`Handshaking (bs @ [raw]), sp', [], `Pass)
 
-let parse_certificate c =
-  match Asn_grammars.certificate_of_cstruct c with
-  | None      -> fail Packet.BAD_CERTIFICATE
-  | Some cert -> return cert
 
+(* sends nothing *)
 let answer_certificate p bs cs raw =
-  (* sends nothing *)
-  mapM parse_certificate cs >>= function
-  | []         -> fail Packet.BAD_CERTIFICATE
-  | s::_ as xs ->
-     let certificates = List.(combine xs cs) in
-     Certificate.(
-       match
-         verify_certificates_debug ?servername:p.server_name certificates
-       with
-       | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
-       | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
-       | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
-       | `Fail _                  -> fail Packet.BAD_CERTIFICATE
-       | `Ok                      ->
-          let sp = { p with server_certificate = Some s } in
-          (* due to triple-handshake (https://secure-resumption.com) we better
-             ensure that we got the same certificate *)
-          (* match p.server_certificate with
-          | Some x when x = s ->
-             return (`Handshaking (bs @ [raw]), sp, [], `Pass)
-          | Some _            ->
-             fail Packet.HANDSHAKE_FAILURE
-          | None              -> *)
-          return (`Handshaking (bs @ [raw]), sp, [], `Pass))
+  let open Certificate in
 
-let find_server_rsa_key = function
-  | Some x -> Asn_grammars.(match x.tbs_cert.pk_info with
-                            | PK.RSA key -> return key
-                            | _          -> fail Packet.HANDSHAKE_FAILURE)
-  | None   -> fail Packet.HANDSHAKE_FAILURE
+  let parse css =
+    match parse_stack css with
+    | None       -> fail Packet.BAD_CERTIFICATE
+    | Some stack -> return stack
+
+  and validate ((server, _) as stack) =
+    match
+      X509.Validator.validate p.validator ?host:p.server_name stack
+    with
+    | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
+    | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
+    | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
+    | `Fail _                  -> fail Packet.BAD_CERTIFICATE
+    | `Ok                      ->
+        let sp = { p with peer_certificate = `Cert_public server } in
+        (* due to triple-handshake (https://secure-resumption.com) we better
+          ensure that we got the same certificate *)
+        (* match p.server_certificate with
+        | Some x when x = s ->
+          return (`Handshaking (bs @ [raw]), sp, [], `Pass)
+        | Some _            ->
+          fail Packet.HANDSHAKE_FAILURE
+        | None              -> *)
+        return (`Handshaking (bs @ [raw]), sp, [], `Pass)
+  in
+  parse cs >>= validate
+
+let peer_rsa_key = function
+  | `Cert_public cert ->
+      let open Asn_grammars in
+      ( match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
+        | PK.RSA key -> return key
+        | _          -> fail Packet.HANDSHAKE_FAILURE )
+  | `Cert_unknown -> fail Packet.HANDSHAKE_FAILURE
 
 let find_premaster p =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
@@ -58,8 +61,7 @@ let find_premaster p =
   | Ciphersuite.RSA ->
      let ver = Writer.assemble_protocol_version p.protocol_version in
      let premaster = ver <> Rng.generate 46 in
-     find_server_rsa_key p.server_certificate
-     >>= fun pubkey ->
+     peer_rsa_key p.peer_certificate >>= fun pubkey ->
      return (Crypto.padPKCS1_and_encryptRSA pubkey premaster, premaster)
 
   | Ciphersuite.DHE_RSA ->
@@ -97,8 +99,7 @@ let answer_server_key_exchange p bs kex raw =
   let open Packet in
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
   | Ciphersuite.DHE_RSA ->
-     find_server_rsa_key p.server_certificate
-     >>= fun pubkey ->
+     peer_rsa_key p.peer_certificate >>= fun pubkey ->
      ( match Reader.parse_dh_parameters kex with
        | Reader.Or_error.Ok (dh_params, raw_params, rest) ->
           let dh_state = `Received (Crypto.dh_params_unpack dh_params) in
@@ -208,8 +209,8 @@ let handle_record
 
 let handle_tls = handle_tls_int handle_record
 
-let new_connection server =
-  let state = empty_state in
+let new_connection ?cert ~validator ~server =
+  let state = new_state ?cert () in
   let host = match server with
     | None   -> []
     | Some _ -> [Hostname server]
@@ -225,6 +226,7 @@ let new_connection server =
     { state.security_parameters with
         client_random = client_hello.random ;
         server_name   = server ;
+        validator
     }
   in
   let raw = Writer.assemble_handshake (ClientHello client_hello) in
