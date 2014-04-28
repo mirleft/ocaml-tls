@@ -40,6 +40,14 @@ Library "tls-lwt"
   Modules       : Tls_lwt, X509_lwt
   BuildDepends  : tls, lwt, lwt.syntax, lwt.unix
 
+Executable "feedback"
+  Build          $: flag(tests)
+  Path            : tests/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : feedback.ml
+  BuildDepends    : tests, cstruct.unix
+
 Executable "echo_server"
   Build          $: flag(lwt)
   Path            : lwt/examples/
