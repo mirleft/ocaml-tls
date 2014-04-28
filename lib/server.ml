@@ -1,3 +1,5 @@
+open Utils
+
 open Core
 open Flow
 open Flow.Or_alert
@@ -143,39 +145,34 @@ let answer_client_hello_params_int sp ch raw =
 
           ( match sp.protocol_version with
             | TLS_1_0 | TLS_1_1 ->
-                         ( match sign Hash.( MD5.digest data <+> SHA1.digest data ) with
-                           | Some sign -> return (Writer.assemble_digitally_signed sign)
-                           | None -> fail Packet.HANDSHAKE_FAILURE )
+              ( match sign Hash.( MD5.digest data <> SHA1.digest data ) with
+                | Some sign -> return (Writer.assemble_digitally_signed sign)
+                | None      -> fail Packet.HANDSHAKE_FAILURE )
             | TLS_1_2 ->
                (* if no signature_algorithms extension is sent by the client,
                   support for md5 and sha1 can be safely assumed! *)
                let supported =
-                 Utils.map_find ch.extensions
-                                ~f:function
-                                | SignatureAlgorithms xs -> Some xs
-                                | _ -> None
-               in
+                 map_find ch.extensions ~f:function
+                  | SignatureAlgorithms xs -> Some xs
+                  | _                      -> None in
                ( match supported with
                  | Some xs ->
-                    (* filter by Packet.RSA, then intersect with hashes *)
-                    let poss = List.filter (function
-                                             | (_, Packet.RSA) -> true
-                                             | _               -> false) xs
-                    in
-                    let client_hashes = List.map (function (h, _) -> h) poss in
-                    let my_hashes = default_config.hashes in
-                    let supported x = List.mem x client_hashes in
-                    fail_false (List.exists supported my_hashes) Packet.HANDSHAKE_FAILURE >>= fun () ->
-                    return (List.hd (List.filter supported my_hashes))
-                 | None    -> return Ciphersuite.SHA ) >>= fun (hash) ->
+                    let client_hashes =
+                      List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) xs)
+                    and my_hashes = default_config.hashes in
+                    ( match List_set.inter client_hashes my_hashes with
+                      | []        -> fail Packet.HANDSHAKE_FAILURE
+                      | hash :: _ -> return hash )
+                 | None    -> return Ciphersuite.SHA )
+               >>= fun hash ->
                ( match Crypto.pkcs1_digest_info_to_cstruct hash data with
                  | Some x -> return x
-                 | None   -> fail Packet.HANDSHAKE_FAILURE ) >>= fun (to_sign) ->
-
+                 | None   -> fail Packet.HANDSHAKE_FAILURE )
+               >>= fun to_sign ->
                ( match sign to_sign with
                  | Some sign -> return (Writer.assemble_digitally_signed_1_2 hash Packet.RSA sign)
-                 | None -> fail Packet.HANDSHAKE_FAILURE ) ) >>= fun (signature) ->
-          let kex = written <+> signature in
+                 | None -> fail Packet.HANDSHAKE_FAILURE ) ) >>= fun signature ->
+          let kex = written <> signature in
           return ( bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)]
                  , { params' with dh_state } )
 
