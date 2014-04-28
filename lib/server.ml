@@ -128,34 +128,54 @@ let answer_client_hello_params_int sp ch raw =
           let written =
             let dh_param = Crypto.dh_params_pack group msg in
             Writer.assemble_dh_parameters dh_param in
-          let data    = params'.client_random <> params'.server_random <> written in
 
-          (* if no signature_algorithms extension is sent by the client,
-             support for md5 and sha1 can be safely assumed! *)
-          ( match sp.protocol_version with
-            | TLS_1_0 | TLS_1_1 -> return Hash.( MD5.digest data <> SHA1.digest data )
-            | TLS_1_2 ->
-               match Crypto.pkcs1_digest_info_to_cstruct Ciphersuite.SHA data with
-               | Some x -> return x
-               | None   -> fail Packet.HANDSHAKE_FAILURE ) >>= fun (signing) ->
-
-          match
+          let sign data =
             Crypto.padPKCS1_and_signRSA
               ( match sp.own_certificate with
                 | `Cert_private (_, pk) -> pk
                 | `Cert_none            -> assert false ) (* <- XXX XXX *)
-              signing
-          with
-          | Some sign ->
-             let signature = match sp.protocol_version with
-               | TLS_1_0 | TLS_1_1 -> Writer.assemble_digitally_signed sign
-               | TLS_1_2 -> Writer.assemble_digitally_signed_1_2 Ciphersuite.SHA Packet.RSA sign
-             in
-             let kex = written <> signature in
-             return ( bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)]
-                    , { params' with dh_state } )
+              data
+          in
 
-          | None -> fail Packet.HANDSHAKE_FAILURE
+          let data = params'.client_random <> params'.server_random <> written in
+
+          ( match sp.protocol_version with
+            | TLS_1_0 | TLS_1_1 ->
+                         ( match sign Hash.( MD5.digest data <> SHA1.digest data ) with
+                           | Some sign -> return (Writer.assemble_digitally_signed sign)
+                           | None -> fail Packet.HANDSHAKE_FAILURE )
+            | TLS_1_2 ->
+               (* if no signature_algorithms extension is sent by the client,
+                  support for md5 and sha1 can be safely assumed! *)
+               let supported =
+                 Utils.map_find ch.extensions
+                                ~f:function
+                                | SignatureAlgorithms xs -> Some xs
+                                | _ -> None
+               in
+               ( match supported with
+                 | Some xs ->
+                    (* filter by Packet.RSA, then intersect with hashes *)
+                    let poss = List.filter (function
+                                             | (_, Packet.RSA) -> true
+                                             | _               -> false) xs
+                    in
+                    let client_hashes = List.map (function (h, _) -> h) poss in
+                    let my_hashes = default_config.hashes in
+                    let supported x = List.mem x client_hashes in
+                    fail_false (List.exists supported my_hashes) Packet.HANDSHAKE_FAILURE >>= fun () ->
+                    return (List.hd (List.filter supported my_hashes))
+                 | None    -> return Ciphersuite.SHA ) >>= fun (hash) ->
+               ( match Crypto.pkcs1_digest_info_to_cstruct hash data with
+                 | Some x -> return x
+                 | None   -> fail Packet.HANDSHAKE_FAILURE ) >>= fun (to_sign) ->
+
+               ( match sign to_sign with
+                 | Some sign -> return (Writer.assemble_digitally_signed_1_2 hash Packet.RSA sign)
+                 | None -> fail Packet.HANDSHAKE_FAILURE ) ) >>= fun (signature) ->
+          let kex = written <> signature in
+          return ( bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)]
+                 , { params' with dh_state } )
 
     else return (bufs', params') )
 

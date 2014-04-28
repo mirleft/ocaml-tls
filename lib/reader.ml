@@ -187,6 +187,19 @@ let parse_ec_point_format buf =
   let len = Cstruct.get_uint8 buf 0 in
   go (Cstruct.sub buf 1 len) []
 
+let rec parse_hash_sig buf acc = function
+  | 0 -> List.rev acc
+  | n -> let hash = Cstruct.get_uint8 buf 0 in
+         let siga = Cstruct.get_uint8 buf 1 in
+         let acc' =
+           match int_to_hash_algorithm hash,
+                 int_to_signature_algorithm_type siga
+           with
+           | Some h, Some s -> (h, s) :: acc
+           | _     , _      -> Printf.printf "unknown hash/sig\n"; acc
+         in
+         parse_hash_sig (Cstruct.shift buf 2) acc' (pred n)
+
 let parse_extension buf =
   check_length 4 buf >>= fun () ->
   let etype = Cstruct.BE.get_uint16 buf 0 in
@@ -222,6 +235,11 @@ let parse_extension buf =
                   check idx
        in
        check len
+    | Some SIGNATURE_ALGORITHMS ->
+       check_length 2 buf >>= fun () ->
+       let size = Cstruct.BE.get_uint16 buf 0 in
+       let count = size / 2 in
+       return (SignatureAlgorithms (parse_hash_sig (Cstruct.shift buf 2) [] count))
     | _ ->
        return (UnknownExtension (etype, buf)) ) >>= fun (data) ->
   return (data, 4 + len)

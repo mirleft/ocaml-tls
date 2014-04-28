@@ -37,6 +37,7 @@ type extension =
   | ECPointFormats of ec_point_format list
   | SecureRenegotiation of Cstruct.t
   | Padding of int
+  | SignatureAlgorithms of (hash_algorithm * signature_algorithm_type) list
   | UnknownExtension of (int * Cstruct.t)
 
 type 'a hello = {
