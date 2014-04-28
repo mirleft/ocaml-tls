@@ -252,12 +252,7 @@ let find_issuer trusted cert =
   Printf.printf "looking for issuer of %s (%d CAs)\n"
                 (common_name_to_string cert.asn)
                 (List.length trusted);
-  match List.filter (fun p -> issuer_matches_subject p cert) trusted with
-  | []  -> None
-  | [t] -> ( match ext_authority_matches_subject t cert with
-             | true  -> Some t
-             | false -> None )
-  | _   -> None
+  List.filter (fun p -> issuer_matches_subject p cert) trusted
 
 
 let parse_stack css =
@@ -272,6 +267,12 @@ let parse_stack css =
         | Some cert -> loop (cert :: certs) css in
   loop [] css
 
+let rec validate_anchors pathlen cert = function
+  | []    -> fail NoTrustAnchor
+  | x::xs -> match signs pathlen x cert with
+             | Ok _    -> success
+             | Error _ -> validate_anchors pathlen cert xs
+
 let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
   let res =
     let rec climb pathlen cert = function
@@ -280,11 +281,14 @@ let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
           climb (succ pathlen) super certs
       | [] ->
           match find_issuer anchors cert with
-          | None when is_self_signed cert             -> fail SelfSigned
-          | None                                      -> fail NoTrustAnchor
-          | Some anchor when validate_time time anchor ->
-              signs pathlen anchor cert
-          | Some _                                    -> fail CertificateExpired
+          | [] when is_self_signed cert -> fail SelfSigned
+          | []                          -> fail NoTrustAnchor
+          | anchors                     ->
+             let valid_anchors = List.filter (validate_time time) anchors in
+             if List.length valid_anchors == 0 then
+               fail CertificateExpired
+             else
+               validate_anchors pathlen cert valid_anchors
     in
     is_server_cert_valid ?host time server >>= fun () ->
     mapM_ (is_cert_valid time) certs       >>= fun () ->
