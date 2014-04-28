@@ -32,20 +32,28 @@ Library "tls-lwt"
   FindlibName   : lwt
   FindlibParent : tls
   Path          : lwt
-  Modules       : Tls_lwt, X509_lwt, Peruse_it
+  Modules       : Tls_lwt, X509_lwt
   BuildDepends  : tls, lwt, lwt.syntax, lwt.unix
 
 Executable "echo_server"
   Build          $: flag(lwt)
-  Path            : lwt/
+  Path            : lwt/examples/
   Install         : false
   CompiledObject  : native
   MainIs          : echo_server.ml
   BuildDepends    : tls.lwt
 
+Executable "echo_client"
+  Build          $: flag(lwt)
+  Path            : lwt/examples/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : echo_client.ml
+  BuildDepends    : tls.lwt
+
 Executable "http_client"
   Build         $: flag(lwt)
-  Path           : lwt/
+  Path           : lwt/examples/
   Install        : false
   CompiledObject : native
   MainIs         : http_client.ml
