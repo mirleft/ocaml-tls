@@ -96,7 +96,7 @@ let server_of_fd ?cert fd =
 let client_of_fd ?cert ?host ~validator fd =
   let (input, output) = io_pair_of_fd fd in
   let (state, init) =
-    Tls.Client.new_connection ?cert ~validator ~server:host in
+    Tls.Client.new_connection ?cert ?host ~validator () in
   let socket1 =
     let direction       = Client
     and input_leftovers = [] in

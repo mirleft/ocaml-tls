@@ -217,7 +217,7 @@ let handle_record
 
 let handle_tls = handle_tls_int handle_record
 
-let new_connection ?cert ~validator ~server =
+let new_connection ?cert ?host:server ~validator () =
   let state = new_state ?cert () in
   let host = match server with
     | None   -> []
