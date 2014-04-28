@@ -87,15 +87,13 @@ let rec drain_handshake = function
 let server_of_fd ?cert fd =
   let (input, output) = io_pair_of_fd fd in
   let socket1 =
-    { state           =
-        Tls.Server.new_connection ?cert () ;
-      direction       = Server ;
-      input_leftovers = [] ;
-      input ; output }
-  in
+    let direction       = Server
+    and state           = Tls.Server.new_connection ?cert ()
+    and input_leftovers = [] in
+    { input ; output ; direction ; state ; input_leftovers } in
   drain_handshake socket1
 
-let client_of_fd ?cert ~validator ?host fd =
+let client_of_fd ?cert ?host ~validator fd =
   let (input, output) = io_pair_of_fd fd in
   let (state, init) =
     Tls.Client.new_connection ?cert ~validator ~server:host in
@@ -110,10 +108,8 @@ let accept ?cert fd =
   lwt socket      = server_of_fd ?cert fd' in
   return (socket, addr)
 
-let connect ?fd ?cert ~validator ~host ~port =
+let connect ?cert ~validator ~host ~port =
   lwt addr = resolve host port in
-  let fd = match fd with
-    | None    -> Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0)
-    | Some fd -> fd in
-  Lwt_unix.connect fd addr >> client_of_fd ?cert ~validator ~host fd
+  let fd   = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
+  Lwt_unix.connect fd addr >> client_of_fd ~host ?cert ~validator fd
 
