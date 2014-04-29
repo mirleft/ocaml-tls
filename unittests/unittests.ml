@@ -40,11 +40,34 @@ let version_parser_tests = [ good_version_parser 3 0 Core.SSL_3 ;
 
                              parse_version_too_short ]
 
+let good_header_parser (ct, (major, minor), l, (resct, resv)) _ =
+  let open Cstruct in
+  let buf = create 5 in
+  set_uint8 buf 0 ct;
+  set_uint8 buf 1 major;
+  set_uint8 buf 2 minor;
+  BE.set_uint16 buf 3 l;
+  match Reader.parse_hdr buf with
+  | (Some c, Some v, l') -> assert_equal c resct ;
+                            assert_equal v resv ;
+                            assert_equal l' l
+  | _                    -> assert_failure "header parser broken"
+
+let good_headers = [
+  ( 20 , (3, 1), 100, ( Packet.CHANGE_CIPHER_SPEC , Core.TLS_1_0) )
+]
+
+let header_parser_tests =
+  List.mapi
+    (fun i args -> "Parse header " ^ string_of_int i >:: good_header_parser args)
+    good_headers
+
 let suite =
   "All" >::: [
     "Reader" >:::
-      List.mapi
-        (fun i f -> "Parse version " ^ string_of_int i >:: f)
-        version_parser_tests
+      (List.mapi
+         (fun i f -> "Parse version " ^ string_of_int i >:: f)
+         version_parser_tests) @
+        header_parser_tests
   ]
 
