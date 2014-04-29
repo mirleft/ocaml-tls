@@ -13,8 +13,8 @@ BuildTools:  ocamlbuild
 
 
 Flag "lwt"
-  Description: Lwt_unix backend
-  Default:     true
+  Description     : Lwt_unix backend
+  Default         : true
 
 Library "tls"
   Path            : lib/
@@ -26,19 +26,19 @@ Library "tls"
   BuildDepends    : cstruct, cstruct.syntax, nocrypto, asn1-combinators
 
 Library "tests"
-  Path         : tests/
-  Modules      : Testlib
-  Install      : false
-  Build       $: flag(tests)
-  BuildDepends : tls,oUnit
+  Path            : tests/
+  Modules         : Testlib
+  Install         : false
+  Build          $: flag(tests)
+  BuildDepends    : tls, oUnit
 
 Library "tls-lwt"
-  Build        $: flag(lwt)
-  FindlibName   : lwt
-  FindlibParent : tls
-  Path          : lwt
-  Modules       : Tls_lwt, X509_lwt
-  BuildDepends  : tls, lwt, lwt.syntax, lwt.unix
+  Build          $: flag(lwt)
+  FindlibName     : lwt
+  FindlibParent   : tls
+  Path            : lwt
+  Modules         : Tls_lwt, X509_lwt
+  BuildDepends    : tls, lwt, lwt.syntax, lwt.unix
 
 Executable "feedback"
   Build          $: flag(tests)
@@ -65,9 +65,29 @@ Executable "echo_client"
   BuildDepends    : tls.lwt
 
 Executable "http_client"
-  Build         $: flag(lwt)
-  Path           : lwt/examples/
-  Install        : false
-  CompiledObject : native
-  MainIs         : http_client.ml
-  BuildDepends   : tls.lwt
+  Build          $: flag(lwt)
+  Path            : lwt/examples/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : http_client.ml
+  BuildDepends    : tls.lwt
+
+Library "unittests"
+  Path            : unittests/
+  Modules         : Unittests
+  Install         : false
+  Build          $: flag(tests)
+  BuildDepends    : tls, oUnit
+
+Executable "test_runner"
+  Build          $: flag(tests)
+  Path            : unittests/
+  Install         : false
+  CompiledObject  : best
+  MainIs          : unittestrunner.ml
+  BuildDepends    : unittests
+
+Test it
+  Command         : $test_runner
+  TestTools       : test_runner
+  Run            $: flag(tests)
