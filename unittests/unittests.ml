@@ -40,6 +40,11 @@ let version_parser_tests = [ good_version_parser 3 0 Core.SSL_3 ;
 
                              parse_version_too_short ]
 
+let version_tests =
+  List.mapi
+    (fun i f -> "Parse version " ^ string_of_int i >:: f)
+    version_parser_tests
+
 let good_header_parser (ct, (major, minor), l, (resct, resv)) _ =
   let open Cstruct in
   let buf = create 5 in
@@ -61,6 +66,11 @@ let good_headers = [
   ( 24 , (3, 4), 20,   ( Packet.HEARTBEAT , Core.TLS_1_X) ) ;
 ]
 
+let good_headers_tests =
+  List.mapi
+    (fun i args -> "Good header " ^ string_of_int i >:: good_header_parser args)
+    good_headers
+
 let bad_header_parser (ct, (major, minor), l) _ =
   let open Cstruct in
   let buf = create 5 in
@@ -81,20 +91,14 @@ let bad_headers = [
   ( 25 , (3, 3), 100 ) ;
 ]
 
-let header_parser_tests =
-  (List.mapi
-     (fun i args -> "Good header " ^ string_of_int i >:: good_header_parser args)
-     good_headers) @
-    (List.mapi
-       (fun i args -> "Bad header " ^ string_of_int i >:: bad_header_parser args)
-       bad_headers)
+let bad_headers_tests =
+  List.mapi
+    (fun i args -> "Bad header " ^ string_of_int i >:: bad_header_parser args)
+    bad_headers
 
 let suite =
   "All" >::: [
     "Reader" >:::
-      (List.mapi
-         (fun i f -> "Parse version " ^ string_of_int i >:: f)
-         version_parser_tests) @
-        header_parser_tests
+      version_tests @ good_headers_tests @ bad_headers_tests
   ]
 
