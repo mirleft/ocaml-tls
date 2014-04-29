@@ -73,18 +73,21 @@ let parse_version_8 _ =
   | Reader.Or_error.Ok v    -> assert_failure "Version parser broken"
   | Reader.Or_error.Error _ -> assert_bool "unknown version" true
 
+let version_parser_tests = [ parse_version_0 ;
+                             parse_version_1 ;
+                             parse_version_2 ;
+                             parse_version_3 ;
+                             parse_version_4 ;
+                             parse_version_5 ;
+                             parse_version_6 ;
+                             parse_version_7 ;
+                             parse_version_8 ]
+
 let suite =
   "All" >::: [
-    "Reader" >::: [
-      "Parse_version 0" >:: parse_version_0 ;
-      "Parse_version 1" >:: parse_version_1 ;
-      "Parse_version 2" >:: parse_version_2 ;
-      "Parse_version 3" >:: parse_version_3 ;
-      "Parse_version 4" >:: parse_version_4 ;
-      "Parse_version 5" >:: parse_version_5 ;
-      "Parse_version 6" >:: parse_version_6 ;
-      "Parse_version 7" >:: parse_version_7 ;
-      "Parse_version 8" >:: parse_version_8 ;
-    ]
+    "Reader" >:::
+      List.mapi
+        (fun i f -> "Parse version " ^ string_of_int i >:: f)
+        version_parser_tests
   ]
 
