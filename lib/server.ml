@@ -6,16 +6,6 @@ open Flow.Or_alert
 
 open Nocrypto
 
-(* server configuration *)
-type server_config = {
-  key_file         : string ;
-  certificate_file : string
-}
-
-let default_server_config = {
-  key_file         = "server.key" ;
-  certificate_file = "server.pem"
-}
 
 let answer_client_finished (sp : security_parameters) (packets : Cstruct.t list) (fin : Cstruct.t) (raw : Cstruct.t)  =
   let computed = Crypto.finished sp.protocol_version sp.master_secret "client finished" packets in
@@ -33,10 +23,8 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
 
     | Ciphersuite.RSA ->
        let private_key = match sp.own_certificate with
-          | `Cert_private (_, pk) -> pk
-          | `Cert_none            -> assert false in
-          (* ^^^ Rig ciphersuite selection never to end up here if we haven't
-           * got a cert. *)
+          | `Cert_private (_, pk) -> return pk
+          | `Cert_none            -> fail Packet.HANDSHAKE_FAILURE in
 
        (* due to bleichenbacher attach, we should use a random pms *)
        (* then we do not leak any decryption or padding errors! *)
@@ -63,9 +51,10 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
             (* should we have a similar conditional here? *)
             return other
        in
-       ( match Crypto.decryptRSA_unpadPKCS1 private_key kex with
-         | None   -> validate_premastersecret other
-         | Some k -> validate_premastersecret k )
+       private_key >>= fun pk ->
+          ( match Crypto.decryptRSA_unpadPKCS1 pk kex with
+            | None   -> validate_premastersecret other
+            | Some k -> validate_premastersecret k )
 
     | Ciphersuite.DHE_RSA ->
       (* we assume explicit communication here, not a client certificate *)
@@ -82,110 +71,121 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
   return (`KeysExchanged (Some server_ctx, Some client_ctx, ps), params, [], `Pass)
 
 let answer_client_hello_params_int sp ch raw =
-  let cipher = sp.ciphersuite in
-  fail_false (List.mem cipher ch.ciphersuites) Packet.HANDSHAKE_FAILURE >>= fun () ->
-  (* now we can provide a certificate with any of the given hostnames *)
-  (match sp.server_name with
-   | None   -> ()
-   | Some x -> Printf.printf "was asked for hostname %s\n" x);
-  let params = { sp with
-                   server_random = Rng.generate 32 ;
-                   client_random = ch.random } in
-  (* RFC 4366: server shall reply with an empty hostname extension *)
-  let host = match sp.server_name with
-    | None   -> []
-    | Some _ -> [Hostname None]
-  in
-  let secren = SecureRenegotiation
-                 (params.client_verify_data <+> params.server_verify_data)
-  in
-  let server_hello : server_hello =
-    { version      = sp.protocol_version ;
-      random       = params.server_random ;
-      sessionid    = None ;
-      ciphersuites = cipher ;
-      extensions   = secren :: host } in
-  let bufs = [Writer.assemble_handshake (ServerHello server_hello)] in
-  let kex = Ciphersuite.ciphersuite_kex cipher in
+  let open Packet in
 
-  ( match sp.own_certificate, Ciphersuite.needs_certificate kex with
+  let random = Rng.generate 32
+  and cipher = sp.ciphersuite in
+
+  let server_hello =
+    fail_false (List.mem cipher ch.ciphersuites) HANDSHAKE_FAILURE
+    >|= fun () ->
+    (* now we can provide a certificate with any of the given hostnames *)
+    ( match sp.server_name with
+      | None   -> ()
+      | Some x -> Printf.printf "was asked for hostname %s\n" x );
+
+    let server_hello =
+      (* RFC 4366: server shall reply with an empty hostname extension *)
+      let host = option [] (fun _ -> [Hostname None]) sp.server_name
+      and secren = SecureRenegotiation
+        (sp.client_verify_data <+> sp.server_verify_data) in
+      { version      = sp.protocol_version ;
+        random       = random ;
+        sessionid    = None ;
+        ciphersuites = cipher ;
+        extensions   = secren :: host }
+    in
+    ( [ Writer.assemble_handshake (ServerHello server_hello) ],
+      { sp with server_random = random ; client_random = ch.random } )
+  in
+
+  let server_cert params =
+    let cert_needed =
+      Ciphersuite.(needs_certificate @@ ciphersuite_kex cipher) in
+    match (sp.own_certificate, cert_needed) with
     | (`Cert_private (cert, _), true) ->
-        let record =
-          Writer.assemble_handshake (Certificate [Certificate.cs_of_cert cert]) in
-        return (bufs @ [record], params)
-    | (_, false) -> return (bufs, params)
-    | _          -> fail Packet.HANDSHAKE_FAILURE )
+        let buf =
+          [ Writer.assemble_handshake @@
+              Certificate [Certificate.cs_of_cert cert] ] in
+        return (buf, params)
+    | (_, false) -> return ([], params)
+    | _          -> fail HANDSHAKE_FAILURE in
     (* ^^^ Rig ciphersuite selection never to end up with one than needs a cert
      * if we haven't got one. *)
 
-  >>= fun (bufs', params') ->
-  ( if Ciphersuite.needs_server_kex kex then
+  let kex_dhe_rsa params =
+
+    let group         = DH.Group.oakley_2 in (* rfc2409 1024-bit group *)
+    let (secret, msg) = DH.gen_secret group in
+    let dh_state      = `Sent (group, secret) in
+    let written =
+      let dh_param = Crypto.dh_params_pack group msg in
+      Writer.assemble_dh_parameters dh_param in
+
+    let data = params.client_random <+> params.server_random <+> written in
+
+    let private_key =
+      match sp.own_certificate with
+      | `Cert_none            -> fail HANDSHAKE_FAILURE
+      | `Cert_private (_, pk) -> return pk
+
+    and signature pk =
+
+      let sign x =
+        match Crypto.padPKCS1_and_signRSA pk x with
+        | None        -> fail HANDSHAKE_FAILURE
+        | Some signed -> return signed
+      in
+      match sp.protocol_version with
+      | TLS_1_0 | TLS_1_1 ->
+          sign Hash.( MD5.digest data <+> SHA1.digest data )
+          >|= Writer.assemble_digitally_signed
+      | TLS_1_2 ->
+          (* if no signature_algorithms extension is sent by the client,
+             support for md5 and sha1 can be safely assumed! *)
+        ( match
+            map_find ch.extensions ~f:function
+              | SignatureAlgorithms xs -> Some xs
+              | _                      -> None
+          with
+          | None    -> return Ciphersuite.SHA
+          | Some client_algos ->
+              let client_hashes =
+                List.(map fst @@ filter (fun (_, x) -> x = RSA) client_algos)
+              in
+              match List_set.inter client_hashes default_config.hashes with
+              | []        -> fail HANDSHAKE_FAILURE
+              | hash :: _ -> return hash )
+          >>= fun hash ->
+            match Crypto.pkcs1_digest_info_to_cstruct hash data with
+            | None         -> fail HANDSHAKE_FAILURE
+            | Some to_sign ->
+                sign to_sign >|= Writer.assemble_digitally_signed_1_2 hash RSA
+    in
+
+    private_key >>= signature >|= fun sgn ->
+      let kex = written <+> sgn in
+      let hs  = Writer.assemble_handshake (ServerKeyExchange kex) in
+      ([hs], { params with dh_state }) in
+
+  let kex params =
+    let kex = Ciphersuite.ciphersuite_kex cipher in
+    if Ciphersuite.(needs_server_kex kex) then
       match kex with
-      | Ciphersuite.DHE_RSA ->
+      | Ciphersuite.DHE_RSA -> kex_dhe_rsa params
+      | _                   -> return ([], params)
+    else return ([], params) in
 
-          (* XXX
-           * Can move group selection up into default params, or pick a group of
-           * different size in this spot. *)
-          let group         = DH.Group.oakley_2 in (* rfc2409 1024-bit group *)
-          let (secret, msg) = DH.gen_secret group in
-          let dh_state      = `Sent (group, secret) in
-          let written =
-            let dh_param = Crypto.dh_params_pack group msg in
-            Writer.assemble_dh_parameters dh_param in
+  server_hello       >>= fun (buf1, params) ->
+  server_cert params >>= fun (buf2, params) ->
+  kex params         >|= fun (buf3, params) ->
+    let buf4 = [ Writer.assemble_handshake ServerHelloDone] in
+    let packets = buf1 @ buf2 @ buf3 @ buf4 in
+    ( `Handshaking (raw :: packets),
+      params,
+      List.map (fun e -> `Record (HANDSHAKE, e)) packets,
+      `Pass )
 
-          let sign data =
-            Crypto.padPKCS1_and_signRSA
-              ( match sp.own_certificate with
-                | `Cert_private (_, pk) -> pk
-                | `Cert_none            -> assert false ) (* <- XXX XXX *)
-              data
-          in
-
-          let data = params'.client_random <+> params'.server_random <+> written in
-
-          ( match sp.protocol_version with
-            | TLS_1_0 | TLS_1_1 ->
-              ( match sign Hash.( MD5.digest data <> SHA1.digest data ) with
-                | Some sign -> return (Writer.assemble_digitally_signed sign)
-                | None      -> fail Packet.HANDSHAKE_FAILURE )
-            | TLS_1_2 ->
-               (* if no signature_algorithms extension is sent by the client,
-                  support for md5 and sha1 can be safely assumed! *)
-               let supported =
-                 map_find ch.extensions ~f:function
-                  | SignatureAlgorithms xs -> Some xs
-                  | _                      -> None in
-               ( match supported with
-                 | Some xs ->
-                    let client_hashes =
-                      List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) xs)
-                    and my_hashes = default_config.hashes in
-                    ( match List_set.inter client_hashes my_hashes with
-                      | []        -> fail Packet.HANDSHAKE_FAILURE
-                      | hash :: _ -> return hash )
-                 | None    -> return Ciphersuite.SHA )
-               >>= fun hash ->
-               ( match Crypto.pkcs1_digest_info_to_cstruct hash data with
-                 | Some x -> return x
-                 | None   -> fail Packet.HANDSHAKE_FAILURE )
-               >>= fun to_sign ->
-               ( match sign to_sign with
-                 | Some sign -> return (Writer.assemble_digitally_signed_1_2 hash Packet.RSA sign)
-                 | None -> fail Packet.HANDSHAKE_FAILURE ) ) >>= fun signature ->
-          let kex = written <> signature in
-          return ( bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)]
-                 , { params' with dh_state } )
-
-    else return (bufs', params') )
-
-  >>= fun (bufs'', params'') ->
-  (* server hello done! *)
-  let hello_done = Writer.assemble_handshake ServerHelloDone in
-  let packets = bufs'' @ [hello_done] in
-  return (`Handshaking (raw :: packets),
-          params'',
-          List.map (fun e -> `Record (Packet.HANDSHAKE, e)) packets,
-          `Pass)
 
 let answer_client_hello_params sp ch raw =
   let expected = sp.client_verify_data in

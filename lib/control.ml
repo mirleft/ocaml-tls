@@ -15,7 +15,7 @@ module type Monad_ext = sig
   type 'a t
   val return : 'a -> 'a t
   val (>>=)  : 'a t -> ('a -> 'b t) -> 'b t
-  val (>|=)  : ('a -> 'b) -> 'a t -> 'b t
+  val (>|=)  : 'a t -> ('a -> 'b) -> 'b t
   val map    : ('a -> 'b) -> 'a t -> 'b t
   val sequence  : 'a t list -> 'a list t
   val sequence_ : 'a t list -> unit t
@@ -31,7 +31,7 @@ struct
   let return = M.return
   let (>>=)  = M.bind
   let map f a = a >>= fun x -> return (f x)
-  let (>|=) = map
+  let (>|=) a f = map f a
   let rec sequence = function
     | []    -> return []
     | m::ms -> m >>= fun m' -> sequence ms >>= fun ms' -> return (m'::ms')
