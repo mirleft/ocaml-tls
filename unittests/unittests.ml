@@ -178,11 +178,36 @@ let good_alert_tests =
     (fun i args -> "Good alert " ^ string_of_int i >:: good_alert_parser args)
     good_alerts
 
+let bad_alert_parser (lvl, typ) _ =
+  let open Cstruct in
+  let buf = create 2 in
+  set_uint8 buf 0 lvl;
+  set_uint8 buf 1 typ;
+  Reader.(match parse_alert buf with
+          | Or_error.Ok _    -> assert_failure "bad alert passes"
+          | Or_error.Error _ -> assert_bool "bad alert fails" true)
+
+let bad_alerts = [ (3, 0); (1, 1); (2, 200); (0, 200) ]
+
+let alert_too_small _ =
+  let open Cstruct in
+  let buf = create 1 in
+  set_uint8 buf 0 0;
+  Reader.(match parse_alert buf with
+          | Or_error.Ok _    -> assert_failure "short alert passes"
+          | Or_error.Error _ -> assert_bool "short alert fails" true)
+
+let bad_alerts_tests =
+  ("short alert" >:: alert_too_small) ::
+    (List.mapi
+       (fun i args -> "Bad alert " ^ string_of_int i >:: bad_alert_parser args)
+       bad_alerts)
+
 let suite =
   "All" >::: [
     "Reader" >:::
       version_tests @
       good_headers_tests @ bad_headers_tests @
-      good_alert_tests
+      good_alert_tests @ bad_alerts_tests
   ]
 
