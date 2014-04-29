@@ -17,15 +17,20 @@ Flag "lwt"
   Default:     true
 
 Library "tls"
-  Path: lib/
-  Modules:
-   Ciphersuite, Utils, Packet, Core, Certificate,
-   Printer, Reader, Writer, Crypto,
-   Flow, Server, Client,
-   X509
-  InternalModules: Registry, Asn_grammars, Control
-  Pack: true
-  BuildDepends: cstruct, cstruct.syntax, nocrypto, asn1-combinators
+  Path            : lib/
+  Modules         : Ciphersuite, Utils, Packet, Core, Certificate,
+                    Printer, Reader, Writer, Crypto,
+                    Flow, Server, Client, X509
+  InternalModules : Registry, Asn_grammars, Control
+  Pack            : true
+  BuildDepends    : cstruct, cstruct.syntax, nocrypto, asn1-combinators
+
+Library "tests"
+  Path         : tests/
+  Modules      : Testlib
+  Install      : false
+  Build       $: flag(tests)
+  BuildDepends : tls,oUnit
 
 Library "tls-lwt"
   Build        $: flag(lwt)
@@ -34,6 +39,14 @@ Library "tls-lwt"
   Path          : lwt
   Modules       : Tls_lwt, X509_lwt
   BuildDepends  : tls, lwt, lwt.syntax, lwt.unix
+
+Executable "feedback"
+  Build          $: flag(tests)
+  Path            : tests/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : feedback.ml
+  BuildDepends    : tests, cstruct.unix
 
 Executable "echo_server"
   Build          $: flag(lwt)
