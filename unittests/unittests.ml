@@ -1,28 +1,51 @@
 open OUnit2
 open Tls
 
-let good_version_parser major minor result _ =
+
+let cs_appends = function
+  | []   -> Cstruct.create 0
+  | [cs] -> cs
+  | csn  ->
+      let cs = Cstruct.(create @@ lenv csn) in
+      let _ =
+        List.fold_left
+          (fun off e ->
+            let len = Cstruct.len e in
+            ( Cstruct.blit e 0 cs off len ; off + len ))
+          0 csn in
+      cs
+
+let (<>) cs1 cs2 = cs_appends [ cs1; cs2 ]
+
+let list_to_cstruct xs =
   let open Cstruct in
-  let ver = create 2 in
-  set_uint8 ver 0 major;
-  set_uint8 ver 1 minor;
+  let l = List.length xs in
+  let buf = create l in
+  for i = 0 to pred l do
+    set_uint8 buf i (List.nth xs i)
+  done;
+  buf
+
+let uint16_to_cstruct i =
+  let open Cstruct in
+  let buf = create 2 in
+  BE.set_uint16 buf 0 i;
+  buf
+
+let good_version_parser major minor result _ =
+  let ver = list_to_cstruct [ major ; minor ] in
   Reader.(match parse_version ver with
           | Or_error.Ok v    -> assert_equal v result
           | Or_error.Error _ -> assert_failure "Version parser broken")
 
 let bad_version_parser major minor _ =
-  let open Cstruct in
-  let ver = create 2 in
-  set_uint8 ver 0 major;
-  set_uint8 ver 1 minor;
+  let ver = list_to_cstruct [ major ; minor ] in
   Reader.(match parse_version ver with
           | Or_error.Ok v    -> assert_failure "Version parser broken"
           | Or_error.Error _ -> assert_bool "unknown version" true)
 
 let parse_version_too_short _ =
-  let open Cstruct in
-  let ver = create 1 in
-  set_uint8 ver 0 3;
+  let ver = list_to_cstruct [ 0 ] in
   Reader.(match parse_version ver with
           | Or_error.Ok v    -> assert_failure "Version parser broken"
           | Or_error.Error _ -> assert_bool "length too short" true)
@@ -48,12 +71,10 @@ let version_tests =
     version_parser_tests
 
 let good_header_parser (ct, (major, minor), l, (resct, resv)) _ =
-  let open Cstruct in
-  let buf = create 5 in
-  set_uint8 buf 0 ct;
-  set_uint8 buf 1 major;
-  set_uint8 buf 2 minor;
-  BE.set_uint16 buf 3 l;
+  let buf =
+    let pre = list_to_cstruct [ ct ; major ; minor ] in
+    pre <> uint16_to_cstruct l
+  in
   match Reader.parse_hdr buf with
   | (Some c, Some v, l') -> assert_equal c resct ;
                             assert_equal v resv ;
@@ -74,12 +95,10 @@ let good_headers_tests =
     good_headers
 
 let bad_header_parser (ct, (major, minor), l) _ =
-  let open Cstruct in
-  let buf = create 5 in
-  set_uint8 buf 0 ct;
-  set_uint8 buf 1 major;
-  set_uint8 buf 2 minor;
-  BE.set_uint16 buf 3 l;
+  let buf =
+    let pre = list_to_cstruct [ ct ; major ; minor ] in
+    pre <> uint16_to_cstruct l
+  in
   match Reader.parse_hdr buf with
   | (Some c, Some v, l') -> assert_failure "header parser broken"
   | _                    -> assert_bool "header parser good" true
@@ -99,10 +118,7 @@ let bad_headers_tests =
     bad_headers
 
 let good_alert_parser (lvl, typ, expected) _ =
-  let open Cstruct in
-  let buf = create 2 in
-  set_uint8 buf 0 lvl;
-  set_uint8 buf 1 typ;
+  let buf = list_to_cstruct [ lvl ; typ ] in
   Reader.(match parse_alert buf with
           | Or_error.Ok al   -> assert_equal al expected
           | Or_error.Error _ -> assert_failure "alert parser broken")
@@ -179,10 +195,7 @@ let good_alert_tests =
     good_alerts
 
 let bad_alert_parser (lvl, typ) _ =
-  let open Cstruct in
-  let buf = create 2 in
-  set_uint8 buf 0 lvl;
-  set_uint8 buf 1 typ;
+  let buf = list_to_cstruct [ lvl ; typ ] in
   Reader.(match parse_alert buf with
           | Or_error.Ok _    -> assert_failure "bad alert passes"
           | Or_error.Error _ -> assert_bool "bad alert fails" true)
@@ -190,18 +203,23 @@ let bad_alert_parser (lvl, typ) _ =
 let bad_alerts = [ (3, 0); (1, 1); (2, 200); (0, 200) ]
 
 let alert_too_small _ =
-  let open Cstruct in
-  let buf = create 1 in
-  set_uint8 buf 0 0;
+  let buf = list_to_cstruct [ 0 ] in
+  Reader.(match parse_alert buf with
+          | Or_error.Ok _    -> assert_failure "short alert passes"
+          | Or_error.Error _ -> assert_bool "short alert fails" true)
+
+let alert_too_small2 _ =
+  let buf = list_to_cstruct [ 25 ] in
   Reader.(match parse_alert buf with
           | Or_error.Ok _    -> assert_failure "short alert passes"
           | Or_error.Error _ -> assert_bool "short alert fails" true)
 
 let bad_alerts_tests =
   ("short alert" >:: alert_too_small) ::
-    (List.mapi
-       (fun i args -> "Bad alert " ^ string_of_int i >:: bad_alert_parser args)
-       bad_alerts)
+  ("short alert 2" >:: alert_too_small2) ::
+  (List.mapi
+     (fun i args -> "Bad alert " ^ string_of_int i >:: bad_alert_parser args)
+     bad_alerts)
 
 let suite =
   "All" >::: [
