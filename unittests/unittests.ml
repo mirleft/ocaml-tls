@@ -54,13 +54,40 @@ let good_header_parser (ct, (major, minor), l, (resct, resv)) _ =
   | _                    -> assert_failure "header parser broken"
 
 let good_headers = [
-  ( 20 , (3, 1), 100, ( Packet.CHANGE_CIPHER_SPEC , Core.TLS_1_0) )
+  ( 20 , (3, 1), 100,  ( Packet.CHANGE_CIPHER_SPEC , Core.TLS_1_0) ) ;
+  ( 21 , (3, 2), 10,   ( Packet.ALERT , Core.TLS_1_1) ) ;
+  ( 22 , (3, 3), 1000, ( Packet.HANDSHAKE , Core.TLS_1_2) ) ;
+  ( 23 , (3, 0), 1,    ( Packet.APPLICATION_DATA , Core.SSL_3) ) ;
+  ( 24 , (3, 4), 20,   ( Packet.HEARTBEAT , Core.TLS_1_X) ) ;
+]
+
+let bad_header_parser (ct, (major, minor), l) _ =
+  let open Cstruct in
+  let buf = create 5 in
+  set_uint8 buf 0 ct;
+  set_uint8 buf 1 major;
+  set_uint8 buf 2 minor;
+  BE.set_uint16 buf 3 l;
+  match Reader.parse_hdr buf with
+  | (Some c, Some v, l') -> assert_failure "header parser broken"
+  | _                    -> assert_bool "header parser good" true
+
+let bad_headers = [
+  ( 19 , (3, 1), 100 ) ;
+  ( 20 , (5, 1), 100 ) ;
+  ( 16 , (3, 1), 100 ) ;
+  ( 30 , (3, 1), 100 ) ;
+  ( 20 , (0, 1), 100 ) ;
+  ( 25 , (3, 3), 100 ) ;
 ]
 
 let header_parser_tests =
-  List.mapi
-    (fun i args -> "Parse header " ^ string_of_int i >:: good_header_parser args)
-    good_headers
+  (List.mapi
+     (fun i args -> "Good header " ^ string_of_int i >:: good_header_parser args)
+     good_headers) @
+    (List.mapi
+       (fun i args -> "Bad header " ^ string_of_int i >:: bad_header_parser args)
+       bad_headers)
 
 let suite =
   "All" >::: [
