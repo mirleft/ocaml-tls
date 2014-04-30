@@ -35,7 +35,7 @@ let pseudo_random_function version len secret label seed =
      let (s1, s2) = halve secret in
      let md5 = p_hash (MD5.hmac, 16) s1 labelled len
      and sha = p_hash (SHA1.hmac, 20) s2 labelled len in
-     CS.xor md5 sha
+     Cs.xor md5 sha
 
 let generate_master_secret version pre_master_secret seed =
   pseudo_random_function version 48 pre_master_secret "master secret" seed
