@@ -450,9 +450,17 @@ let bad_dh_params_tests =
       Cstruct.sub param 0 (pred l)
     ]
   in
+  let lastparam = list_to_cstruct (List.nth good_dhparams 5) in
+  let l = Cstruct.len lastparam in
+  let more_bad =
+    [
+      Cstruct.sub lastparam 0 130 <> list_to_cstruct [0 ; 5 ; 1] <> Cstruct.sub lastparam 130 (l - 130) ;
+      Cstruct.sub lastparam 0 133 <> list_to_cstruct [0 ; 5 ; 1] <> Cstruct.sub lastparam 133 (l - 133)
+    ]
+  in
   List.mapi
     (fun i f -> "Parse bad dh_param " ^ string_of_int i >:: bad_dh_param_parser f)
-    bad_params
+    (bad_params @ more_bad)
 
 
 (*
