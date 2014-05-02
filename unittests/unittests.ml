@@ -569,14 +569,25 @@ let good_digitally_signed_1_2 = [
 let good_digitally_signed_1_2_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_digitally_signed_1_2 buf with
-          | Or_error.Error _ -> assert_failure "digitally signed 1 2 parser broken"
-          | Or_error.Ok _    -> assert_bool "digitally signed parser" true)
+          | Or_error.Error _ -> assert_failure "digitally signed 1.2 parser broken"
+          | Or_error.Ok _    -> assert_bool "digitally signed 1.2 parser" true)
 
 let good_digitally_signed_1_2_tests =
   List.mapi
     (fun i f -> "Parse good digitally signed 1_2 " ^ string_of_int i >:: good_digitally_signed_1_2_parser f)
     good_digitally_signed_1_2
 
+
+let good_digitally_signed_parser xs _ =
+  let buf = Cstruct.shift (list_to_cstruct xs) 2 in
+  Reader.(match parse_digitally_signed buf with
+          | Or_error.Error _ -> assert_failure "digitally signed parser broken"
+          | Or_error.Ok _    -> assert_bool "digitally signed parser" true)
+
+let good_digitally_signed_tests =
+  List.mapi
+    (fun i f -> "Parse good digitally signed " ^ string_of_int i >:: good_digitally_signed_parser f)
+    good_digitally_signed_1_2
 
 let suite =
   "All" >::: [
@@ -585,6 +596,7 @@ let suite =
       good_headers_tests @ bad_headers_tests @
       good_alert_tests @ bad_alerts_tests @
       good_dh_params_tests @ bad_dh_params_tests @
-      good_digitally_signed_1_2_tests
+      good_digitally_signed_1_2_tests @
+      good_digitally_signed_tests
   ]
 
