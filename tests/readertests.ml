@@ -677,6 +677,7 @@ let good_handshake_cstruct_data =
   let data_cs = list_to_cstruct data in
   [ ([12; 0; 0; 12] @ data , (Core.ServerKeyExchange data_cs)) ;
     ([20; 0; 0; 12] @ data , (Core.Finished data_cs)) ;
+    ([16; 0; 0; 14; 0; 12] @ data , (Core.ClientKeyExchange data_cs)) ;
 
     ([11; 0; 0; 3; 0; 0; 0] , (Core.Certificate [])) ;
     ([11; 0; 0; 18; 0; 0; 15; 0; 0; 12] @ data , (Core.Certificate [data_cs])) ;
@@ -698,6 +699,7 @@ let good_handshake_cstruct_data_parser (xs, res) _ =
                         | _ -> assert_failure "handshake cstruct data parser broken"
                       in
                       eq xs ys
+                   | ClientKeyExchange xs, ClientKeyExchange ys -> assert_cs_eq xs ys
                    | _ -> assert_failure "handshake cstruct data parser broken")
           | Or_error.Error _ -> assert_failure "handshake cstruct data parser failed")
 
