@@ -45,6 +45,11 @@ let assert_cs_eq cs1 cs2 =
   else
     assert_failure "cstructs not equal length"
 
+let rec assert_lists_eq comparison a b =
+  match a, b with
+  | [], [] -> assert_bool "lists equal" true
+  | a::r1, b::r2 -> comparison a b ; assert_lists_eq comparison r1 r2
+  | _ -> assert_failure "lists not equal"
 
 let good_version_parser major minor result _ =
   let ver = list_to_cstruct [ major ; minor ] in
@@ -692,13 +697,7 @@ let good_handshake_cstruct_data_parser (xs, res) _ =
              Core.(match r, res with
                    | Finished xs, Finished ys -> assert_cs_eq xs ys
                    | ServerKeyExchange xs, ServerKeyExchange ys -> assert_cs_eq xs ys
-                   | Certificate xs, Certificate ys ->
-                      let rec eq bs cs = match bs, cs with
-                        | [], [] -> assert_bool "certificate parser fine" true
-                        | b::r1, c::r2 -> assert_cs_eq b c ; eq r1 r2
-                        | _ -> assert_failure "handshake cstruct data parser broken"
-                      in
-                      eq xs ys
+                   | Certificate xs, Certificate ys -> assert_lists_eq assert_cs_eq xs ys
                    | ClientKeyExchange xs, ClientKeyExchange ys -> assert_cs_eq xs ys
                    | _ -> assert_failure "handshake cstruct data parser broken")
           | Or_error.Error _ -> assert_failure "handshake cstruct data parser failed")
@@ -708,6 +707,45 @@ let good_handshake_cstruct_data_tests =
     (fun i f -> "Parse good handshake " ^ string_of_int i >:: good_handshake_cstruct_data_parser f)
     good_handshake_cstruct_data
 
+let good_client_hellos =
+  (* I rolled the dice 16 times *)
+  let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let rand = rnd @ rnd in
+  let random = list_to_cstruct rand in
+  let ch : Core.client_hello =
+    Core.({ version = Core.TLS_1_0 ;
+            random ;
+            sessionid = None ;
+            ciphersuites = [] ;
+            extensions = []})
+  in
+  [
+    ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , ch )
+  ]
+
+let assert_sessionid_equal a b =
+  match a, b with
+  | None, None -> assert_bool "session id equal" true
+  | Some x, Some y -> assert_cs_eq x y
+  | _ -> assert_failure "session id not equal"
+
+let good_client_hellos_parser (xs, res) _ =
+  let open Core in
+  let buf = list_to_cstruct xs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok (ClientHello ch) ->
+             assert_equal ch.version res.version ;
+             assert_cs_eq ch.random res.random ;
+             assert_sessionid_equal ch.sessionid res.sessionid ;
+             assert_lists_eq (fun a b -> compare a b == 0) ch.ciphersuites res.ciphersuites ;
+             assert_lists_eq (fun a b -> compare a b == 0) ch.extensions res.extensions
+          | _ -> assert_failure "handshake client hello parser failed")
+
+let good_client_hellos_tests =
+  List.mapi
+    (fun i f -> "Parse good client hello " ^ string_of_int i >:: good_client_hellos_parser f)
+    good_client_hellos
+
 let reader_tests =
   version_tests @
   good_headers_tests @ bad_headers_tests @
@@ -715,5 +753,5 @@ let reader_tests =
   good_dh_params_tests @ bad_dh_params_tests @
   good_digitally_signed_1_2_tests @ bad_digitally_signed_1_2_tests @
   good_digitally_signed_tests @ bad_digitally_signed_tests @
-  good_handshake_no_data_tests @ good_handshake_cstruct_data_tests
-
+  good_handshake_no_data_tests @ good_handshake_cstruct_data_tests @
+  good_client_hellos_tests
