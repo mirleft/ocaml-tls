@@ -712,16 +712,21 @@ let good_client_hellos =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
   let random = list_to_cstruct rand in
-  let ch : Core.client_hello =
-    Core.({ version = Core.TLS_1_0 ;
+  Core.(let ch : Core.client_hello =
+          { version = Core.TLS_1_2 ;
             random ;
             sessionid = None ;
             ciphersuites = [] ;
-            extensions = []})
-  in
-  [
-    ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , ch )
-  ]
+            extensions = []}
+        in
+        [
+          ([1; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , ch ) ;
+          ([1; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.SSL_3 } ) ;
+          ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.TLS_1_0 } ) ;
+          ([1; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.TLS_1_1 } ) ;
+          ([1; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.TLS_1_X } ) ;
+          ([1; 0; 0; 38; 3; 5] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.TLS_1_X } )
+        ])
 
 let assert_sessionid_equal a b =
   match a, b with
@@ -753,5 +758,6 @@ let reader_tests =
   good_dh_params_tests @ bad_dh_params_tests @
   good_digitally_signed_1_2_tests @ bad_digitally_signed_1_2_tests @
   good_digitally_signed_tests @ bad_digitally_signed_tests @
-  good_handshake_no_data_tests @ good_handshake_cstruct_data_tests @
+  good_handshake_no_data_tests @
+  good_handshake_cstruct_data_tests @
   good_client_hellos_tests
