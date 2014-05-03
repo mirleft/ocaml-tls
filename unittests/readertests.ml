@@ -641,11 +641,39 @@ let bad_digitally_signed_tests =
     (fun i f -> "Parse bad digitally signed " ^ string_of_int i >:: bad_digitally_signed_parser f)
     bad_dss
 
+(* 1byte type ; 3 byte length ; data *)
+let good_handshakes_no_data = [
+  ([0; 0; 0; 0] , Core.HelloRequest) ;
+  ([14; 0; 0; 0] , Core.ServerHelloDone) ;
+]
+
+let good_handshake_no_data_parser (xs, res) _ =
+  let buf = list_to_cstruct xs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok r -> assert_equal res r
+          | Or_error.Error _ -> assert_failure "handshake no data parser failed")
+
+let good_handshake_no_data_tests =
+  List.mapi
+    (fun i f -> "Parse good handshake " ^ string_of_int i >:: good_handshake_no_data_parser f)
+    good_handshakes_no_data
+
+(*
+  let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
+      let data_cs = list_to_cstruct data in
+  ([12; 0; 0; 12] @ data , (Core.ServerKeyExchange data_cs)) ;
+  ([20; 0; 0; 12] @ data , (Core.Finished data_cs)) ;
+
+  ([11; 0; 0; 18; 0; 0; 15; 0; 0; 12] @ data , (Core.Certificate [data_cs]))
+ *)
+
+
 let reader_tests =
   version_tests @
   good_headers_tests @ bad_headers_tests @
   good_alert_tests @ bad_alerts_tests @
   good_dh_params_tests @ bad_dh_params_tests @
   good_digitally_signed_1_2_tests @ bad_digitally_signed_1_2_tests @
-  good_digitally_signed_tests @ bad_digitally_signed_tests
+  good_digitally_signed_tests @ bad_digitally_signed_tests @
+  good_handshake_no_data_tests
 
