@@ -74,7 +74,7 @@ Executable "http_client"
 
 Library "unittests"
   Path            : unittests/
-  Modules         : Unittests
+  Modules         : Readertests, Unittests
   Install         : false
   Build          $: flag(tests)
   BuildDepends    : tls, oUnit
