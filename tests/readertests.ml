@@ -32,6 +32,20 @@ let uint16_to_cstruct i =
   BE.set_uint16 buf 0 i;
   buf
 
+let assert_cs_eq cs1 cs2 =
+  let open Cstruct in
+  let l1 = len cs1 in
+  let l2 = len cs2 in
+  if l1 == l2 then
+    (for i = 0 to pred l1 do
+       if get_uint8 cs1 i != get_uint8 cs2 i then
+         assert_failure "cstructs not equal"
+     done;
+     assert_bool "cstructs are equal" true)
+  else
+    assert_failure "cstructs not equal length"
+
+
 let good_version_parser major minor result _ =
   let ver = list_to_cstruct [ major ; minor ] in
   Reader.(match parse_version ver with
@@ -658,15 +672,39 @@ let good_handshake_no_data_tests =
     (fun i f -> "Parse good handshake " ^ string_of_int i >:: good_handshake_no_data_parser f)
     good_handshakes_no_data
 
-(*
+let good_handshake_cstruct_data =
   let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
-      let data_cs = list_to_cstruct data in
-  ([12; 0; 0; 12] @ data , (Core.ServerKeyExchange data_cs)) ;
-  ([20; 0; 0; 12] @ data , (Core.Finished data_cs)) ;
+  let data_cs = list_to_cstruct data in
+  [ ([12; 0; 0; 12] @ data , (Core.ServerKeyExchange data_cs)) ;
+    ([20; 0; 0; 12] @ data , (Core.Finished data_cs)) ;
 
-  ([11; 0; 0; 18; 0; 0; 15; 0; 0; 12] @ data , (Core.Certificate [data_cs]))
- *)
+    ([11; 0; 0; 3; 0; 0; 0] , (Core.Certificate [])) ;
+    ([11; 0; 0; 18; 0; 0; 15; 0; 0; 12] @ data , (Core.Certificate [data_cs])) ;
+    ([11; 0; 0; 33; 0; 0; 30; 0; 0; 12] @ data @ [0; 0; 12] @ data ,
+     (Core.Certificate [data_cs; data_cs]))
+  ]
 
+let good_handshake_cstruct_data_parser (xs, res) _ =
+  let buf = list_to_cstruct xs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok r ->
+             Core.(match r, res with
+                   | Finished xs, Finished ys -> assert_cs_eq xs ys
+                   | ServerKeyExchange xs, ServerKeyExchange ys -> assert_cs_eq xs ys
+                   | Certificate xs, Certificate ys ->
+                      let rec eq bs cs = match bs, cs with
+                        | [], [] -> assert_bool "certificate parser fine" true
+                        | b::r1, c::r2 -> assert_cs_eq b c ; eq r1 r2
+                        | _ -> assert_failure "handshake cstruct data parser broken"
+                      in
+                      eq xs ys
+                   | _ -> assert_failure "handshake cstruct data parser broken")
+          | Or_error.Error _ -> assert_failure "handshake cstruct data parser failed")
+
+let good_handshake_cstruct_data_tests =
+  List.mapi
+    (fun i f -> "Parse good handshake " ^ string_of_int i >:: good_handshake_cstruct_data_parser f)
+    good_handshake_cstruct_data
 
 let reader_tests =
   version_tests @
@@ -675,5 +713,5 @@ let reader_tests =
   good_dh_params_tests @ bad_dh_params_tests @
   good_digitally_signed_1_2_tests @ bad_digitally_signed_1_2_tests @
   good_digitally_signed_tests @ bad_digitally_signed_tests @
-  good_handshake_no_data_tests
+  good_handshake_no_data_tests @ good_handshake_cstruct_data_tests
 
