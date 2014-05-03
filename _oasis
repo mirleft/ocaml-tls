@@ -27,7 +27,7 @@ Library "tls"
 
 Library "tests"
   Path            : tests/
-  Modules         : Testlib
+  Modules         : Testlib, Readertests, Unittests
   Install         : false
   Build          $: flag(tests)
   BuildDepends    : tls, oUnit
@@ -47,6 +47,17 @@ Executable "feedback"
   CompiledObject  : native
   MainIs          : feedback.ml
   BuildDepends    : tests, cstruct.unix
+
+Executable "test_runner"
+  Build          $: flag(tests)
+  Path            : tests/
+  Install         : false
+  MainIs          : unittestrunner.ml
+  BuildDepends    : tls, tests
+
+Test it
+  Command         : $test_runner
+  Run            $: flag(tests)
 
 Executable "echo_server"
   Build          $: flag(lwt)
@@ -71,23 +82,3 @@ Executable "http_client"
   CompiledObject  : native
   MainIs          : http_client.ml
   BuildDepends    : tls.lwt
-
-Library "unittests"
-  Path            : unittests/
-  Modules         : Readertests, Unittests
-  Install         : false
-  Build          $: flag(tests)
-  BuildDepends    : tls, oUnit
-
-Executable "test_runner"
-  Build          $: flag(tests)
-  Path            : unittests/
-  Install         : false
-  CompiledObject  : best
-  MainIs          : unittestrunner.ml
-  BuildDepends    : unittests
-
-Test it
-  Command         : $test_runner
-  TestTools       : test_runner
-  Run            $: flag(tests)

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 4a72eafd82969e60fad1076d5797b44a)
+# DO NOT EDIT (digest: 785fc3f98a5fd1521014f75d825d2d70)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -56,10 +56,18 @@
 "tests/feedback.native": pkg_oUnit
 "tests/feedback.native": use_tests
 "tests/feedback.native": use_tls
+<tests/*.ml{,i}>: pkg_cstruct.unix
+# Executable test_runner
+"tests/unittestrunner.byte": pkg_asn1-combinators
+"tests/unittestrunner.byte": pkg_cstruct
+"tests/unittestrunner.byte": pkg_cstruct.syntax
+"tests/unittestrunner.byte": pkg_nocrypto
+"tests/unittestrunner.byte": pkg_oUnit
+"tests/unittestrunner.byte": use_tests
+"tests/unittestrunner.byte": use_tls
 <tests/*.ml{,i}>: pkg_asn1-combinators
 <tests/*.ml{,i}>: pkg_cstruct
 <tests/*.ml{,i}>: pkg_cstruct.syntax
-<tests/*.ml{,i}>: pkg_cstruct.unix
 <tests/*.ml{,i}>: pkg_nocrypto
 <tests/*.ml{,i}>: pkg_oUnit
 <tests/*.ml{,i}>: use_tests
@@ -103,21 +111,4 @@
 <lwt/examples/*.ml{,i}>: pkg_nocrypto
 <lwt/examples/*.ml{,i}>: use_tls
 <lwt/examples/*.ml{,i}>: use_tls-lwt
-# Library unittests
-"unittests/unittests.cmxs": use_unittests
-# Executable test_runner
-<unittests/unittestrunner.{native,byte}>: pkg_asn1-combinators
-<unittests/unittestrunner.{native,byte}>: pkg_cstruct
-<unittests/unittestrunner.{native,byte}>: pkg_cstruct.syntax
-<unittests/unittestrunner.{native,byte}>: pkg_nocrypto
-<unittests/unittestrunner.{native,byte}>: pkg_oUnit
-<unittests/unittestrunner.{native,byte}>: use_tls
-<unittests/unittestrunner.{native,byte}>: use_unittests
-<unittests/*.ml{,i}>: pkg_asn1-combinators
-<unittests/*.ml{,i}>: pkg_cstruct
-<unittests/*.ml{,i}>: pkg_cstruct.syntax
-<unittests/*.ml{,i}>: pkg_nocrypto
-<unittests/*.ml{,i}>: pkg_oUnit
-<unittests/*.ml{,i}>: use_tls
-<unittests/*.ml{,i}>: use_unittests
 # OASIS_STOP
