@@ -793,6 +793,7 @@ let good_client_hellos =
 
           (* TODO: unknown ciphersuites should be ignored (for the upgrade path *)
 (*          ([1; 0; 0; 42; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; 0; 0; 0; 47; (* comp *) 0; (* exts *)] , { ch with ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] } ) ; *)
+          (* TODO: also ignore unknown compression methods / named curves / point formats / hash_algorithms / signature_algorithms *)
 
           (* TODO: unknown extensions should be ignored (check again with rfc) *)
           (* TODO: validate client_hello:
@@ -973,6 +974,70 @@ let good_client_hellos_tests =
     (fun i f -> "Parse good client hello " ^ string_of_int i >:: good_client_hellos_parser f)
     good_client_hellos
 
+let bad_client_hellos =
+  (* I rolled the dice 16 times *)
+  let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let rand = rnd @ rnd in
+  Core.([
+          (* versions *)
+         [1; 0; 0; 38; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+         (* invalid length *)
+         [1; 0; 0; 39; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+         (* should be broken as well due to missing compression_algos *)
+         [1; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 1; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+
+         (* ciphersuites *)
+         [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 1; 0; 0; (* comp *) 0; (* exts *)] ;
+         [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 3; 0; 0; (* comp *) 0; (* exts *)] ;
+         [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 1; 3; 0; 0; (* comp *) 0; (* exts *)] ;
+
+         (* extensions *)
+         (* empty *)
+         [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
+
+          (* some hostname *)
+          [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 4; 102; 111; 111] ;
+          [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 4; 102; 111; 111; 111] ;
+          [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 7; 0; 0; 4; 102; 111; 111; 111] ;
+          [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 9; 0; 7; 0; 0; 4; 102; 111; 111; 111] ;
+          [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 13; 0; 0; 0; 9; 0; 7; 0; 0; 4; 102; 111; 111; 111] ;
+
+
+         (* empty EllipticCurves *)
+         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xA; 0; 1; 0; 0] ;
+         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xA; 0; 2; 0; 0] ;
+         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xA; 0; 2; 0; 1] ;
+
+         (* empty ECPointFormats *)
+         [1; 0; 0; 45; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 3] ;
+         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 3; 1] ;
+         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xB; 0; 1; 3; 1] ;
+
+         (* secure renegotiation *)
+         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 5; 2; 1; 2] ;
+
+         (* Padding *)
+         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 3; 1; 2; 3] ;
+         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 5; 0; 0; 0] ;
+         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0; 21; 0; 5; 0; 0; 0] ;
+         [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0; 21; 0; 5; 0; 0; 0] ;
+         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 3; 0; 0; 0] ;
+         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 2; 0; 0; 0] ;
+
+       ])
+
+let bad_client_hello_parser xs _ =
+  let open Core in
+  let buf = list_to_cstruct xs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok _ -> assert_failure "bad client hello parser won"
+          | Or_error.Error _ -> assert_bool "bad client hello parser" true)
+
+let bad_client_hello_tests =
+  List.mapi
+    (fun i f -> "Parse bad client hello " ^ string_of_int i >:: bad_client_hello_parser f)
+    bad_client_hellos
+
 let good_server_hellos =
   (* I rolled the dice 16 times *)
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
@@ -1083,5 +1148,5 @@ let reader_tests =
   good_digitally_signed_tests @ bad_digitally_signed_tests @
   good_handshake_no_data_tests @ bad_handshake_no_data_tests @
   good_handshake_cstruct_data_tests @ bad_handshake_cstruct_data_tests @
-  good_client_hellos_tests @
+  good_client_hellos_tests @ bad_client_hello_tests @
   good_server_hellos_tests
