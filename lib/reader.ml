@@ -224,7 +224,9 @@ let parse_extension buf =
        return (ECPointFormats formats)
     | Some RENEGOTIATION_INFO ->
        check_length 1 buf >>= fun () ->
-       return (SecureRenegotiation (Cstruct.shift buf 1))
+       let len' = Cstruct.get_uint8 buf 0 in
+       check_length (len' + 1) buf >>= fun () ->
+       return (SecureRenegotiation (Cstruct.sub buf 1 len'))
     | Some PADDING ->
        check_length len buf >>= fun () ->
        let rec check = function
