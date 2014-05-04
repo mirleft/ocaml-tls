@@ -784,6 +784,12 @@ let good_client_hellos =
           (* Padding *)
           ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 3; 0; 0; 0] , { ch with extensions = [Padding 3] } ) ;
 
+          (* signature algorithm *)
+          ([1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 13; 0; 2; 0; 0] , { ch with extensions = [SignatureAlgorithms []] } ) ;
+          ([1; 0; 0; 48; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 8; 0; 13; 0; 4; 0; 2; 0; 0] , { ch with extensions = [SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS)]] } ) ;
+          ([1; 0; 0; 50; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 10; 0; 13; 0; 6; 0; 4; 0; 0; 1; 1] , { ch with extensions = [SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS); (Ciphersuite.MD5, Packet.RSA)]] } ) ;
+
+
         ])
 
 let assert_sessionid_equal a b =
