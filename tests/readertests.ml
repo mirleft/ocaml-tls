@@ -1,7 +1,6 @@
 open OUnit2
 open Tls
 
-
 let cs_appends = function
   | []   -> Cstruct.create 0
   | [cs] -> cs
@@ -224,9 +223,9 @@ let bad_alerts = [
   (1, 1) ;
   (2, 200) ;
   (0, 200) ;
-(* also check that parser consumes entire buffer! *)
+(* TODO: also check that parser consumes entire buffer! *)
 (* (0, 0, 0) *)
-(* validate those who are 'always fatal' *)
+(* TODO: validate those who are 'always fatal' *)
 ]
 
 let alert_too_small _ =
@@ -624,7 +623,7 @@ let bad_dss_1_2 =
     list_to_cstruct [7 ; 2] <> Cstruct.shift ds 2 ;
     list_to_cstruct [1 ; 1 ; 1; 0xff] <> Cstruct.shift ds 4 ;
     list_to_cstruct [1 ; 1 ; 0xff ; 0] <> Cstruct.shift ds 4 ;
-    (* check that the entire buffer is consumed *)
+    (* TODO: check that the entire buffer is consumed *)
     (* ds <> Cstruct.create 1 *)
   ]
 
@@ -740,7 +739,7 @@ let bad_handshake_cstruct_data =
     [20; 0; 1; 12] @ data ;
     [16; 0; 0; 15; 0; 12] @ data ;
     [16; 0; 0; 14; 0; 13] @ data ;
-(* we do not do proper length checking yet, thus disabling this test *)
+(* TODO: we do not do proper length checking yet, thus disabling this test *)
 (*    [16; 0; 0; 14; 0; 11] @ data ; *)
 
     [25; 0; 0; 14; 0; 12] @ data ;
