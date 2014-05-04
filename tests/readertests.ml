@@ -5,7 +5,7 @@ open Testlib
 
 let rec assert_lists_eq comparison a b =
   match a, b with
-  | [], [] -> assert_bool "lists equal" true
+  | [], [] -> ()
   | a::r1, b::r2 -> comparison a b ; assert_lists_eq comparison r1 r2
   | _ -> assert_failure "lists not equal"
 
@@ -19,13 +19,13 @@ let bad_version_parser major minor _ =
   let ver = list_to_cstruct [ major ; minor ] in
   Reader.(match parse_version ver with
           | Or_error.Ok v    -> assert_failure "Version parser broken"
-          | Or_error.Error _ -> assert_bool "unknown version" true)
+          | Or_error.Error _ -> ())
 
 let parse_version_too_short _ =
   let ver = list_to_cstruct [ 0 ] in
   Reader.(match parse_version ver with
           | Or_error.Ok v    -> assert_failure "Version parser broken"
-          | Or_error.Error _ -> assert_bool "length too short" true)
+          | Or_error.Error _ -> ())
 
 let version_parser_tests = [
   good_version_parser 3 0 Core.SSL_3 ;
@@ -78,7 +78,7 @@ let bad_header_parser (ct, (major, minor), l) _ =
   in
   match Reader.parse_hdr buf with
   | (Some c, Some v, l') -> assert_failure "header parser broken"
-  | _                    -> assert_bool "header parser good" true
+  | _                    -> ()
 
 let bad_headers = [
   ( 19 , (3, 1), 100 ) ;
@@ -175,7 +175,7 @@ let bad_alert_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_alert buf with
           | Or_error.Ok _    -> assert_failure "bad alert passes"
-          | Or_error.Error _ -> assert_bool "bad alert fails" true)
+          | Or_error.Error _ -> ())
 
 let bad_alerts = [
   [3; 0] ;
@@ -190,13 +190,13 @@ let alert_too_small _ =
   let buf = list_to_cstruct [ 0 ] in
   Reader.(match parse_alert buf with
           | Or_error.Ok _    -> assert_failure "short alert passes"
-          | Or_error.Error _ -> assert_bool "short alert fails" true)
+          | Or_error.Error _ -> ())
 
 let alert_too_small2 _ =
   let buf = list_to_cstruct [ 25 ] in
   Reader.(match parse_alert buf with
           | Or_error.Ok _    -> assert_failure "short alert passes"
-          | Or_error.Error _ -> assert_bool "short alert fails" true)
+          | Or_error.Error _ -> ())
 
 let bad_alerts_tests =
   ("short alert" >:: alert_too_small) ::
@@ -409,12 +409,10 @@ let good_dh_params_tests =
 
 let bad_dh_param_parser buf _ =
   Reader.(match parse_dh_parameters buf with
-          | Or_error.Error _ -> assert_bool "dh parser" true
+          | Or_error.Error _ -> ()
           | Or_error.Ok (p, raw, rst) ->
              if Cstruct.len rst == 0 then
-               assert_failure "dh params parser broken"
-             else
-               assert_bool "dh parser" true)
+               assert_failure "dh params parser broken")
 
 let bad_dh_params_tests =
   let param = list_to_cstruct (List.hd good_dhparams) in
@@ -554,7 +552,7 @@ let good_digitally_signed_1_2_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_digitally_signed_1_2 buf with
           | Or_error.Error _ -> assert_failure "digitally signed 1.2 parser broken"
-          | Or_error.Ok _    -> assert_bool "digitally signed 1.2 parser" true)
+          | Or_error.Ok _    -> ())
 
 let good_digitally_signed_1_2_tests =
   List.mapi
@@ -586,7 +584,7 @@ let bad_dss_1_2 =
 
 let bad_digitally_signed_1_2_parser buf _ =
   Reader.(match parse_digitally_signed_1_2 buf with
-          | Or_error.Error _ -> assert_bool "digitally signed 1.2 parser" true
+          | Or_error.Error _ -> ()
           | Or_error.Ok _    -> assert_failure "digitally signed 1.2 parser broken")
 
 let bad_digitally_signed_1_2_tests =
@@ -598,7 +596,7 @@ let good_digitally_signed_parser xs _ =
   let buf = Cstruct.shift (list_to_cstruct xs) 2 in
   Reader.(match parse_digitally_signed buf with
           | Or_error.Error _ -> assert_failure "digitally signed parser broken"
-          | Or_error.Ok _    -> assert_bool "digitally signed parser" true)
+          | Or_error.Ok _    -> ())
 
 let good_digitally_signed_tests =
   List.mapi
@@ -619,7 +617,7 @@ let bad_dss =
 
 let bad_digitally_signed_parser buf _ =
   Reader.(match parse_digitally_signed buf with
-          | Or_error.Error _ -> assert_bool "digitally signed parser" true
+          | Or_error.Error _ -> ()
           | Or_error.Ok _    -> assert_failure "digitally signed parser broken")
 
 let bad_digitally_signed_tests =
@@ -656,7 +654,7 @@ let bad_handshake_no_data_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
           | Or_error.Ok _ -> assert_failure "bad handshake no data parser failed"
-          | Or_error.Error _ -> assert_bool "bad handshake no data parser" true)
+          | Or_error.Error _ -> ())
 
 let bad_handshake_no_data_tests =
   List.mapi
@@ -718,7 +716,7 @@ let bad_handshake_cstruct_data_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
           | Or_error.Ok _ -> assert_failure "bad handshake cstruct parser won"
-          | Or_error.Error _ -> assert_bool "bad handshake cstruct data parser" true)
+          | Or_error.Error _ -> ())
 
 let bad_handshake_cstruct_data_tests =
   List.mapi
@@ -911,13 +909,13 @@ let good_client_hellos =
 
 let assert_sessionid_equal a b =
   match a, b with
-  | None, None -> assert_bool "session id equal" true
+  | None, None -> ()
   | Some x, Some y -> assert_cs_eq x y
   | _ -> assert_failure "session id not equal"
 
 let assert_extension_equal a b =
   Core.(match a, b with
-        | Hostname None, Hostname None -> assert_bool "hostname equal" true
+        | Hostname None, Hostname None -> ()
         | Hostname (Some a), Hostname (Some b) -> assert_equal a b
         | MaxFragmentLength a, MaxFragmentLength b -> assert_equal a b
         | EllipticCurves a, EllipticCurves b -> assert_lists_eq assert_equal a b
@@ -1007,7 +1005,7 @@ let bad_client_hello_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
           | Or_error.Ok _ -> assert_failure "bad client hello parser won"
-          | Or_error.Error _ -> assert_bool "bad client hello parser" true)
+          | Or_error.Error _ -> ())
 
 let bad_client_hello_tests =
   List.mapi
