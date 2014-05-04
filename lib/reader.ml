@@ -173,7 +173,7 @@ let parse_elliptic_curves buf =
 
 let parse_ec_point_format buf =
   let rec go buf acc = match Cstruct.len buf with
-    | 0 -> return acc
+    | 0 -> return (List.rev acc)
     | n ->
        check_length 1 buf >>= fun () ->
        let typ = Cstruct.get_uint8 buf 0 in
