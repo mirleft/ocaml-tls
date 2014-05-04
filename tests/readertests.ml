@@ -2,13 +2,6 @@ open OUnit2
 open Tls
 open Testlib
 
-
-let rec assert_lists_eq comparison a b =
-  match a, b with
-  | [], [] -> ()
-  | a::r1, b::r2 -> comparison a b ; assert_lists_eq comparison r1 r2
-  | _ -> assert_failure "lists not equal"
-
 let good_version_parser major minor result _ =
   let ver = list_to_cstruct [ major ; minor ] in
   Reader.(match parse_version ver with
@@ -906,25 +899,6 @@ let good_client_hellos =
                             Padding 203] } )
 
         ])
-
-let assert_sessionid_equal a b =
-  match a, b with
-  | None, None -> ()
-  | Some x, Some y -> assert_cs_eq x y
-  | _ -> assert_failure "session id not equal"
-
-let assert_extension_equal a b =
-  Core.(match a, b with
-        | Hostname None, Hostname None -> ()
-        | Hostname (Some a), Hostname (Some b) -> assert_equal a b
-        | MaxFragmentLength a, MaxFragmentLength b -> assert_equal a b
-        | EllipticCurves a, EllipticCurves b -> assert_lists_eq assert_equal a b
-        | ECPointFormats a, ECPointFormats b -> assert_lists_eq assert_equal a b
-        | SecureRenegotiation a, SecureRenegotiation b -> assert_cs_eq a b
-        | Padding a, Padding b -> assert_equal a b
-        | SignatureAlgorithms a, SignatureAlgorithms b ->
-           assert_lists_eq (fun (h, s) (h', s') -> assert_equal h h' ; assert_equal s s') a b
-        | _ -> assert_failure "extensions did not match")
 
 let good_client_hellos_parser (xs, res) _ =
   let open Core in
