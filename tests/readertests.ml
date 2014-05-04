@@ -28,18 +28,12 @@ let uint16_to_cstruct i =
   BE.set_uint16 buf 0 i;
   buf
 
-let assert_cs_eq cs1 cs2 =
-  let open Cstruct in
-  let l1 = len cs1 in
-  let l2 = len cs2 in
-  if l1 == l2 then
-    (for i = 0 to pred l1 do
-       if get_uint8 cs1 i != get_uint8 cs2 i then
-         assert_failure "cstructs not equal"
-     done;
-     assert_bool "cstructs are equal" true)
-  else
-    assert_failure "cstructs not equal length"
+let assert_cs_eq ?msg cs1 cs2 =
+  assert_equal
+    ~cmp:Utils.cs_eq
+    ~printer:Utils.hexdump_to_str
+    ?msg
+    cs1 cs2
 
 let rec assert_lists_eq comparison a b =
   match a, b with
