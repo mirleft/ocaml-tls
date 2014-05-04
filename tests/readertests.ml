@@ -778,6 +778,12 @@ let good_client_hellos =
           (* two ECPointFormats *)
           ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 0xB; 0; 3; 2; 0; 1] , { ch with extensions = [ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME])] } ) ;
 
+          (* secure renegotiation *)
+          ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 3; 2; 1; 2] , { ch with extensions = [SecureRenegotiation (list_to_cstruct [1;2])] } ) ;
+
+          (* Padding *)
+          ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 3; 0; 0; 0] , { ch with extensions = [Padding 3] } ) ;
+
         ])
 
 let assert_sessionid_equal a b =
