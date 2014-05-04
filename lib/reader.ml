@@ -259,10 +259,10 @@ let parse_hello get_compression get_cipher buf =
   in
   let ciphersuites, rt = get_cipher (shift buf (35 + slen)) in
   let _, rt' = get_compression rt in
-  let extensions = if len rt' > 0 then
-                     parse_extensions rt'
-                   else
+  let extensions = if len rt' == 0 then
                      []
+                   else
+                     parse_extensions rt'
   in
   { version ; random ; sessionid ; ciphersuites ; extensions }
 
@@ -360,12 +360,18 @@ let parse_handshake_ buf =
   else
     let payload = sub buf 4 length in
     match handshake_type with
-    | Some HELLO_REQUEST -> HelloRequest
+    | Some HELLO_REQUEST -> if len payload != 0 then
+                              raise (TrailingBytes "hello request")
+                            else
+                              HelloRequest
     | Some CLIENT_HELLO -> parse_client_hello payload
     | Some SERVER_HELLO -> parse_server_hello payload
     | Some CERTIFICATE -> parse_certificates payload
     | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange payload
-    | Some SERVER_HELLO_DONE -> ServerHelloDone
+    | Some SERVER_HELLO_DONE -> if len payload != 0 then
+                                  raise (TrailingBytes "server hello done")
+                                else
+                                  ServerHelloDone
     | Some CERTIFICATE_REQUEST -> parse_certificate_request payload
     | Some CLIENT_KEY_EXCHANGE -> parse_client_key_exchange payload
     | Some FINISHED -> Finished (sub payload 0 12)

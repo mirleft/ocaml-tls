@@ -645,7 +645,11 @@ let good_handshake_no_data_tests =
     good_handshakes_no_data
 
 let bad_handshakes_no_data = [
-  [0; 0; 0; 3] ; [14; 0; 0; 5] ; [245; 0; 0; 0]
+  [0; 0; 0; 3] ;
+  [14; 0; 0; 5] ;
+  [245; 0; 0; 0] ;
+  [0; 0; 0; 3; 0; 0; 0] ;
+  [14; 0; 0; 5; 0; 0; 0; 0; 0]
 ]
 
 let bad_handshake_no_data_parser xs _ =
@@ -692,7 +696,9 @@ let good_handshake_cstruct_data_tests =
 let bad_handshake_cstruct_data =
   let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
   [ [12; 0; 0; 13] @ data ;
+    [12; 0; 0; 11] @ data ;
     [20; 0; 1; 12] @ data ;
+    [20; 0; 0; 11] @ data ;
     [16; 0; 0; 15; 0; 12] @ data ;
     [16; 0; 0; 14; 0; 13] @ data ;
     [16; 0; 0; 14; 0; 11] @ data ;
@@ -703,7 +709,9 @@ let bad_handshake_cstruct_data =
     [11; 0; 0; 3; 0; 0; 2] ;
     [11; 0; 0; 4; 0; 0; 0] ;
     [11; 0; 0; 17; 0; 0; 15; 0; 0; 12] @ data ;
-    [11; 0; 0; 30; 0; 0; 30; 0; 0; 12] @ data @ [0; 0; 12] @ data
+    [11; 0; 0; 17; 0; 0; 14; 0; 0; 11] @ data ;
+    [11; 0; 0; 30; 0; 0; 30; 0; 0; 12] @ data @ [0; 0; 12] @ data ;
+    [11; 0; 0; 32; 0; 0; 29; 0; 0; 12] @ data @ [0; 0; 11] @ data
   ]
 
 let bad_handshake_cstruct_data_parser xs _ =
