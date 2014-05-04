@@ -245,7 +245,7 @@ let parse_extension buf =
 let parse_extensions buf =
   let rec go buf acc =
     match Cstruct.len buf with
-    | 0 -> return acc
+    | 0 -> return (List.rev acc)
     | n ->
        parse_extension buf >>= fun (extension, esize) ->
        go (Cstruct.shift buf esize) (extension :: acc)
