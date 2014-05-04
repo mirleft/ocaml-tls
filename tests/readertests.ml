@@ -720,6 +720,7 @@ let good_client_hellos =
             extensions = []}
         in
         [
+          (* versions *)
           ([1; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , ch ) ;
           ([1; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.SSL_3 } ) ;
           ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.TLS_1_0 } ) ;
@@ -769,6 +770,13 @@ let good_client_hellos =
           ([1; 0; 0; 48; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 8; 0; 0xA; 0; 4; 0; 2; 0; 25] , { ch with extensions = [EllipticCurves [Packet.SECP521R1]] } ) ;
           (* two elliptic curves *)
           ([1; 0; 0; 50; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 10; 0; 0xA; 0; 6; 0; 4; 0; 25; 0; 20] , { ch with extensions = [EllipticCurves Packet.([SECP521R1; SECP224K1])] } ) ;
+
+          (* empty ECPointFormats *)
+          ([1; 0; 0; 45; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 0] , { ch with extensions = [ECPointFormats []] } ) ;
+          (* one ECPointFormats *)
+          ([1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xB; 0; 2; 1; 0] , { ch with extensions = [ECPointFormats [Packet.UNCOMPRESSED]] } ) ;
+          (* two ECPointFormats *)
+          ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 0xB; 0; 3; 2; 0; 1] , { ch with extensions = [ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME])] } ) ;
 
         ])
 
