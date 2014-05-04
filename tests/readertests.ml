@@ -744,6 +744,23 @@ let good_client_hellos =
           (* combine ciphersuite + compression + session id *)
           ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 3; 1; 2; 3; (* cipher *) 0; 4; 0; 0; 0; 1; (* comp *) 2; 0; 1; (* exts *)] , { ch with ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5]) ; sessionid = Some (list_to_cstruct [1; 2; 3]) }) ;
 
+
+          (* extensions *)
+          (* empty *)
+          ([1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 0] , ch ) ;
+
+          (* empty hostname *)
+          ([1; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 4; 0; 0; 0; 0] , { ch with extensions = [Hostname None] } ) ;
+          (* some hostname *)
+          ([1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 3; 102; 111; 111] , { ch with extensions = [Hostname (Some "foo")] } ) ;
+          (* some other hostname *)
+          ([1; 0; 0; 59; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 19; 0; 0; 0; 15; 0; 13; 0; 0; 10; 102; 111; 111; 98; 97; 114; 46; 99; 111; 109] , { ch with extensions = [Hostname (Some "foobar.com")] } ) ;
+(*
+          (* multiple hostnames - legal in RFC, not accepted by any implementation *)
+          ([1; 0; 0; 58; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 19; 0; 0; 0; 14; 0; 12; 0; 0; 3; 102; 111; 111; 0; 0; 3; 98; 97; 114] , { ch with extensions = [Hostname (Some ["foo", "bar"]) } ) ;
+ *)
+
+
         ])
 
 let assert_sessionid_equal a b =
@@ -751,6 +768,19 @@ let assert_sessionid_equal a b =
   | None, None -> assert_bool "session id equal" true
   | Some x, Some y -> assert_cs_eq x y
   | _ -> assert_failure "session id not equal"
+
+let assert_extension_equal a b =
+  Core.(match a, b with
+        | Hostname None, Hostname None -> assert_bool "hostname equal" true
+        | Hostname (Some a), Hostname (Some b) -> assert_equal a b
+        | MaxFragmentLength a, MaxFragmentLength b -> assert_equal a b
+        | EllipticCurves a, EllipticCurves b -> assert_lists_eq assert_equal a b
+        | ECPointFormats a, ECPointFormats b -> assert_lists_eq assert_equal a b
+        | SecureRenegotiation a, SecureRenegotiation b -> assert_cs_eq a b
+        | Padding a, Padding b -> assert_equal a b
+        | SignatureAlgorithms a, SignatureAlgorithms b ->
+           assert_lists_eq (fun (h, s) (h', s') -> assert_equal h h' ; assert_equal s s') a b
+        | _ -> assert_failure "extensions did not match")
 
 let good_client_hellos_parser (xs, res) _ =
   let open Core in
@@ -760,8 +790,8 @@ let good_client_hellos_parser (xs, res) _ =
              assert_equal ch.version res.version ;
              assert_cs_eq ch.random res.random ;
              assert_sessionid_equal ch.sessionid res.sessionid ;
-             assert_lists_eq (fun a b -> compare a b == 0) ch.ciphersuites res.ciphersuites ;
-             assert_lists_eq (fun a b -> compare a b == 0) ch.extensions res.extensions
+             assert_lists_eq assert_equal ch.ciphersuites res.ciphersuites ;
+             assert_lists_eq assert_extension_equal ch.extensions res.extensions
           | _ -> assert_failure "handshake client hello parser failed")
 
 let good_client_hellos_tests =
