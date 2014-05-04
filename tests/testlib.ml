@@ -5,8 +5,6 @@ let time f =
   let t2 = Sys.time () in
   ( Printf.eprintf "[time] %f.04 s\n%!" (t2 -.  t1) ; r )
 
-let cs_eq = Tls.Utils.cs_eq
-
 module Flow = struct
 
   let rewrap_st = function (`S _, st) -> `S st | (`C _, st) -> `C st
@@ -67,6 +65,6 @@ let loop_chatter ~cert ~loops ~size =
     in
     let (srv, cli) = handshake (`S server) (`C client) init in
     let message' = chat srv cli message loops in
-    if cs_eq message message' then ()
+    if Tls.Utils.Cs.equal message message' then ()
     else failwith @@ "the message got corrupted :("
 

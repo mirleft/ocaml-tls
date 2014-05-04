@@ -223,7 +223,7 @@ let ext_authority_matches_subject trusted cert =
     extn_authority_key_id cert.asn, extn_subject_key_id trusted.asn
   with
   | Some (_, Authority_key_id (Some auth, _, _)),
-    Some (_, Subject_key_id au)                -> Utils.cs_eq auth au
+    Some (_, Subject_key_id au)                -> Cs.equal auth au
   (* TODO: check exact rules in RFC5280 *)
   | Some (_, Authority_key_id (None, _, _)), _ -> true (* not mandatory *)
   | None, _                                    -> true (* not mandatory *)

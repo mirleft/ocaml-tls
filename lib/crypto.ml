@@ -6,7 +6,7 @@ open Nocrypto.Hash
 open Ciphersuite
 
 
-let (<>) = Utils.cs_append
+let (<>) = Utils.Cs.(<>)
 
 (* XXX todo :D *)
 let () = Rng.reseed (Cstruct.of_string "\001\002\003\004")
@@ -44,7 +44,7 @@ let key_block version len master_secret seed =
   pseudo_random_function version len master_secret "key expansion" seed
 
 let finished version master_secret label ps =
-  let data = Utils.cs_appends ps in
+  let data = Utils.Cs.appends ps in
   let open Core in
   match version with
   | TLS_1_0 | TLS_1_1 -> let seed = MD5.digest data <> SHA1.digest data in
@@ -243,7 +243,7 @@ let hash hash_ctor cs =
   H.digest cs
 
 let hash_eq hash_ctor ~target cs =
-  Utils.cs_eq target (hash hash_ctor cs)
+  Utils.Cs.equal target (hash hash_ctor cs)
 
 (* Decoder + project asn algos into hashes we understand. *)
 let pkcs1_digest_info_of_cstruct cs =

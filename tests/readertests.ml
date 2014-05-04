@@ -1,20 +1,8 @@
 open OUnit2
 open Tls
+open Utils
 
-let cs_appends = function
-  | []   -> Cstruct.create 0
-  | [cs] -> cs
-  | csn  ->
-      let cs = Cstruct.(create @@ lenv csn) in
-      let _ =
-        List.fold_left
-          (fun off e ->
-            let len = Cstruct.len e in
-            ( Cstruct.blit e 0 cs off len ; off + len ))
-          0 csn in
-      cs
-
-let (<>) cs1 cs2 = cs_appends [ cs1; cs2 ]
+let (<>) = Cs.(<>)
 
 let list_to_cstruct xs =
   let open Cstruct in
@@ -30,7 +18,7 @@ let uint16_to_cstruct i =
 
 let assert_cs_eq ?msg cs1 cs2 =
   assert_equal
-    ~cmp:Utils.cs_eq
+    ~cmp:Utils.Cs.equal
     ~printer:Utils.hexdump_to_str
     ?msg
     cs1 cs2

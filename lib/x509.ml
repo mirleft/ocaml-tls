@@ -14,15 +14,15 @@ module Pem = struct
 
   let tok_of_line cs =
     try
-      if ( cs_eq cs cs_empty ) then
+      if ( Cs.equal cs Cs.empty ) then
         `Empty else
       if ( get_char cs 0 = '#' ) then
         `Empty else
-      if ( cs_begins_with cs open_begin &&
-           cs_ends_with cs close ) then
+      if ( Cs.begins_with cs open_begin &&
+           Cs.ends_with cs close ) then
         `Begin (to_string @@ sub cs 11 (len cs - 16)) else
-      if ( cs_begins_with cs open_end &&
-           cs_ends_with cs close ) then
+      if ( Cs.begins_with cs open_end &&
+           Cs.ends_with cs close ) then
         `End (to_string @@ sub cs 9 (len cs - 14)) else
         `Data cs
     with Invalid_argument _ -> `Data cs
@@ -45,7 +45,7 @@ module Pem = struct
     let rec accumulate t acc = parser
       | [< ' `Empty ; lines >] -> accumulate t acc lines
       | [< ' `Data cs ; lines >] -> accumulate t (cs :: acc) lines
-      | [< ' `End t' when t = t' >] -> cs_appends (List.rev acc)
+      | [< ' `End t' when t = t' >] -> Cs.appends (List.rev acc)
 
     and block = parser
       | [< ' `Begin t ; body = accumulate t [] ; tail >] ->

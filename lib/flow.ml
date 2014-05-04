@@ -47,7 +47,7 @@ let fail_false v err =
   | false -> fail err
 
 let fail_neq cs1 cs2 err =
-  fail_false (Utils.cs_eq cs1 cs2) err
+  fail_false (Utils.Cs.equal cs1 cs2) err
 
 type iv_mode =       (* IV style *)
   | Iv of Cstruct.t  (* traditional CBC *)
@@ -289,7 +289,7 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
 
 let assemble_records : tls_version -> record list -> Cstruct.t =
   fun version ->
-    o Utils.cs_appends @@ List.map @@ Writer.assemble_hdr version
+    o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
 
 type rec_resp = [
   | `Change_enc of crypto_state
