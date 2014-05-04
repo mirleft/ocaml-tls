@@ -760,6 +760,15 @@ let good_client_hellos =
           ([1; 0; 0; 58; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 19; 0; 0; 0; 14; 0; 12; 0; 0; 3; 102; 111; 111; 0; 0; 3; 98; 97; 114] , { ch with extensions = [Hostname (Some ["foo", "bar"]) } ) ;
  *)
 
+          (* max fragment length *)
+          ([1; 0; 0; 45; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 1; 0; 1; 3] , { ch with extensions = [MaxFragmentLength Packet.TWO_11] } ) ;
+
+          (* empty EllipticCurves *)
+          ([1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xA; 0; 2; 0; 0] , { ch with extensions = [EllipticCurves []] } ) ;
+          (* one elliptic curve *)
+          ([1; 0; 0; 48; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 8; 0; 0xA; 0; 4; 0; 2; 0; 25] , { ch with extensions = [EllipticCurves [Packet.SECP521R1]] } ) ;
+          (* two elliptic curves *)
+          ([1; 0; 0; 50; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 10; 0; 0xA; 0; 6; 0; 4; 0; 25; 0; 20] , { ch with extensions = [EllipticCurves Packet.([SECP521R1; SECP224K1])] } ) ;
 
         ])
 
