@@ -18,11 +18,8 @@ let (<>) cs1 cs2 = cs_appends [ cs1; cs2 ]
 
 let list_to_cstruct xs =
   let open Cstruct in
-  let l = List.length xs in
-  let buf = create l in
-  for i = 0 to pred l do
-    set_uint8 buf i (List.nth xs i)
-  done;
+  let buf = create (List.length xs) in
+  List.iteri (set_uint8 buf) xs ;
   buf
 
 let uint16_to_cstruct i =
