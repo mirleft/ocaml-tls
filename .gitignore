@@ -6,5 +6,6 @@ log
 
 main.ml
 *.native
+*.byte
 mir-mirage-*
 mirage-*.xl

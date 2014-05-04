@@ -3,7 +3,7 @@ open Ciphersuite
 
 let o f g x = f (g x)
 
-let (<>) = Utils.cs_append
+let (<>) = Utils.Cs.(<>)
 
 type tls_version =
   | SSL_3

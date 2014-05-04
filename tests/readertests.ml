@@ -1,48 +1,7 @@
 open OUnit2
 open Tls
+open Testlib
 
-let cs_appends = function
-  | []   -> Cstruct.create 0
-  | [cs] -> cs
-  | csn  ->
-      let cs = Cstruct.(create @@ lenv csn) in
-      let _ =
-        List.fold_left
-          (fun off e ->
-            let len = Cstruct.len e in
-            ( Cstruct.blit e 0 cs off len ; off + len ))
-          0 csn in
-      cs
-
-let (<>) cs1 cs2 = cs_appends [ cs1; cs2 ]
-
-let list_to_cstruct xs =
-  let open Cstruct in
-  let l = List.length xs in
-  let buf = create l in
-  for i = 0 to pred l do
-    set_uint8 buf i (List.nth xs i)
-  done;
-  buf
-
-let uint16_to_cstruct i =
-  let open Cstruct in
-  let buf = create 2 in
-  BE.set_uint16 buf 0 i;
-  buf
-
-let assert_cs_eq cs1 cs2 =
-  let open Cstruct in
-  let l1 = len cs1 in
-  let l2 = len cs2 in
-  if l1 == l2 then
-    (for i = 0 to pred l1 do
-       if get_uint8 cs1 i != get_uint8 cs2 i then
-         assert_failure "cstructs not equal"
-     done;
-     assert_bool "cstructs are equal" true)
-  else
-    assert_failure "cstructs not equal length"
 
 let rec assert_lists_eq comparison a b =
   match a, b with

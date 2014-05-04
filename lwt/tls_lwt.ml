@@ -62,7 +62,7 @@ let rec read socket =
       loop ()
   | css ->
       socket.input_leftovers <- [] ;
-      return @@ Tls.Utils.cs_appends (List.rev css)
+      return @@ Tls.Utils.Cs.appends (List.rev css)
 
 let writev socket css =
   match Tls.Flow.send_application_data socket.state css with

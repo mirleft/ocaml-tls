@@ -74,7 +74,7 @@ let assemble_hostname host =
 
 let assemble_hostnames hosts =
   (* it should 16 bit length of list followed by the items *)
-  let names = Utils.cs_appends (List.map assemble_hostname hosts) in
+  let names = Utils.Cs.appends (List.map assemble_hostname hosts) in
   let buf = Cstruct.create 2 in
   Cstruct.BE.set_uint16 buf 0 (Cstruct.len names);
   buf <> names
@@ -119,7 +119,7 @@ let assemble_extension e =
 
 let assemble_extensions = function
   | [] -> (Cstruct.create 0, 0)
-  | es -> let exts = Utils.cs_appends (List.map assemble_extension es) in
+  | es -> let exts = Utils.Cs.appends (List.map assemble_extension es) in
           let l = Cstruct.len exts in
           (exts, l)
 
