@@ -54,6 +54,8 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
          | true, Reader.Or_error.Ok c_ver, TLS_1_0 ->
             if c_ver <= TLS_1_2 then return k else return other
          | true, Reader.Or_error.Ok c_ver, v       ->
+            (* here, we need to check c_ver with Client_hello.client_version,
+               as described in RFC5246, 7.4.7.1! -- not with protocol_version! *)
             if c_ver = v then return k else return other
          | _, _, _                                 ->
             (* should we have a similar conditional here? *)

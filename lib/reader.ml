@@ -21,8 +21,7 @@ let parse_version_int : Cstruct.t -> int * int =
   let minor = Cstruct.get_uint8 buf 1 in
   (major, minor)
 
-let parse_version : Cstruct.t -> tls_version or_error =
-  fun buf ->
+let parse_version buf =
   check_length 2 buf >>= fun () ->
   let version = parse_version_int buf in
   match tls_version_of_pair version with
@@ -32,8 +31,7 @@ let parse_version : Cstruct.t -> tls_version or_error =
      fail (Unknown ("version: " ^ string_of_int major ^ "." ^ string_of_int minor))
 
 (* calling convention is that the buffer length is >= 5! *)
-let parse_hdr : Cstruct.t -> content_type option * tls_version option * int =
-  fun buf ->
+let parse_hdr buf =
   let open Cstruct in
   let typ = get_uint8 buf 0 in
   let version = parse_version_int (shift buf 1) in
@@ -163,7 +161,7 @@ let parse_named_curve buf =
 
 let parse_elliptic_curves buf =
   let rec go buf acc = match Cstruct.len buf with
-    | 0 -> return acc
+    | 0 -> return (List.rev acc)
     | n ->
        check_length 2 buf >>= fun () ->
        parse_named_curve buf >>= fun (c) ->
@@ -171,11 +169,12 @@ let parse_elliptic_curves buf =
   in
   check_length 2 buf >>= fun () ->
   let len = Cstruct.BE.get_uint16 buf 0 in
+  check_length (2 + len) buf >>= fun () ->
   go (Cstruct.sub buf 2 len) []
 
 let parse_ec_point_format buf =
   let rec go buf acc = match Cstruct.len buf with
-    | 0 -> return acc
+    | 0 -> return (List.rev acc)
     | n ->
        check_length 1 buf >>= fun () ->
        let typ = Cstruct.get_uint8 buf 0 in
@@ -185,6 +184,7 @@ let parse_ec_point_format buf =
   in
   check_length 1 buf >>= fun () ->
   let len = Cstruct.get_uint8 buf 0 in
+  check_length (len + 1) buf >>= fun () ->
   go (Cstruct.sub buf 1 len) []
 
 let rec parse_hash_sig buf acc = function
@@ -204,6 +204,7 @@ let parse_extension buf =
   check_length 4 buf >>= fun () ->
   let etype = Cstruct.BE.get_uint16 buf 0 in
   let len = Cstruct.BE.get_uint16 buf 2 in
+  check_length (4 + len) buf >>= fun () ->
   let buf = Cstruct.sub buf 4 len in
   ( match int_to_extension_type etype with
     | Some SERVER_NAME ->
@@ -223,7 +224,9 @@ let parse_extension buf =
        return (ECPointFormats formats)
     | Some RENEGOTIATION_INFO ->
        check_length 1 buf >>= fun () ->
-       return (SecureRenegotiation (Cstruct.shift buf 1))
+       let len' = Cstruct.get_uint8 buf 0 in
+       check_length (len' + 1) buf >>= fun () ->
+       return (SecureRenegotiation (Cstruct.sub buf 1 len'))
     | Some PADDING ->
        check_length len buf >>= fun () ->
        let rec check = function
@@ -247,9 +250,10 @@ let parse_extension buf =
 let parse_extensions buf =
   let rec go buf acc =
     match Cstruct.len buf with
-    | 0 -> return acc
+    | 0 -> return (List.rev acc)
     | n ->
        parse_extension buf >>= fun (extension, esize) ->
+       check_length esize buf >>= fun () ->
        go (Cstruct.shift buf esize) (extension :: acc)
   in
   check_length 2 buf >>= fun () ->
