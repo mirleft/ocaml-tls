@@ -1,27 +1,7 @@
 open OUnit2
 open Tls
-open Utils
+open Testlib
 
-let (<>) = Cs.(<>)
-
-let list_to_cstruct xs =
-  let open Cstruct in
-  let buf = create (List.length xs) in
-  List.iteri (set_uint8 buf) xs ;
-  buf
-
-let uint16_to_cstruct i =
-  let open Cstruct in
-  let buf = create 2 in
-  BE.set_uint16 buf 0 i;
-  buf
-
-let assert_cs_eq ?msg cs1 cs2 =
-  assert_equal
-    ~cmp:Utils.Cs.equal
-    ~printer:Utils.hexdump_to_str
-    ?msg
-    cs1 cs2
 
 let rec assert_lists_eq comparison a b =
   match a, b with
