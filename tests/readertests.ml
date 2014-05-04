@@ -768,8 +768,8 @@ let good_client_hellos =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
   let random = list_to_cstruct rand in
-  Core.(let ch : Core.client_hello =
-          { version = Core.TLS_1_2 ;
+  Core.(let ch : client_hello =
+          { version = TLS_1_2 ;
             random ;
             sessionid = None ;
             ciphersuites = [] ;
@@ -778,11 +778,11 @@ let good_client_hellos =
         [
           (* versions *)
           ([1; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , ch ) ;
-          ([1; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.SSL_3 } ) ;
-          ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.TLS_1_0 } ) ;
-          ([1; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.TLS_1_1 } ) ;
-          ([1; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.TLS_1_X } ) ;
-          ([1; 0; 0; 38; 3; 5] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Core.TLS_1_X } ) ;
+          ([1; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = SSL_3 } ) ;
+          ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_0 } ) ;
+          ([1; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_1 } ) ;
+          ([1; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_X } ) ;
+          ([1; 0; 0; 38; 3; 5] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_X } ) ;
 
           (* well-formed compression (not available in higher layer) *)
           ([1; 0; 0; 39; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 1; 0; (* exts *)] , ch ) ;
@@ -791,6 +791,19 @@ let good_client_hellos =
           (* ciphersuites *)
           ([1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 2; 0; 0; (* comp *) 0; (* exts *)] , { ch with ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] } ) ;
           ([1; 0; 0; 42; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; 0; 0; 0; 1; (* comp *) 0; (* exts *)] , { ch with ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5]) } ) ;
+
+          (* TODO: unknown ciphersuites should be ignored (for the upgrade path *)
+(*          ([1; 0; 0; 42; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; 0; 0; 0; 47; (* comp *) 0; (* exts *)] , { ch with ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] } ) ; *)
+
+          (* TODO: unknown extensions should be ignored (check again with rfc) *)
+          (* TODO: validate client_hello:
+              - non-empty ciphersuites
+              - no duplicated ciphersuites
+              - those required by protocol version should be in the list!
+              - no duplicated extensions
+              - no unsupported extensions (SignatureAlgorithms in TLS < 1.2)
+              - empty ServerName extension is useless
+           *)
 
           (* combine ciphersuite + compression *)
           ([1; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; 0; 0; 0; 1; (* comp *) 2; 0; 1; (* exts *)] , { ch with ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5]) }) ;
@@ -961,6 +974,107 @@ let good_client_hellos_tests =
     (fun i f -> "Parse good client hello " ^ string_of_int i >:: good_client_hellos_parser f)
     good_client_hellos
 
+let good_server_hellos =
+  (* I rolled the dice 16 times *)
+  let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let rand = rnd @ rnd in
+  let random = list_to_cstruct rand in
+  Core.(let sh : server_hello =
+          { version = TLS_1_2 ;
+            random ;
+            sessionid = None ;
+            ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+            extensions = []}
+        in
+        [
+          (* versions *)
+          ([2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , sh ) ;
+          ([2; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = SSL_3 } ) ;
+          ([2; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_0 } ) ;
+          ([2; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_1 } ) ;
+          ([2; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_X } ) ;
+
+          (* session id *)
+          ([2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 3; 1; 2; 3; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with sessionid = Some (list_to_cstruct [1; 2; 3]) } ) ;
+
+          (* ciphersuite *)
+          ([2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 1; (* comp *) 0; (* exts *)] , { sh with ciphersuites = Ciphersuite.TLS_RSA_WITH_NULL_MD5 } ) ;
+
+          (* extensions *)
+          (* empty *)
+          ([2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 0] , sh ) ;
+
+          (* empty hostname *)
+          ([2; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 4; 0; 0; 0; 0] , { sh with extensions = [Hostname None] } ) ;
+
+          (* TODO: chosen ciphersuite must not be renegotiation (0x00ff) *)
+
+          (* TODO: validation of extensions
+               - ServerName, if present, should be None
+               - Padding is not allowed
+               - EC stuff must be present if EC ciphersuite chosen
+               - protocol version dependencies (SignatureAlgorithm)
+               - no duplicates!
+               - only those which are in a client hello are allowed
+               - is there an ordering?
+           *)
+          ( [
+            0x02; (* typ *)
+            0x00; 0x00; 0x51; (* len *)
+            0x03; 0x03; (* version *)
+            0x53; 0x66; 0x2d; 0xf0; 0x1b; 0x61; 0x55; 0x8f; 0x74; 0x2a; 0xbf; 0xf4; 0x99; 0x86; 0x30; 0x99; 0x32; 0xe4; 0xd0; 0x1e; 0x2b; 0xa9; 0x2e; 0x86; 0x7b; 0xeb; 0x03; 0x00; 0xf9; 0x11; 0x3e; 0xc5; (* random *)
+            0x20; (* session ID *)
+            0xd1; 0x54; 0xd9; 0x05; 0x61; 0x41; 0x53; 0x33; 0xb2; 0xf0; 0x13; 0x78; 0x1a; 0x17; 0xb3; 0x1d; 0x09; 0xf6; 0x59; 0x70; 0xfe; 0x5d; 0x58; 0x22; 0xfa; 0x8c; 0x5c; 0x89; 0xe9; 0xa2; 0xb4; 0x70;
+            0x00; 0x2f; (* cipher *)
+            0x00; (* compression *)
+            0x00; 0x09; (* extensions *)
+            0x00; 0x00; 0x00; 0x00; (* servername *)
+            0xff; 0x01; 0x00; 0x01; 0x00 (* secure renegotiation *)
+          ], { sh with
+               ciphersuites = Ciphersuite.TLS_RSA_WITH_AES_128_CBC_SHA ;
+               random = list_to_cstruct [ 0x53; 0x66; 0x2d; 0xf0; 0x1b; 0x61; 0x55; 0x8f; 0x74; 0x2a; 0xbf; 0xf4; 0x99; 0x86; 0x30; 0x99; 0x32; 0xe4; 0xd0; 0x1e; 0x2b; 0xa9; 0x2e; 0x86; 0x7b; 0xeb; 0x03; 0x00; 0xf9; 0x11; 0x3e; 0xc5 ] ;
+               sessionid = Some (list_to_cstruct [ 0xd1; 0x54; 0xd9; 0x05; 0x61; 0x41; 0x53; 0x33; 0xb2; 0xf0; 0x13; 0x78; 0x1a; 0x17; 0xb3; 0x1d; 0x09; 0xf6; 0x59; 0x70; 0xfe; 0x5d; 0x58; 0x22; 0xfa; 0x8c; 0x5c; 0x89; 0xe9; 0xa2; 0xb4; 0x70 ]) ;
+               extensions = [Hostname None;
+                             SecureRenegotiation (Cstruct.create 0)] }) ;
+
+          ( [
+            0x02;
+            0x00; 0x00; 0x51;
+            0x03; 0x03;
+            0x53; 0x66; 0x2f; 0xb7; 0x35; 0x3a; 0x42; 0xee; 0x1c; 0xe6; 0xed; 0x63; 0x8a; 0x1d; 0x3d; 0xb3; 0x71; 0x9c; 0xf5; 0x64; 0x45; 0xc5; 0xe9; 0xf4; 0x11; 0x8b; 0x9f; 0x41; 0x5a; 0x5f; 0xf1; 0xf6;
+            0x20;
+            0xdf; 0xe1; 0x09; 0x8a; 0x42; 0xf0; 0x25; 0xc7; 0xbd; 0xe5; 0xe9; 0x02; 0x6a; 0x03; 0xaf; 0xb4; 0x70; 0x80; 0xe9; 0x2f; 0x07; 0x3f; 0x53; 0xd3; 0xc8; 0x97; 0x3f; 0xc4; 0x44; 0x23; 0xf5; 0x94;
+            0x00; 0x2f;
+            0x00;
+            0x00; 0x09;
+            0x00; 0x00; 0x00; 0x00;
+            0xff; 0x01; 0x00; 0x01; 0x00 ],
+            { sh with
+              ciphersuites = Ciphersuite.TLS_RSA_WITH_AES_128_CBC_SHA ;
+              random = list_to_cstruct [ 0x53; 0x66; 0x2f; 0xb7; 0x35; 0x3a; 0x42; 0xee; 0x1c; 0xe6; 0xed; 0x63; 0x8a; 0x1d; 0x3d; 0xb3; 0x71; 0x9c; 0xf5; 0x64; 0x45; 0xc5; 0xe9; 0xf4; 0x11; 0x8b; 0x9f; 0x41; 0x5a; 0x5f; 0xf1; 0xf6 ] ;
+              sessionid = Some (list_to_cstruct [ 0xdf; 0xe1; 0x09; 0x8a; 0x42; 0xf0; 0x25; 0xc7; 0xbd; 0xe5; 0xe9; 0x02; 0x6a; 0x03; 0xaf; 0xb4; 0x70; 0x80; 0xe9; 0x2f; 0x07; 0x3f; 0x53; 0xd3; 0xc8; 0x97; 0x3f; 0xc4; 0x44; 0x23; 0xf5; 0x94 ] ) ;
+              extensions = [Hostname None;
+                            SecureRenegotiation (Cstruct.create 0)] }) ;
+
+       ])
+
+let good_server_hellos_parser (xs, res) _ =
+  let open Core in
+  let buf = list_to_cstruct xs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok (ServerHello sh) ->
+             assert_equal sh.version res.version ;
+             assert_cs_eq sh.random res.random ;
+             assert_sessionid_equal sh.sessionid res.sessionid ;
+             assert_equal sh.ciphersuites res.ciphersuites ;
+             assert_lists_eq assert_extension_equal sh.extensions res.extensions
+          | _ -> assert_failure "handshake client hello parser failed")
+
+let good_server_hellos_tests =
+  List.mapi
+    (fun i f -> "Parse good client hello " ^ string_of_int i >:: good_server_hellos_parser f)
+    good_server_hellos
+
 let reader_tests =
   version_tests @
   good_headers_tests @ bad_headers_tests @
@@ -970,4 +1084,5 @@ let reader_tests =
   good_digitally_signed_tests @ bad_digitally_signed_tests @
   good_handshake_no_data_tests @ bad_handshake_no_data_tests @
   good_handshake_cstruct_data_tests @ bad_handshake_cstruct_data_tests @
-  good_client_hellos_tests
+  good_client_hellos_tests @
+  good_server_hellos_tests
