@@ -1,6 +1,8 @@
 open Packet
 open Core
 
+let (<>) = Utils.Cs.(<>)
+
 let assemble_protocol_version_numbers buf (major, minor) =
   Cstruct.set_uint8 buf 0 major;
   Cstruct.set_uint8 buf 1 minor

@@ -46,7 +46,7 @@ let parse_hdr buf =
   (int_to_content_type typ, tls_version_of_pair version, len)
 
 let parse_alert = catch @@ fun buf ->
-  if len buf != 2 then
+  if len buf <> 2 then
     raise_trailing_bytes "after alert"
   else
     let level = get_uint8 buf 0 in
@@ -86,7 +86,7 @@ let parse_cas buf =
     (Some name, shift buf (2 + length))
   in
   let calength = BE.get_uint16 buf 0 in
-  if calength != (len buf) + 2 then
+  if calength <> (len buf) + 2 then
     raise_trailing_bytes "cas"
   else
     parse_list parsef (sub buf 2 calength) []
@@ -110,7 +110,7 @@ let parse_ciphersuite buf =
 
 let parse_ciphersuites buf =
   let count = BE.get_uint16 buf 0 in
-  if count mod 2 != 0 then
+  if count mod 2 <> 0 then
     raise_wrong_length "ciphersuite list"
   else
     parse_count_list parse_ciphersuite (shift buf 2) [] (count / 2)
@@ -129,13 +129,13 @@ let parse_hostnames buf =
        | _ -> (None, rt)
      in
      let list_length = BE.get_uint16 buf 0 in
-     if list_length + 2 != n then
+     if list_length + 2 <> n then
        raise_trailing_bytes "hostname"
      else
        parse_list parsef (sub buf 2 list_length) []
 
 let parse_fragment_length buf =
-  if len buf != 1 then
+  if len buf <> 1 then
     raise_trailing_bytes "fragment length"
   else
     int_to_max_fragment_length (get_uint8 buf 0)
@@ -146,11 +146,11 @@ let parse_named_curve buf =
 
 let parse_elliptic_curves buf =
   let count = BE.get_uint16 buf 0 in
-  if count mod 2 != 0 then
+  if count mod 2 <> 0 then
     raise_wrong_length "elliptic curve list"
   else
     let cs, rt = parse_count_list parse_named_curve (shift buf 2) [] (count / 2) in
-    if len rt != 0 then
+    if len rt <> 0 then
       raise_trailing_bytes "elliptic curves"
     else
       cs
@@ -162,7 +162,7 @@ let parse_ec_point_format buf =
   in
   let count = get_uint8 buf 0 in
   let formats, rt = parse_count_list parsef (shift buf 1) [] count in
-  if len rt != 0 then
+  if len rt <> 0 then
     raise_trailing_bytes "ec point formats"
   else
     formats
@@ -176,7 +176,7 @@ let parse_hash_sig buf =
     | _              -> (None       , shift buf 2)
   in
   let count = BE.get_uint16 buf 0 in
-  if count mod 2 != 0 then
+  if count mod 2 <> 0 then
     raise_wrong_length "signature hash"
   else
     parse_count_list parsef (shift buf 2) [] (count / 2)
@@ -204,7 +204,7 @@ let parse_extension raw =
        ECPointFormats formats
     | Some RENEGOTIATION_INFO ->
        let len' = get_uint8 buf 0 in
-       if len buf != len' + 1 then
+       if len buf <> len' + 1 then
          raise_trailing_bytes "renegotiation"
        else
          SecureRenegotiation (sub buf 1 len')
@@ -212,7 +212,7 @@ let parse_extension raw =
        let rec check = function
          | 0 -> Padding length
          | n -> let idx = pred n in
-                if get_uint8 buf idx != 0 then
+                if get_uint8 buf idx <> 0 then
                   raise_unknown "bad padding in padding extension"
                 else
                   check idx
@@ -220,7 +220,7 @@ let parse_extension raw =
        check length
     | Some SIGNATURE_ALGORITHMS ->
        let algos, rt = parse_hash_sig buf in
-       if len rt != 0 then
+       if len rt <> 0 then
          raise_trailing_bytes "signature algorithms"
        else
          SignatureAlgorithms algos
@@ -231,7 +231,7 @@ let parse_extension raw =
 
 let parse_extensions buf =
   let length = BE.get_uint16 buf 0 in
-  if len buf != length + 2 then
+  if len buf <> length + 2 then
     raise_trailing_bytes "extensions"
   else
     parse_list parse_extension (sub buf 2 length) []
@@ -276,7 +276,7 @@ let parse_certificates buf =
     (Some (sub buf 3 len), shift buf (len + 3))
   in
   let length = get_uint24_len buf in
-  if len buf != length + 3 then
+  if len buf <> length + 3 then
     raise_trailing_bytes "certificates"
   else
     Certificate (parse_list parsef (sub buf 3 length) [])
@@ -296,7 +296,7 @@ let parse_dh_parameters = catch @@ fun raw ->
 
 let parse_digitally_signed_exn buf =
   let siglen = BE.get_uint16 buf 0 in
-  if len buf != siglen + 2 then
+  if len buf <> siglen + 2 then
     raise_trailing_bytes "digitally signed"
   else
     sub buf 2 siglen
@@ -319,7 +319,7 @@ let parse_digitally_signed_1_2 = catch @@ fun buf ->
 
 let parse_client_key_exchange buf =
   let length = BE.get_uint16 buf 0 in
-  if len buf != length + 2 then
+  if len buf <> length + 2 then
     raise_trailing_bytes "client key exchange"
   else
     ClientKeyExchange (sub buf 2 length)
@@ -328,12 +328,12 @@ let parse_handshake = catch @@ fun buf ->
   let typ = get_uint8 buf 0 in
   let handshake_type = int_to_handshake_type typ in
   let length = get_uint24_len (shift buf 1) in
-  if len buf != length + 4 then
+  if len buf <> length + 4 then
     raise_trailing_bytes "handshake"
   else
     let payload = sub buf 4 length in
     match handshake_type with
-    | Some HELLO_REQUEST -> if len payload != 0 then
+    | Some HELLO_REQUEST -> if len payload <> 0 then
                               raise_trailing_bytes "hello request"
                             else
                               HelloRequest
@@ -341,7 +341,7 @@ let parse_handshake = catch @@ fun buf ->
     | Some SERVER_HELLO -> parse_server_hello payload
     | Some CERTIFICATE -> parse_certificates payload
     | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange payload
-    | Some SERVER_HELLO_DONE -> if len payload != 0 then
+    | Some SERVER_HELLO_DONE -> if len payload <> 0 then
                                   raise_trailing_bytes "server hello done"
                                 else
                                   ServerHelloDone

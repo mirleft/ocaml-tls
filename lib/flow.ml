@@ -1,6 +1,8 @@
 open Core
 open Nocrypto
 
+let (<>) = Utils.Cs.(<>)
+
 (* some config parameters *)
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
