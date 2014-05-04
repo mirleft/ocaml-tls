@@ -1,7 +1,6 @@
 
 type error =
   | Overflow
-  | Unknown of string
 
 module Or_error :
   Control.Or_error with type err = error

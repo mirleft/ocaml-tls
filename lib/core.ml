@@ -10,19 +10,20 @@ type tls_version =
   | TLS_1_0
   | TLS_1_1
   | TLS_1_2
-  | TLS_1_X
+  | TLS_1_X of (int * int)
 
 let pair_of_tls_version = function
-  | TLS_1_0 -> (3, 1)
-  | TLS_1_1 -> (3, 2)
-  | TLS_1_2 -> (3, 3)
+  | TLS_1_0   -> (3, 1)
+  | TLS_1_1   -> (3, 2)
+  | TLS_1_2   -> (3, 3)
+  | TLS_1_X x -> x
 
 let tls_version_of_pair = function
   | (3, 0) -> Some SSL_3
   | (3, 1) -> Some TLS_1_0
   | (3, 2) -> Some TLS_1_1
   | (3, 3) -> Some TLS_1_2
-  | (3, _) -> Some TLS_1_X
+  | (3, x) -> Some (TLS_1_X (3, x))
   | _      -> None
 
 type tls_hdr = {
