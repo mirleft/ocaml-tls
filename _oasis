@@ -27,7 +27,7 @@ Library "tls"
 
 Library "tests"
   Path            : tests/
-  Modules         : Testlib, Readertests, Unittests
+  Modules         : Testlib, Readertests, Writertests, Unittests
   Install         : false
   Build          $: flag(tests)
   BuildDepends    : tls, oUnit

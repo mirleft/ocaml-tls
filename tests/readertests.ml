@@ -2,13 +2,6 @@ open OUnit2
 open Tls
 open Testlib
 
-
-let rec assert_lists_eq comparison a b =
-  match a, b with
-  | [], [] -> assert_bool "lists equal" true
-  | a::r1, b::r2 -> comparison a b ; assert_lists_eq comparison r1 r2
-  | _ -> assert_failure "lists not equal"
-
 let good_version_parser major minor result _ =
   let ver = list_to_cstruct [ major ; minor ] in
   Reader.(match parse_version ver with
@@ -19,21 +12,21 @@ let bad_version_parser major minor _ =
   let ver = list_to_cstruct [ major ; minor ] in
   Reader.(match parse_version ver with
           | Or_error.Ok v    -> assert_failure "Version parser broken"
-          | Or_error.Error _ -> assert_bool "unknown version" true)
+          | Or_error.Error _ -> ())
 
 let parse_version_too_short _ =
   let ver = list_to_cstruct [ 0 ] in
   Reader.(match parse_version ver with
           | Or_error.Ok v    -> assert_failure "Version parser broken"
-          | Or_error.Error _ -> assert_bool "length too short" true)
+          | Or_error.Error _ -> ())
 
 let version_parser_tests = [
   good_version_parser 3 0 Core.SSL_3 ;
   good_version_parser 3 1 Core.TLS_1_0 ;
   good_version_parser 3 2 Core.TLS_1_1 ;
   good_version_parser 3 3 Core.TLS_1_2 ;
-  good_version_parser 3 4 Core.TLS_1_X ;
-  good_version_parser 3 42 Core.TLS_1_X ;
+  good_version_parser 3 4 (Core.TLS_1_X (3, 4)) ;
+  good_version_parser 3 42 (Core.TLS_1_X (3, 42));
 
   bad_version_parser 2 4 ;
   bad_version_parser 4 4 ;
@@ -63,7 +56,7 @@ let good_headers = [
   ( 21 , (3, 2), 10,   ( Packet.ALERT , Core.TLS_1_1) ) ;
   ( 22 , (3, 3), 1000, ( Packet.HANDSHAKE , Core.TLS_1_2) ) ;
   ( 23 , (3, 0), 1,    ( Packet.APPLICATION_DATA , Core.SSL_3) ) ;
-  ( 24 , (3, 4), 20,   ( Packet.HEARTBEAT , Core.TLS_1_X) ) ;
+  ( 24 , (3, 4), 20,   ( Packet.HEARTBEAT , Core.TLS_1_X (3, 4)) ) ;
 ]
 
 let good_headers_tests =
@@ -78,7 +71,7 @@ let bad_header_parser (ct, (major, minor), l) _ =
   in
   match Reader.parse_hdr buf with
   | (Some c, Some v, l') -> assert_failure "header parser broken"
-  | _                    -> assert_bool "header parser good" true
+  | _                    -> ()
 
 let bad_headers = [
   ( 19 , (3, 1), 100 ) ;
@@ -171,19 +164,18 @@ let good_alert_tests =
     (fun i args -> "Good alert " ^ string_of_int i >:: good_alert_parser args)
     good_alerts
 
-let bad_alert_parser (lvl, typ) _ =
-  let buf = list_to_cstruct [ lvl ; typ ] in
+let bad_alert_parser xs _ =
+  let buf = list_to_cstruct xs in
   Reader.(match parse_alert buf with
           | Or_error.Ok _    -> assert_failure "bad alert passes"
-          | Or_error.Error _ -> assert_bool "bad alert fails" true)
+          | Or_error.Error _ -> ())
 
 let bad_alerts = [
-  (3, 0) ;
-  (1, 1) ;
-  (2, 200) ;
-  (0, 200) ;
-(* TODO: also check that parser consumes entire buffer! *)
-(* (0, 0, 0) *)
+  [3; 0] ;
+  [1; 1] ;
+  [2; 200] ;
+  [0; 200] ;
+  [0; 0; 0] ;
 (* TODO: validate those who are 'always fatal' *)
 ]
 
@@ -191,13 +183,13 @@ let alert_too_small _ =
   let buf = list_to_cstruct [ 0 ] in
   Reader.(match parse_alert buf with
           | Or_error.Ok _    -> assert_failure "short alert passes"
-          | Or_error.Error _ -> assert_bool "short alert fails" true)
+          | Or_error.Error _ -> ())
 
 let alert_too_small2 _ =
   let buf = list_to_cstruct [ 25 ] in
   Reader.(match parse_alert buf with
           | Or_error.Ok _    -> assert_failure "short alert passes"
-          | Or_error.Error _ -> assert_bool "short alert fails" true)
+          | Or_error.Error _ -> ())
 
 let bad_alerts_tests =
   ("short alert" >:: alert_too_small) ::
@@ -410,12 +402,10 @@ let good_dh_params_tests =
 
 let bad_dh_param_parser buf _ =
   Reader.(match parse_dh_parameters buf with
-          | Or_error.Error _ -> assert_bool "dh parser" true
+          | Or_error.Error _ -> ()
           | Or_error.Ok (p, raw, rst) ->
              if Cstruct.len rst == 0 then
-               assert_failure "dh params parser broken"
-             else
-               assert_bool "dh parser" true)
+               assert_failure "dh params parser broken")
 
 let bad_dh_params_tests =
   let param = list_to_cstruct (List.hd good_dhparams) in
@@ -555,7 +545,7 @@ let good_digitally_signed_1_2_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_digitally_signed_1_2 buf with
           | Or_error.Error _ -> assert_failure "digitally signed 1.2 parser broken"
-          | Or_error.Ok _    -> assert_bool "digitally signed 1.2 parser" true)
+          | Or_error.Ok _    -> ())
 
 let good_digitally_signed_1_2_tests =
   List.mapi
@@ -582,13 +572,12 @@ let bad_dss_1_2 =
     list_to_cstruct [7 ; 2] <> Cstruct.shift ds 2 ;
     list_to_cstruct [1 ; 1 ; 1; 0xff] <> Cstruct.shift ds 4 ;
     list_to_cstruct [1 ; 1 ; 0xff ; 0] <> Cstruct.shift ds 4 ;
-    (* TODO: check that the entire buffer is consumed *)
-    (* ds <> Cstruct.create 1 *)
+    ds <> Cstruct.create 1
   ]
 
 let bad_digitally_signed_1_2_parser buf _ =
   Reader.(match parse_digitally_signed_1_2 buf with
-          | Or_error.Error _ -> assert_bool "digitally signed 1.2 parser" true
+          | Or_error.Error _ -> ()
           | Or_error.Ok _    -> assert_failure "digitally signed 1.2 parser broken")
 
 let bad_digitally_signed_1_2_tests =
@@ -600,7 +589,7 @@ let good_digitally_signed_parser xs _ =
   let buf = Cstruct.shift (list_to_cstruct xs) 2 in
   Reader.(match parse_digitally_signed buf with
           | Or_error.Error _ -> assert_failure "digitally signed parser broken"
-          | Or_error.Ok _    -> assert_bool "digitally signed parser" true)
+          | Or_error.Ok _    -> ())
 
 let good_digitally_signed_tests =
   List.mapi
@@ -616,13 +605,12 @@ let bad_dss =
     Cstruct.shift ds 2 ;
     Cstruct.sub ds 0 (pred l) ;
     list_to_cstruct [1; 1] <> Cstruct.shift ds 2 ;
-  (* TODO: check that the whole buffer is consumed! *)
-  (* ds <> Cstruct.create 1 *)
+    ds <> Cstruct.create 1
   ]
 
 let bad_digitally_signed_parser buf _ =
   Reader.(match parse_digitally_signed buf with
-          | Or_error.Error _ -> assert_bool "digitally signed parser" true
+          | Or_error.Error _ -> ()
           | Or_error.Ok _    -> assert_failure "digitally signed parser broken")
 
 let bad_digitally_signed_tests =
@@ -648,14 +636,18 @@ let good_handshake_no_data_tests =
     good_handshakes_no_data
 
 let bad_handshakes_no_data = [
-  [0; 0; 0; 3] ; [14; 0; 0; 5] ; [245; 0; 0; 0]
+  [0; 0; 0; 3] ;
+  [14; 0; 0; 5] ;
+  [245; 0; 0; 0] ;
+  [0; 0; 0; 3; 0; 0; 0] ;
+  [14; 0; 0; 5; 0; 0; 0; 0; 0]
 ]
 
 let bad_handshake_no_data_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
           | Or_error.Ok _ -> assert_failure "bad handshake no data parser failed"
-          | Or_error.Error _ -> assert_bool "bad handshake no data parser" true)
+          | Or_error.Error _ -> ())
 
 let bad_handshake_no_data_tests =
   List.mapi
@@ -695,11 +687,12 @@ let good_handshake_cstruct_data_tests =
 let bad_handshake_cstruct_data =
   let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
   [ [12; 0; 0; 13] @ data ;
+    [12; 0; 0; 11] @ data ;
     [20; 0; 1; 12] @ data ;
+    [20; 0; 0; 11] @ data ;
     [16; 0; 0; 15; 0; 12] @ data ;
     [16; 0; 0; 14; 0; 13] @ data ;
-(* TODO: we do not do proper length checking yet, thus disabling this test *)
-(*    [16; 0; 0; 14; 0; 11] @ data ; *)
+    [16; 0; 0; 14; 0; 11] @ data ;
 
     [25; 0; 0; 14; 0; 12] @ data ;
     [255; 0; 0; 14; 0; 12] @ data ;
@@ -707,14 +700,16 @@ let bad_handshake_cstruct_data =
     [11; 0; 0; 3; 0; 0; 2] ;
     [11; 0; 0; 4; 0; 0; 0] ;
     [11; 0; 0; 17; 0; 0; 15; 0; 0; 12] @ data ;
-    [11; 0; 0; 30; 0; 0; 30; 0; 0; 12] @ data @ [0; 0; 12] @ data
+    [11; 0; 0; 17; 0; 0; 14; 0; 0; 11] @ data ;
+    [11; 0; 0; 30; 0; 0; 30; 0; 0; 12] @ data @ [0; 0; 12] @ data ;
+    [11; 0; 0; 32; 0; 0; 29; 0; 0; 12] @ data @ [0; 0; 11] @ data
   ]
 
 let bad_handshake_cstruct_data_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
           | Or_error.Ok _ -> assert_failure "bad handshake cstruct parser won"
-          | Or_error.Error _ -> assert_bool "bad handshake cstruct data parser" true)
+          | Or_error.Error _ -> ())
 
 let bad_handshake_cstruct_data_tests =
   List.mapi
@@ -739,8 +734,8 @@ let good_client_hellos =
           ([1; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = SSL_3 } ) ;
           ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_0 } ) ;
           ([1; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_1 } ) ;
-          ([1; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_X } ) ;
-          ([1; 0; 0; 38; 3; 5] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_X } ) ;
+          ([1; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_X (3, 4) } ) ;
+          ([1; 0; 0; 38; 3; 5] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_X (3, 5) } ) ;
 
           (* well-formed compression (not available in higher layer) *)
           ([1; 0; 0; 39; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 1; 0; (* exts *)] , ch ) ;
@@ -750,9 +745,11 @@ let good_client_hellos =
           ([1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 2; 0; 0; (* comp *) 0; (* exts *)] , { ch with ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] } ) ;
           ([1; 0; 0; 42; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; 0; 0; 0; 1; (* comp *) 0; (* exts *)] , { ch with ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5]) } ) ;
 
-          (* TODO: unknown ciphersuites should be ignored (for the upgrade path *)
-(*          ([1; 0; 0; 42; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; 0; 0; 0; 47; (* comp *) 0; (* exts *)] , { ch with ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] } ) ; *)
-          (* TODO: also ignore unknown compression methods / named curves / point formats / hash_algorithms / signature_algorithms *)
+          (* ignore unknown ciphersuite *)
+          ([1; 0; 0; 42; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; 0; 0; 0; 0x47; (* comp *) 0; (* exts *)] , { ch with ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] } ) ;
+
+          (* ignore unknown compression method *)
+          ([1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 2; 0; 42; (* exts *)] , ch ) ;
 
           (* TODO: unknown extensions should be ignored (check again with rfc) *)
           (* TODO: validate client_hello:
@@ -798,6 +795,8 @@ let good_client_hellos =
           ([1; 0; 0; 48; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 8; 0; 0xA; 0; 4; 0; 2; 0; 25] , { ch with extensions = [EllipticCurves [Packet.SECP521R1]] } ) ;
           (* two elliptic curves *)
           ([1; 0; 0; 50; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 10; 0; 0xA; 0; 6; 0; 4; 0; 25; 0; 20] , { ch with extensions = [EllipticCurves Packet.([SECP521R1; SECP224K1])] } ) ;
+          (* three elliptic curves, one unknown *)
+          ([1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0xA; 0; 8; 0; 6; 0; 25; 0xFF; 0xFF; 0; 20] , { ch with extensions = [EllipticCurves Packet.([SECP521R1; SECP224K1])] } ) ;
 
           (* empty ECPointFormats *)
           ([1; 0; 0; 45; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 0] , { ch with extensions = [ECPointFormats []] } ) ;
@@ -805,6 +804,8 @@ let good_client_hellos =
           ([1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xB; 0; 2; 1; 0] , { ch with extensions = [ECPointFormats [Packet.UNCOMPRESSED]] } ) ;
           (* two ECPointFormats *)
           ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 0xB; 0; 3; 2; 0; 1] , { ch with extensions = [ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME])] } ) ;
+          (* three ECPointFormats, of which one is unknown *)
+          ([1; 0; 0; 48; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 8; 0; 0xB; 0; 4; 3; 0; 1; 23] , { ch with extensions = [ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME])] } ) ;
 
           (* secure renegotiation *)
           ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 3; 2; 1; 2] , { ch with extensions = [SecureRenegotiation (list_to_cstruct [1;2])] } ) ;
@@ -816,6 +817,8 @@ let good_client_hellos =
           ([1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 13; 0; 2; 0; 0] , { ch with extensions = [SignatureAlgorithms []] } ) ;
           ([1; 0; 0; 48; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 8; 0; 13; 0; 4; 0; 2; 0; 0] , { ch with extensions = [SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS)]] } ) ;
           ([1; 0; 0; 50; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 10; 0; 13; 0; 6; 0; 4; 0; 0; 1; 1] , { ch with extensions = [SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS); (Ciphersuite.MD5, Packet.RSA)]] } ) ;
+          (* unknown one *)
+          ([1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 13; 0; 8; 0; 6; 42; 42; 0; 0; 1; 1] , { ch with extensions = [SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS); (Ciphersuite.MD5, Packet.RSA)]] } ) ;
 
           (* combinations from the real world *)
           ([0x01; (* hello *)
@@ -897,25 +900,6 @@ let good_client_hellos =
 
         ])
 
-let assert_sessionid_equal a b =
-  match a, b with
-  | None, None -> assert_bool "session id equal" true
-  | Some x, Some y -> assert_cs_eq x y
-  | _ -> assert_failure "session id not equal"
-
-let assert_extension_equal a b =
-  Core.(match a, b with
-        | Hostname None, Hostname None -> assert_bool "hostname equal" true
-        | Hostname (Some a), Hostname (Some b) -> assert_equal a b
-        | MaxFragmentLength a, MaxFragmentLength b -> assert_equal a b
-        | EllipticCurves a, EllipticCurves b -> assert_lists_eq assert_equal a b
-        | ECPointFormats a, ECPointFormats b -> assert_lists_eq assert_equal a b
-        | SecureRenegotiation a, SecureRenegotiation b -> assert_cs_eq a b
-        | Padding a, Padding b -> assert_equal a b
-        | SignatureAlgorithms a, SignatureAlgorithms b ->
-           assert_lists_eq (fun (h, s) (h', s') -> assert_equal h h' ; assert_equal s s') a b
-        | _ -> assert_failure "extensions did not match")
-
 let good_client_hellos_parser (xs, res) _ =
   let open Core in
   let buf = list_to_cstruct xs in
@@ -977,8 +961,7 @@ let bad_client_hellos =
          [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 5; 2; 1; 2; 3; 4] ;
          [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 3; 2; 1; 2; 3; 4] ;
          [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 5; 10; 1; 2; 3; 4] ;
-         (* TODO: properly check that everything is consumed *)
-         (* [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 5; 2; 1; 2; 3; 4] ; *)
+         [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 5; 2; 1; 2; 3; 4] ;
 
 
          (* Padding *)
@@ -996,7 +979,7 @@ let bad_client_hello_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
           | Or_error.Ok _ -> assert_failure "bad client hello parser won"
-          | Or_error.Error _ -> assert_bool "bad client hello parser" true)
+          | Or_error.Error _ -> ())
 
 let bad_client_hello_tests =
   List.mapi
@@ -1021,7 +1004,7 @@ let good_server_hellos =
           ([2; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = SSL_3 } ) ;
           ([2; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_0 } ) ;
           ([2; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_1 } ) ;
-          ([2; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_X } ) ;
+          ([2; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_X (3, 4) } ) ;
 
           (* session id *)
           ([2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 3; 1; 2; 3; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with sessionid = Some (list_to_cstruct [1; 2; 3]) } ) ;
@@ -1097,12 +1080,43 @@ let good_server_hellos_parser (xs, res) _ =
              assert_sessionid_equal sh.sessionid res.sessionid ;
              assert_equal sh.ciphersuites res.ciphersuites ;
              assert_lists_eq assert_extension_equal sh.extensions res.extensions
-          | _ -> assert_failure "handshake client hello parser failed")
+          | _ -> assert_failure "handshake server hello parser failed")
 
 let good_server_hellos_tests =
   List.mapi
-    (fun i f -> "Parse good client hello " ^ string_of_int i >:: good_server_hellos_parser f)
+    (fun i f -> "Parse good server hello " ^ string_of_int i >:: good_server_hellos_parser f)
     good_server_hellos
+
+let bad_server_hellos =
+  (* I rolled the dice 16 times *)
+  let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let rand = rnd @ rnd in
+  Core.([
+         [2; 0; 0; 30; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+         [2; 0; 0; 38; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+         [2; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+
+         (* session id *)
+         [2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 3; 1; 2; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+
+         (* extensions *)
+         (* empty *)
+         [2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
+         [2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
+         [2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1; 0] ;
+       ])
+
+let bad_server_hellos_parser xs _ =
+  let open Core in
+  let buf = list_to_cstruct xs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok _ -> assert_failure "handshake server hello parser succeeded"
+          | Or_error.Error _ -> ())
+
+let bad_server_hellos_tests =
+  List.mapi
+    (fun i f -> "Parse bad server hello " ^ string_of_int i >:: bad_server_hellos_parser f)
+    bad_server_hellos
 
 let reader_tests =
   version_tests @
@@ -1114,4 +1128,4 @@ let reader_tests =
   good_handshake_no_data_tests @ bad_handshake_no_data_tests @
   good_handshake_cstruct_data_tests @ bad_handshake_cstruct_data_tests @
   good_client_hellos_tests @ bad_client_hello_tests @
-  good_server_hellos_tests
+  good_server_hellos_tests @ bad_server_hellos_tests

@@ -3,11 +3,12 @@ open Printf
 open Packet
 
 let tls_version_to_string = function
-  | SSL_3   -> "SSL version 3"
-  | TLS_1_0 -> "TLS version 1.0"
-  | TLS_1_1 -> "TLS version 1.1"
-  | TLS_1_2 -> "TLS version 1.2"
-  | TLS_1_X -> "TLS version > 1.2"
+  | SSL_3          -> "SSL version 3"
+  | TLS_1_0        -> "TLS version 1.0"
+  | TLS_1_1        -> "TLS version 1.1"
+  | TLS_1_2        -> "TLS version 1.2"
+  | TLS_1_X (h, l) ->
+     "TLS version > 1.2 (" ^ string_of_int h ^ ", " ^ string_of_int l ^ ")"
 
 let header_to_string (header : tls_hdr) =
   sprintf "protocol %s: %s"
