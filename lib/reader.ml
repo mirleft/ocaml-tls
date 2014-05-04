@@ -1,5 +1,6 @@
 open Packet
 open Core
+open Cstruct
 
 type error =
   | TrailingBytes of string
@@ -23,8 +24,8 @@ let catch f x =
   | Invalid_argument _ -> fail Underflow
 
 let parse_version_int buf =
-  let major = Cstruct.get_uint8 buf 0 in
-  let minor = Cstruct.get_uint8 buf 1 in
+  let major = get_uint8 buf 0 in
+  let minor = get_uint8 buf 1 in
   (major, minor)
 
 let parse_version_exn buf =
@@ -39,18 +40,17 @@ let parse_version = catch parse_version_exn
 
 (* calling convention is that the buffer length is >= 5! *)
 let parse_hdr buf =
-  let open Cstruct in
   let typ = get_uint8 buf 0 in
   let version = parse_version_int (shift buf 1) in
   let len = BE.get_uint16 buf 3 in
   (int_to_content_type typ, tls_version_of_pair version, len)
 
 let parse_alert = catch @@ fun buf ->
-  if Cstruct.len buf != 2 then
+  if len buf != 2 then
     raise_trailing_bytes "after alert"
   else
-    let level = Cstruct.get_uint8 buf 0 in
-    let typ = Cstruct.get_uint8 buf 1 in
+    let level = get_uint8 buf 0 in
+    let typ = get_uint8 buf 1 in
     match int_to_alert_level level, int_to_alert_type typ with
       | (Some lvl, Some msg) -> (lvl, msg)
       | (Some _  , None)     -> raise_unknown @@ "alert type " ^ string_of_int typ
@@ -64,7 +64,7 @@ let rec parse_count_list parsef buf acc = function
      | None     , buf' -> parse_count_list parsef buf'          acc  (pred n)
 
 let rec parse_list parsef buf acc =
-  match Cstruct.len buf with
+  match len buf with
   | 0 -> List.rev acc
   | _ ->
      match parsef buf with
@@ -72,7 +72,6 @@ let rec parse_list parsef buf acc =
      | None     , buf' -> parse_list parsef buf'          acc
 
 let parse_certificate_types buf =
-  let open Cstruct in
   let parsef buf =
     let byte = get_uint8 buf 0 in
     (int_to_client_certificate_type byte, shift buf 1)
@@ -81,7 +80,6 @@ let parse_certificate_types buf =
   parse_count_list parsef (shift buf 1) [] count
 
 let parse_cas buf =
-  let open Cstruct in
   let parsef buf =
     let length = BE.get_uint16 buf 0 in
     let name = copy buf 2 length in
@@ -94,28 +92,23 @@ let parse_cas buf =
     parse_list parsef (sub buf 2 calength) []
 
 let parse_certificate_request buf =
-  let open Cstruct in
   let certificate_types, buf' = parse_certificate_types buf in
   let certificate_authorities = parse_cas buf' in
   CertificateRequest { certificate_types ; certificate_authorities }
 
 let parse_compression_method buf =
-  let open Cstruct in
   let cm = get_uint8 buf 0 in
   (int_to_compression_method cm, shift buf 1)
 
 let parse_compression_methods buf =
-  let open Cstruct in
   let count = get_uint8 buf 0 in
   parse_count_list parse_compression_method (shift buf 1) [] count
 
 let parse_ciphersuite buf =
-  let open Cstruct in
-  let typ = Cstruct.BE.get_uint16 buf 0 in
+  let typ = BE.get_uint16 buf 0 in
   (Ciphersuite.int_to_ciphersuite typ, shift buf 2)
 
 let parse_ciphersuites buf =
-  let open Cstruct in
   let count = BE.get_uint16 buf 0 in
   if count mod 2 != 0 then
     raise_wrong_length "ciphersuite list"
@@ -123,7 +116,6 @@ let parse_ciphersuites buf =
     parse_count_list parse_ciphersuite (shift buf 2) [] (count / 2)
 
 let parse_hostnames buf =
-  let open Cstruct in
   match len buf with
   | 0 -> []
   | n ->
@@ -143,19 +135,16 @@ let parse_hostnames buf =
        parse_list parsef (sub buf 2 list_length) []
 
 let parse_fragment_length buf =
-  let open Cstruct in
   if len buf != 1 then
     raise_trailing_bytes "fragment length"
   else
     int_to_max_fragment_length (get_uint8 buf 0)
 
 let parse_named_curve buf =
-  let open Cstruct in
   let typ = BE.get_uint16 buf 0 in
   (int_to_named_curve_type typ, shift buf 2)
 
 let parse_elliptic_curves buf =
-  let open Cstruct in
   let count = BE.get_uint16 buf 0 in
   if count mod 2 != 0 then
     raise_wrong_length "elliptic curve list"
@@ -167,7 +156,6 @@ let parse_elliptic_curves buf =
       cs
 
 let parse_ec_point_format buf =
-  let open Cstruct in
   let parsef buf =
     let typ = get_uint8 buf 0 in
     (int_to_ec_point_format typ, shift buf 1)
@@ -180,7 +168,6 @@ let parse_ec_point_format buf =
     formats
 
 let parse_hash_sig buf =
-  let open Cstruct in
   let parsef buf =
     match int_to_hash_algorithm (get_uint8 buf 0),
           int_to_signature_algorithm_type (get_uint8 buf 1)
@@ -195,7 +182,6 @@ let parse_hash_sig buf =
     parse_count_list parsef (shift buf 2) [] (count / 2)
 
 let parse_extension raw =
-  let open Cstruct in
   let etype = BE.get_uint16 raw 0 in
   let length = BE.get_uint16 raw 2 in
   let buf = sub raw 4 length in
@@ -217,7 +203,7 @@ let parse_extension raw =
        let formats = parse_ec_point_format buf in
        ECPointFormats formats
     | Some RENEGOTIATION_INFO ->
-       let len' = Cstruct.get_uint8 buf 0 in
+       let len' = get_uint8 buf 0 in
        if len buf != len' + 1 then
          raise_trailing_bytes "renegotiation"
        else
@@ -244,7 +230,6 @@ let parse_extension raw =
   (Some data, shift raw (4 + length))
 
 let parse_extensions buf =
-  let open Cstruct in
   let length = BE.get_uint16 buf 0 in
   if len buf != length + 2 then
     raise_trailing_bytes "extensions"
@@ -252,7 +237,6 @@ let parse_extensions buf =
     parse_list parse_extension (sub buf 2 length) []
 
 let parse_hello get_compression get_cipher buf =
-  let open Cstruct in
   let version = parse_version_exn buf in
   let random = sub buf 2 32 in
   let slen = get_uint8 buf 34 in
@@ -287,7 +271,6 @@ let parse_server_hello buf =
   ServerHello sh
 
 let parse_certificates buf =
-  let open Cstruct in
   let parsef buf =
     let len = get_uint24_len buf in
     (Some (sub buf 3 len), shift buf (len + 3))
@@ -299,7 +282,6 @@ let parse_certificates buf =
     Certificate (parse_list parsef (sub buf 3 length) [])
 
 let parse_dh_parameters = catch @@ fun raw ->
-  let open Cstruct in
   let plength = BE.get_uint16 raw 0 in
   let dh_p = sub raw 2 plength in
   let buf = shift raw (2 + plength) in
@@ -313,7 +295,6 @@ let parse_dh_parameters = catch @@ fun raw ->
   ({ dh_p ; dh_g ; dh_Ys }, rawparams, buf)
 
 let parse_digitally_signed_exn buf =
-  let open Cstruct in
   let siglen = BE.get_uint16 buf 0 in
   if len buf != siglen + 2 then
     raise_trailing_bytes "digitally signed"
@@ -324,7 +305,6 @@ let parse_digitally_signed =
   catch parse_digitally_signed_exn
 
 let parse_digitally_signed_1_2 = catch @@ fun buf ->
-  let open Cstruct in
   (* hash algorithm *)
   let hash = get_uint8 buf 0 in
   (* signature algorithm *)
@@ -338,7 +318,6 @@ let parse_digitally_signed_1_2 = catch @@ fun buf ->
   | _ , _                  -> raise_unknown "hash or signature algorithm"
 
 let parse_client_key_exchange buf =
-  let open Cstruct in
   let length = BE.get_uint16 buf 0 in
   if len buf != length + 2 then
     raise_trailing_bytes "client key exchange"
@@ -346,7 +325,6 @@ let parse_client_key_exchange buf =
     ClientKeyExchange (sub buf 2 length)
 
 let parse_handshake = catch @@ fun buf ->
-  let open Cstruct in
   let typ = get_uint8 buf 0 in
   let handshake_type = int_to_handshake_type typ in
   let length = get_uint24_len (shift buf 1) in
