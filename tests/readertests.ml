@@ -733,7 +733,16 @@ let good_client_hellos =
 
           (* ciphersuites *)
           ([1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 2; 0; 0; (* comp *) 0; (* exts *)] , { ch with ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] } ) ;
-          ([1; 0; 0; 42; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; 0; 0; 0; 1; (* comp *) 0; (* exts *)] , { ch with ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ]) } ) ;
+          ([1; 0; 0; 42; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; 0; 0; 0; 1; (* comp *) 0; (* exts *)] , { ch with ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5]) } ) ;
+
+          (* combine ciphersuite + compression *)
+          ([1; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; 0; 0; 0; 1; (* comp *) 2; 0; 1; (* exts *)] , { ch with ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5]) }) ;
+
+          (* session id *)
+          ([1; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 3; 1; 2; 3; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with sessionid = Some (list_to_cstruct [1; 2; 3] ) } ) ;
+
+          (* combine ciphersuite + compression + session id *)
+          ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 3; 1; 2; 3; (* cipher *) 0; 4; 0; 0; 0; 1; (* comp *) 2; 0; 1; (* exts *)] , { ch with ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5]) ; sessionid = Some (list_to_cstruct [1; 2; 3]) }) ;
 
         ])
 
