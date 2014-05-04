@@ -161,7 +161,7 @@ let parse_named_curve buf =
 
 let parse_elliptic_curves buf =
   let rec go buf acc = match Cstruct.len buf with
-    | 0 -> return acc
+    | 0 -> return (List.rev acc)
     | n ->
        check_length 2 buf >>= fun () ->
        parse_named_curve buf >>= fun (c) ->
