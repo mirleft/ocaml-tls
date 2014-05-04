@@ -12,6 +12,7 @@ type tls_version =
   | TLS_1_2
   | TLS_1_X of (int * int)
 
+(* this is partial. it is intentional that we have no case for SSL3 *)
 let pair_of_tls_version = function
   | TLS_1_0   -> (3, 1)
   | TLS_1_1   -> (3, 2)
