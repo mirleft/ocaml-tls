@@ -6,7 +6,7 @@ open Nocrypto.Hash
 open Ciphersuite
 
 
-let (<>) = Utils.Cs.(<>)
+let (<+>) = Utils.Cs.(<+>)
 
 (* XXX todo :D *)
 let () = Rng.reseed (Cstruct.of_string "\001\002\003\004")
@@ -18,15 +18,15 @@ let halve secret =
 
 let rec p_hash (hmac, hmac_n) key seed len =
   let rec expand a to_go =
-    let res = hmac ~key (a <> seed) in
+    let res = hmac ~key (a <+> seed) in
     if to_go > hmac_n then
-      res <> expand (hmac ~key a) (to_go - hmac_n)
+      res <+> expand (hmac ~key a) (to_go - hmac_n)
     else Cstruct.sub res 0 to_go
   in
   expand (hmac ~key seed) len
 
 let pseudo_random_function version len secret label seed =
-  let labelled = Cstruct.of_string label <> seed in
+  let labelled = Cstruct.of_string label <+> seed in
   let open Core in
   match version with
   | TLS_1_2           ->
@@ -47,7 +47,7 @@ let finished version master_secret label ps =
   let data = Utils.Cs.appends ps in
   let open Core in
   match version with
-  | TLS_1_0 | TLS_1_1 -> let seed = MD5.digest data <> SHA1.digest data in
+  | TLS_1_0 | TLS_1_1 -> let seed = MD5.digest data <+> SHA1.digest data in
                          pseudo_random_function version 12 master_secret label seed
   | TLS_1_2 -> let seed = SHA256.digest data in
                pseudo_random_function version 12 master_secret label seed
@@ -273,7 +273,7 @@ let mac (hash, secret) seq ty (v_major, v_minor) data =
   BE.set_uint16 prefix 11 len;
 
   let module H = (val hash : Hash_T) in
-  H.hmac ~key:secret (prefix <> data)
+  H.hmac ~key:secret (prefix <+> data)
 
 
 let cbc_block (type a) cipher =
@@ -328,7 +328,7 @@ let cbc_unpad ~block data =
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
   let module C = (val cipher : CBC_T with type key = a) in
   let { C.message ; iv } =
-    C.encrypt ~key ~iv (data <> cbc_pad C.block_size data) in
+    C.encrypt ~key ~iv (data <+> cbc_pad C.block_size data) in
   (message, iv)
 
 let decrypt_cbc (type a) ~cipher ~key ~iv data =

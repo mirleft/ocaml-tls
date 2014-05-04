@@ -1,7 +1,7 @@
 open Core
 open Nocrypto
 
-let (<>) = Utils.Cs.(<>)
+let (<+>) = Utils.Cs.(<+>)
 
 (* some config parameters *)
 type config = {
@@ -169,7 +169,7 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
         let ver = pair_of_tls_version version in
         Crypto.mac ctx.mac ctx.sequence ty ver buf in
 
-      let to_encrypt = buf <> signature in
+      let to_encrypt = buf <+> signature in
 
       let (st', enc) =
         match ctx.cipher_st with
@@ -188,7 +188,7 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
             let iv = Rng.generate (Crypto.cbc_block m) in
             let (message, _) =
               Crypto.encrypt_cbc ~cipher:m ~key ~iv to_encrypt in
-            (CBC (m, key, Random_iv), iv <> message)
+            (CBC (m, key, Random_iv), iv <+> message)
 
       in
       let ctx' = { ctx with
@@ -317,7 +317,7 @@ let initialise_crypto_ctx sp premaster =
   let version = sp.protocol_version in
 
   let master = Crypto.generate_master_secret version premaster
-                (sp.client_random <> sp.server_random) in
+                (sp.client_random <+> sp.server_random) in
 
   let key_len, iv_len = ciphersuite_cipher_mac_length sp.ciphersuite in
 
@@ -328,7 +328,7 @@ let initialise_crypto_ctx sp premaster =
     | TLS_1_0           -> 2 * key_len + 2 * mac_len + 2 * iv_len
     | TLS_1_1 | TLS_1_2 -> 2 * key_len + 2 * mac_len
   in
-  let rand = sp.server_random <> sp.client_random in
+  let rand = sp.server_random <+> sp.client_random in
   let keyblock = Crypto.key_block version kblen master rand in
 
   let c_mac, s_mac, c_key, s_key, c_iv, s_iv =
@@ -402,7 +402,7 @@ type ret = [
 ]
 
 let maybe_app a b = match a, b with
-  | Some x, Some y -> Some (x <> y)
+  | Some x, Some y -> Some (x <+> y)
   | Some x, None   -> Some x
   | None  , Some y -> Some y
   | None  , None   -> None
@@ -420,7 +420,7 @@ let handle_tls_int : (tls_internal_state -> security_parameters -> Packet.conten
                  state -> Cstruct.t -> ret
 = fun handler state buf ->
   match
-    separate_records (state.fragment <> buf) >>= fun (in_records, frag) ->
+    separate_records (state.fragment <+> buf) >>= fun (in_records, frag) ->
     foldM (fun (st, datas, raw_rs) r ->
            map (fun (st', data', raw_rs') -> (st', maybe_app datas data', raw_rs @ raw_rs')) @@
              handle_raw_record handler st r)

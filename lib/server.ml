@@ -38,7 +38,7 @@ let answer_client_key_exchange (sp : security_parameters) (packets : Cstruct.t l
 
        (* due to bleichenbacher attach, we should use a random pms *)
        (* then we do not leak any decryption or padding errors! *)
-       let other = Writer.assemble_protocol_version sp.protocol_version <> Rng.generate 46 in
+       let other = Writer.assemble_protocol_version sp.protocol_version <+> Rng.generate 46 in
        let validate_premastersecret k =
          (* Client implementations MUST always send the correct version number in
             PreMasterSecret.  If ClientHello.client_version is TLS 1.1 or higher,
@@ -95,7 +95,7 @@ let answer_client_hello_params_int sp ch raw =
     | Some _ -> [Hostname None]
   in
   let secren = SecureRenegotiation
-                 (params.client_verify_data <> params.server_verify_data)
+                 (params.client_verify_data <+> params.server_verify_data)
   in
   let server_hello : server_hello =
     { version      = sp.protocol_version ;
@@ -139,11 +139,11 @@ let answer_client_hello_params_int sp ch raw =
               data
           in
 
-          let data = params'.client_random <> params'.server_random <> written in
+          let data = params'.client_random <+> params'.server_random <+> written in
 
           ( match sp.protocol_version with
             | TLS_1_0 | TLS_1_1 ->
-                         ( match sign Hash.( MD5.digest data <> SHA1.digest data ) with
+                         ( match sign Hash.( MD5.digest data <+> SHA1.digest data ) with
                            | Some sign -> return (Writer.assemble_digitally_signed sign)
                            | None -> fail Packet.HANDSHAKE_FAILURE )
             | TLS_1_2 ->
@@ -175,7 +175,7 @@ let answer_client_hello_params_int sp ch raw =
                ( match sign to_sign with
                  | Some sign -> return (Writer.assemble_digitally_signed_1_2 hash Packet.RSA sign)
                  | None -> fail Packet.HANDSHAKE_FAILURE ) ) >>= fun (signature) ->
-          let kex = written <> signature in
+          let kex = written <+> signature in
           return ( bufs' @ [Writer.assemble_handshake (ServerKeyExchange kex)]
                  , { params' with dh_state } )
 

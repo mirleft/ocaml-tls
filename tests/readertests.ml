@@ -43,7 +43,7 @@ let version_tests =
 let good_header_parser (ct, (major, minor), l, (resct, resv)) _ =
   let buf =
     let pre = list_to_cstruct [ ct ; major ; minor ] in
-    pre <> uint16_to_cstruct l
+    pre <+> uint16_to_cstruct l
   in
   match Reader.parse_hdr buf with
   | (Some c, Some v, l') -> assert_equal c resct ;
@@ -67,7 +67,7 @@ let good_headers_tests =
 let bad_header_parser (ct, (major, minor), l) _ =
   let buf =
     let pre = list_to_cstruct [ ct ; major ; minor ] in
-    pre <> uint16_to_cstruct l
+    pre <+> uint16_to_cstruct l
   in
   match Reader.parse_hdr buf with
   | (Some c, Some v, l') -> assert_failure "header parser broken"
@@ -412,15 +412,15 @@ let bad_dh_params_tests =
   let l = Cstruct.len param in
   let bad_params =
     [
-      param <> Cstruct.create 1 ;
+      param <+> Cstruct.create 1 ;
       Cstruct.sub param 2 20 ;
       Cstruct.sub param 0 20 ;
-      list_to_cstruct [2] <> param ;
-      list_to_cstruct [0] <> param ;
-      list_to_cstruct [0; 1] <> param ;
-      list_to_cstruct [0; 0] <> param ;
-      list_to_cstruct [0xff; 0xff] <> param ;
-      list_to_cstruct [0; 0xff] <> param ;
+      list_to_cstruct [2] <+> param ;
+      list_to_cstruct [0] <+> param ;
+      list_to_cstruct [0; 1] <+> param ;
+      list_to_cstruct [0; 0] <+> param ;
+      list_to_cstruct [0xff; 0xff] <+> param ;
+      list_to_cstruct [0; 0xff] <+> param ;
       Cstruct.shift param 1 ;
       Cstruct.sub param 0 (pred l)
     ]
@@ -429,8 +429,8 @@ let bad_dh_params_tests =
   let l = Cstruct.len lastparam in
   let more_bad =
     [
-      Cstruct.sub lastparam 0 130 <> list_to_cstruct [0 ; 5 ; 1] <> Cstruct.sub lastparam 130 (l - 130) ;
-      Cstruct.sub lastparam 0 133 <> list_to_cstruct [0 ; 5 ; 1] <> Cstruct.sub lastparam 133 (l - 133)
+      Cstruct.sub lastparam 0 130 <+> list_to_cstruct [0 ; 5 ; 1] <+> Cstruct.sub lastparam 130 (l - 130) ;
+      Cstruct.sub lastparam 0 133 <+> list_to_cstruct [0 ; 5 ; 1] <+> Cstruct.sub lastparam 133 (l - 133)
     ]
   in
   List.mapi
@@ -558,21 +558,21 @@ let bad_dss_1_2 =
   [
     Cstruct.sub ds 2 20 ;
     Cstruct.sub ds 0 20 ;
-    list_to_cstruct [2] <> ds ;
-    list_to_cstruct [0] <> ds ;
-    list_to_cstruct [0; 1] <> ds ;
-    list_to_cstruct [0; 0] <> ds ;
-    list_to_cstruct [0xff; 0xff] <> ds ;
-    list_to_cstruct [0; 0xff] <> ds ;
+    list_to_cstruct [2] <+> ds ;
+    list_to_cstruct [0] <+> ds ;
+    list_to_cstruct [0; 1] <+> ds ;
+    list_to_cstruct [0; 0] <+> ds ;
+    list_to_cstruct [0xff; 0xff] <+> ds ;
+    list_to_cstruct [0; 0xff] <+> ds ;
     Cstruct.shift ds 2 ;
     Cstruct.sub ds 0 (pred l) ;
-    list_to_cstruct [7] <> Cstruct.shift ds 1 ;
-    list_to_cstruct [8] <> Cstruct.shift ds 1 ;
-    list_to_cstruct [1 ; 4] <> Cstruct.shift ds 2 ;
-    list_to_cstruct [7 ; 2] <> Cstruct.shift ds 2 ;
-    list_to_cstruct [1 ; 1 ; 1; 0xff] <> Cstruct.shift ds 4 ;
-    list_to_cstruct [1 ; 1 ; 0xff ; 0] <> Cstruct.shift ds 4 ;
-    ds <> Cstruct.create 1
+    list_to_cstruct [7] <+> Cstruct.shift ds 1 ;
+    list_to_cstruct [8] <+> Cstruct.shift ds 1 ;
+    list_to_cstruct [1 ; 4] <+> Cstruct.shift ds 2 ;
+    list_to_cstruct [7 ; 2] <+> Cstruct.shift ds 2 ;
+    list_to_cstruct [1 ; 1 ; 1; 0xff] <+> Cstruct.shift ds 4 ;
+    list_to_cstruct [1 ; 1 ; 0xff ; 0] <+> Cstruct.shift ds 4 ;
+    ds <+> Cstruct.create 1
   ]
 
 let bad_digitally_signed_1_2_parser buf _ =
@@ -600,12 +600,12 @@ let bad_dss =
   let ds = Cstruct.shift (list_to_cstruct (List.hd good_digitally_signed_1_2)) 2 in
   let l = Cstruct.len ds in
   [
-    list_to_cstruct [0xff ; 0xff] <> ds ;
-    list_to_cstruct [0xff ; 0xff] <> Cstruct.shift ds 2 ;
+    list_to_cstruct [0xff ; 0xff] <+> ds ;
+    list_to_cstruct [0xff ; 0xff] <+> Cstruct.shift ds 2 ;
     Cstruct.shift ds 2 ;
     Cstruct.sub ds 0 (pred l) ;
-    list_to_cstruct [1; 1] <> Cstruct.shift ds 2 ;
-    ds <> Cstruct.create 1
+    list_to_cstruct [1; 1] <+> Cstruct.shift ds 2 ;
+    ds <+> Cstruct.create 1
   ]
 
 let bad_digitally_signed_parser buf _ =
