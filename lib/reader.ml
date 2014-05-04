@@ -12,12 +12,16 @@ exception TrailingBytes of string
 exception Unknown of string
 exception WrongLength of string
 
+let catch f x =
+  try return (f x) with
+  | _ -> fail Overflow (* or the actual error *)
+
 let parse_version_int buf =
   let major = Cstruct.get_uint8 buf 0 in
   let minor = Cstruct.get_uint8 buf 1 in
   (major, minor)
 
-let parse_version_ buf =
+let parse_version_exn buf =
   let version = parse_version_int buf in
   match tls_version_of_pair version with
   | Some x -> x
@@ -25,9 +29,7 @@ let parse_version_ buf =
      let major, minor = version in
      raise (Unknown ("version " ^ string_of_int major ^ "." ^ string_of_int minor))
 
-let parse_version buf =
-  try return (parse_version_ buf)
-  with _ -> fail Overflow
+let parse_version = catch parse_version_exn
 
 (* calling convention is that the buffer length is >= 5! *)
 let parse_hdr buf =
@@ -37,7 +39,7 @@ let parse_hdr buf =
   let len = BE.get_uint16 buf 3 in
   (int_to_content_type typ, tls_version_of_pair version, len)
 
-let parse_alert_ buf =
+let parse_alert = catch @@ fun buf ->
   if Cstruct.len buf != 2 then
     raise (TrailingBytes "after alert")
   else
@@ -47,10 +49,6 @@ let parse_alert_ buf =
       | (Some lvl, Some msg) -> (lvl, msg)
       | (Some _  , None)     -> raise (Unknown ("alert type " ^ string_of_int typ))
       | _                    -> raise (Unknown ("alert level " ^ string_of_int level))
-
-let parse_alert buf =
-  try return (parse_alert_ buf)
-  with _ -> fail Overflow
 
 let rec parse_count_list parsef buf acc = function
   | 0 -> (List.rev acc, buf)
@@ -249,7 +247,7 @@ let parse_extensions buf =
 
 let parse_hello get_compression get_cipher buf =
   let open Cstruct in
-  let version = parse_version_ buf in
+  let version = parse_version_exn buf in
   let random = sub buf 2 32 in
   let slen = get_uint8 buf 34 in
   let sessionid = if slen = 0 then
@@ -294,7 +292,7 @@ let parse_certificates buf =
   else
     Certificate (parse_list parsef (sub buf 3 length) [])
 
-let parse_dh_parameters_ raw =
+let parse_dh_parameters = catch @@ fun raw ->
   let open Cstruct in
   let plength = BE.get_uint16 raw 0 in
   let dh_p = sub raw 2 plength in
@@ -308,11 +306,7 @@ let parse_dh_parameters_ raw =
   let rawparams = sub raw 0 (plength + glength + yslength + 6) in
   ({ dh_p ; dh_g ; dh_Ys }, rawparams, buf)
 
-let parse_dh_parameters raw =
-  try return (parse_dh_parameters_ raw)
-  with _ -> fail Overflow
-
-let parse_digitally_signed_ buf =
+let parse_digitally_signed_exn buf =
   let open Cstruct in
   let siglen = BE.get_uint16 buf 0 in
   if len buf != siglen + 2 then
@@ -320,11 +314,10 @@ let parse_digitally_signed_ buf =
   else
     sub buf 2 siglen
 
-let parse_digitally_signed buf =
-  try return (parse_digitally_signed_ buf)
-  with _ -> fail Overflow
+let parse_digitally_signed =
+  catch parse_digitally_signed_exn
 
-let parse_digitally_signed_1_2_ buf =
+let parse_digitally_signed_1_2 = catch @@ fun buf ->
   let open Cstruct in
   (* hash algorithm *)
   let hash = get_uint8 buf 0 in
@@ -334,13 +327,9 @@ let parse_digitally_signed_1_2_ buf =
   match int_to_hash_algorithm hash,
         int_to_signature_algorithm_type sign with
   | Some hash', Some sign' ->
-     let signature = parse_digitally_signed_ (shift buf 2) in
+     let signature = parse_digitally_signed_exn (shift buf 2) in
      (hash', sign', signature)
   | _ , _                  -> raise (Unknown "hash or signature algorithm")
-
-let parse_digitally_signed_1_2 buf =
-  try return (parse_digitally_signed_1_2_ buf)
-  with _ -> fail Overflow
 
 let parse_client_key_exchange buf =
   let open Cstruct in
@@ -350,7 +339,7 @@ let parse_client_key_exchange buf =
   else
     ClientKeyExchange (sub buf 2 length)
 
-let parse_handshake_ buf =
+let parse_handshake = catch @@ fun buf ->
   let open Cstruct in
   let typ = get_uint8 buf 0 in
   let handshake_type = int_to_handshake_type typ in
@@ -377,6 +366,3 @@ let parse_handshake_ buf =
     | Some FINISHED -> Finished (sub payload 0 12)
     | _  -> raise (Unknown ("handshake type" ^ string_of_int typ))
 
-let parse_handshake buf =
-  try return (parse_handshake_ buf)
-  with _ -> fail Overflow

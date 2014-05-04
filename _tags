@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 785fc3f98a5fd1521014f75d825d2d70)
+# DO NOT EDIT (digest: 5e2632d99dd12b4170d8ed1b2aa36cc4)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -58,13 +58,13 @@
 "tests/feedback.native": use_tls
 <tests/*.ml{,i}>: pkg_cstruct.unix
 # Executable test_runner
-"tests/unittestrunner.byte": pkg_asn1-combinators
-"tests/unittestrunner.byte": pkg_cstruct
-"tests/unittestrunner.byte": pkg_cstruct.syntax
-"tests/unittestrunner.byte": pkg_nocrypto
-"tests/unittestrunner.byte": pkg_oUnit
-"tests/unittestrunner.byte": use_tests
-"tests/unittestrunner.byte": use_tls
+"tests/unittestrunner.native": pkg_asn1-combinators
+"tests/unittestrunner.native": pkg_cstruct
+"tests/unittestrunner.native": pkg_cstruct.syntax
+"tests/unittestrunner.native": pkg_nocrypto
+"tests/unittestrunner.native": pkg_oUnit
+"tests/unittestrunner.native": use_tests
+"tests/unittestrunner.native": use_tls
 <tests/*.ml{,i}>: pkg_asn1-combinators
 <tests/*.ml{,i}>: pkg_cstruct
 <tests/*.ml{,i}>: pkg_cstruct.syntax

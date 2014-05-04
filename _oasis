@@ -52,6 +52,7 @@ Executable "test_runner"
   Build          $: flag(tests)
   Path            : tests/
   Install         : false
+  CompiledObject  : native
   MainIs          : unittestrunner.ml
   BuildDepends    : tls, tests
 
