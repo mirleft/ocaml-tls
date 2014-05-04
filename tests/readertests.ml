@@ -219,7 +219,15 @@ let bad_alert_parser (lvl, typ) _ =
           | Or_error.Ok _    -> assert_failure "bad alert passes"
           | Or_error.Error _ -> assert_bool "bad alert fails" true)
 
-let bad_alerts = [ (3, 0); (1, 1); (2, 200); (0, 200) ]
+let bad_alerts = [
+  (3, 0) ;
+  (1, 1) ;
+  (2, 200) ;
+  (0, 200) ;
+(* also check that parser consumes entire buffer! *)
+(* (0, 0, 0) *)
+(* validate those who are 'always fatal' *)
+]
 
 let alert_too_small _ =
   let buf = list_to_cstruct [ 0 ] in
@@ -615,7 +623,9 @@ let bad_dss_1_2 =
     list_to_cstruct [1 ; 4] <> Cstruct.shift ds 2 ;
     list_to_cstruct [7 ; 2] <> Cstruct.shift ds 2 ;
     list_to_cstruct [1 ; 1 ; 1; 0xff] <> Cstruct.shift ds 4 ;
-    list_to_cstruct [1 ; 1 ; 0xff ; 0] <> Cstruct.shift ds 4
+    list_to_cstruct [1 ; 1 ; 0xff ; 0] <> Cstruct.shift ds 4 ;
+    (* check that the entire buffer is consumed *)
+    (* ds <> Cstruct.create 1 *)
   ]
 
 let bad_digitally_signed_1_2_parser buf _ =
@@ -647,7 +657,9 @@ let bad_dss =
     list_to_cstruct [0xff ; 0xff] <> Cstruct.shift ds 2 ;
     Cstruct.shift ds 2 ;
     Cstruct.sub ds 0 (pred l) ;
-    list_to_cstruct [1; 1] <> Cstruct.shift ds 2
+    list_to_cstruct [1; 1] <> Cstruct.shift ds 2 ;
+  (* TODO: check that the whole buffer is consumed! *)
+  (* ds <> Cstruct.create 1 *)
   ]
 
 let bad_digitally_signed_parser buf _ =
@@ -676,6 +688,21 @@ let good_handshake_no_data_tests =
   List.mapi
     (fun i f -> "Parse good handshake " ^ string_of_int i >:: good_handshake_no_data_parser f)
     good_handshakes_no_data
+
+let bad_handshakes_no_data = [
+  [0; 0; 0; 3] ; [14; 0; 0; 5] ; [245; 0; 0; 0]
+]
+
+let bad_handshake_no_data_parser xs _ =
+  let buf = list_to_cstruct xs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok _ -> assert_failure "bad handshake no data parser failed"
+          | Or_error.Error _ -> assert_bool "bad handshake no data parser" true)
+
+let bad_handshake_no_data_tests =
+  List.mapi
+    (fun i f -> "Parse bad handshake " ^ string_of_int i >:: bad_handshake_no_data_parser f)
+    bad_handshakes_no_data
 
 let good_handshake_cstruct_data =
   let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
@@ -706,6 +733,35 @@ let good_handshake_cstruct_data_tests =
   List.mapi
     (fun i f -> "Parse good handshake " ^ string_of_int i >:: good_handshake_cstruct_data_parser f)
     good_handshake_cstruct_data
+
+let bad_handshake_cstruct_data =
+  let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
+  [ [12; 0; 0; 13] @ data ;
+    [20; 0; 1; 12] @ data ;
+    [16; 0; 0; 15; 0; 12] @ data ;
+    [16; 0; 0; 14; 0; 13] @ data ;
+(* we do not do proper length checking yet, thus disabling this test *)
+(*    [16; 0; 0; 14; 0; 11] @ data ; *)
+
+    [25; 0; 0; 14; 0; 12] @ data ;
+    [255; 0; 0; 14; 0; 12] @ data ;
+
+    [11; 0; 0; 3; 0; 0; 2] ;
+    [11; 0; 0; 4; 0; 0; 0] ;
+    [11; 0; 0; 17; 0; 0; 15; 0; 0; 12] @ data ;
+    [11; 0; 0; 30; 0; 0; 30; 0; 0; 12] @ data @ [0; 0; 12] @ data
+  ]
+
+let bad_handshake_cstruct_data_parser xs _ =
+  let buf = list_to_cstruct xs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok _ -> assert_failure "bad handshake cstruct parser won"
+          | Or_error.Error _ -> assert_bool "bad handshake cstruct data parser" true)
+
+let bad_handshake_cstruct_data_tests =
+  List.mapi
+    (fun i f -> "Parse bad handshake " ^ string_of_int i >:: bad_handshake_cstruct_data_parser f)
+    bad_handshake_cstruct_data
 
 let good_client_hellos =
   (* I rolled the dice 16 times *)
@@ -912,6 +968,6 @@ let reader_tests =
   good_dh_params_tests @ bad_dh_params_tests @
   good_digitally_signed_1_2_tests @ bad_digitally_signed_1_2_tests @
   good_digitally_signed_tests @ bad_digitally_signed_tests @
-  good_handshake_no_data_tests @
-  good_handshake_cstruct_data_tests @
+  good_handshake_no_data_tests @ bad_handshake_no_data_tests @
+  good_handshake_cstruct_data_tests @ bad_handshake_cstruct_data_tests @
   good_client_hellos_tests
