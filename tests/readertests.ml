@@ -1097,12 +1097,43 @@ let good_server_hellos_parser (xs, res) _ =
              assert_sessionid_equal sh.sessionid res.sessionid ;
              assert_equal sh.ciphersuites res.ciphersuites ;
              assert_lists_eq assert_extension_equal sh.extensions res.extensions
-          | _ -> assert_failure "handshake client hello parser failed")
+          | _ -> assert_failure "handshake server hello parser failed")
 
 let good_server_hellos_tests =
   List.mapi
-    (fun i f -> "Parse good client hello " ^ string_of_int i >:: good_server_hellos_parser f)
+    (fun i f -> "Parse good server hello " ^ string_of_int i >:: good_server_hellos_parser f)
     good_server_hellos
+
+let bad_server_hellos =
+  (* I rolled the dice 16 times *)
+  let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let rand = rnd @ rnd in
+  Core.([
+         [2; 0; 0; 30; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+         [2; 0; 0; 38; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+         [2; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+
+         (* session id *)
+         [2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 3; 1; 2; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+
+         (* extensions *)
+         (* empty *)
+         [2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
+         [2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
+         [2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1; 0] ;
+       ])
+
+let bad_server_hellos_parser xs _ =
+  let open Core in
+  let buf = list_to_cstruct xs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok _ -> assert_failure "handshake server hello parser succeeded"
+          | Or_error.Error _ -> ())
+
+let bad_server_hellos_tests =
+  List.mapi
+    (fun i f -> "Parse bad server hello " ^ string_of_int i >:: bad_server_hellos_parser f)
+    bad_server_hellos
 
 let reader_tests =
   version_tests @
@@ -1114,4 +1145,4 @@ let reader_tests =
   good_handshake_no_data_tests @ bad_handshake_no_data_tests @
   good_handshake_cstruct_data_tests @ bad_handshake_cstruct_data_tests @
   good_client_hellos_tests @ bad_client_hello_tests @
-  good_server_hellos_tests
+  good_server_hellos_tests @ bad_server_hellos_tests
