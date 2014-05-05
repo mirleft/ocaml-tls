@@ -248,7 +248,7 @@ let handshake_assembler_tests =
   let le2 = [ 0; 0; 32 ] in
   let emp, empl = (list_to_cstruct [], [ 0; 0; 0 ]) in
   Core.([
-(*         ( HelloRequest , [ 0; 0; 0; 0 ]) ; *)
+   ( HelloRequest , [ 0; 0; 0; 0 ]) ;
    ( ServerHelloDone , [ 14; 0; 0; 0 ]) ;
 
    ( Finished a_cs , [ 20 ] @ le @ a_l ) ;
