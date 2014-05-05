@@ -167,9 +167,38 @@ let ccs_test _ =
   let buf = Writer.assemble_change_cipher_spec in
   assert_cs_eq buf (list_to_cstruct [1])
 
+let dh_assembler (p, res) _ =
+  let buf = Writer.assemble_dh_parameters p in
+  assert_cs_eq buf res
+
+let dh_assembler_tests =
+  let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let le = list_to_cstruct [ 0; 16 ] in
+  let le2 = list_to_cstruct [ 0; 32 ] in
+  let emp, empl = (list_to_cstruct [], list_to_cstruct [ 0; 0 ]) in
+  Core.([
+    ( { dh_p = a ; dh_g = a ; dh_Ys = a },
+      le <+> a <+> le <+> a <+> le <+> a ) ;
+    ( { dh_p = a <+> a ; dh_g = a ; dh_Ys = a <+> a },
+      le2 <+> a <+> a <+> le <+> a <+> le2 <+> a <+> a ) ;
+    ( { dh_p = emp ; dh_g = emp ; dh_Ys = emp }, empl <+> empl <+> empl ) ;
+    ( { dh_p = a ; dh_g = emp ; dh_Ys = emp }, le <+> a <+> empl <+> empl ) ;
+    ( { dh_p = emp ; dh_g = a ; dh_Ys = emp }, empl <+> le <+> a <+> empl ) ;
+    ( { dh_p = emp ; dh_g = emp ; dh_Ys = a }, empl <+> empl <+> le <+> a ) ;
+    ( { dh_p = emp ; dh_g = a ; dh_Ys = a }, empl <+> le <+> a <+> le <+> a ) ;
+    ( { dh_p = a ; dh_g = a ; dh_Ys = emp }, le <+> a <+> le <+> a <+> empl ) ;
+    ( { dh_p = a ; dh_g = emp ; dh_Ys = a }, le <+> a <+> empl <+> le <+> a ) ;
+       ])
+
+let dh_tests =
+  List.mapi
+    (fun i f -> "Assemble dh parameters " ^ string_of_int i >:: dh_assembler f)
+    dh_assembler_tests
+
 let writer_tests =
   version_tests @
   hdr_tests @
   alert_tests @
-  ["CCS " >:: ccs_test]
-  (* dh_param digitally_signed _1_2 handshake *)
+  ["CCS " >:: ccs_test] @
+  dh_tests
+  (* digitally_signed _1_2 handshake *)
