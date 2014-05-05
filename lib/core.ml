@@ -3,8 +3,6 @@ open Ciphersuite
 
 let o f g x = f (g x)
 
-let (<>) = Utils.Cs.(<>)
-
 type tls_version =
   | SSL_3
   | TLS_1_0

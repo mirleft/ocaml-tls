@@ -7,7 +7,7 @@ let time f =
   let t2 = Sys.time () in
   ( Printf.eprintf "[time] %f.04 s\n%!" (t2 -.  t1) ; r )
 
-let (<>) = Tls.Utils.Cs.(<>)
+let (<+>) = Tls.Utils.Cs.(<+>)
 
 let list_to_cstruct xs =
   let open Cstruct in

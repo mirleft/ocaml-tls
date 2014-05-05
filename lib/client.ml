@@ -8,7 +8,7 @@ let answer_server_hello (p : security_parameters) bs sh raw =
   (match supported_protocol_version sh.version with
      | None   -> fail Packet.PROTOCOL_VERSION
      | Some x -> return { p with protocol_version = x } ) >>= fun (sp) ->
-  let expected = sp.client_verify_data <> sp.server_verify_data in
+  let expected = sp.client_verify_data <+> sp.server_verify_data in
   check_reneg expected sh.extensions >>= fun () ->
   let sp' = { sp with
                 ciphersuite   = sh.ciphersuites ;
@@ -60,7 +60,7 @@ let find_premaster p =
 
   | Ciphersuite.RSA ->
      let ver = Writer.assemble_protocol_version p.protocol_version in
-     let premaster = ver <> Rng.generate 46 in
+     let premaster = ver <+> Rng.generate 46 in
      peer_rsa_key p.peer_certificate >>= fun pubkey ->
      return (Crypto.padPKCS1_and_encryptRSA pubkey premaster, premaster)
 
@@ -108,7 +108,7 @@ let answer_server_key_exchange p bs kex raw =
                ( match Reader.parse_digitally_signed rest with
                  | Reader.Or_error.Ok signature ->
                     let cm should data =
-                      let csig = Hash.( MD5.digest data <> SHA1.digest data) in
+                      let csig = Hash.( MD5.digest data <+> SHA1.digest data) in
                       fail_neq should csig HANDSHAKE_FAILURE
                     in
                     return (signature, cm)
@@ -129,7 +129,7 @@ let answer_server_key_exchange p bs kex raw =
           >>= fun (signature, csig) ->
           ( match Crypto.verifyRSA_and_unpadPKCS1 pubkey signature with
             | Some raw_sig ->
-               let sigdata = p.client_random <> p.server_random <> raw_params in
+               let sigdata = p.client_random <+> p.server_random <+> raw_params in
                csig raw_sig sigdata >>= fun () ->
                return (`Handshaking (bs @ [raw]), { p with dh_state }, [], `Pass)
             | None -> fail HANDSHAKE_FAILURE )

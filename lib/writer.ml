@@ -1,6 +1,8 @@
 open Packet
 open Core
 
+let (<+>) = Utils.Cs.(<+>)
+
 let assemble_protocol_version_numbers buf (major, minor) =
   Cstruct.set_uint8 buf 0 major;
   Cstruct.set_uint8 buf 1 minor
@@ -70,14 +72,14 @@ let assemble_hostname host =
   let buf = Cstruct.create 3 in
   Cstruct.set_uint8 buf 0 0; (* type, only 0 registered *)
   Cstruct.BE.set_uint16 buf 1 vallength;
-  buf <> (Cstruct.of_string host)
+  buf <+> (Cstruct.of_string host)
 
 let assemble_hostnames hosts =
   (* it should 16 bit length of list followed by the items *)
   let names = Utils.Cs.appends (List.map assemble_hostname hosts) in
   let buf = Cstruct.create 2 in
   Cstruct.BE.set_uint16 buf 0 (Cstruct.len names);
-  buf <> names
+  buf <+> names
 
 let assemble_signature_algorithms s =
   let rec assemble_sig buf = function
@@ -98,7 +100,7 @@ let assemble_extension e =
     | SecureRenegotiation x ->
        let buf = Cstruct.create 1 in
        Cstruct.set_uint8 buf 0 (Cstruct.len x);
-       (buf <> x, RENEGOTIATION_INFO)
+       (buf <+> x, RENEGOTIATION_INFO)
     | Hostname (Some name) ->
        (assemble_hostnames [name], SERVER_NAME)
     | Hostname None ->
@@ -115,7 +117,7 @@ let assemble_extension e =
   let buf = Cstruct.create 4 in
   Cstruct.BE.set_uint16 buf 0 (extension_type_to_int typ);
   Cstruct.BE.set_uint16 buf 2 (Cstruct.len pay);
-  buf <> pay
+  buf <+> pay
 
 let assemble_extensions = function
   | [] -> (Cstruct.create 0, 0)
@@ -160,7 +162,7 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   in
   let extlenbuf = Cstruct.create 2 in
   Cstruct.BE.set_uint16 extlenbuf 0 (extlen + Cstruct.len extra);
-  bbuf <> extlenbuf <> extensions <> extra
+  bbuf <+> extlenbuf <+> extensions <+> extra
 
 let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let slen = match sh.sessionid with
@@ -183,7 +185,7 @@ let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let exts, extlen = assemble_extensions sh.extensions in
   let extlenbuf = Cstruct.create 2 in
   Cstruct.BE.set_uint16 extlenbuf 0 extlen;
-  bbuf <> extlenbuf <> exts
+  bbuf <+> extlenbuf <+> exts
 
 let assemble_ec_prime_parameters buf pp = 0
 
@@ -218,13 +220,13 @@ let assemble_dh_parameters p =
 let assemble_digitally_signed signature =
   let lenbuf = Cstruct.create 2 in
   Cstruct.BE.set_uint16 lenbuf 0 (Cstruct.len signature);
-  lenbuf <> signature
+  lenbuf <+> signature
 
 let assemble_digitally_signed_1_2 hashalgo sigalgo signature =
   let algobuf = Cstruct.create 2 in
   Cstruct.set_uint8 algobuf 0 (hash_algorithm_to_int hashalgo);
   Cstruct.set_uint8 algobuf 1 (signature_algorithm_type_to_int sigalgo);
-  algobuf <> (assemble_digitally_signed signature)
+  algobuf <+> (assemble_digitally_signed signature)
 
 let assemble_client_key_exchange kex =
   let len = Cstruct.len kex in

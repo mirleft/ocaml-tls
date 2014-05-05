@@ -26,7 +26,7 @@ module Cs = struct
 
   let append cs1 cs2 = appends [ cs1; cs2 ]
 
-  let (<>) = append
+  let (<+>) = append
 
   (* let canonicalize cs =
     if cs.Cstruct.off = 0 then cs else
