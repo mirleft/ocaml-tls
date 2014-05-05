@@ -377,7 +377,72 @@ Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersu
 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;
  ] ) ;
 
-(*  | ServerHello of server_hello *)
+   ( ServerHello { version = TLS_1_2 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = []
+                 } ,
+     [2; 0; 0; 38; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ) ;
+
+   ( ServerHello { version = TLS_1_1 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = []
+                 } ,
+     [2; 0; 0; 38; 3; 2] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ) ;
+
+   ( ServerHello { version = TLS_1_0 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = []
+                 } ,
+     [2; 0; 0; 38; 3; 1] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ) ;
+
+
+   ( ServerHello { version = TLS_1_0 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = Some a_cs ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = []
+                 } ,
+     [2; 0; 0; 54; 3; 1] @ a_l @ a_l @ (* session id *) [ 16 ] @ a_l @ [(* cipher *) 0; 0; (* comp *) 0; (* exts *)] ) ;
+
+   ( ServerHello { version = TLS_1_2 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = [Hostname None]
+                 } ,
+     [2; 0; 0; 44; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 4; 0; 0; 0; 0] ) ;
+
+
+   ( ServerHello { version = TLS_1_2 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = [SecureRenegotiation (Cstruct.create 0)]
+                 } ,
+     [2; 0; 0; 45; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0xFF; 1; 0; 1; 0] ) ;
+
+   ( ServerHello { version = TLS_1_2 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = [Hostname None ; SecureRenegotiation (Cstruct.create 0)]
+                 } ,
+     [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0; 0; 0; 0; 0xFF; 1; 0; 1; 0] ) ;
+
+   ( ServerHello { version = TLS_1_2 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = [SecureRenegotiation (Cstruct.create 0); Hostname None]
+                 } ,
+     [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 1; 0; 0; 0; 0; 0] ) ;
+
 (*  | CertificateRequest of certificate_request *)
   ])
 
