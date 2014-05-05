@@ -195,10 +195,53 @@ let dh_tests =
     (fun i f -> "Assemble dh parameters " ^ string_of_int i >:: dh_assembler f)
     dh_assembler_tests
 
+
+let ds_assembler (p, res) _ =
+  let buf = Writer.assemble_digitally_signed p in
+  assert_cs_eq buf res
+
+let ds_assembler_tests =
+  let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let le = list_to_cstruct [ 0; 16 ] in
+  let le2 = list_to_cstruct [ 0; 32 ] in
+  let emp, empl = (list_to_cstruct [], list_to_cstruct [ 0; 0 ]) in
+  [
+    ( a , le <+> a ) ;
+    ( a <+> a , le2 <+> a <+> a ) ;
+    ( emp , empl )
+  ]
+
+let ds_tests =
+  List.mapi
+    (fun i f -> "Assemble digitally signed " ^ string_of_int i >:: ds_assembler f)
+    ds_assembler_tests
+
+let ds_1_2_assembler (h, s, p, res) _ =
+  let buf = Writer.assemble_digitally_signed_1_2 h s p in
+  assert_cs_eq buf res
+
+let ds_1_2_assembler_tests =
+  let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let le = list_to_cstruct [ 0; 16 ] in
+  let le2 = list_to_cstruct [ 0; 32 ] in
+  let emp, empl = (list_to_cstruct [], list_to_cstruct [0; 0]) in
+  [
+    ( Ciphersuite.NULL, Packet.RSA, a , list_to_cstruct [0; 1] <+> le <+> a ) ;
+    ( Ciphersuite.MD5, Packet.DSA, a <+> a , list_to_cstruct [1 ; 2] <+> le2 <+> a <+> a ) ;
+    ( Ciphersuite.SHA, Packet.ECDSA, emp , list_to_cstruct [2; 3] <+> empl )
+  ]
+
+let ds_1_2_tests =
+  List.mapi
+    (fun i f -> "Assemble digitally signed " ^ string_of_int i >:: ds_1_2_assembler f)
+    ds_1_2_assembler_tests
+
 let writer_tests =
   version_tests @
   hdr_tests @
   alert_tests @
   ["CCS " >:: ccs_test] @
-  dh_tests
-  (* digitally_signed _1_2 handshake *)
+  dh_tests @
+  ds_tests @
+  ds_1_2_tests
+  (* handshake *)
