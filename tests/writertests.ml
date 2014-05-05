@@ -309,6 +309,34 @@ let handshake_assembler_tests =
                    extensions = [] },
      [ 1; 0; 0; 47; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ] ) ;
 
+
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
+                   extensions = [
+                            SignatureAlgorithms
+                              [(Ciphersuite.SHA512, Packet.RSA) ;
+                               (Ciphersuite.SHA512, Packet.DSA) ;
+                               (Ciphersuite.SHA512, Packet.ECDSA) ;
+                               (Ciphersuite.SHA384, Packet.RSA) ;
+                               (Ciphersuite.SHA384, Packet.DSA) ;
+                               (Ciphersuite.SHA384, Packet.ECDSA) ;
+                               (Ciphersuite.SHA256, Packet.RSA) ;
+                               (Ciphersuite.SHA256, Packet.DSA) ;
+                               (Ciphersuite.SHA256, Packet.ECDSA) ;
+                               (Ciphersuite.SHA224, Packet.RSA) ;
+                               (Ciphersuite.SHA224, Packet.DSA) ;
+                               (Ciphersuite.SHA224, Packet.ECDSA) ;
+                               (Ciphersuite.SHA, Packet.RSA) ;
+                               (Ciphersuite.SHA, Packet.DSA) ;
+                               (Ciphersuite.SHA, Packet.ECDSA)] ] },
+     [ 1; 0; 0; 85; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ; 0; 0x24 ;
+
+              0x00; 0x0d; 0x00; 0x20; (* signature algorithms *)
+              0x00; 0x1e; 0x06; 0x01; 0x06; 0x02; 0x06; 0x03; 0x05; 0x01; 0x05; 0x02; 0x05; 0x03; 0x04; 0x01; 0x04; 0x02; 0x04; 0x03; 0x03; 0x01; 0x03; 0x02; 0x03; 0x03; 0x02; 0x01; 0x02; 0x02; 0x02; 0x03 ] ) ;
+
+
    ( ClientHello { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
