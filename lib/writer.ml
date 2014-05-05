@@ -7,12 +7,12 @@ let (<+>) = Utils.Cs.(<+>)
 let assemble_protocol_version_int buf version =
   let major, minor = pair_of_tls_version version in
   set_uint8 buf 0 major;
-  set_uint8 buf 1 minor;
-  buf
+  set_uint8 buf 1 minor
 
 let assemble_protocol_version version =
   let buf = create 2 in
-  assemble_protocol_version_int buf version
+  assemble_protocol_version_int buf version;
+  buf
 
 let assemble_hdr version (content_type, payload) =
   let buf = create 5 in
