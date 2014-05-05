@@ -167,9 +167,324 @@ let ccs_test _ =
   let buf = Writer.assemble_change_cipher_spec in
   assert_cs_eq buf (list_to_cstruct [1])
 
+let dh_assembler (p, res) _ =
+  let buf = Writer.assemble_dh_parameters p in
+  assert_cs_eq buf res
+
+let dh_assembler_tests =
+  let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let le = list_to_cstruct [ 0; 16 ] in
+  let le2 = list_to_cstruct [ 0; 32 ] in
+  let emp, empl = (list_to_cstruct [], list_to_cstruct [ 0; 0 ]) in
+  Core.([
+    ( { dh_p = a ; dh_g = a ; dh_Ys = a },
+      le <+> a <+> le <+> a <+> le <+> a ) ;
+    ( { dh_p = a <+> a ; dh_g = a ; dh_Ys = a <+> a },
+      le2 <+> a <+> a <+> le <+> a <+> le2 <+> a <+> a ) ;
+    ( { dh_p = emp ; dh_g = emp ; dh_Ys = emp }, empl <+> empl <+> empl ) ;
+    ( { dh_p = a ; dh_g = emp ; dh_Ys = emp }, le <+> a <+> empl <+> empl ) ;
+    ( { dh_p = emp ; dh_g = a ; dh_Ys = emp }, empl <+> le <+> a <+> empl ) ;
+    ( { dh_p = emp ; dh_g = emp ; dh_Ys = a }, empl <+> empl <+> le <+> a ) ;
+    ( { dh_p = emp ; dh_g = a ; dh_Ys = a }, empl <+> le <+> a <+> le <+> a ) ;
+    ( { dh_p = a ; dh_g = a ; dh_Ys = emp }, le <+> a <+> le <+> a <+> empl ) ;
+    ( { dh_p = a ; dh_g = emp ; dh_Ys = a }, le <+> a <+> empl <+> le <+> a ) ;
+       ])
+
+let dh_tests =
+  List.mapi
+    (fun i f -> "Assemble dh parameters " ^ string_of_int i >:: dh_assembler f)
+    dh_assembler_tests
+
+
+let ds_assembler (p, res) _ =
+  let buf = Writer.assemble_digitally_signed p in
+  assert_cs_eq buf res
+
+let ds_assembler_tests =
+  let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let le = list_to_cstruct [ 0; 16 ] in
+  let le2 = list_to_cstruct [ 0; 32 ] in
+  let emp, empl = (list_to_cstruct [], list_to_cstruct [ 0; 0 ]) in
+  [
+    ( a , le <+> a ) ;
+    ( a <+> a , le2 <+> a <+> a ) ;
+    ( emp , empl )
+  ]
+
+let ds_tests =
+  List.mapi
+    (fun i f -> "Assemble digitally signed " ^ string_of_int i >:: ds_assembler f)
+    ds_assembler_tests
+
+let ds_1_2_assembler (h, s, p, res) _ =
+  let buf = Writer.assemble_digitally_signed_1_2 h s p in
+  assert_cs_eq buf res
+
+let ds_1_2_assembler_tests =
+  let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let le = list_to_cstruct [ 0; 16 ] in
+  let le2 = list_to_cstruct [ 0; 32 ] in
+  let emp, empl = (list_to_cstruct [], list_to_cstruct [0; 0]) in
+  [
+    ( Ciphersuite.NULL, Packet.RSA, a , list_to_cstruct [0; 1] <+> le <+> a ) ;
+    ( Ciphersuite.MD5, Packet.DSA, a <+> a , list_to_cstruct [1 ; 2] <+> le2 <+> a <+> a ) ;
+    ( Ciphersuite.SHA, Packet.ECDSA, emp , list_to_cstruct [2; 3] <+> empl )
+  ]
+
+let ds_1_2_tests =
+  List.mapi
+    (fun i f -> "Assemble digitally signed 1.2 " ^ string_of_int i >:: ds_1_2_assembler f)
+    ds_1_2_assembler_tests
+
+let handshake_assembler (h, res) _ =
+  let res' = list_to_cstruct res in
+  let buf = Writer.assemble_handshake h in
+  assert_cs_eq buf res'
+
+let handshake_assembler_tests =
+  let a_l = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let a_cs = list_to_cstruct a_l in
+  let le = [ 0; 0; 16 ] in
+  let le2 = [ 0; 0; 32 ] in
+  let emp, empl = (list_to_cstruct [], [ 0; 0; 0 ]) in
+  Core.([
+   ( HelloRequest , [ 0; 0; 0; 0 ]) ;
+   ( ServerHelloDone , [ 14; 0; 0; 0 ]) ;
+
+   ( Finished a_cs , [ 20 ] @ le @ a_l ) ;
+   ( Finished emp , [ 20 ] @ empl ) ;
+   ( Finished (a_cs <+> a_cs) , [ 20 ] @ le2 @ a_l @ a_l ) ;
+
+   ( ClientKeyExchange emp , [ 16; 0; 0; 2; 0; 0 ] ) ;
+   ( ClientKeyExchange a_cs , [ 16; 0; 0; 18; 0; 16 ] @ a_l ) ;
+   ( ClientKeyExchange (a_cs <+> a_cs) , [ 16; 0; 0; 34; 0; 32 ] @ a_l @ a_l ) ;
+
+   ( ServerKeyExchange emp , [ 12 ] @ empl ) ;
+   ( ServerKeyExchange a_cs , [ 12 ] @ le @ a_l ) ;
+   ( ServerKeyExchange (a_cs <+> a_cs) , [ 12 ] @ le2 @ a_l @ a_l ) ;
+
+   ( Certificate [] , [ 11; 0; 0; 3; 0; 0; 0 ] ) ;
+   ( Certificate [emp] , [ 11; 0; 0; 6; 0; 0; 3; 0; 0; 0 ] ) ;
+   ( Certificate [emp ; emp] , [ 11; 0; 0; 9; 0; 0; 6; 0; 0; 0; 0; 0; 0 ] ) ;
+
+   ( Certificate [a_cs] , [ 11; 0; 0; 22; 0; 0; 19 ] @ le @ a_l ) ;
+   ( Certificate [a_cs ; emp] , [ 11; 0; 0; 25; 0; 0; 22 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
+   ( Certificate [emp ; a_cs] , [ 11; 0; 0; 25; 0; 0; 22; 0; 0; 0] @ le @ a_l ) ;
+   ( Certificate [emp ; a_cs ; emp] , [ 11; 0; 0; 28; 0; 0; 25; 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ]) ;
+   ( Certificate [a_cs ; emp ; a_cs] , [ 11; 0; 0; 44; 0; 0; 41 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l ) ;
+   ( Certificate [a_cs ; emp ; a_cs ; emp] , [ 11; 0; 0; 47; 0; 0; 44 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
+
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [] ;
+                   extensions = [] },
+     [ 1; 0; 0; 39; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
+
+   ( ClientHello { version = TLS_1_1 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [] ;
+                   extensions = [] },
+     [ 1; 0; 0; 39; 3; 2 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
+
+   ( ClientHello { version = TLS_1_0 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [] ;
+                   extensions = [] },
+     [ 1; 0; 0; 39; 3; 1 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
+
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
+                   extensions = [] },
+     [ 1; 0; 0; 41; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0 ] ) ;
+
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
+                   extensions = [] },
+     [ 1; 0; 0; 47; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ] ) ;
+
+
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
+                   extensions = [
+                            SignatureAlgorithms
+                              [(Ciphersuite.SHA512, Packet.RSA) ;
+                               (Ciphersuite.SHA512, Packet.DSA) ;
+                               (Ciphersuite.SHA512, Packet.ECDSA) ;
+                               (Ciphersuite.SHA384, Packet.RSA) ;
+                               (Ciphersuite.SHA384, Packet.DSA) ;
+                               (Ciphersuite.SHA384, Packet.ECDSA) ;
+                               (Ciphersuite.SHA256, Packet.RSA) ;
+                               (Ciphersuite.SHA256, Packet.DSA) ;
+                               (Ciphersuite.SHA256, Packet.ECDSA) ;
+                               (Ciphersuite.SHA224, Packet.RSA) ;
+                               (Ciphersuite.SHA224, Packet.DSA) ;
+                               (Ciphersuite.SHA224, Packet.ECDSA) ;
+                               (Ciphersuite.SHA, Packet.RSA) ;
+                               (Ciphersuite.SHA, Packet.DSA) ;
+                               (Ciphersuite.SHA, Packet.ECDSA)] ] },
+     [ 1; 0; 0; 85; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ; 0; 0x24 ;
+
+              0x00; 0x0d; 0x00; 0x20; (* signature algorithms *)
+              0x00; 0x1e; 0x06; 0x01; 0x06; 0x02; 0x06; 0x03; 0x05; 0x01; 0x05; 0x02; 0x05; 0x03; 0x04; 0x01; 0x04; 0x02; 0x04; 0x03; 0x03; 0x01; 0x03; 0x02; 0x03; 0x03; 0x02; 0x01; 0x02; 0x02; 0x02; 0x03 ] ) ;
+
+
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
+                   extensions = [Hostname (Some "foo")] },
+     [ 1; 0; 0; 55; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 3; 102; 111; 111 ] ) ;
+
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
+                   extensions = [Hostname (Some "foofoofoofoofoofoofoofoofoofoo")] },
+     [ 1; 0; 0; 82; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 39; 0; 0; 0; 35; 0; 33; 0; 0; 30; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111 ] ) ;
+
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
+                   extensions = [Hostname (Some "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo")] },
+     [ 1; 0; 0; 232; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 189; 0; 0; 0; 185; 0; 183; 0; 0; 180; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111 ] ) ;
+
+   (* this one is the smallest which needs extra padding
+     (due to its size being > 256 and < 511) *)
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
+                   extensions = [Hostname (Some "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofo")] },
+     [ 1; 0; 1; 0xFC; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 1; 0xD3; 0; 0; 0; 0xD0; 0; 0xCE; 0; 0; 0xCB; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111; 0; 21; 0; 0xF9; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0  ] ) ;
+
+   (* this one is the biggest which needs no extra padding *)
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
+                   extensions = [Hostname (Some "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoof")] },
+     [ 1; 0; 0; 251; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 208; 0; 0; 0; 204; 0; 202; 0; 0; 199; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102 ] ) ;
+
+   (* this one is the biggest which needs no extra padding, and no exts *)
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;
+Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;
+Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;
+Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL ] ;
+                   extensions = [] },
+     [ 1; 0; 0; 251; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 212; 0; 0;
+0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;
+  1; 0 ] ) ;
+
+   (* add one more, and we get into padding no exts *)
+   ( ClientHello { version = TLS_1_2 ;
+                   random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;
+Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;
+Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;
+Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL ] ;
+                   extensions = [] },
+     [ 1; 0; 1; 0xFC; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 214; 0; 0; 0; 0;
+0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;
+  1; 0;
+ 1;1;0;0x15;0;0xF9;
+0;0;0;0;0;0;0;0;0;
+0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;
+ ] ) ;
+
+   ( ServerHello { version = TLS_1_2 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = []
+                 } ,
+     [2; 0; 0; 38; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ) ;
+
+   ( ServerHello { version = TLS_1_1 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = []
+                 } ,
+     [2; 0; 0; 38; 3; 2] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ) ;
+
+   ( ServerHello { version = TLS_1_0 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = []
+                 } ,
+     [2; 0; 0; 38; 3; 1] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ) ;
+
+
+   ( ServerHello { version = TLS_1_0 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = Some a_cs ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = []
+                 } ,
+     [2; 0; 0; 54; 3; 1] @ a_l @ a_l @ (* session id *) [ 16 ] @ a_l @ [(* cipher *) 0; 0; (* comp *) 0; (* exts *)] ) ;
+
+   ( ServerHello { version = TLS_1_2 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = [Hostname None]
+                 } ,
+     [2; 0; 0; 44; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 4; 0; 0; 0; 0] ) ;
+
+
+   ( ServerHello { version = TLS_1_2 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = [SecureRenegotiation (Cstruct.create 0)]
+                 } ,
+     [2; 0; 0; 45; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0xFF; 1; 0; 1; 0] ) ;
+
+   ( ServerHello { version = TLS_1_2 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = [Hostname None ; SecureRenegotiation (Cstruct.create 0)]
+                 } ,
+     [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0; 0; 0; 0; 0xFF; 1; 0; 1; 0] ) ;
+
+   ( ServerHello { version = TLS_1_2 ;
+                   random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+                   extensions = [SecureRenegotiation (Cstruct.create 0); Hostname None]
+                 } ,
+     [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 1; 0; 0; 0; 0; 0] ) ;
+
+(*  | CertificateRequest of certificate_request *)
+  ])
+
+let handshake_tests =
+  List.mapi
+    (fun i f -> "Assemble handshake " ^ string_of_int i >:: handshake_assembler f)
+    handshake_assembler_tests
+
 let writer_tests =
   version_tests @
   hdr_tests @
   alert_tests @
-  ["CCS " >:: ccs_test]
-  (* dh_param digitally_signed _1_2 handshake *)
+  ["CCS " >:: ccs_test] @
+  dh_tests @
+  ds_tests @
+  ds_1_2_tests @
+  handshake_tests
