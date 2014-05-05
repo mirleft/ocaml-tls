@@ -243,6 +243,7 @@ let assemble_handshake hs =
     | ServerKeyExchange kex -> (kex, SERVER_KEY_EXCHANGE)
     | ClientKeyExchange kex -> (assemble_client_key_exchange kex, CLIENT_KEY_EXCHANGE)
     | ServerHelloDone -> (create 0, SERVER_HELLO_DONE)
+    | HelloRequest -> (create 0, HELLO_REQUEST)
     | Finished fs -> (fs, FINISHED)
   in
   let pay_len = len payload in
