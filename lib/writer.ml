@@ -117,10 +117,12 @@ let assemble_extension e =
   buf <+> pay
 
 let assemble_extensions = function
-  | [] -> (create 0, 0)
+  | [] -> create 0
   | es -> let exts = Utils.Cs.appends (List.map assemble_extension es) in
           let l = len exts in
-          (exts, l)
+          let le = create 2 in
+          BE.set_uint16 le 0 l;
+          le <+> exts
 
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let slen = match cl.sessionid with
@@ -150,16 +152,37 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   assemble_compression_methods buf [NULL];
   (* some widely deployed firewalls drop ClientHello messages which are
      > 256 and < 511 byte, insert PADDING extension for these *)
-  let extensions, extlen = assemble_extensions cl.extensions in
-  let buflen = len bbuf + extlen in
-  let extra = if buflen >= 256 && buflen <= 511 then
-                assemble_extension (Padding (512 - (buflen - 4)))
-              else
-                create 0
+  (* from draft-agl-tls-padding-03:
+   As an example, consider a client that wishes to avoid sending a
+   ClientHello with a record size between 256 and 511 bytes (inclusive).
+   This case is considered because at least one TLS implementation is
+   known to hang the connection when such a ClientHello record is
+   received.
+
+   After building a ClientHello as normal, the client can add four to
+   the length (to account for the "msg_type" and "length" fields of the
+   handshake protocol) and test whether the resulting length falls into
+   that range.  If it does, a padding extension can be added in order to
+   push the length to (at least) 512 bytes. *)
+  let extensions = assemble_extensions cl.extensions in
+  let extrapadding =
+    let buflen = len bbuf + len extensions + 4 in
+    if buflen >= 256 && buflen <= 511 then
+      match len extensions with
+        | 0 -> (* need to construct a 2 byte extension length as well *)
+           let p = assemble_extension (Padding (506 - buflen)) in
+           let le = create 2 in
+           BE.set_uint16 le 0 (len p + 4);
+           le <+> p
+        | _ ->
+           let l = 508 - buflen in
+           let p = assemble_extension (Padding l) in
+           BE.set_uint16 extensions 0 (len extensions + l + 4);
+           p
+    else
+      create 0
   in
-  let extlenbuf = create 2 in
-  BE.set_uint16 extlenbuf 0 (extlen + len extra);
-  bbuf <+> extlenbuf <+> extensions <+> extra
+  bbuf <+> extensions <+> extrapadding
 
 let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let slen = match sh.sessionid with
@@ -179,10 +202,8 @@ let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let buf = assemble_ciphersuite buf sh.ciphersuites in
   (* useless compression method *)
   let _ = assemble_compression_method buf NULL in
-  let exts, extlen = assemble_extensions sh.extensions in
-  let extlenbuf = create 2 in
-  BE.set_uint16 extlenbuf 0 extlen;
-  bbuf <+> extlenbuf <+> exts
+  let extensions = assemble_extensions sh.extensions in
+  bbuf <+> extensions
 
 let assemble_dh_parameters p =
   let plen, glen, yslen = (len p.dh_p, len p.dh_g, len p.dh_Ys) in
