@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 0a230461b4043a5a843edd7a52331056)
+# DO NOT EDIT (digest: 2465f2a326c1e545f8a63978ee3e61b5)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -47,6 +47,14 @@
 <lwt/*.ml{,i}>: pkg_lwt.unix
 <lwt/*.ml{,i}>: pkg_nocrypto
 <lwt/*.ml{,i}>: use_tls
+# Executable test_runner
+"tests/unittestrunner.native": pkg_asn1-combinators
+"tests/unittestrunner.native": pkg_cstruct
+"tests/unittestrunner.native": pkg_cstruct.syntax
+"tests/unittestrunner.native": pkg_nocrypto
+"tests/unittestrunner.native": pkg_oUnit
+"tests/unittestrunner.native": use_tests
+"tests/unittestrunner.native": use_tls
 # Executable feedback
 "tests/feedback.native": pkg_asn1-combinators
 "tests/feedback.native": pkg_cstruct
@@ -56,18 +64,10 @@
 "tests/feedback.native": pkg_oUnit
 "tests/feedback.native": use_tests
 "tests/feedback.native": use_tls
-<tests/*.ml{,i}>: pkg_cstruct.unix
-# Executable test_runner
-"tests/unittestrunner.native": pkg_asn1-combinators
-"tests/unittestrunner.native": pkg_cstruct
-"tests/unittestrunner.native": pkg_cstruct.syntax
-"tests/unittestrunner.native": pkg_nocrypto
-"tests/unittestrunner.native": pkg_oUnit
-"tests/unittestrunner.native": use_tests
-"tests/unittestrunner.native": use_tls
 <tests/*.ml{,i}>: pkg_asn1-combinators
 <tests/*.ml{,i}>: pkg_cstruct
 <tests/*.ml{,i}>: pkg_cstruct.syntax
+<tests/*.ml{,i}>: pkg_cstruct.unix
 <tests/*.ml{,i}>: pkg_nocrypto
 <tests/*.ml{,i}>: pkg_oUnit
 <tests/*.ml{,i}>: use_tests
