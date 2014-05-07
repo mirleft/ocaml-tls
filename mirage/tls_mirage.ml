@@ -105,5 +105,22 @@ module TLS ( TCP : TCPV4' ) = struct
             drain_handshake flow
         | `Error e -> return (`Error e)
 
+  let tls_client_of_flow (cert, validator) host flow =
+    let (state, init) =
+      Tls.Client.new_connection ?cert ?host ~validator () in
+    let tls_flow = {
+      role   = `Client ;
+      tcp    = flow ;
+      state  = `Active state ;
+      linger = []
+    } in
+    TCP.write flow init >> drain_handshake tls_flow
+
+
+  let create_connection t tls_params (addr, port) =
+    (* XXX addr -> (host : string) *)
+    TCP.create_connection t (addr, port) >>= function
+      | `Error e -> return (`Error e)
+      | `Ok flow -> tls_client_of_flow tls_params None flow
 
 end
