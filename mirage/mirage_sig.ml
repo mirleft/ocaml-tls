@@ -110,3 +110,7 @@ module type TCPV4 = sig
       the input function will return an RST to refuse connections on a port. *)
 end
 
+module type TCPV4_lwt = TCPV4
+  with type 'a io = 'a Lwt.t
+  and type buffer = Cstruct.t
+  and type ipv4addr = Ipaddr.V4.t

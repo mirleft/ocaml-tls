@@ -1,11 +1,7 @@
 
 open Mirage_sig
 
-module type TCPV4' =
-  TCPV4 with type buffer = Cstruct.t
-         and type 'a io  = 'a Lwt.t
-
-module TLS ( TCP : TCPV4' ) = struct
+module TLS ( TCP : TCPV4_lwt ) = struct
 
   type +'a io = 'a TCP.io
 
@@ -122,5 +118,4 @@ module TLS ( TCP : TCPV4' ) = struct
     TCP.create_connection t (addr, port) >>= function
       | `Error e -> return (`Error e)
       | `Ok flow -> tls_client_of_flow tls_params None flow
-
 end
