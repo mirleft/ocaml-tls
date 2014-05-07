@@ -82,5 +82,28 @@ module TLS ( TCP : TCPV4' ) = struct
 
   let write flow buf = writev flow [buf]
 
+  let close flow =
+    (* XXX Closing alert? *)
+    flow.state <- `Eof ;
+    TCP.close flow.tcp
+
+  let get_dest flow = TCP.get_dest flow.tcp
+
+  let rec drain_handshake flow =
+    let primed =
+      match flow.state with
+      | `Active state -> Tls.Flow.can_send_appdata state
+      | _             -> false in
+    if primed then
+      return (`Ok flow)
+    else
+      read_react flow >>= function
+        | `Ok mbuf ->
+          ( match mbuf with
+            | None     -> ()
+            | Some buf -> flow.linger <- buf :: flow.linger ) ;
+            drain_handshake flow
+        | `Error e -> return (`Error e)
+
 
 end
