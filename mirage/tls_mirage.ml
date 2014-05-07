@@ -3,15 +3,12 @@ open Mirage_sig
 
 module TLS ( TCP : TCPV4_lwt ) = struct
 
-  type +'a io = 'a TCP.io
-
+  type +'a io = 'a Lwt.t
   type t      = TCP.t
-
   type error  = TCP.error
 
   type flow = {
-    role           : [ `Server
-                     | `Client ] ;
+    role           : [ `Server | `Client ] ;
     tcp            : TCP.flow ;
     mutable state  : [ `Active of Tls.Flow.state
                      | `Eof
@@ -19,45 +16,50 @@ module TLS ( TCP : TCPV4_lwt ) = struct
     mutable linger : Cstruct.t list ;
   }
 
+
+  let handle_tls = function
+    | `Server -> Tls.Server.handle_tls
+    | `Client -> Tls.Client.handle_tls
+
+  let error_of_alert alert =
+    `Unknown (Tls.Packet.alert_type_to_string alert)
+
+  let list_of_option = function None -> [] | Some x -> [x]
+
+
   open Lwt
 
   let read_react flow =
+
+    let handle tls buf =
+      match handle_tls flow.role tls buf with
+      | `Ok (tls, answer, appdata) ->
+          flow.state <- `Active tls ;
+          TCP.write flow.tcp answer >> return (`Ok appdata)
+      | `Fail (alert, answer)      ->
+          let reason =
+            match alert with
+            | Tls.Packet.CLOSE_NOTIFY -> `Eof
+            | _                       -> `Error (error_of_alert alert)
+          in
+          flow.state <- reason ;
+          TCP.(write flow.tcp answer >> close flow.tcp) >> return reason
+    in
     match flow.state with
-    | ( `Eof | `Error _ ) as e -> return e
-    | `Active state ->
+    | `Eof | `Error _ as e -> return e
+    | `Active tls          ->
         TCP.read flow.tcp >>= function
-          | ( `Eof | `Error _ ) as e ->
-              flow.state <- e ; return e
-          | `Ok buf ->
-              match
-                ( match flow.role with
-                  | `Server -> Tls.Server.handle_tls
-                  | `Client -> Tls.Client.handle_tls )
-                state buf
-              with
-              | `Ok (state, answer, appdata) ->
-                  flow.state <- `Active state ;
-                  TCP.write flow.tcp answer >> return (`Ok appdata)
-              | `Fail (alert, answer) ->
-                  let reason =
-                    match alert with
-                    | Tls.Packet.CLOSE_NOTIFY -> `Eof
-                    | _ ->
-                        let repr = Tls.Packet.alert_type_to_string alert in
-                        `Error (`Unknown repr) in
-                  flow.state <- reason ;
-                  TCP.( write flow.tcp answer >> close flow.tcp )
-                  >> return reason
+          | `Eof | `Error _ as e -> flow.state <- e ; return e
+          | `Ok buf              -> handle tls buf
 
   let read flow =
     match flow.linger with
     | [] ->
         let rec read_more () =
           read_react flow >>= function
-            | `Ok None       -> read_more ()
-            | `Ok (Some buf) -> return (`Ok buf)
-            | `Eof           -> return `Eof
-            | `Error e       -> return (`Error e)
+            | `Ok None             -> read_more ()
+            | `Ok (Some buf)       -> return (`Ok buf)
+            | `Eof | `Error _ as e -> return e
         in
         read_more ()
     | bufs ->
@@ -66,48 +68,43 @@ module TLS ( TCP : TCPV4_lwt ) = struct
 
   let writev flow bufs =
     match flow.state with
-    | `Eof     -> fail @@ Invalid_argument "tls: flow is closed"
-    | `Error e -> fail @@ Invalid_argument "tls: flow is broken"
-    | `Active state ->
-        match Tls.Flow.send_application_data state bufs with
-        | Some (state, answer) ->
-            flow.state <- `Active state ; TCP.write flow.tcp answer
+    | `Eof     -> fail @@ Invalid_argument "tls: write: flow is closed"
+    | `Error e -> fail @@ Invalid_argument "tls: write: flow is broken"
+    | `Active tls ->
+        match Tls.Flow.send_application_data tls bufs with
+        | Some (tls, answer) ->
+            flow.state <- `Active tls ; TCP.write flow.tcp answer
         | None ->
             (* "Impossible" due to handhake draining. *)
-            fail @@ Invalid_argument "tls: flow not ready to send"
+            fail @@ Invalid_argument "tls: write: flow not ready to send"
 
   let write flow buf = writev flow [buf]
 
   let close flow =
-    (* XXX Closing alert? *)
+    (* XXX Tickle the engine to produce the closing message? *)
     flow.state <- `Eof ;
     TCP.close flow.tcp
 
   let get_dest flow = TCP.get_dest flow.tcp
 
   let rec drain_handshake flow =
-    let primed =
-      match flow.state with
-      | `Active state -> Tls.Flow.can_send_appdata state
-      | _             -> false in
-    if primed then
-      return (`Ok flow)
-    else
+    match flow.state with
+    | `Active tls when Tls.Flow.can_send_appdata tls -> return (`Ok flow)
+    | _ ->
       read_react flow >>= function
         | `Ok mbuf ->
-          ( match mbuf with
-            | None     -> ()
-            | Some buf -> flow.linger <- buf :: flow.linger ) ;
+            flow.linger <- list_of_option mbuf @ flow.linger ;
             drain_handshake flow
         | `Error e -> return (`Error e)
+        | `Eof     -> return (`Error (`Unknown "tls: end_of_file in handshake"))
 
   let tls_client_of_flow (cert, validator) host flow =
-    let (state, init) =
+    let (tls, init) =
       Tls.Client.new_connection ?cert ?host ~validator () in
     let tls_flow = {
       role   = `Client ;
       tcp    = flow ;
-      state  = `Active state ;
+      state  = `Active tls ;
       linger = []
     } in
     TCP.write flow init >> drain_handshake tls_flow
@@ -118,4 +115,5 @@ module TLS ( TCP : TCPV4_lwt ) = struct
     TCP.create_connection t (addr, port) >>= function
       | `Error e -> return (`Error e)
       | `Ok flow -> tls_client_of_flow tls_params None flow
+
 end
