@@ -53,5 +53,34 @@ module TLS ( TCP : TCPV4' ) = struct
                   TCP.( write flow.tcp answer >> close flow.tcp )
                   >> return reason
 
+  let read flow =
+    match flow.linger with
+    | [] ->
+        let rec read_more () =
+          read_react flow >>= function
+            | `Ok None       -> read_more ()
+            | `Ok (Some buf) -> return (`Ok buf)
+            | `Eof           -> return `Eof
+            | `Error e       -> return (`Error e)
+        in
+        read_more ()
+    | bufs ->
+        flow.linger <- [] ;
+        return (`Ok (Tls.Utils.Cs.appends @@ List.rev bufs))
+
+  let writev flow bufs =
+    match flow.state with
+    | `Eof     -> fail @@ Invalid_argument "tls: flow is closed"
+    | `Error e -> fail @@ Invalid_argument "tls: flow is broken"
+    | `Active state ->
+        match Tls.Flow.send_application_data state bufs with
+        | Some (state, answer) ->
+            flow.state <- `Active state ; TCP.write flow.tcp answer
+        | None ->
+            (* "Impossible" due to handhake draining. *)
+            fail @@ Invalid_argument "tls: flow not ready to send"
+
+  let write flow buf = writev flow [buf]
+
 
 end
