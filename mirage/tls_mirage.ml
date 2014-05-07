@@ -109,6 +109,14 @@ module TLS ( TCP : TCPV4_lwt ) = struct
     } in
     TCP.write flow init >> drain_handshake tls_flow
 
+  let tls_server_of_flow cert flow =
+    let tls_flow = {
+      role   = `Server ;
+      tcp    = flow ;
+      state  = `Active (Tls.Server.new_connection ?cert ()) ;
+      linger = []
+    } in
+    drain_handshake tls_flow
 
   let create_connection t tls_params (addr, port) =
     (* XXX addr -> (host : string) *)
