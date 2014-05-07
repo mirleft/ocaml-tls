@@ -52,7 +52,7 @@ Library "tls-mirage"
   Path            : mirage
   InternalModules : Mirage_sig
   Modules         : Tls_mirage
-  BuildDepends    : tls, lwt, lwt.syntax
+  BuildDepends    : tls, lwt, lwt.syntax, ipaddr
 
 Executable "test_runner"
   Build          $: flag(tests)
