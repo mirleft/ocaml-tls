@@ -29,6 +29,10 @@ module TLS ( TCP : TCPV4_lwt ) = struct
 
   open Lwt
 
+  let (>>==) a f =
+    a >>= function | `Eof | `Error _ as e -> return e
+                   | `Ok a                -> f a
+
   let read_react flow =
 
     let handle tls buf =
@@ -52,16 +56,12 @@ module TLS ( TCP : TCPV4_lwt ) = struct
           | `Eof | `Error _ as e -> flow.state <- e ; return e
           | `Ok buf              -> handle tls buf
 
-  let read flow =
+  let rec read flow =
     match flow.linger with
     | [] ->
-        let rec read_more () =
-          read_react flow >>= function
-            | `Ok None             -> read_more ()
-            | `Ok (Some buf)       -> return (`Ok buf)
-            | `Eof | `Error _ as e -> return e
-        in
-        read_more ()
+      ( read_react flow >>== function
+          | None     -> read flow
+          | Some buf -> return (`Ok buf) )
     | bufs ->
         flow.linger <- [] ;
         return (`Ok (Tls.Utils.Cs.appends @@ List.rev bufs))
@@ -98,7 +98,7 @@ module TLS ( TCP : TCPV4_lwt ) = struct
         | `Error e -> return (`Error e)
         | `Eof     -> return (`Error (`Unknown "tls: end_of_file in handshake"))
 
-  let tls_client_of_flow (cert, validator) host flow =
+  let client_of_tcp_flow (cert, validator) host flow =
     let (tls, init) =
       Tls.Client.new_connection ?cert ?host ~validator () in
     let tls_flow = {
@@ -109,7 +109,7 @@ module TLS ( TCP : TCPV4_lwt ) = struct
     } in
     TCP.write flow init >> drain_handshake tls_flow
 
-  let tls_server_of_flow cert flow =
+  let server_of_tcp_flow cert flow =
     let tls_flow = {
       role   = `Server ;
       tcp    = flow ;
@@ -120,13 +120,12 @@ module TLS ( TCP : TCPV4_lwt ) = struct
 
   let create_connection t tls_params (addr, port) =
     (* XXX addr -> (host : string) *)
-    TCP.create_connection t (addr, port) >>= function
-      | `Error e -> return (`Error e)
-      | `Ok flow -> tls_client_of_flow tls_params None flow
+    TCP.create_connection t (addr, port)
+    >>== client_of_tcp_flow tls_params None
 
   let listen_ssl t cert ~port callback =
     let cb flow =
-      tls_server_of_flow cert flow >>= callback in
+      server_of_tcp_flow cert flow >>= callback in
     TCP.input t ~listeners:(fun p -> if p = port then Some cb else None)
 
 end
