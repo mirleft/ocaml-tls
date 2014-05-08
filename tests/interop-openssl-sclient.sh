@@ -4,10 +4,10 @@ port=4433
 s_client_args="s_client -quiet -connect 127.0.0.1:"
 
 extra_args=""
-statfile="/tmp/http_server.status"
+statfile="/tmp/test_server.status"
 
 testit () {
-    /bin/sh -c "cd .. && ./http_server.native $port > /dev/null && echo foo > $statfile" &
+    /bin/sh -c "cd .. && ./test_server.native $port > /dev/null && echo foo > $statfile" &
 
     sleep 0.3
 

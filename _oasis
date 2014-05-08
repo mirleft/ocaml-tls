@@ -68,12 +68,12 @@ Executable "echo_server"
   MainIs          : echo_server.ml
   BuildDepends    : tls.lwt
 
-Executable "http_server"
+Executable "test_server"
   Build          $: flag(lwt)
   Path            : lwt/examples/
   Install         : false
   CompiledObject  : native
-  MainIs          : http_server.ml
+  MainIs          : test_server.ml
   BuildDepends    : tls.lwt
 
 Executable "echo_client"

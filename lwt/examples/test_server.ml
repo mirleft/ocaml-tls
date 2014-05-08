@@ -23,7 +23,7 @@ let serve_ssl port callback =
   with exn -> yap ~tag:"server" "+ handler error"
 
 
-let http_server port =
+let test_server port =
   serve_ssl port @@ fun socket addr ->
     yap ~tag:"handler" "-> incoming" >>
     try_lwt
@@ -35,4 +35,4 @@ let () =
   let port =
     try int_of_string Sys.argv.(1) with _ -> 4433
   in
-  Lwt_main.run (http_server port)
+  Lwt_main.run (test_server port)
