@@ -1,0 +1,59 @@
+#!/bin/sh
+
+port=4433
+s_client_args="s_client -quiet -connect 127.0.0.1:"
+
+extra_args=""
+statfile="/tmp/http_server.status"
+
+testit () {
+    /bin/sh -c "cd .. && ./http_server.native $port > /dev/null && echo foo > $statfile" &
+
+    sleep 0.3
+
+    echo "GET /" | openssl $s_client_args$port $extra_args 2> /dev/null > /dev/null
+
+    if [ -e $statfile ]; then
+        result=`cat $statfile`
+        if [ $result = "foo" ]; then
+            echo "success with $extra_args"
+        else
+            echo "failure with openssl $s_client_args $extra_args"
+        fi
+        rm $statfile
+    else
+        echo "failure with openssl $s_client_args$port $extra_args"
+    fi
+    sleep 0.3
+    port=`echo 1 + $port | bc`
+}
+
+testit
+
+extra_args="-tls1"
+testit
+
+extra_args="-tls1_1"
+testit
+
+extra_args="-tls1_2"
+testit
+
+ciphers="DHE-RSA-AES256-SHA AES256-SHA DHE-RSA-AES128-SHA AES128-SHA AES128-SHA EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA RC4-SHA RC4-MD5"
+for i in $ciphers; do
+    if [ $i != "RC4-MD5" ]; then
+        extra_args="-cipher $i"
+        testit
+    else
+        #expects a failure (openssl s_client switches to sslv2 here)
+    fi
+
+    extra_args="-tls1 -cipher $i"
+    testit
+
+    extra_args="-tls1_1 -cipher $i"
+    testit
+
+    extra_args="-tls1_2 -cipher $i"
+    testit
+done
