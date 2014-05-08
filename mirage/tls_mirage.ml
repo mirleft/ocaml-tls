@@ -124,4 +124,9 @@ module TLS ( TCP : TCPV4_lwt ) = struct
       | `Error e -> return (`Error e)
       | `Ok flow -> tls_client_of_flow tls_params None flow
 
+  let listen_ssl t cert ~port callback =
+    let cb flow =
+      tls_server_of_flow cert flow >>= callback in
+    TCP.input t ~listeners:(fun p -> if p = port then Some cb else None)
+
 end
