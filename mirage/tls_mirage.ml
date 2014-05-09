@@ -113,7 +113,7 @@ module Make (TCP: TCPV4) = struct
     let tls_flow = {
       role   = `Server ;
       tcp    = flow ;
-      state  = `Active (Tls.Server.new_connection ?cert ()) ;
+      state  = `Active (Tls.Server.new_connection ~cert ()) ;
       linger = []
     } in
     drain_handshake tls_flow
