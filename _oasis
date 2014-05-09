@@ -13,8 +13,13 @@ BuildTools:  ocamlbuild
 
 
 Flag "lwt"
-  Description     : Lwt_unix backend
-  Default         : true
+  Description : Lwt_unix backend
+  Default     : true
+
+Flag "mirage"
+  Description : Mirage backend
+  Default     : true
+
 
 Library "tls"
   Path            : lib/
@@ -38,15 +43,15 @@ Library "tls-lwt"
   FindlibParent   : tls
   Path            : lwt
   Modules         : Tls_lwt, X509_lwt
-  BuildDepends    : tls, lwt, lwt.syntax, lwt.unix
+  BuildDepends    : tls, lwt.syntax, lwt.unix
 
-Executable "feedback"
-  Build          $: flag(tests)
-  Path            : tests/
-  Install         : false
-  CompiledObject  : native
-  MainIs          : feedback.ml
-  BuildDepends    : tests, cstruct.unix
+Library "tls-mirage"
+  Build          $: flag(mirage)
+  FindlibName     : mirage
+  FindlibParent   : tls
+  Path            : mirage
+  Modules         : Tls_mirage
+  BuildDepends    : tls, mirage, lwt, lwt.syntax
 
 Executable "test_runner"
   Build          $: flag(tests)
@@ -60,8 +65,19 @@ Test it
   Command         : $test_runner
   Run            $: flag(tests)
 
+
+# Random examples.
+
+Executable "feedback"
+  Build          $: flag(tests)
+  Path            : tests/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : feedback.ml
+  BuildDepends    : tests, cstruct.unix
+
 Executable "echo_server"
-  Build          $: flag(lwt)
+  Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
   Install         : false
   CompiledObject  : native
@@ -69,7 +85,7 @@ Executable "echo_server"
   BuildDepends    : tls.lwt
 
 Executable "test_server"
-  Build          $: flag(lwt)
+  Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
   Install         : false
   CompiledObject  : native
@@ -77,7 +93,7 @@ Executable "test_server"
   BuildDepends    : tls.lwt
 
 Executable "echo_client"
-  Build          $: flag(lwt)
+  Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
   Install         : false
   CompiledObject  : native
@@ -85,9 +101,10 @@ Executable "echo_client"
   BuildDepends    : tls.lwt
 
 Executable "http_client"
-  Build          $: flag(lwt)
+  Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
   Install         : false
   CompiledObject  : native
   MainIs          : http_client.ml
   BuildDepends    : tls.lwt
+
