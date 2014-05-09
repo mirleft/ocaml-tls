@@ -43,16 +43,15 @@ Library "tls-lwt"
   FindlibParent   : tls
   Path            : lwt
   Modules         : Tls_lwt, X509_lwt
-  BuildDepends    : tls, lwt, lwt.syntax, lwt.unix
+  BuildDepends    : tls, lwt.syntax, lwt.unix
 
 Library "tls-mirage"
   Build          $: flag(mirage)
   FindlibName     : mirage
   FindlibParent   : tls
   Path            : mirage
-  InternalModules : Mirage_sig
   Modules         : Tls_mirage
-  BuildDepends    : tls, lwt, lwt.syntax, ipaddr
+  BuildDepends    : tls, mirage, lwt, lwt.syntax
 
 Executable "test_runner"
   Build          $: flag(tests)

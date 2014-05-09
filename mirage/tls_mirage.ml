@@ -1,7 +1,7 @@
 
-open Mirage_sig
+open V1_LWT
 
-module TLS ( TCP : TCPV4_lwt ) = struct
+module Make (TCP: TCPV4) = struct
 
   type +'a io = 'a Lwt.t
   type t      = TCP.t
