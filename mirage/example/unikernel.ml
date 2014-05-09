@@ -76,3 +76,39 @@ module Server (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
     S.listen stack
 
 end
+
+module Client (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
+
+  module TLS = Tls_mirage.Make (S.TCPV4)
+  module Kvu = Kv_util (Kv)
+  module L   = Log (C)
+
+  open Ipaddr
+
+  let peer = ((V4.of_string_exn "127.0.0.1", 4433), "localhost")
+  let peer = ((V4.of_string_exn "173.194.70.147", 443), "www.google.com")
+
+  let chat c tls =
+    let rec dump () =
+      TLS.read tls >>= function
+        | `Error e -> L.log_error c e
+        | `Eof     -> L.log_trace c "eof."
+        | `Ok buf  -> L.log_data c "reply" buf >> dump ()
+    in
+    TLS.write tls (Cstruct.of_string "ohai\r\n\r\n") >> dump ()
+
+  let load_cas kv =
+    let open Tls.X509 in
+    Kvu.read_full kv "ca-root-nss-short.crt"
+    >|= Cert.of_pem_cstruct
+    >|= Validator.chain_of_trust ~time:0
+
+  let start c stack kv =
+    lwt validator = load_cas kv in
+    TLS.create_connection (S.tcpv4 stack)
+      (None, validator) (snd peer) (fst peer)
+    >>= function
+      | `Ok tls  -> L.log_trace c "connected." >> chat c tls
+      | `Error e -> L.log_error c e
+
+end
