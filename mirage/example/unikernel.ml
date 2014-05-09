@@ -1,6 +1,7 @@
 open Lwt
 open V1_LWT
 
+
 module Color = struct
   open Printf
   let red    fmt = sprintf ("\027[31m"^^fmt^^"\027[m")
@@ -9,53 +10,65 @@ module Color = struct
   let blue   fmt = sprintf ("\027[36m"^^fmt^^"\027[m")
 end
 
+module Cs  = Tls.Utils.Cs
+
 let o f g x = f (g x)
 
-module Server (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
+let lower exn_of_err f =
+  f >>= function | `Ok r    -> return r
+                 | `Error e -> fail (exn_of_err e)
 
-  module TCP = S.TCPV4
-  module TLS = Tls_mirage.Make (TCP)
+let string_of_err = function
+  | `Timeout     -> "TIMEOUT"
+  | `Refused     -> "REFUSED"
+  | `Unknown msg -> msg
 
-  module Cs = Tls.Utils.Cs
 
-  let lower exn_of_err f =
-    f >>= function | `Ok r    -> return r
-                   | `Error e -> fail (exn_of_err e)
+module Kv_util (Kv: KV_RO) = struct
 
   let lower_kv f =
     let aux (Kv.Unknown_key key) = Invalid_argument ("Kv: " ^ key) in
     lower aux f
 
+  let read_full kv ~name =
+    lower_kv (Kv.size kv name) >|= Int64.to_int >>=
+    o lower_kv (Kv.read kv name 0) >|= Cs.appends
+end
 
-  let string_of_err = function
-    | `Timeout     -> "TIMEOUT"
-    | `Refused     -> "REFUSED"
-    | `Unknown msg -> msg
+module Log (C: CONSOLE) = struct
+
+  let log_trace c str = C.log_s c (Color.green "+ %s" str)
+
+  and log_data c str buf =
+    let repr = String.escaped (Cstruct.to_string buf) in
+    C.log_s c (Color.blue "  %s: " str ^ repr)
+  and log_error c e = C.log_s c (Color.red "+ err: %s" (string_of_err e))
+
+end
+
+module Server (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
+
+  module TLS = Tls_mirage.Make (S.TCPV4)
+  module Kvu = Kv_util (Kv)
+  module L   = Log (C)
 
   let rec handle c tls =
     TLS.read tls >>= function
-    | `Eof     -> C.log_s c Color.(green "+ eof.")
-    | `Error e -> C.log_s c Color.(red "+ error: %s" (string_of_err e))
-    | `Ok buf  ->
-        let repr = String.escaped (Cstruct.to_string buf) in
-        C.log_s c Color.(blue "  recv: %s" repr) >>
-        TLS.write tls buf >> handle c tls
-
-  let kv_read_full kv ~name =
-    lower_kv (Kv.size kv name) >|= Int64.to_int >>=
-    o lower_kv (Kv.read kv name 0) >|= Cs.appends
+    | `Eof     -> L.log_trace c "eof."
+    | `Error e -> L.log_error c e
+    | `Ok buf  -> L.log_data c "recv" buf >> TLS.write tls buf >> handle c tls
 
   let load_secrets kv =
     let open Tls.X509 in
-    lwt cert = kv_read_full kv "server.pem" >|= Cert.of_pem_cstruct1
-    and key  = kv_read_full kv "server.key" >|= PK.of_pem_cstruct1 in
+    lwt cert = Kvu.read_full kv "server.pem" >|= Cert.of_pem_cstruct1
+    and key  = Kvu.read_full kv "server.key" >|= PK.of_pem_cstruct1 in
     return (cert, key)
 
   let accept c cert k flow =
-    C.log_s c Color.(green "+ accepted.") >>
+    L.log_trace c "accepted." >>
     TLS.server_of_tcp_flow cert flow >>= function
-      | `Ok tls  -> C.log_s c Color.(green "+ shook hands") >> k c tls
-      | `Error e -> C.log_s c Color.(red "+ handhake: %s" (string_of_err e))
+      | `Ok tls  -> L.log_trace c "shook hands" >> k c tls
+      | `Error e -> L.log_error c e
 
   let start c stack kv =
     lwt cert = load_secrets kv in
