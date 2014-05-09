@@ -85,7 +85,7 @@ Executable "echo_server"
   BuildDepends    : tls.lwt
 
 Executable "test_server"
-  Build          $: flag(lwt)
+  Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
   Install         : false
   CompiledObject  : native
