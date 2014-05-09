@@ -100,7 +100,7 @@ module Make (TCP: TCPV4) = struct
 
   let client_of_tcp_flow (cert, validator) host flow =
     let (tls, init) =
-      Tls.Client.new_connection ?cert ?host ~validator () in
+      Tls.Client.new_connection ?cert ~host ~validator () in
     let tls_flow = {
       role   = `Client ;
       tcp    = flow ;
@@ -118,10 +118,11 @@ module Make (TCP: TCPV4) = struct
     } in
     drain_handshake tls_flow
 
-  let create_connection t tls_params (addr, port) =
+  let create_connection t tls_params host (addr, port) =
     (* XXX addr -> (host : string) *)
-    TCP.create_connection t (addr, port)
-    >>== client_of_tcp_flow tls_params None
+    TCP.create_connection t (addr, port) >>= function
+      | `Error _ as e -> return e
+      | `Ok flow      -> client_of_tcp_flow tls_params host flow
 
   let listen_ssl t cert ~port callback =
     let cb flow =
