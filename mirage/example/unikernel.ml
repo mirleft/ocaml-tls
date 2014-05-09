@@ -24,17 +24,6 @@ let string_of_err = function
   | `Unknown msg -> msg
 
 
-module Kv_util (Kv: KV_RO) = struct
-
-  let lower_kv f =
-    let aux (Kv.Unknown_key key) = Invalid_argument ("Kv: " ^ key) in
-    lower aux f
-
-  let read_full kv ~name =
-    lower_kv (Kv.size kv name) >|= Int64.to_int >>=
-    o lower_kv (Kv.read kv name 0) >|= Cs.appends
-end
-
 module Log (C: CONSOLE) = struct
 
   let log_trace c str = C.log_s c (Color.green "+ %s" str)
@@ -46,23 +35,44 @@ module Log (C: CONSOLE) = struct
 
 end
 
+module Mir_X509 (Kv: KV_RO) = struct
+
+  let (>>==) a f =
+    a >>= function
+      | `Ok x -> f x
+      | `Error (Kv.Unknown_key key) -> fail (Invalid_argument key)
+
+  let (>|==) a f = a >>== fun x -> return (f x)
+
+  let read_full kv ~name =
+    Kv.size kv name   >|== Int64.to_int >>=
+    Kv.read kv name 0 >|== Cs.appends
+
+  open Tls.X509
+
+  let certificate kv ~cert ~key =
+    lwt cert = read_full kv cert >|= Cert.of_pem_cstruct1
+    and key  = read_full kv key  >|= PK.of_pem_cstruct1 in
+    return (cert, key)
+
+  let ca_roots kv ~cas =
+    read_full kv cas
+    >|= Cert.of_pem_cstruct
+    >|= Validator.chain_of_trust ~time:0
+
+end
+
 module Server (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
 
-  module TLS = Tls_mirage.Make (S.TCPV4)
-  module Kvu = Kv_util (Kv)
-  module L   = Log (C)
+  module TLS  = Tls_mirage.Make (S.TCPV4)
+  module X509 = Mir_X509 (Kv)
+  module L    = Log (C)
 
   let rec handle c tls =
     TLS.read tls >>= function
     | `Eof     -> L.log_trace c "eof."
     | `Error e -> L.log_error c e
     | `Ok buf  -> L.log_data c "recv" buf >> TLS.write tls buf >> handle c tls
-
-  let load_secrets kv =
-    let open Tls.X509 in
-    lwt cert = Kvu.read_full kv "server.pem" >|= Cert.of_pem_cstruct1
-    and key  = Kvu.read_full kv "server.key" >|= PK.of_pem_cstruct1 in
-    return (cert, key)
 
   let accept c cert k flow =
     L.log_trace c "accepted." >>
@@ -71,7 +81,8 @@ module Server (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
       | `Error e -> L.log_error c e
 
   let start c stack kv =
-    lwt cert = load_secrets kv in
+    lwt cert =
+      X509.certificate kv ~cert:"server.pem" ~key:"server.key" in
     S.listen_tcpv4 stack 4433 (accept c cert handle) ;
     S.listen stack
 
@@ -79,9 +90,9 @@ end
 
 module Client (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
 
-  module TLS = Tls_mirage.Make (S.TCPV4)
-  module Kvu = Kv_util (Kv)
-  module L   = Log (C)
+  module TLS  = Tls_mirage.Make (S.TCPV4)
+  module X509 = Mir_X509 (Kv)
+  module L    = Log (C)
 
   open Ipaddr
 
@@ -93,18 +104,12 @@ module Client (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
       TLS.read tls >>= function
         | `Error e -> L.log_error c e
         | `Eof     -> L.log_trace c "eof."
-        | `Ok buf  -> L.log_data c "reply" buf >> dump ()
+        | `Ok buf  -> L.log_data  c "reply" buf >> dump ()
     in
     TLS.write tls (Cstruct.of_string "ohai\r\n\r\n") >> dump ()
 
-  let load_cas kv =
-    let open Tls.X509 in
-    Kvu.read_full kv "ca-root-nss-short.crt"
-    >|= Cert.of_pem_cstruct
-    >|= Validator.chain_of_trust ~time:0
-
   let start c stack kv =
-    lwt validator = load_cas kv in
+    lwt validator = X509.ca_roots kv ~cas:"ca-root-nss-short.crt" in
     TLS.create_connection (S.tcpv4 stack)
       (None, validator) (snd peer) (fst peer)
     >>= function
