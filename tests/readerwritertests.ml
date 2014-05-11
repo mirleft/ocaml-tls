@@ -271,6 +271,67 @@ let rw_ds_1_2_tests =
     (fun i f -> "RW digitally signed 1.2 " ^ string_of_int i >:: readerwriter_digitally_signed_1_2 f)
     rw_ds_1_2_params
 
+let rw_handshake_no_data hs _ =
+  let buf = Writer.assemble_handshake hs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok hs' ->
+             assert_equal hs hs' ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_handshake hs' in
+             (match parse_handshake buf' with
+              | Or_error.Ok hs'' -> assert_equal hs hs''
+              | Or_error.Error _ -> assert_failure "handshake no data inner failed")
+          | Or_error.Error _ -> assert_failure "handshake no data failed")
+
+let rw_handshakes_no_data_vals = [ Core.HelloRequest ; Core.ServerHelloDone ]
+
+let rw_handshake_no_data_tests =
+  List.mapi
+    (fun i f -> "handshake no data " ^ string_of_int i >:: rw_handshake_no_data f)
+    rw_handshakes_no_data_vals
+
+let rw_handshake_cstruct_data hs _ =
+  let buf = Writer.assemble_handshake hs in
+  let cmp hs hs' =
+    Core.(match hs, hs' with
+          | Finished xs, Finished ys -> assert_cs_eq xs ys
+          | ServerKeyExchange xs, ServerKeyExchange ys -> assert_cs_eq xs ys
+          | Certificate xs, Certificate ys -> assert_lists_eq assert_cs_eq xs ys
+          | ClientKeyExchange xs, ClientKeyExchange ys -> assert_cs_eq xs ys
+          | _ -> assert_failure "handshake cstruct data parser broken")
+  in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok hs' ->
+             cmp hs hs' ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_handshake hs' in
+             (match parse_handshake buf' with
+              | Or_error.Ok hs'' -> cmp hs hs'
+              | Or_error.Error _ -> assert_failure "handshake cstruct data inner failed")
+          | Or_error.Error _ -> assert_failure "handshake cstruct data failed")
+
+let rw_handshake_cstruct_data_vals =
+  let data_cs = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
+  let emp = list_to_cstruct [ ] in
+  Core.([ ServerKeyExchange emp ;
+          ServerKeyExchange data_cs ;
+(*          Finished emp ; (* fails because reader uses hardcoded 12 bytes.. *) *)
+          Finished data_cs ;
+          ClientKeyExchange emp ;
+          ClientKeyExchange data_cs ;
+          Certificate [] ;
+          Certificate [data_cs] ;
+          Certificate [data_cs; data_cs] ;
+          Certificate [data_cs ; emp] ;
+          Certificate [emp ; data_cs] ;
+          Certificate [emp ; data_cs ; emp] ;
+          Certificate [emp ; data_cs ; emp ; data_cs]
+       ])
+
+let rw_handshake_cstruct_data_tests =
+  List.mapi
+    (fun i f -> "handshake cstruct data " ^ string_of_int i >:: rw_handshake_cstruct_data f)
+    rw_handshake_cstruct_data_vals
 
 let readerwriter_tests =
   version_tests @
@@ -278,4 +339,6 @@ let readerwriter_tests =
   rw_alert_tests @
   rw_dh_tests @
   rw_ds_tests @
-  rw_ds_1_2_tests
+  rw_ds_1_2_tests @
+  rw_handshake_no_data_tests @
+  rw_handshake_cstruct_data_tests
