@@ -212,8 +212,34 @@ let rw_dh_tests =
     (fun i f -> "RW dh_param " ^ string_of_int i >:: readerwriter_dh_params f)
     rw_dh_params
 
+let readerwriter_digitally_signed params _ =
+  let buf = Writer.assemble_digitally_signed params in
+  Reader.(match parse_digitally_signed buf with
+          | Or_error.Ok params' ->
+             assert_cs_eq params params' ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_digitally_signed params' in
+             (match parse_digitally_signed buf' with
+              | Or_error.Ok params'' ->
+                 assert_cs_eq params params''
+              | Or_error.Error _ -> assert_failure "inner read and write digitally signed broken")
+          | Or_error.Error _ -> assert_failure "read and write digitally signed broken")
+
+
+let rw_ds_params =
+  let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let emp = list_to_cstruct [] in
+  [ a ; a <+> a ; emp ; emp <+> a ]
+
+let rw_ds_tests =
+  List.mapi
+    (fun i f -> "RW digitally signed " ^ string_of_int i >:: readerwriter_digitally_signed f)
+    rw_ds_params
+
+
 let readerwriter_tests =
   version_tests @
   header_tests @
   rw_alert_tests @
-  rw_dh_tests
+  rw_dh_tests @
+  rw_ds_tests
