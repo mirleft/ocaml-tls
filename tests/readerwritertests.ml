@@ -225,7 +225,6 @@ let readerwriter_digitally_signed params _ =
               | Or_error.Error _ -> assert_failure "inner read and write digitally signed broken")
           | Or_error.Error _ -> assert_failure "read and write digitally signed broken")
 
-
 let rw_ds_params =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let emp = list_to_cstruct [] in
@@ -236,10 +235,47 @@ let rw_ds_tests =
     (fun i f -> "RW digitally signed " ^ string_of_int i >:: readerwriter_digitally_signed f)
     rw_ds_params
 
+let readerwriter_digitally_signed_1_2 (h, s, params) _ =
+  let buf = Writer.assemble_digitally_signed_1_2 h s params in
+  Reader.(match parse_digitally_signed_1_2 buf with
+          | Or_error.Ok (h', s', params') ->
+             assert_equal h h' ;
+             assert_equal s s' ;
+             assert_cs_eq params params' ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_digitally_signed_1_2 h' s' params' in
+             (match parse_digitally_signed_1_2 buf' with
+              | Or_error.Ok (h'', s'', params'') ->
+                 assert_equal h h'' ;
+                 assert_equal s s'' ;
+                 assert_cs_eq params params''
+              | Or_error.Error _ -> assert_failure "inner read and write digitally signed 1.2 broken")
+          | Or_error.Error _ -> assert_failure "read and write digitally signed 1.2 broken")
+
+let rec permute f a b acc =
+  match b with
+  | []    -> acc
+  | e::rt -> permute f a rt ((List.map (fun x -> f x e) a) @ acc)
+
+let rw_ds_1_2_params =
+  let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let emp = list_to_cstruct [] in
+  let cs = [ a ; a <+> a ; emp ; emp <+> a ] in
+  let hashes = Ciphersuite.([ NULL ; MD5 ; SHA ; SHA224 ; SHA256 ; SHA384 ; SHA512 ]) in
+  let sign = Packet.([ ANONYMOUS ; RSA ; DSA ; ECDSA ]) in
+  let h_s = permute (fun h s -> (h, s)) hashes sign [] in
+  permute (fun (h, s) c -> (h, s, c)) h_s cs []
+
+let rw_ds_1_2_tests =
+  List.mapi
+    (fun i f -> "RW digitally signed 1.2 " ^ string_of_int i >:: readerwriter_digitally_signed_1_2 f)
+    rw_ds_1_2_params
+
 
 let readerwriter_tests =
   version_tests @
   header_tests @
   rw_alert_tests @
   rw_dh_tests @
-  rw_ds_tests
+  rw_ds_tests @
+  rw_ds_1_2_tests
