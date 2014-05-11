@@ -11,9 +11,6 @@ let rec unlines = function
 let tls_read s  = Tls_lwt.read s >|= Cstruct.to_string
 let tls_write s = o (Tls_lwt.write s) Cstruct.of_string
 
-let tls_read s  = Tls_lwt.read s >|= Cstruct.to_string
-let tls_write s = o (Tls_lwt.write s) Cstruct.of_string
-
 let ca_cert_dir = "./certificates"
 let server_cert = "./certificates/server.pem"
 let server_key  = "./certificates/server.key"
