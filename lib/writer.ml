@@ -21,14 +21,23 @@ let assemble_hdr version (content_type, payload) =
   BE.set_uint16 buf 3 (len payload);
   buf <+> payload
 
-let assemble_list ?force lenbytes f elements =
+type len = One | Two | Three
+
+let assemble_list ?force lenb f elements =
   let length body =
-    let l = create lenbytes in
-    (match lenbytes with
-     | 1 -> set_uint8 l 0 (len body)
-     | 2 -> BE.set_uint16 l 0 (len body)
-     | 3 -> set_uint24_len l (len body));
-    l
+    match lenb with
+    | One   ->
+       let l = create 1 in
+       set_uint8 l 0 (len body) ;
+       l
+    | Two   ->
+       let l = create 2 in
+       BE.set_uint16 l 0 (len body) ;
+       l
+    | Three ->
+       let l = create 3 in
+       set_uint24_len l (len body) ;
+       l
   in
   let b es = Utils.Cs.appends (List.map f es) in
   let full es =
@@ -48,7 +57,7 @@ let assemble_certificate c =
   buf <+> c
 
 let assemble_certificates cs =
-  assemble_list ~force:true 3 assemble_certificate cs
+  assemble_list ~force:true Three assemble_certificate cs
 
 let assemble_compression_method m =
   let buf = create 1 in
@@ -56,7 +65,7 @@ let assemble_compression_method m =
   buf
 
 let assemble_compression_methods ms =
-  assemble_list ~force:true 1 assemble_compression_method ms
+  assemble_list ~force:true One assemble_compression_method ms
 
 let assemble_ciphersuite c =
   let buf = create 2 in
@@ -64,7 +73,7 @@ let assemble_ciphersuite c =
   buf
 
 let assemble_ciphersuites cs =
-  assemble_list ~force:true 2 assemble_ciphersuite cs
+  assemble_list ~force:true Two assemble_ciphersuite cs
 
 let assemble_hostname host =
   (* 8 bit hostname type; 16 bit length; value *)
@@ -75,7 +84,7 @@ let assemble_hostname host =
   buf <+> (of_string host)
 
 let assemble_hostnames hosts =
-  assemble_list 2 assemble_hostname hosts
+  assemble_list Two assemble_hostname hosts
 
 let assemble_hash_signature (h, s) =
   let buf = create 2 in
@@ -84,7 +93,7 @@ let assemble_hash_signature (h, s) =
   buf
 
 let assemble_signature_algorithms s =
-  assemble_list 2 assemble_hash_signature s
+  assemble_list Two assemble_hash_signature s
 
 let assemble_named_curve nc =
   let buf = create 2 in
@@ -92,7 +101,7 @@ let assemble_named_curve nc =
   buf
 
 let assemble_elliptic_curves curves =
-  assemble_list 2 assemble_named_curve curves
+  assemble_list Two assemble_named_curve curves
 
 let assemble_ec_point_format f =
   let buf = create 1 in
@@ -100,7 +109,7 @@ let assemble_ec_point_format f =
   buf
 
 let assemble_ec_point_formats formats =
-  assemble_list 1 assemble_ec_point_format formats
+  assemble_list One assemble_ec_point_format formats
 
 let assemble_extension e =
   let pay, typ = match e with
@@ -131,7 +140,7 @@ let assemble_extension e =
   buf <+> pay
 
 let assemble_extensions es =
-  assemble_list 2 assemble_extension es
+  assemble_list Two assemble_extension es
 
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let v = assemble_protocol_version cl.version in
