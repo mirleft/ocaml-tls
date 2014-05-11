@@ -21,47 +21,50 @@ let assemble_hdr version (content_type, payload) =
   BE.set_uint16 buf 3 (len payload);
   buf <+> payload
 
-let assemble_certificate buf c =
+let assemble_list ?force lenbytes f elements =
+  let length body =
+    let l = create lenbytes in
+    (match lenbytes with
+     | 1 -> set_uint8 l 0 (len body)
+     | 2 -> BE.set_uint16 l 0 (len body)
+     | 3 -> set_uint24_len l (len body));
+    l
+  in
+  let b es = Utils.Cs.appends (List.map f es) in
+  let full es =
+    let body = b es in
+    length body <+> body
+  in
+  match force with
+  | None   -> (match elements with
+               | []   -> create 0
+               | eles -> full eles)
+  | Some _ -> full elements
+
+let assemble_certificate c =
   let length = len c in
+  let buf = create 3 in
   set_uint24_len buf length;
-  blit c 0 buf 3 length;
-  length + 3
+  buf <+> c
 
 let assemble_certificates cs =
-  let length = List.fold_left (fun a b -> a + 3 + len b) 0 cs in
-  let buf = create (length + 3) in
-  let rec go buf = function
-    | [] -> ()
-    | c :: cs ->
-       let l = assemble_certificate buf c in
-       go (shift buf l) cs
-  in
-  go (shift buf 3) cs;
-  set_uint24_len buf length;
+  assemble_list ~force:true 3 assemble_certificate cs
+
+let assemble_compression_method m =
+  let buf = create 1 in
+  set_uint8 buf 0 (compression_method_to_int m);
   buf
 
-let assemble_compression_method buf m =
-  set_uint8 buf 0 (compression_method_to_int m);
-  shift buf 1
+let assemble_compression_methods ms =
+  assemble_list ~force:true 1 assemble_compression_method ms
 
-let rec assemble_compression_methods buf = function
-  | [] -> ()
-  | m :: ms -> let buf = assemble_compression_method buf m in
-               assemble_compression_methods buf ms
-
-let assemble_ciphersuite buf c =
+let assemble_ciphersuite c =
+  let buf = create 2 in
   BE.set_uint16 buf 0 (Ciphersuite.ciphersuite_to_int c);
-  shift buf 2
+  buf
 
-let rec assemble_ciphersuites buf = function
-  | [] -> ()
-  | m :: ms ->
-     let buf = assemble_ciphersuite buf m in
-     assemble_ciphersuites buf ms
-
-let assemble_named_curve buf nc =
-  BE.set_uint16 buf 0 (named_curve_type_to_int nc);
-  shift buf 2
+let assemble_ciphersuites cs =
+  assemble_list ~force:true 2 assemble_ciphersuite cs
 
 let assemble_hostname host =
   (* 8 bit hostname type; 16 bit length; value *)
@@ -72,35 +75,24 @@ let assemble_hostname host =
   buf <+> (of_string host)
 
 let assemble_hostnames hosts =
-  (* it should 16 bit length of list followed by the items *)
-  let names = Utils.Cs.appends (List.map assemble_hostname hosts) in
-  let buf = create 2 in
-  BE.set_uint16 buf 0 (len names);
-  buf <+> names
+  assemble_list 2 assemble_hostname hosts
 
-let assemble_signature_algorithms s =
-  let rec assemble_sig buf = function
-    | []        -> ()
-    | (h,s)::xs ->
-       set_uint8 buf 0 (hash_algorithm_to_int h);
-       set_uint8 buf 1 (signature_algorithm_type_to_int s);
-       assemble_sig (shift buf 2) xs
-  in
-  let len = 2 * (List.length s) in
-  let buf = create (2 + len) in
-  BE.set_uint16 buf 0 len;
-  assemble_sig (shift buf 2) s;
+let assemble_hash_signature (h, s) =
+  let buf = create 2 in
+  set_uint8 buf 0 (hash_algorithm_to_int h);
+  set_uint8 buf 1 (signature_algorithm_type_to_int s);
   buf
 
-let assemble_elliptic_curve c =
+let assemble_signature_algorithms s =
+  assemble_list 2 assemble_hash_signature s
+
+let assemble_named_curve nc =
   let buf = create 2 in
-  BE.set_uint16 buf 0 (named_curve_type_to_int c) ;
+  BE.set_uint16 buf 0 (named_curve_type_to_int nc);
   buf
 
 let assemble_elliptic_curves curves =
-  let buf = create 2 in
-  BE.set_uint16 buf 0 (2 * (List.length curves)) ;
-  buf <+> (Utils.Cs.appends (List.map assemble_elliptic_curve curves))
+  assemble_list 2 assemble_named_curve curves
 
 let assemble_ec_point_format f =
   let buf = create 1 in
@@ -108,9 +100,7 @@ let assemble_ec_point_format f =
   buf
 
 let assemble_ec_point_formats formats =
-  let buf = create 1 in
-  set_uint8 buf 0 (List.length formats) ;
-  buf <+> (Utils.Cs.appends (List.map assemble_ec_point_format formats))
+  assemble_list 1 assemble_ec_point_format formats
 
 let assemble_extension e =
   let pay, typ = match e with
@@ -140,40 +130,21 @@ let assemble_extension e =
   BE.set_uint16 buf 2 (Cstruct.len pay);
   buf <+> pay
 
-let assemble_extensions = function
-  | [] -> create 0
-  | es -> let exts = Utils.Cs.appends (List.map assemble_extension es) in
-          let l = len exts in
-          let le = create 2 in
-          BE.set_uint16 le 0 l;
-          le <+> exts
+let assemble_extensions es =
+  assemble_list 2 assemble_extension es
 
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
-  let slen = match cl.sessionid with
-    | None -> 1
-    | Some s -> 1 + len s
+  let v = assemble_protocol_version cl.version in
+  let sid =
+    let buf = create 1 in
+    match cl.sessionid with
+    | None   -> set_uint8 buf 0 0; buf
+    | Some s -> set_uint8 buf 0 (len s); buf <+> s
   in
-  let cslen = 2 * List.length cl.ciphersuites in
-  let bbuf = create (2 + 32 + slen + 2 + cslen + 1 + 1) in
-  assemble_protocol_version_int bbuf cl.version;
-  blit cl.random 0 bbuf 2 32;
-  let buf = shift bbuf 34 in
-  (match cl.sessionid with
-   | None ->
-      set_uint8 buf 0 0;
-   | Some s ->
-      let slen = len s in
-      set_uint8 buf 0 slen;
-      blit s 0 buf 1 slen);
-  let buf = shift buf slen in
-  BE.set_uint16 buf 0 (2 * List.length cl.ciphersuites);
-  let buf = shift buf 2 in
-  assemble_ciphersuites buf cl.ciphersuites;
-  let buf = shift buf cslen in
+  let css = assemble_ciphersuites cl.ciphersuites in
   (* compression methods, completely useless *)
-  set_uint8 buf 0 1;
-  let buf = shift buf 1 in
-  assemble_compression_methods buf [NULL];
+  let cms = assemble_compression_methods [NULL] in
+  let bbuf = v <+> cl.random <+> sid <+> css <+> cms in
   (* some widely deployed firewalls drop ClientHello messages which are
      > 256 and < 511 byte, insert PADDING extension for these *)
   (* from draft-agl-tls-padding-03:
@@ -209,24 +180,18 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   bbuf <+> extensions <+> extrapadding
 
 let assemble_server_hello (sh : server_hello) : Cstruct.t =
-  let slen = match sh.sessionid with
-    | None -> 1
-    | Some s -> 1 + len s
+  let v = assemble_protocol_version sh.version in
+  let sid =
+    let buf = create 1 in
+    match sh.sessionid with
+     | None   -> set_uint8 buf 0 0; buf
+     | Some s -> set_uint8 buf 0 (len s); buf <+> s
   in
-  let bbuf = create (2 + 32 + slen + 2 + 1) in
-  assemble_protocol_version_int bbuf sh.version;
-  blit sh.random 0 bbuf 2 32;
-  let buf = shift bbuf 34 in
-  (match sh.sessionid with
-   | None -> set_uint8 buf 0 0;
-   | Some s -> let slen = len s in
-               set_uint8 buf 0 slen;
-               blit s 0 buf 1 slen);
-  let buf = shift buf slen in
-  let buf = assemble_ciphersuite buf sh.ciphersuites in
+  let cs = assemble_ciphersuite sh.ciphersuites in
   (* useless compression method *)
-  let _ = assemble_compression_method buf NULL in
+  let cm = assemble_compression_method NULL in
   let extensions = assemble_extensions sh.extensions in
+  let bbuf = v <+> sh.random <+> sid <+> cs <+> cm in
   bbuf <+> extensions
 
 let assemble_dh_parameters p =
@@ -246,10 +211,8 @@ let assemble_digitally_signed signature =
   lenbuf <+> signature
 
 let assemble_digitally_signed_1_2 hashalgo sigalgo signature =
-  let algobuf = create 2 in
-  set_uint8 algobuf 0 (hash_algorithm_to_int hashalgo);
-  set_uint8 algobuf 1 (signature_algorithm_type_to_int sigalgo);
-  algobuf <+> (assemble_digitally_signed signature)
+  (assemble_hash_signature (hashalgo, sigalgo)) <+>
+    (assemble_digitally_signed signature)
 
 let assemble_client_key_exchange kex =
   let len = len kex in
