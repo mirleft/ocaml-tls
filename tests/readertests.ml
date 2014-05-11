@@ -1257,16 +1257,18 @@ let good_client_hellos =
 
         ])
 
-let good_client_hellos_parser (xs, res) _ =
+let cmp_client_hellos ch ch' =
   let open Core in
+  assert_equal ch.version ch'.version ;
+  assert_cs_eq ch.random ch'.random ;
+  assert_sessionid_equal ch.sessionid ch'.sessionid ;
+  assert_lists_eq assert_equal ch.ciphersuites ch'.ciphersuites ;
+  assert_lists_eq assert_extension_equal ch.extensions ch'.extensions
+
+let good_client_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok (ClientHello ch) ->
-             assert_equal ch.version res.version ;
-             assert_cs_eq ch.random res.random ;
-             assert_sessionid_equal ch.sessionid res.sessionid ;
-             assert_lists_eq assert_equal ch.ciphersuites res.ciphersuites ;
-             assert_lists_eq assert_extension_equal ch.extensions res.extensions
+          | Or_error.Ok (Core.ClientHello ch) -> cmp_client_hellos ch res
           | _ -> assert_failure "handshake client hello parser failed")
 
 let good_client_hellos_tests =
