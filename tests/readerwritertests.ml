@@ -416,6 +416,59 @@ let rw_handshake_client_hello_tests =
     (fun i f -> "handshake client hello " ^ string_of_int i >:: rw_handshake_client_hello f)
     rw_handshake_client_hello_vals
 
+let rw_handshake_server_hello hs _ =
+  let buf = Writer.assemble_handshake hs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok hs' ->
+             Core.(match hs, hs' with
+                   | ServerHello sh, ServerHello sh' ->
+                      Readertests.cmp_server_hellos sh sh' ;
+                   | _ -> assert_failure "handshake server hello broken") ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_handshake hs' in
+             (match parse_handshake buf' with
+              | Or_error.Ok hs'' ->
+                 Core.(match hs, hs'' with
+                       | ServerHello sh, ServerHello sh'' ->
+                          Readertests.cmp_server_hellos sh sh'' ;
+                       | _ -> assert_failure "handshake server hello broken")
+              | Or_error.Error _ -> assert_failure "handshake server hello inner failed")
+          | Or_error.Error _ -> assert_failure "handshake server hello failed")
+
+let rw_handshake_server_hello_vals =
+  let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let random = list_to_cstruct (rnd @ rnd) in
+  Core.(let sh : server_hello =
+          { version = TLS_1_2 ;
+            random ;
+            sessionid = None ;
+            ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+            extensions = []}
+        in
+        [
+          ServerHello sh ;
+          ServerHello { sh with version = TLS_1_0 } ;
+          ServerHello { sh with version = TLS_1_1 } ;
+
+          ServerHello { sh with sessionid = (Some random) } ;
+
+          ServerHello { sh with
+                        sessionid = (Some random) ;
+                        extensions = [Hostname None]
+                      } ;
+
+          ServerHello { sh with
+                        sessionid = (Some random) ;
+                        extensions = [Hostname None ; SecureRenegotiation random]
+                      } ;
+
+        ])
+
+let rw_handshake_server_hello_tests =
+  List.mapi
+    (fun i f -> "handshake server hello " ^ string_of_int i >:: rw_handshake_server_hello f)
+    rw_handshake_server_hello_vals
+
 let readerwriter_tests =
   version_tests @
   header_tests @
@@ -425,4 +478,5 @@ let readerwriter_tests =
   rw_ds_1_2_tests @
   rw_handshake_no_data_tests @
   rw_handshake_cstruct_data_tests @
-  rw_handshake_client_hello_tests
+  rw_handshake_client_hello_tests @
+  rw_handshake_server_hello_tests

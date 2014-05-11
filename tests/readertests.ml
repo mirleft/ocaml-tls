@@ -1429,16 +1429,18 @@ let good_server_hellos =
 
        ])
 
-let good_server_hellos_parser (xs, res) _ =
+let cmp_server_hellos sh sh' =
   let open Core in
+  assert_equal sh.version sh'.version ;
+  assert_cs_eq sh.random sh'.random ;
+  assert_sessionid_equal sh.sessionid sh'.sessionid ;
+  assert_equal sh.ciphersuites sh'.ciphersuites ;
+  assert_lists_eq assert_extension_equal sh.extensions sh'.extensions
+
+let good_server_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok (ServerHello sh) ->
-             assert_equal sh.version res.version ;
-             assert_cs_eq sh.random res.random ;
-             assert_sessionid_equal sh.sessionid res.sessionid ;
-             assert_equal sh.ciphersuites res.ciphersuites ;
-             assert_lists_eq assert_extension_equal sh.extensions res.extensions
+          | Or_error.Ok (Core.ServerHello sh) -> cmp_server_hellos sh res
           | _ -> assert_failure "handshake server hello parser failed")
 
 let good_server_hellos_tests =
