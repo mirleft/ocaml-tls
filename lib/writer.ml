@@ -92,8 +92,32 @@ let assemble_signature_algorithms s =
   assemble_sig (shift buf 2) s;
   buf
 
+let assemble_elliptic_curve c =
+  let buf = create 2 in
+  BE.set_uint16 buf 0 (named_curve_type_to_int c) ;
+  buf
+
+let assemble_elliptic_curves curves =
+  let buf = create 2 in
+  BE.set_uint16 buf 0 (2 * (List.length curves)) ;
+  buf <+> (Utils.Cs.appends (List.map assemble_elliptic_curve curves))
+
+let assemble_ec_point_format f =
+  let buf = create 1 in
+  set_uint8 buf 0 (ec_point_format_to_int f) ;
+  buf
+
+let assemble_ec_point_formats formats =
+  let buf = create 1 in
+  set_uint8 buf 0 (List.length formats) ;
+  buf <+> (Utils.Cs.appends (List.map assemble_ec_point_format formats))
+
 let assemble_extension e =
   let pay, typ = match e with
+    | EllipticCurves curves ->
+       (assemble_elliptic_curves curves, ELLIPTIC_CURVES)
+    | ECPointFormats formats ->
+       (assemble_ec_point_formats formats, EC_POINT_FORMATS)
     | SecureRenegotiation x ->
        let buf = create 1 in
        set_uint8 buf 0 (len x);
