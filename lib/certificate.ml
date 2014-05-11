@@ -190,7 +190,6 @@ let is_cert_valid now cert =
     | (_, false)   -> fail InvalidExtensions
 
 let is_ca_cert_valid now cert =
-  Printf.printf "verifying CA cert %s: " (common_name_to_string cert.asn);
   match
     is_self_signed cert,
     validate_signature cert cert,
