@@ -347,6 +347,6 @@ let parse_handshake = catch @@ fun buf ->
                                   ServerHelloDone
     | Some CERTIFICATE_REQUEST -> parse_certificate_request payload
     | Some CLIENT_KEY_EXCHANGE -> parse_client_key_exchange payload
-    | Some FINISHED -> Finished (sub payload 0 12)
+    | Some FINISHED -> Finished payload
     | _  -> raise_unknown @@ "handshake type" ^ string_of_int typ
 

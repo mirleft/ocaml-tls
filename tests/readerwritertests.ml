@@ -315,7 +315,7 @@ let rw_handshake_cstruct_data_vals =
   let emp = list_to_cstruct [ ] in
   Core.([ ServerKeyExchange emp ;
           ServerKeyExchange data_cs ;
-(*          Finished emp ; (* fails because reader uses hardcoded 12 bytes.. *) *)
+          Finished emp ;
           Finished data_cs ;
           ClientKeyExchange emp ;
           ClientKeyExchange data_cs ;
