@@ -1022,16 +1022,18 @@ let good_handshake_cstruct_data =
 
   ]
 
+let cmp_handshake_cstruct hs hs' =
+  Core.(match hs, hs' with
+        | Finished xs, Finished ys -> assert_cs_eq xs ys
+        | ServerKeyExchange xs, ServerKeyExchange ys -> assert_cs_eq xs ys
+        | Certificate xs, Certificate ys -> assert_lists_eq assert_cs_eq xs ys
+        | ClientKeyExchange xs, ClientKeyExchange ys -> assert_cs_eq xs ys
+        | _ -> assert_failure "handshake cstruct data parser broken")
+
 let good_handshake_cstruct_data_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok r ->
-             Core.(match r, res with
-                   | Finished xs, Finished ys -> assert_cs_eq xs ys
-                   | ServerKeyExchange xs, ServerKeyExchange ys -> assert_cs_eq xs ys
-                   | Certificate xs, Certificate ys -> assert_lists_eq assert_cs_eq xs ys
-                   | ClientKeyExchange xs, ClientKeyExchange ys -> assert_cs_eq xs ys
-                   | _ -> assert_failure "handshake cstruct data parser broken")
+          | Or_error.Ok r -> cmp_handshake_cstruct r res
           | Or_error.Error _ -> assert_failure "handshake cstruct data parser failed")
 
 let good_handshake_cstruct_data_tests =

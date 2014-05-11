@@ -292,21 +292,13 @@ let rw_handshake_no_data_tests =
 
 let rw_handshake_cstruct_data hs _ =
   let buf = Writer.assemble_handshake hs in
-  let cmp hs hs' =
-    Core.(match hs, hs' with
-          | Finished xs, Finished ys -> assert_cs_eq xs ys
-          | ServerKeyExchange xs, ServerKeyExchange ys -> assert_cs_eq xs ys
-          | Certificate xs, Certificate ys -> assert_lists_eq assert_cs_eq xs ys
-          | ClientKeyExchange xs, ClientKeyExchange ys -> assert_cs_eq xs ys
-          | _ -> assert_failure "handshake cstruct data parser broken")
-  in
   Reader.(match parse_handshake buf with
           | Or_error.Ok hs' ->
-             cmp hs hs' ;
+             Readertests.cmp_handshake_cstruct hs hs' ;
              (* lets get crazy and do it one more time *)
              let buf' = Writer.assemble_handshake hs' in
              (match parse_handshake buf' with
-              | Or_error.Ok hs'' -> cmp hs hs'
+              | Or_error.Ok hs'' -> Readertests.cmp_handshake_cstruct hs hs'
               | Or_error.Error _ -> assert_failure "handshake cstruct data inner failed")
           | Or_error.Error _ -> assert_failure "handshake cstruct data failed")
 
