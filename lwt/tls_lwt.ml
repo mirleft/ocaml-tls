@@ -3,7 +3,10 @@ open Lwt
 
 exception Tls_alert  of Tls.Packet.alert_type
 
-type socket = {
+type o_server = X509_lwt.priv
+type o_client = X509_lwt.validator
+
+type t = {
   role           : [ `Server | `Client ] ;
   fd             : Lwt_unix.file_descr ;
   mutable state  : [ `Active of Tls.Flow.state
@@ -12,21 +15,125 @@ type socket = {
   mutable linger : Cstruct.t option ;
 }
 
-type o_server = X509_lwt.priv
-type o_client = X509_lwt.validator
 
-let get_fd { fd; _ } = fd
+module Lwt_cs = struct
+
+  let naked ~name f fd cs =
+    try_lwt
+      Cstruct.(f fd cs.buffer cs.off cs.len) >|= fun res ->
+      match Lwt_unix.getsockopt_error fd with
+      | None     -> `Ok res
+      | Some err -> `Error (Unix.Unix_error (err, name, ""))
+    with err -> return @@ `Error err
+
+  let write = naked ~name:"Tls_lwt.write" Lwt_bytes.write
+  and read  = naked ~name:"Tls_lwt.read"  Lwt_bytes.read
+
+  let rec write_full fd = function
+    | cs when Cstruct.len cs = 0 -> return (`Ok ())
+    | cs ->
+        write fd cs >>= function
+          | `Error _ as e -> return e
+          | `Ok n         -> write_full fd (Cstruct.shift cs n)
+end
 
 
-(* type direction = Server | Client
+let handle_tls = function
+  | `Server -> Tls.Server.handle_tls
+  | `Client -> Tls.Client.handle_tls
 
-type socket = {
-  input     : Lwt_io.input_channel  ;
-  output    : Lwt_io.output_channel ;
-  direction : direction ;
-  mutable state : Tls.Engine.state ;
-  mutable input_leftovers : Cstruct.t list
-} *)
+
+let recv_buf = Cstruct.create 4096
+
+let rec read_react t =
+
+  let handle tls buf =
+    match handle_tls t.role tls buf with
+    | `Ok (tls, answer, appdata) ->
+        t.state <- `Active tls ;
+        Lwt_cs.write_full t.fd answer >> return (`Ok appdata)
+    | `Fail (alert, answer)      ->
+        t.state <- ( match alert with
+          | Tls.Packet.CLOSE_NOTIFY -> `Eof
+          | _                       -> `Error (Tls_alert alert) ) ;
+        Lwt_cs.write_full t.fd answer >> Lwt_unix.close t.fd >> read_react t
+  in
+  match t.state with
+  | `Eof | `Error _ as e -> return e
+  | `Active tls          ->
+      Lwt_cs.read t.fd recv_buf >>= function
+      | `Error _ as e -> t.state <- e    ; return e
+      | `Ok 0         -> t.state <- `Eof ; return `Eof
+      | `Ok n         -> handle tls (Cstruct.sub recv_buf 0 n)
+
+let rec read t buf =
+  let open Cstruct in
+
+  let emit res =
+    let rlen   = len res in
+    let n      = min (len buf) rlen in
+    blit res 0 buf 0 n ;
+    t.linger <- (if n < rlen then Some (sub res n (rlen - n)) else None);
+    return n
+  in
+  match t.linger with
+  | Some res -> emit res
+  | None     ->
+      read_react t >>= function
+        | `Eof           -> return 0
+        | `Error e       -> fail e
+        | `Ok None       -> read t buf
+        | `Ok (Some res) -> emit res
+
+let write t cs =
+  match t.state with
+  | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
+  | `Error err  -> fail err
+  | `Active tls ->
+      match Tls.Flow.send_application_data tls [cs] with
+      | None -> fail @@ Invalid_argument "tls: write: socket not ready"
+      | Some (tls, tlsdata) ->
+          t.state <- `Active tls ;
+          Lwt_cs.write_full t.fd tlsdata >>= function
+            | `Error e -> t.state <- `Error e ; fail e
+            | `Ok ()   -> return (Cstruct.len cs)
+
+let push_linger t mcs =
+  let open Tls.Utils.Cs in
+  match (mcs, t.linger) with
+  | (None, _)         -> ()
+  | (scs, None)       -> t.linger <- scs
+  | (Some cs, Some l) -> t.linger <- Some (l <+> cs)
+
+let rec drain_handshake t =
+  match t.state with
+  | `Active tls when Tls.Flow.can_send_appdata tls ->
+      return t
+  | _ ->
+      read_react t >>= function
+        | `Error e -> fail e
+        | `Eof     -> fail End_of_file
+        | `Ok cs   -> push_linger t cs ; drain_handshake t
+
+let server_of_fd cert fd =
+  drain_handshake {
+    role   = `Server ;
+    state  = `Active (Tls.Server.new_connection ~cert ()) ;
+    linger = None ;
+    fd ;
+  }
+
+let client_of_fd validator ~host fd =
+  let (tls, init) = Tls.Client.new_connection ~validator ~host ()
+  in
+  let t = {
+    role   = `Client ;
+    state  = `Active tls ;
+    linger = None ;
+    fd
+  } in
+  Lwt_cs.write_full fd init >> drain_handshake t
+
 
 (* This really belongs just about anywhere else: generic unix name resolution. *)
 let resolve host service =
@@ -39,6 +146,18 @@ let resolve host service =
   | ai::_ -> return ai.ai_addr
 
 
+let accept param fd =
+  lwt (fd', addr) = Lwt_unix.accept fd in
+  lwt t      = server_of_fd param fd' in
+  return (t, addr)
+
+let connect param (host, port) =
+  lwt addr = resolve host (string_of_int port) in
+  let fd   = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
+  Lwt_unix.connect fd addr >> client_of_fd param ~host fd
+
+
+
 (* let io_pair_of_fd fd =
   Lwt_io.(of_fd ~mode:Input fd, of_fd ~mode:Output fd) *)
 
@@ -46,72 +165,13 @@ let resolve host service =
   | cs when Cstruct.len cs = 0 -> return ()
   | cs -> Lwt_io.write oc (Cstruct.to_string cs) *)
 
-
-let naked_socket_op ~name f fd cs =
-  try_lwt
-    f fd cs.Cstruct.buffer cs.Cstruct.off cs.Cstruct.len >|= fun res ->
-    match Lwt_unix.getsockopt_error fd with
-    | None     -> `Ok res
-    | Some err -> `Error (Unix.Unix_error (err, name, ""))
-  with err -> return @@ `Error err
-
-let write_cs = naked_socket_op ~name:"Tls_lwt.write" Lwt_bytes.write
-and read_cs  = naked_socket_op ~name:"Tls_lwt.read"  Lwt_bytes.read
-
-let rec write_cs_full fd = function
-  | cs when Cstruct.len cs = 0 -> return (`Ok ())
-  | cs ->
-      Printf.printf "+++ will write. (%d)\n%!" (Cstruct.len cs); Cstruct.hexdump cs ;
-      write_cs fd cs >>= function
-        | `Error _ as e -> return e
-        | `Ok n         ->
-            Printf.printf "+++ wrote %d bytes.\n%!" n ;
-            write_cs_full fd (Cstruct.shift cs n)
-
-
-let handle_tls = function
-  | `Server -> Tls.Server.handle_tls
-  | `Client -> Tls.Client.handle_tls
-
-
-let recv_buf = Cstruct.create 4096
-
-let return_empty_o = return @@ Some (Cstruct.create 0)
-
-let rec read_react socket =
-
-  Printf.printf "**** read_react.\n%!";
-
-  let handle tls buf =
-    Printf.printf "**** handling input....\n%!" ;
-    match handle_tls socket.role tls buf with
-    | `Ok (tls, answer, appdata) ->
-        Printf.printf "**** processed: ok (to answer: %d)\n%!" (Cstruct.len answer);
-        socket.state <- `Active tls ;
-        Printf.printf "**** + answer: \n%!" ; Cstruct.hexdump answer ;
-        write_cs_full socket.fd answer >> return (`Ok appdata)
-    | `Fail (alert, answer)      ->
-        Printf.printf "**** processed: fail (to ans: %d)\n%!" (Cstruct.len answer);
-        socket.state <-
-          ( match alert with
-            | Tls.Packet.CLOSE_NOTIFY ->
-                Printf.printf "**** r/r -> eof\n%!" ; `Eof
-            | _                       ->
-                Printf.printf "**** r/r -> alert\n%!" ; `Error (Tls_alert alert) ) ;
-        write_cs_full socket.fd answer
-        >> Lwt_unix.close socket.fd
-        >> read_react socket
-  in
-  match socket.state with
-  | `Eof | `Error _ as e ->
-      Printf.printf "**** rr: failed socket\n%!" ; return e
-  | `Active tls ->
-      Printf.printf "**** will pull from socket.\n%!" ;
-      read_cs socket.fd recv_buf >>= function
-        | `Ok 0 -> socket.state <- `Eof ; return `Eof
-        | `Ok n -> handle tls (Cstruct.sub recv_buf 0 n)
-        | `Error _ as e -> return e
-
+(* let write_cs_full fd cs =
+  let n = Cstruct.len cs in
+  let rec write cs = function
+    | 0 -> return (`Ok n)
+    | n -> 
+  let rec write = function
+    | cs when empty cs -> return (`Ok (Cstruct.len cs)) *)
 
 (* let network_read_and_react socket =
   lwt str = Lwt_io.read ~count:4096 socket.input in
@@ -150,80 +210,6 @@ let rec read_react socket =
   | None -> fail @@ Invalid_argument "tls: send before handshake"
 
 let write socket cs = writev socket [cs] *)
-
-let rec read socket buf =
-  let open Cstruct in
-
-  let emit res =
-    let rlen   = len res in
-    let n      = min (len buf) rlen in
-    blit res 0 buf 0 n ;
-    socket.linger <-
-      ( if n < rlen then Some (sub res n (rlen - n)) else None ) ;
-    Printf.printf "emit: res: %d linger: %d\n%!" n
-      (match socket.linger with None -> 0 | Some cs -> Cstruct.len cs);
-    return n
-  in
-  match socket.linger with
-  | Some res ->
-      Printf.printf "read: have linger.\n%!" ;
-      Cstruct.hexdump res ;
-      emit res
-  | None     ->
-      Printf.printf "read: will read_react.\n%!" ;
-      read_react socket >>= function
-        | `Eof     -> socket.state <- `Eof ; return 0
-        | `Error e -> socket.state <- `Error e ; fail e
-        | `Ok None -> read socket buf
-        | `Ok (Some res) ->
-            Printf.printf "read: got res.\n%!" ;
-            emit res
-
-let write socket cs =
-  match socket.state with
-  | `Eof       -> fail @@ Invalid_argument "tls: closed socket"
-  | `Error err -> fail err
-  | `Active state ->
-      match Tls.Flow.send_application_data state [cs] with
-      | None -> fail @@ Invalid_argument "tls: write: socket not ready"
-      | Some (state, tlsdata) ->
-          socket.state <- `Active state ;
-          write_cs_full socket.fd tlsdata >>= function
-            | `Error e -> fail e
-            | `Ok _    -> return (Cstruct.len cs)
-
-let push_linger socket mcs =
-  match (mcs, socket.linger) with
-  | (None, _)         -> ()
-  | (scs, None)       -> socket.linger <- scs
-  | (Some cs, Some l) -> socket.linger <- Some (Tls.Utils.Cs.(l <+> cs))
-
-let rec drain_handshake socket =
-  match socket.state with
-  | `Active state when Tls.Flow.can_send_appdata state ->
-      return socket
-  | _ ->
-      Printf.printf "**** drain hs\n%!";
-      read_react socket >>= function
-        | `Error e -> fail e
-        | `Eof     -> fail End_of_file
-        | `Ok cs   -> push_linger socket cs ; drain_handshake socket
-
-let server_of_fd cert fd =
-  let state  = Tls.Server.new_connection ~cert () in
-  let socket = {
-    role = `Server ; fd ; state = `Active state ; linger = None
-  } in
-  drain_handshake socket
-
-let client_of_fd validator ~host fd =
-  let (state, init) =
-    Tls.Client.new_connection ~validator ~host () in
-  let socket = {
-    role = `Client ; fd ; state = `Active state ; linger = None
-  } in
-  write_cs_full fd init >> drain_handshake socket
-
 
 (* let rec drain_handshake = function
   | socket when Tls.Flow.can_send_appdata socket.state ->
@@ -264,13 +250,3 @@ let connect ?cert ~validator ~host ~port =
   lwt addr = resolve host port in
   let fd   = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
   Lwt_unix.connect fd addr >> client_of_fd ~host ?cert ~validator fd *)
-
-let accept param fd =
-  lwt (fd', addr) = Lwt_unix.accept fd in
-  lwt socket      = server_of_fd param fd' in
-  return (socket, addr)
-
-let connect param (host, port) =
-  lwt addr = resolve host (string_of_int port) in
-  let fd   = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
-  Lwt_unix.connect fd addr >> client_of_fd param ~host fd
