@@ -1022,16 +1022,18 @@ let good_handshake_cstruct_data =
 
   ]
 
+let cmp_handshake_cstruct hs hs' =
+  Core.(match hs, hs' with
+        | Finished xs, Finished ys -> assert_cs_eq xs ys
+        | ServerKeyExchange xs, ServerKeyExchange ys -> assert_cs_eq xs ys
+        | Certificate xs, Certificate ys -> assert_lists_eq assert_cs_eq xs ys
+        | ClientKeyExchange xs, ClientKeyExchange ys -> assert_cs_eq xs ys
+        | _ -> assert_failure "handshake cstruct data parser broken")
+
 let good_handshake_cstruct_data_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok r ->
-             Core.(match r, res with
-                   | Finished xs, Finished ys -> assert_cs_eq xs ys
-                   | ServerKeyExchange xs, ServerKeyExchange ys -> assert_cs_eq xs ys
-                   | Certificate xs, Certificate ys -> assert_lists_eq assert_cs_eq xs ys
-                   | ClientKeyExchange xs, ClientKeyExchange ys -> assert_cs_eq xs ys
-                   | _ -> assert_failure "handshake cstruct data parser broken")
+          | Or_error.Ok r -> cmp_handshake_cstruct r res
           | Or_error.Error _ -> assert_failure "handshake cstruct data parser failed")
 
 let good_handshake_cstruct_data_tests =
@@ -1255,16 +1257,18 @@ let good_client_hellos =
 
         ])
 
-let good_client_hellos_parser (xs, res) _ =
+let cmp_client_hellos ch ch' =
   let open Core in
+  assert_equal ch.version ch'.version ;
+  assert_cs_eq ch.random ch'.random ;
+  assert_sessionid_equal ch.sessionid ch'.sessionid ;
+  assert_lists_eq assert_equal ch.ciphersuites ch'.ciphersuites ;
+  assert_lists_eq assert_extension_equal ch.extensions ch'.extensions
+
+let good_client_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok (ClientHello ch) ->
-             assert_equal ch.version res.version ;
-             assert_cs_eq ch.random res.random ;
-             assert_sessionid_equal ch.sessionid res.sessionid ;
-             assert_lists_eq assert_equal ch.ciphersuites res.ciphersuites ;
-             assert_lists_eq assert_extension_equal ch.extensions res.extensions
+          | Or_error.Ok (Core.ClientHello ch) -> cmp_client_hellos ch res
           | _ -> assert_failure "handshake client hello parser failed")
 
 let good_client_hellos_tests =
@@ -1425,16 +1429,18 @@ let good_server_hellos =
 
        ])
 
-let good_server_hellos_parser (xs, res) _ =
+let cmp_server_hellos sh sh' =
   let open Core in
+  assert_equal sh.version sh'.version ;
+  assert_cs_eq sh.random sh'.random ;
+  assert_sessionid_equal sh.sessionid sh'.sessionid ;
+  assert_equal sh.ciphersuites sh'.ciphersuites ;
+  assert_lists_eq assert_extension_equal sh.extensions sh'.extensions
+
+let good_server_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok (ServerHello sh) ->
-             assert_equal sh.version res.version ;
-             assert_cs_eq sh.random res.random ;
-             assert_sessionid_equal sh.sessionid res.sessionid ;
-             assert_equal sh.ciphersuites res.ciphersuites ;
-             assert_lists_eq assert_extension_equal sh.extensions res.extensions
+          | Or_error.Ok (Core.ServerHello sh) -> cmp_server_hellos sh res
           | _ -> assert_failure "handshake server hello parser failed")
 
 let good_server_hellos_tests =

@@ -212,8 +212,271 @@ let rw_dh_tests =
     (fun i f -> "RW dh_param " ^ string_of_int i >:: readerwriter_dh_params f)
     rw_dh_params
 
+let readerwriter_digitally_signed params _ =
+  let buf = Writer.assemble_digitally_signed params in
+  Reader.(match parse_digitally_signed buf with
+          | Or_error.Ok params' ->
+             assert_cs_eq params params' ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_digitally_signed params' in
+             (match parse_digitally_signed buf' with
+              | Or_error.Ok params'' ->
+                 assert_cs_eq params params''
+              | Or_error.Error _ -> assert_failure "inner read and write digitally signed broken")
+          | Or_error.Error _ -> assert_failure "read and write digitally signed broken")
+
+let rw_ds_params =
+  let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let emp = list_to_cstruct [] in
+  [ a ; a <+> a ; emp ; emp <+> a ]
+
+let rw_ds_tests =
+  List.mapi
+    (fun i f -> "RW digitally signed " ^ string_of_int i >:: readerwriter_digitally_signed f)
+    rw_ds_params
+
+let readerwriter_digitally_signed_1_2 (h, s, params) _ =
+  let buf = Writer.assemble_digitally_signed_1_2 h s params in
+  Reader.(match parse_digitally_signed_1_2 buf with
+          | Or_error.Ok (h', s', params') ->
+             assert_equal h h' ;
+             assert_equal s s' ;
+             assert_cs_eq params params' ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_digitally_signed_1_2 h' s' params' in
+             (match parse_digitally_signed_1_2 buf' with
+              | Or_error.Ok (h'', s'', params'') ->
+                 assert_equal h h'' ;
+                 assert_equal s s'' ;
+                 assert_cs_eq params params''
+              | Or_error.Error _ -> assert_failure "inner read and write digitally signed 1.2 broken")
+          | Or_error.Error _ -> assert_failure "read and write digitally signed 1.2 broken")
+
+let rec permute f a b acc =
+  match b with
+  | []    -> acc
+  | e::rt -> permute f a rt ((List.map (fun x -> f x e) a) @ acc)
+
+let rw_ds_1_2_params =
+  let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let emp = list_to_cstruct [] in
+  let cs = [ a ; a <+> a ; emp ; emp <+> a ] in
+  let hashes = Ciphersuite.([ NULL ; MD5 ; SHA ; SHA224 ; SHA256 ; SHA384 ; SHA512 ]) in
+  let sign = Packet.([ ANONYMOUS ; RSA ; DSA ; ECDSA ]) in
+  let h_s = permute (fun h s -> (h, s)) hashes sign [] in
+  permute (fun (h, s) c -> (h, s, c)) h_s cs []
+
+let rw_ds_1_2_tests =
+  List.mapi
+    (fun i f -> "RW digitally signed 1.2 " ^ string_of_int i >:: readerwriter_digitally_signed_1_2 f)
+    rw_ds_1_2_params
+
+let rw_handshake_no_data hs _ =
+  let buf = Writer.assemble_handshake hs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok hs' ->
+             assert_equal hs hs' ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_handshake hs' in
+             (match parse_handshake buf' with
+              | Or_error.Ok hs'' -> assert_equal hs hs''
+              | Or_error.Error _ -> assert_failure "handshake no data inner failed")
+          | Or_error.Error _ -> assert_failure "handshake no data failed")
+
+let rw_handshakes_no_data_vals = [ Core.HelloRequest ; Core.ServerHelloDone ]
+
+let rw_handshake_no_data_tests =
+  List.mapi
+    (fun i f -> "handshake no data " ^ string_of_int i >:: rw_handshake_no_data f)
+    rw_handshakes_no_data_vals
+
+let rw_handshake_cstruct_data hs _ =
+  let buf = Writer.assemble_handshake hs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok hs' ->
+             Readertests.cmp_handshake_cstruct hs hs' ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_handshake hs' in
+             (match parse_handshake buf' with
+              | Or_error.Ok hs'' -> Readertests.cmp_handshake_cstruct hs hs'
+              | Or_error.Error _ -> assert_failure "handshake cstruct data inner failed")
+          | Or_error.Error _ -> assert_failure "handshake cstruct data failed")
+
+let rw_handshake_cstruct_data_vals =
+  let data_cs = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
+  let emp = list_to_cstruct [ ] in
+  Core.([ ServerKeyExchange emp ;
+          ServerKeyExchange data_cs ;
+          Finished emp ;
+          Finished data_cs ;
+          ClientKeyExchange emp ;
+          ClientKeyExchange data_cs ;
+          Certificate [] ;
+          Certificate [data_cs] ;
+          Certificate [data_cs; data_cs] ;
+          Certificate [data_cs ; emp] ;
+          Certificate [emp ; data_cs] ;
+          Certificate [emp ; data_cs ; emp] ;
+          Certificate [emp ; data_cs ; emp ; data_cs]
+       ])
+
+let rw_handshake_cstruct_data_tests =
+  List.mapi
+    (fun i f -> "handshake cstruct data " ^ string_of_int i >:: rw_handshake_cstruct_data f)
+    rw_handshake_cstruct_data_vals
+
+let rw_handshake_client_hello hs _ =
+  let buf = Writer.assemble_handshake hs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok hs' ->
+             Core.(match hs, hs' with
+                   | ClientHello ch, ClientHello ch' ->
+                      Readertests.cmp_client_hellos ch ch' ;
+                   | _ -> assert_failure "handshake client hello broken") ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_handshake hs' in
+             (match parse_handshake buf' with
+              | Or_error.Ok hs'' ->
+                 Core.(match hs, hs'' with
+                       | ClientHello ch, ClientHello ch'' ->
+                          Readertests.cmp_client_hellos ch ch'' ;
+                       | _ -> assert_failure "handshake client hello broken")
+              | Or_error.Error _ -> assert_failure "handshake client hello inner failed")
+          | Or_error.Error _ -> assert_failure "handshake client hello failed")
+
+let rw_handshake_client_hello_vals =
+  let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let random = list_to_cstruct (rnd @ rnd) in
+  Core.(let ch : client_hello =
+          { version = TLS_1_2 ;
+            random ;
+            sessionid = None ;
+            ciphersuites = [] ;
+            extensions = []}
+        in
+        [
+          ClientHello ch ;
+          ClientHello { ch with version = TLS_1_0 } ;
+          ClientHello { ch with version = TLS_1_1 } ;
+
+          ClientHello { ch with ciphersuites = [ Ciphersuite.TLS_NULL_WITH_NULL_NULL ] } ;
+          ClientHello { ch with ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) } ;
+
+          ClientHello { ch with sessionid = (Some (list_to_cstruct rnd)) } ;
+          ClientHello { ch with sessionid = (Some random) } ;
+
+          ClientHello { ch with
+                        ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        sessionid = (Some random) } ;
+
+          ClientHello { ch with extensions = [ Hostname None ] } ;
+          ClientHello { ch with extensions = [ Hostname None ; Hostname None ] } ;
+          ClientHello { ch with extensions = [ Hostname (Some "foobar") ] } ;
+          ClientHello { ch with extensions = [ Hostname (Some "foobarblubb") ] } ;
+
+          ClientHello { ch with extensions = [ Hostname (Some "foobarblubb") ; EllipticCurves Packet.([SECP521R1; SECP384R1]) ] } ;
+
+          ClientHello { ch with extensions = [
+                             Hostname (Some "foobarblubb") ;
+                             EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
+                             ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
+                             SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS); (Ciphersuite.MD5, Packet.RSA)]
+                           ] } ;
+
+          ClientHello { ch with
+                        ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        sessionid = (Some random) ;
+                        extensions = [ Hostname (Some "foobarblubb") ] } ;
+
+          ClientHello { ch with
+                        ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        sessionid = (Some random) ;
+                        extensions = [
+                             Hostname (Some "foobarblubb") ;
+                             EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
+                             ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
+                             SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS); (Ciphersuite.MD5, Packet.RSA)]
+                      ] } ;
+
+          ClientHello { ch with
+                        ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        sessionid = (Some random) ;
+                        extensions = [
+                             Hostname (Some "foobarblubb") ;
+                             EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
+                             ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
+                             SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS); (Ciphersuite.MD5, Packet.RSA)] ;
+                             SecureRenegotiation random
+                      ] } ;
+
+        ])
+
+let rw_handshake_client_hello_tests =
+  List.mapi
+    (fun i f -> "handshake client hello " ^ string_of_int i >:: rw_handshake_client_hello f)
+    rw_handshake_client_hello_vals
+
+let rw_handshake_server_hello hs _ =
+  let buf = Writer.assemble_handshake hs in
+  Reader.(match parse_handshake buf with
+          | Or_error.Ok hs' ->
+             Core.(match hs, hs' with
+                   | ServerHello sh, ServerHello sh' ->
+                      Readertests.cmp_server_hellos sh sh' ;
+                   | _ -> assert_failure "handshake server hello broken") ;
+             (* lets get crazy and do it one more time *)
+             let buf' = Writer.assemble_handshake hs' in
+             (match parse_handshake buf' with
+              | Or_error.Ok hs'' ->
+                 Core.(match hs, hs'' with
+                       | ServerHello sh, ServerHello sh'' ->
+                          Readertests.cmp_server_hellos sh sh'' ;
+                       | _ -> assert_failure "handshake server hello broken")
+              | Or_error.Error _ -> assert_failure "handshake server hello inner failed")
+          | Or_error.Error _ -> assert_failure "handshake server hello failed")
+
+let rw_handshake_server_hello_vals =
+  let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
+  let random = list_to_cstruct (rnd @ rnd) in
+  Core.(let sh : server_hello =
+          { version = TLS_1_2 ;
+            random ;
+            sessionid = None ;
+            ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+            extensions = []}
+        in
+        [
+          ServerHello sh ;
+          ServerHello { sh with version = TLS_1_0 } ;
+          ServerHello { sh with version = TLS_1_1 } ;
+
+          ServerHello { sh with sessionid = (Some random) } ;
+
+          ServerHello { sh with
+                        sessionid = (Some random) ;
+                        extensions = [Hostname None]
+                      } ;
+
+          ServerHello { sh with
+                        sessionid = (Some random) ;
+                        extensions = [Hostname None ; SecureRenegotiation random]
+                      } ;
+
+        ])
+
+let rw_handshake_server_hello_tests =
+  List.mapi
+    (fun i f -> "handshake server hello " ^ string_of_int i >:: rw_handshake_server_hello f)
+    rw_handshake_server_hello_vals
+
 let readerwriter_tests =
   version_tests @
   header_tests @
   rw_alert_tests @
-  rw_dh_tests
+  rw_dh_tests @
+  rw_ds_tests @
+  rw_ds_1_2_tests @
+  rw_handshake_no_data_tests @
+  rw_handshake_cstruct_data_tests @
+  rw_handshake_client_hello_tests @
+  rw_handshake_server_hello_tests

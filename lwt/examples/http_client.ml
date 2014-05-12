@@ -17,9 +17,13 @@ let http_client ?ca host port =
   tls_write sock req >> tls_read sock >>= Lwt_io.print
 
 let () =
-  match Sys.argv with
-  | [| _ ; host ; port ; trust |] -> Lwt_main.run (http_client host port ~ca:trust)
-  | [| _ ; host ; port |]         -> Lwt_main.run (http_client host port)
-  | [| _ ; host |]                -> Lwt_main.run (http_client host "443")
-  | args                          -> Printf.eprintf "%s <host> <port>\n%!" args.(0)
+  try (
+    match Sys.argv with
+    | [| _ ; host ; port ; trust |] -> Lwt_main.run (http_client host port ~ca:trust)
+    | [| _ ; host ; port |]         -> Lwt_main.run (http_client host port)
+    | [| _ ; host |]                -> Lwt_main.run (http_client host "443")
+    | args                          -> Printf.eprintf "%s <host> <port>\n%!" args.(0) ) with
+  | Tls_lwt.Tls_alert al ->
+     Printf.eprintf "TLS ALERT: %s\n%!" (Tls.Packet.alert_type_to_string al) ;
+     raise (Tls_lwt.Tls_alert al)
 
