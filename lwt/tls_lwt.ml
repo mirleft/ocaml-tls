@@ -15,33 +15,37 @@ type t = {
   mutable linger : Cstruct.t option ;
 }
 
+let o f g x = f (g x)
 
 module Lwt_cs = struct
 
   let naked ~name f fd cs =
-    try_lwt
-      Cstruct.(f fd cs.buffer cs.off cs.len) >|= fun res ->
-      match Lwt_unix.getsockopt_error fd with
-      | None     -> `Ok res
-      | Some err -> `Error (Unix.Unix_error (err, name, ""))
-    with err -> return @@ `Error err
+    lwt res = Cstruct.(f fd cs.buffer cs.off cs.len) in
+    match Lwt_unix.getsockopt_error fd with
+    | None     -> return res
+    | Some err -> fail @@ Unix.Unix_error (err, name, "")
 
   let write = naked ~name:"Tls_lwt.write" Lwt_bytes.write
   and read  = naked ~name:"Tls_lwt.read"  Lwt_bytes.read
 
   let rec write_full fd = function
-    | cs when Cstruct.len cs = 0 -> return (`Ok ())
-    | cs ->
-        write fd cs >>= function
-          | `Error _ as e -> return e
-          | `Ok n         -> write_full fd (Cstruct.shift cs n)
+    | cs when Cstruct.len cs = 0 -> return_unit
+    | cs -> write fd cs >>= o (write_full fd) (Cstruct.shift cs)
 end
 
+let (read_t, write_t) =
+  let finalize op t cs =
+    try_lwt op t.fd cs with exn ->
+      ( t.state <- `Error exn ; Lwt_unix.close t.fd >> fail exn )
+  in
+  ( finalize Lwt_cs.read, finalize Lwt_cs.write_full )
+
+let safely f a =
+  try_lwt ( f a >> return_unit ) with _ -> return_unit
 
 let handle_tls = function
   | `Server -> Tls.Server.handle_tls
   | `Client -> Tls.Client.handle_tls
-
 
 let recv_buf = Cstruct.create 4096
 
@@ -51,52 +55,53 @@ let rec read_react t =
     match handle_tls t.role tls buf with
     | `Ok (tls, answer, appdata) ->
         t.state <- `Active tls ;
-        Lwt_cs.write_full t.fd answer >> return (`Ok appdata)
+        write_t t answer >> return (`Ok appdata)
     | `Fail (alert, answer)      ->
-        t.state <- ( match alert with
-          | Tls.Packet.CLOSE_NOTIFY -> `Eof
-          | _                       -> `Error (Tls_alert alert) ) ;
-        Lwt_cs.write_full t.fd answer >> Lwt_unix.close t.fd >> read_react t
+        t.state <-
+          ( match alert with
+            | Tls.Packet.CLOSE_NOTIFY -> `Eof
+            | _                       -> `Error (Tls_alert alert) ) ;
+        safely (Lwt_cs.write_full t.fd) answer >> Lwt_unix.close t.fd
+        >> read_react t
   in
+
   match t.state with
-  | `Eof | `Error _ as e -> return e
-  | `Active tls          ->
-      Lwt_cs.read t.fd recv_buf >>= function
-      | `Error _ as e -> t.state <- e    ; return e
-      | `Ok 0         -> t.state <- `Eof ; return `Eof
-      | `Ok n         -> handle tls (Cstruct.sub recv_buf 0 n)
+  | `Error e    -> fail e
+  | `Eof        -> return `Eof
+  | `Active tls -> 
+      read_t t recv_buf >>= function
+        | 0 -> t.state <- `Eof ; return `Eof
+        | n -> handle tls (Cstruct.sub recv_buf 0 n)
 
 let rec read t buf =
-  let open Cstruct in
 
-  let emit res =
-    let rlen   = len res in
-    let n      = min (len buf) rlen in
+  let writeout res =
+    let open Cstruct in
+    let rlen = len res in
+    let n    = min (len buf) rlen in
     blit res 0 buf 0 n ;
-    t.linger <- (if n < rlen then Some (sub res n (rlen - n)) else None);
-    return n
-  in
+    t.linger <-
+      (if n < rlen then Some (sub res n (rlen - n)) else None) ;
+    return n in
+
   match t.linger with
-  | Some res -> emit res
+  | Some res -> writeout res
   | None     ->
       read_react t >>= function
         | `Eof           -> return 0
-        | `Error e       -> fail e
         | `Ok None       -> read t buf
-        | `Ok (Some res) -> emit res
+        | `Ok (Some res) -> writeout res
 
 let write t cs =
   match t.state with
-  | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
   | `Error err  -> fail err
+  | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
   | `Active tls ->
       match Tls.Flow.send_application_data tls [cs] with
       | None -> fail @@ Invalid_argument "tls: write: socket not ready"
       | Some (tls, tlsdata) ->
           t.state <- `Active tls ;
-          Lwt_cs.write_full t.fd tlsdata >>= function
-            | `Error e -> t.state <- `Error e ; fail e
-            | `Ok ()   -> return (Cstruct.len cs)
+          write_t t tlsdata >> return (Cstruct.len cs)
 
 let push_linger t mcs =
   let open Tls.Utils.Cs in
@@ -111,7 +116,6 @@ let rec drain_handshake t =
       return t
   | _ ->
       read_react t >>= function
-        | `Error e -> fail e
         | `Eof     -> fail End_of_file
         | `Ok cs   -> push_linger t cs ; drain_handshake t
 
