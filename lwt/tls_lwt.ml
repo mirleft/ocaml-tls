@@ -169,28 +169,27 @@ module Unix = struct
     Lwt_unix.connect fd addr >> client_of_fd param ~host fd
 
 
+  let read_bytes t bs off len =
+    read t (Cstruct.of_bigarray ~off ~len bs)
 
-  module type RW = sig
-    type buf
-    val read   : t -> buf      -> int  Lwt.t
-    val write  : t -> buf      -> unit Lwt.t
-    val writev : t -> buf list -> unit Lwt.t
-  end
-
-  module Bytes = struct
-
-    type buf = Lwt_bytes.t * int * int
-
-    let cs_of_bytes (bs, off, len) = Cstruct.of_bigarray ~off ~len bs
-
-    let read   t bs  = read t  @@ cs_of_bytes bs
-    and write  t bs  = write t @@ cs_of_bytes bs
-    and writev t bss = writev t @@ List.map cs_of_bytes bss
-  end
-
-  module Cstruct = struct
-    type buf = Cstruct.t
-    let read = read and write = write and writev = writev
-  end
+  let write_bytes t bs off len =
+    write t (Cstruct.of_bigarray ~off ~len bs)
 
 end
+
+
+type ic = Lwt_io.input_channel
+type oc = Lwt_io.output_channel
+
+let of_t t =
+  let open Lwt_io in
+  let close () = Unix.close t in
+  (make ~close ~mode:Input (Unix.read_bytes t)),
+  (make ~close ~mode:Output @@
+    fun a b c -> Unix.write_bytes t a b c >> return c)
+
+let accept param fd =
+  Unix.accept param fd >|= fun (t, peer) -> (of_t t, peer)
+
+and connect param addr = Unix.connect param addr >|= of_t
+

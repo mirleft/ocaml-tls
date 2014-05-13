@@ -16,12 +16,20 @@ module Unix : sig
   val accept  : o_server -> Lwt_unix.file_descr -> (t * Lwt_unix.sockaddr) Lwt.t
   val connect : o_client -> string * int -> t Lwt.t
 
-  module type RW = sig
-    type buf
-    val read   : t -> buf      -> int  Lwt.t
-    val write  : t -> buf      -> unit Lwt.t
-    val writev : t -> buf list -> unit Lwt.t
-  end
-  module Cstruct : RW with type buf = Cstruct.t
-  module Bytes   : RW with type buf = Lwt_bytes.t * int * int
+  val read   : t -> Cstruct.t      -> int  Lwt.t
+  val write  : t -> Cstruct.t      -> unit Lwt.t
+  val writev : t -> Cstruct.t list -> unit Lwt.t
+
+  val read_bytes  : t -> Lwt_bytes.t -> int -> int -> int  Lwt.t
+  val write_bytes : t -> Lwt_bytes.t -> int -> int -> unit Lwt.t
+
 end
+
+type ic = Lwt_io.input_channel
+type oc = Lwt_io.output_channel
+
+val accept : o_server -> Lwt_unix.file_descr
+                      -> ((ic * oc) * Lwt_unix.sockaddr) Lwt.t
+val connect : o_client -> string * int -> (ic * oc) Lwt.t
+
+val of_t : Unix.t -> ic * oc
