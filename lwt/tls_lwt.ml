@@ -47,7 +47,9 @@ module Unix = struct
   }
 
   let close t =
-    ( t.state <- `Eof ; Lwt_unix.close t.fd )
+    match t.state with
+    | `Active _ -> t.state <- `Eof ; Lwt_unix.close t.fd
+    | _         -> return_unit
 
   let (read_t, write_t) =
     let finalize op t cs =
