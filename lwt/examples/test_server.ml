@@ -4,6 +4,8 @@ open Ex_common
 
 let serve_ssl port callback =
 
+  let tag = "server" in
+
   lwt cert =
     X509_lwt.private_of_pems
       ~cert:server_cert
@@ -16,20 +18,22 @@ let serve_ssl port callback =
     listen s 10 ;
     s in
 
-  lwt (socket, addr) = Tls_lwt.accept ~cert server_s in
-  yap ~tag:"server" "-> connect" >>
-  yap ~tag:"server" ("-> start @ " ^ string_of_int port) >>
-  try_lwt callback socket addr
-  with exn -> yap ~tag:"server" "+ handler error"
+  lwt (channels, addr) = Tls_lwt.accept cert server_s in
+  yap ~tag "-> connect" >>
+  yap ~tag ("-> start @ " ^ string_of_int port) >>
+  try_lwt callback channels addr with exn ->
+    yap ~tag "+ handler error"
 
 
 let test_server port =
-  serve_ssl port @@ fun socket addr ->
-    yap ~tag:"handler" "-> incoming" >>
-    try_lwt
-      lwt data = tls_read socket in
-      yap ~tag:"handler" ("recv: " ^ data) >> tls_write socket data
-    with End_of_file -> yap ~tag:"handler" "eof."
+  let tag = "handler" in
+  let rec echo (ic, oc as chans) addr =
+    match_lwt Lwt_io.read_line ic with
+    | ""   -> yap ~tag "eof."
+    | line -> yap ~tag ("+ " ^ line)
+              >> Lwt_io.write_line oc line >> echo chans addr
+  in
+  serve_ssl port echo
 
 let () =
   let port =

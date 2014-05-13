@@ -3,18 +3,18 @@ open Ex_common
 open Lwt
 
 let echo_client ?ca host port =
+  let port = int_of_string port in
   lwt validator = X509_lwt.validator
     (match ca with
      | None        -> `Ca_dir ca_cert_dir
      | Some "NONE" -> `No_validation_I'M_STUPID
      | Some f      -> `Ca_file f)
   in
-  lwt sock      = Tls_lwt.connect validator host port
-  in
+  lwt (ic, oc) = Tls_lwt.connect validator (host, port) in
   let rec network () =
-    tls_read sock >>= Lwt_io.printf "[recv] %s\n%!" >> network ()
+    Lwt_io.(read_line ic >>= printf "+ %s\n%!" >> network ())
   and keyboard () =
-    Lwt_io.(read_line stdin) >>= tls_write sock >> keyboard ()
+    Lwt_io.(read_line stdin >>= write_line oc >> keyboard ())
   in
   Lwt.join [ network () ; keyboard () ]
 
