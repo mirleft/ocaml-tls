@@ -92,16 +92,18 @@ let rec read t buf =
         | `Ok None       -> read t buf
         | `Ok (Some res) -> writeout res
 
-let write t cs =
+let writev t css =
   match t.state with
   | `Error err  -> fail err
   | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
   | `Active tls ->
-      match Tls.Flow.send_application_data tls [cs] with
-      | None -> fail @@ Invalid_argument "tls: write: socket not ready"
+      match Tls.Flow.send_application_data tls css with
+      | None                ->
+          fail @@ Invalid_argument "tls: write: socket not ready"
       | Some (tls, tlsdata) ->
-          t.state <- `Active tls ;
-          write_t t tlsdata >> return (Cstruct.len cs)
+          ( t.state <- `Active tls ; write_t t tlsdata )
+
+let write t cs = writev t [cs]
 
 let push_linger t mcs =
   let open Tls.Utils.Cs in

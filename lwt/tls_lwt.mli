@@ -8,8 +8,9 @@ type o_client = X509_lwt.validator
 
 val resolve : string -> string -> Unix.sockaddr Lwt.t
 
-val read  : t -> Cstruct.t -> int Lwt.t
-val write : t -> Cstruct.t -> int Lwt.t
+val read   : t -> Cstruct.t      -> int  Lwt.t
+val write  : t -> Cstruct.t      -> unit Lwt.t
+val writev : t -> Cstruct.t list -> unit Lwt.t
 
 val server_of_fd : o_server ->                Lwt_unix.file_descr -> t Lwt.t
 val client_of_fd : o_client -> host:string -> Lwt_unix.file_descr -> t Lwt.t
