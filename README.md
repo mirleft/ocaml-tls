@@ -19,6 +19,7 @@ implemented
 - RFC 5246 - TLS Protocol version 1.2
 - RFC 5746 - TLS Renegotiation Indication Extension
 - draft-agl-tls-padding-03 - A TLS padding extension
+- draft-mathewson-no-gmtunixtime - No UNIX time in client and server hello
 
 work in progress
 
