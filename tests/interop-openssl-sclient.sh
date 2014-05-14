@@ -45,7 +45,7 @@ for i in $ciphers; do
         extra_args="-cipher $i"
         testit
     else
-        #expects a failure (openssl s_client switches to sslv2 here)
+        echo "not testing RC4-MD5 without tls version (openssl will use SSLv2 which fails)"
     fi
 
     extra_args="-tls1 -cipher $i"
