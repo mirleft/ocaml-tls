@@ -47,6 +47,7 @@ module Unix = struct
   }
 
   let close t =
+    (* XXX send close alert *)
     match t.state with
     | `Active _ -> t.state <- `Eof ; Lwt_unix.close t.fd
     | _         -> return_unit
@@ -160,7 +161,7 @@ module Unix = struct
 
   let accept param fd =
     lwt (fd', addr) = Lwt_unix.accept fd in
-    lwt t           = server_of_fd param fd' in
+    lwt t = server_of_fd param fd' in
     return (t, addr)
 
   let connect param (host, port) =

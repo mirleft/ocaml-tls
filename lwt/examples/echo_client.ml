@@ -3,6 +3,8 @@ open Ex_common
 open Lwt
 
 let echo_client ?ca host port =
+  let open Lwt_io in
+
   let port = int_of_string port in
   lwt validator = X509_lwt.validator
     (match ca with
@@ -11,12 +13,10 @@ let echo_client ?ca host port =
      | Some f      -> `Ca_file f)
   in
   lwt (ic, oc) = Tls_lwt.connect validator (host, port) in
-  let rec network () =
-    Lwt_io.(read_line ic >>= printf "+ %s\n%!" >> network ())
-  and keyboard () =
-    Lwt_io.(read_line stdin >>= write_line oc >> keyboard ())
-  in
-  Lwt.join [ network () ; keyboard () ]
+  Lwt.join [
+    lines ic    |> Lwt_stream.iter_s (printf "+ %s\n%!") ;
+    lines stdin |> Lwt_stream.iter_s (write_line oc)
+  ]
 
 let () =
   try (

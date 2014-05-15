@@ -33,13 +33,11 @@ let serve_ssl port callback =
 
 let echo_server port =
   let tag = "handler" in
-  let rec echo (ic, oc as chans) addr =
-    match_lwt Lwt_io.read_line ic with
-    | ""   -> yap ~tag "eof."
-    | line -> yap ~tag ("+ " ^ line)
-              >> Lwt_io.write_line oc line >> echo chans addr 
-  in
-  serve_ssl port echo
+  serve_ssl port @@ fun (ic, oc) addr ->
+    lines ic |> Lwt_stream.iter_s (fun line ->
+      yap ~tag ("+ " ^ line) >> Lwt_io.write_line oc line)
+    >>
+    yap ~tag "eof."
 
 let () =
   let port =
