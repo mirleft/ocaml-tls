@@ -11,7 +11,7 @@ let yap ~tag msg = Lwt_io.printf "[%s] %s\n%!" tag msg
 
 let lines ic =
   Lwt_stream.from @@ fun () ->
-    Lwt_io.read_line ic >>= function
-      | "" -> Lwt_io.close ic >> return_none
-      | ln -> return (Some ln)
+    Lwt_io.read_line_opt ic >>= function
+      | None -> Lwt_io.close ic >> return_none
+      | line -> return line
 

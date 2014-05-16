@@ -18,26 +18,31 @@ let serve_ssl port callback =
     listen s 10 ;
     s in
 
+  let handle channels addr =
+    async @@ fun () ->
+      try_lwt
+        callback channels addr >> yap ~tag "<- handler done"
+      with
+      | Tls_lwt.Tls_alert a ->
+          yap ~tag @@ "handler: " ^ Tls.Packet.alert_type_to_string a
+      | exn -> yap ~tag "handler: exception" >> fail exn
+  in
+
+  yap ~tag ("-> start @ " ^ string_of_int port)
+  >>
   let rec loop () =
     lwt (channels, addr) = Tls_lwt.accept cert server_s in
     yap ~tag "-> connect"
     >>
-    let _ =
-      try_lwt callback channels addr with exn ->
-        yap ~tag "+ handler error"
-    in
-    loop ()
+    ( handle channels addr ; loop () )
   in
-  yap ~tag ("-> start @ " ^ string_of_int port) >> loop ()
+  loop ()
 
 
 let echo_server port =
-  let tag = "handler" in
   serve_ssl port @@ fun (ic, oc) addr ->
     lines ic |> Lwt_stream.iter_s (fun line ->
-      yap ~tag ("+ " ^ line) >> Lwt_io.write_line oc line)
-    >>
-    yap ~tag "eof."
+      yap "handler" ("+ " ^ line) >> Lwt_io.write_line oc line)
 
 let () =
   let port =

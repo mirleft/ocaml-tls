@@ -18,20 +18,20 @@ let serve_ssl port callback =
     listen s 10 ;
     s in
 
+  yap ~tag ("-> start @ " ^ string_of_int port)
+  >>
   lwt (channels, addr) = Tls_lwt.accept cert server_s in
-  yap ~tag "-> connect" >>
-  yap ~tag ("-> start @ " ^ string_of_int port) >>
-  try_lwt callback channels addr with exn ->
-    yap ~tag "+ handler error"
+  yap ~tag "-> connect"
+  >>
+  callback channels addr
+  >>
+  yap ~tag "<- handler done"
 
 
 let test_server port =
-  let tag = "handler" in
   serve_ssl port @@ fun (ic, oc) addr ->
     lines ic |> Lwt_stream.iter_s (fun line ->
-      yap ~tag ("+ " ^ line) >> Lwt_io.write_line oc line)
-    >>
-    yap ~tag "eof."
+      yap "handler" ("+ " ^ line) >> Lwt_io.write_line oc line)
 
 let () =
   let port =
