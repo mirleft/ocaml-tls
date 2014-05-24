@@ -1,4 +1,39 @@
 
+let const a _ = a
+
+let id a = a
+
+let o f g x = f (g x)
+
+module List_set = struct
+
+  let inter ?(compare = compare) l1 l2 =
+    let rec loop xs ys =
+      match (xs, ys) with
+      | ([], _) | (_, []) -> []
+      | (x::xss, y::yss)  ->
+          match compare x y with
+          | -1 -> loop xss ys
+          |  1 -> loop xs yss
+          |  _ -> x :: loop xss yss in
+    loop List.(sort compare l1) List.(sort compare l2)
+
+  let union ?(compare = compare) l1 l2 =
+    let rec loop xs ys =
+      match (xs, ys) with
+      | ([], _)          -> ys
+      | (_, [])          -> xs
+      | (x::xss, y::yss) ->
+          match compare x y with
+          | -1 -> x :: loop xss ys
+          |  1 -> y :: loop xs yss
+          |  _ -> x :: loop xss yss in
+    loop List.(sort compare l1) List.(sort compare l2)
+
+  let equal ?(compare = compare) l1 l2 =
+    List.(sort compare l1 = sort compare l2)
+
+end
 
 (*
  * MORNING PRAYER:
@@ -79,11 +114,6 @@ let rec last = function
   | [x]   -> x
   | _::xs -> last xs
 
-let const a _ = a
-
-let id a = a
-
-let o f g x = f (g x)
 
 let hexdump_to_str cs =
   let b = Buffer.create 16 in
