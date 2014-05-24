@@ -59,6 +59,7 @@ let find_premaster p =
   match Ciphersuite.ciphersuite_kex p.ciphersuite with
 
   | Ciphersuite.RSA ->
+     (* this is wrong, must be the version in the client hello *)
      let ver = Writer.assemble_protocol_version p.protocol_version in
      let premaster = ver <+> Rng.generate 46 in
      peer_rsa_key p.peer_certificate >>= fun pubkey ->

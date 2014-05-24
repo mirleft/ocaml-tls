@@ -1,8 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: f4153e8906a6a903c67362c64bda296c)
+# DO NOT EDIT (digest: de968287b474e2ccf8972f8db4b491c9)
 Testlib
 Readertests
 Writertests
 Readerwritertests
+Handshakes
 Unittests
 # OASIS_STOP

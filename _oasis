@@ -29,10 +29,11 @@ Library "tls"
   InternalModules : Registry, Asn_grammars, Control
   Pack            : true
   BuildDepends    : cstruct, cstruct.syntax, nocrypto, asn1-combinators
+#, bisect
 
 Library "tests"
   Path            : tests/
-  Modules         : Testlib, Readertests, Writertests, Readerwritertests, Unittests
+  Modules         : Testlib, Readertests, Writertests, Readerwritertests, Handshakes, Unittests
   Install         : false
   Build          $: flag(tests)
   BuildDepends    : tls, oUnit
@@ -62,9 +63,9 @@ Executable "test_runner"
   BuildDepends    : tls, tests
 
 Test it
-  Command         : $test_runner
+  Command         : $test_runner -runner sequential
   Run            $: flag(tests)
-
+#  PostCommand     : (cd _build; bisect-report -html ../coverage `find ../ -name 'bisect*.out'` ; find ../ -name 'bisect*.out' -delete)
 
 # Random examples.
 
