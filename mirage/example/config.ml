@@ -2,6 +2,13 @@ open Mirage
 
 let secrets_dir = "sekrit"
 
+let build =
+  try
+    match Sys.getenv "BUILD" with
+    | "client" -> `Client
+    | "server" -> `Server
+  with Not_found -> `Server
+
 let disk =
   match get_mode () with
   | `Unix -> direct_kv_ro secrets_dir
@@ -15,11 +22,13 @@ let stack =
 let server =
   foreign "Unikernel.Server" @@ console @-> stackv4 @-> kv_ro @-> job
 
+let client =
+  foreign "Unikernel.Client" @@ console @-> stackv4 @-> kv_ro @-> job
+
 let () =
   add_to_ocamlfind_libraries ["tls"; "tls.mirage"] ;
-  register "tls-server" [
-    server $ default_console
-           $ stack
-           $ disk
-  ]
-
+  match build with
+  | `Server ->
+      register "tls-server" [ server $ default_console $ stack $ disk ]
+  | `Client ->
+      register "tls-client" [ client $ default_console $ stack $ disk ]
