@@ -644,7 +644,7 @@ module PK = struct
 
     (* XXX ditch big_natural parser, use zarith for asn integer *)
     let f (_, (n, (e, (d, (p, (q, (dp, (dq, (q', _))))))))) =
-      Cstruct.(Rsa.priv ~e:(of_string e) ~d:(of_string d) ~n:(of_string n)
+      Cstruct.(RSA.priv ~e:(of_string e) ~d:(of_string d) ~n:(of_string n)
                         ~p:(of_string p) ~q:(of_string q)
                         ~dp:(of_string dp) ~dq:(of_string dq) ~q':(of_string q'))
 
@@ -667,7 +667,7 @@ module PK = struct
   let rsa_public_key =
 
     (* XXX ditch big_natural parser, use zarith for asn integer *)
-    let f (n, e) = Rsa.pub ~n:(Cstruct.of_string n) ~e:(Cstruct.of_string e)
+    let f (n, e) = RSA.pub ~n:(Cstruct.of_string n) ~e:(Cstruct.of_string e)
     and g pub = assert false (* XXX export from nocrypto *) in
 
     map f g @@
@@ -685,7 +685,7 @@ module PK = struct
   (* ... *)
 
   type t =
-    | RSA    of Rsa.pub
+    | RSA    of RSA.pub
     | EC_pub of OID.t
 
   let rsa_pub_of_cs, rsa_pub_to_cs = project_exn rsa_public_key

@@ -55,7 +55,7 @@ let finished version master_secret label ps =
 let padPKCS1_and_signRSA key msg =
 
   (* XXX XXX temp *)
-  let len = Rsa.priv_bits key / 8 in
+  let len = RSA.priv_bits key / 8 in
 
   (* inspiration from RFC3447 EMSA-PKCS1-v1_5 and rsa_sign.c from OpenSSL *)
   (* also ocaml-ssh kex.ml *)
@@ -71,12 +71,12 @@ let padPKCS1_and_signRSA key msg =
     done;
     Cstruct.set_uint8 out (pred padlen) 0;
     Cstruct.blit msg 0 out padlen mlen;
-    Some (Rsa.decrypt ~key out)
+    Some (RSA.decrypt ~key out)
   else
     None
 
 let verifyRSA_and_unpadPKCS1 pubkey data =
-  let dat = Rsa.encrypt ~key:pubkey data in
+  let dat = RSA.encrypt ~key:pubkey data in
   if (Cstruct.get_uint8 dat 0 = 0) && (Cstruct.get_uint8 dat 1 = 1) then
     let rec ff idx =
       match Cstruct.get_uint8 dat idx with
@@ -95,7 +95,7 @@ let padPKCS1_and_encryptRSA pubkey data =
      0x00 0x02 <random_not_zero> 0x00 data *)
 
   (* XXX XXX this is temp. *)
-  let msglen = Rsa.pub_bits pubkey / 8 in
+  let msglen = RSA.pub_bits pubkey / 8 in
 
   let open Cstruct in
   let padlen = msglen - (len data) in
@@ -127,15 +127,15 @@ let padPKCS1_and_encryptRSA pubkey data =
 
   (* merging all together *)
   blit data 0 msg padlen (len data);
-  Rsa.encrypt ~key:pubkey msg
+  RSA.encrypt ~key:pubkey msg
 
 let decryptRSA_unpadPKCS1 key msg =
   (* XXX XXX temp *)
-  let msglen = Rsa.priv_bits key / 8 in
+  let msglen = RSA.priv_bits key / 8 in
 
   let open Cstruct in
   if msglen == len msg then
-    let dec = Rsa.decrypt ~key msg in
+    let dec = RSA.decrypt ~key msg in
     let rec check_padding cur start = function
       | 0                  -> let res = get_uint8 dec 0 = 0 in
                               check_padding (res && cur) 1 1
@@ -162,52 +162,22 @@ and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
   ( DH.group ~p:dh_p ~gg:dh_g (), dh_Ys )
 
 
-(* XXX *)
-
-(* Stupid boiler before properly exposing proper module types from nocrypto. *)
-
-module type Stream_T = sig
-  type key
-  type result = { message : Cstruct.t ; key : key }
-  val of_secret : Cstruct.t -> key
-  val encrypt : key:key -> Cstruct.t -> result
-  val decrypt : key:key -> Cstruct.t -> result
-end
-
-module type CBC_T = sig
-  type key
-  type result = { message : Cstruct.t ; iv : Cstruct.t }
-  val block_size : int
-  val of_secret : Cstruct.t -> key
-  val encrypt : key:key -> iv:Cstruct.t -> Cstruct.t -> result
-  val decrypt : key:key -> iv:Cstruct.t -> Cstruct.t -> result
-end
-
-module type Hash_T = sig
-  val digest  : Cstruct.t -> Cstruct.t
-  val digestv : Cstruct.t list -> Cstruct.t
-  val hmac    : key:Cstruct.t -> Cstruct.t -> Cstruct.t
-  val digest_size : int
-end
-
-(* /XXX *)
-
-type 'k stream_cipher = (module Stream_T with type key = 'k)
-type 'k cbc_cipher    = (module CBC_T    with type key = 'k)
-type hash_fn          = (module Hash_T)
+type 'k stream_cipher = (module Stream.T    with type key = 'k)
+type 'k cbc_cipher    = (module Block.T_CBC with type key = 'k)
+type hash_fn          = (module Hash.T_MAC)
 
 module Ciphers = struct
 
   (* XXX partial *)
   let get_hash = function
-    | MD5    -> (module Hash.MD5    : Hash_T)
-    | SHA    -> (module Hash.SHA1   : Hash_T)
+    | MD5    -> (module Hash.MD5    : Hash.T_MAC)
+    | SHA    -> (module Hash.SHA1   : Hash.T_MAC)
 (* XXX needs either divorcing hash selection from hmac selection, or a bit of
  * structural subtyping magic as SHA224 has no defined HMAC. (?) *)
-(*     | SHA224 -> (module Hash.SHA224 : Hash_T) *)
-    | SHA256 -> (module Hash.SHA256 : Hash_T)
-    | SHA384 -> (module Hash.SHA384 : Hash_T)
-    | SHA512 -> (module Hash.SHA512 : Hash_T)
+(*     | SHA224 -> (module Hash.SHA224 : Hash.T_MAC) *)
+    | SHA256 -> (module Hash.SHA256 : Hash.T_MAC)
+    | SHA384 -> (module Hash.SHA384 : Hash.T_MAC)
+    | SHA512 -> (module Hash.SHA512 : Hash.T_MAC)
 
   type keyed =
     | K_Stream : 'k stream_cipher * 'k -> keyed
@@ -218,28 +188,28 @@ module Ciphers = struct
 
     | RC4_128 ->
         let open Stream in
-        K_Stream ( (module ARC4 : Stream_T with type key = ARC4.key),
+        K_Stream ( (module ARC4 : Stream.T with type key = ARC4.key),
                    ARC4.of_secret secret )
 
     | TRIPLE_DES_EDE_CBC ->
         let open Block.DES in
-        K_CBC ( (module CBC : CBC_T with type key = CBC.key),
+        K_CBC ( (module CBC : Block.T_CBC with type key = CBC.key),
                 CBC.of_secret secret )
 
     | AES_128_CBC ->
         let open Block.AES in
-        K_CBC ( (module CBC : CBC_T with type key = CBC.key),
+        K_CBC ( (module CBC : Block.T_CBC with type key = CBC.key),
                 CBC.of_secret secret )
 
     | AES_256_CBC ->
         let open Block.AES in
-        K_CBC ( (module CBC : CBC_T with type key = CBC.key),
+        K_CBC ( (module CBC : Block.T_CBC with type key = CBC.key),
                 CBC.of_secret secret )
 end
 
 let hash hash_ctor cs =
   let hasht = Ciphers.get_hash hash_ctor in
-  let module H = (val hasht : Hash_T) in
+  let module H = (val hasht : Hash.T_MAC) in
   H.digest cs
 
 let hash_eq hash_ctor ~target cs =
@@ -272,24 +242,24 @@ let mac (hash, secret) seq ty (v_major, v_minor) data =
   set_uint8 prefix 10 v_minor;
   BE.set_uint16 prefix 11 len;
 
-  let module H = (val hash : Hash_T) in
+  let module H = (val hash : Hash.T_MAC) in
   H.hmac ~key:secret (prefix <+> data)
 
 
 let cbc_block (type a) cipher =
-  let module C = (val cipher : CBC_T with type key = a) in C.block_size
+  let module C = (val cipher : Block.T_CBC with type key = a) in C.block_size
 
 let digest_size h =
-  let module H = (val h : Hash_T) in H.digest_size
+  let module H = (val h : Hash.T_MAC) in H.digest_size
 
 
 let encrypt_stream (type a) ~cipher ~key data =
-  let module C = (val cipher : Stream_T with type key = a) in
+  let module C = (val cipher : Stream.T with type key = a) in
   let { C.message ; key } = C.encrypt ~key data in
   (message, key)
 
 let decrypt_stream (type a) ~cipher ~key data =
-  let module C = (val cipher : Stream_T with type key = a) in
+  let module C = (val cipher : Stream.T with type key = a) in
   let { C.message ; key } = C.decrypt ~key data in
   (message, key)
 
@@ -326,13 +296,13 @@ let cbc_unpad ~block data =
 
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
-  let module C = (val cipher : CBC_T with type key = a) in
+  let module C = (val cipher : Block.T_CBC with type key = a) in
   let { C.message ; iv } =
     C.encrypt ~key ~iv (data <+> cbc_pad C.block_size data) in
   (message, iv)
 
 let decrypt_cbc (type a) ~cipher ~key ~iv data =
-  let module C = (val cipher : CBC_T with type key = a) in
+  let module C = (val cipher : Block.T_CBC with type key = a) in
   try
     let { C.message ; iv } = C.decrypt ~key ~iv data in
     match cbc_unpad C.block_size message with

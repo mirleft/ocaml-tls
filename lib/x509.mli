@@ -10,7 +10,7 @@ module Cert : sig
 end
 
 module PK : sig
-  type t = Nocrypto.Rsa.priv
+  type t = Nocrypto.RSA.priv
   val of_pem_cstruct  : Cstruct.t -> t list
   val of_pem_cstruct1 : Cstruct.t -> t
 end
