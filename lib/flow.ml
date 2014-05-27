@@ -81,7 +81,7 @@ type peer_cert = [
 
 type own_cert = [
     `Cert_none
-  | `Cert_private of Certificate.certificate * Rsa.priv
+  | `Cert_private of Certificate.certificate * RSA.priv
 ]
 
 type security_parameters = {

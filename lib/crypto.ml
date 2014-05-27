@@ -55,7 +55,7 @@ let finished version master_secret label ps =
 let padPKCS1_and_signRSA key msg =
 
   (* XXX XXX temp *)
-  let len = Rsa.priv_bits key / 8 in
+  let len = RSA.priv_bits key / 8 in
 
   (* inspiration from RFC3447 EMSA-PKCS1-v1_5 and rsa_sign.c from OpenSSL *)
   (* also ocaml-ssh kex.ml *)
@@ -71,12 +71,12 @@ let padPKCS1_and_signRSA key msg =
     done;
     Cstruct.set_uint8 out (pred padlen) 0;
     Cstruct.blit msg 0 out padlen mlen;
-    Some (Rsa.decrypt ~key out)
+    Some (RSA.decrypt ~key out)
   else
     None
 
 let verifyRSA_and_unpadPKCS1 pubkey data =
-  let dat = Rsa.encrypt ~key:pubkey data in
+  let dat = RSA.encrypt ~key:pubkey data in
   if (Cstruct.get_uint8 dat 0 = 0) && (Cstruct.get_uint8 dat 1 = 1) then
     let rec ff idx =
       match Cstruct.get_uint8 dat idx with
@@ -95,7 +95,7 @@ let padPKCS1_and_encryptRSA pubkey data =
      0x00 0x02 <random_not_zero> 0x00 data *)
 
   (* XXX XXX this is temp. *)
-  let msglen = Rsa.pub_bits pubkey / 8 in
+  let msglen = RSA.pub_bits pubkey / 8 in
 
   let open Cstruct in
   let padlen = msglen - (len data) in
@@ -127,15 +127,15 @@ let padPKCS1_and_encryptRSA pubkey data =
 
   (* merging all together *)
   blit data 0 msg padlen (len data);
-  Rsa.encrypt ~key:pubkey msg
+  RSA.encrypt ~key:pubkey msg
 
 let decryptRSA_unpadPKCS1 key msg =
   (* XXX XXX temp *)
-  let msglen = Rsa.priv_bits key / 8 in
+  let msglen = RSA.priv_bits key / 8 in
 
   let open Cstruct in
   if msglen == len msg then
-    let dec = Rsa.decrypt ~key msg in
+    let dec = RSA.decrypt ~key msg in
     let rec check_padding cur start = function
       | 0                  -> let res = get_uint8 dec 0 = 0 in
                               check_padding (res && cur) 1 1

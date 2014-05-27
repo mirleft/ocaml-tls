@@ -88,7 +88,7 @@ end
 
 module PK = struct
 
-  type t = Nocrypto.Rsa.priv
+  type t = Nocrypto.RSA.priv
 
   let of_pem_cstruct cs =
     List.fold_left (fun pks -> function
