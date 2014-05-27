@@ -126,6 +126,7 @@ module Make_core (TCP: V1_LWT.TCPV4) = struct
 
 end
 
+(* Mock-`FLOW` module, for constructing a `Channel` on top of. *)
 module Make_flow (TCP: V1_LWT.TCPV4) = struct
 
   include Make_core (TCP)
@@ -155,4 +156,44 @@ module Make_flow (TCP: V1_LWT.TCPV4) = struct
   and connect _           = assert false
 
   and id _ = assert false
+end
+
+module X509 (KV : V1_LWT.KV_RO) (CL : V1.CLOCK) = struct
+
+  let (</>) p1 p2 = p1 ^ "/" ^ p2
+
+  let path          = "tls"
+  let ca_roots_file = path </> "ca-roots.crt"
+  let default_cert  = "server"
+
+  let (>>==) a f =
+    a >>= function
+      | `Ok x -> f x
+      | `Error (KV.Unknown_key key) -> fail (Invalid_argument key)
+
+  let (>|==) a f = a >>== fun x -> return (f x)
+
+  let read_full kv ~name =
+    KV.size kv name   >|== Int64.to_int >>=
+    KV.read kv name 0 >|== Tls.Utils.Cs.appends
+
+  open Tls.X509
+
+  let validator kv = function
+    | `Noop -> return Validator.null
+    | `CAs  ->
+        let time = int_of_float @@ CL.time () in
+        read_full kv ca_roots_file
+        >|= Cert.of_pem_cstruct
+        >|= Validator.chain_of_trust ~time
+
+  let certificate kv =
+    let read name =
+      lwt cert =
+        read_full kv (path </> name ^ ".pem") >|= Cert.of_pem_cstruct1
+      and pk =
+        read_full kv (path </> name ^ ".key") >|= PK.of_pem_cstruct1 in
+      return (cert, pk)
+    in function | `Default   -> read default_cert
+                | `Name name -> read name
 end
