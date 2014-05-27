@@ -1,14 +1,10 @@
 
-open V1_LWT
+open Lwt
 
-module Make (TCP: TCPV4) = struct
+module Make_core (TCP: V1_LWT.TCPV4) = struct
 
-  type +'a io = 'a Lwt.t
-  type t      = TCP.t
-  type error  = TCP.error
-
-  type buffer   = Cstruct.t
-  type ipv4addr = TCP.ipv4addr
+  module TCP = TCP
+  type error = TCP.error
 
   type cert = Tls.X509.Cert.t * Tls.X509.PK.t
   type server_cfg = cert
@@ -32,9 +28,6 @@ module Make (TCP: TCPV4) = struct
     `Unknown (Tls.Packet.alert_type_to_string alert)
 
   let list_of_option = function None -> [] | Some x -> [x]
-
-
-  open Lwt
 
   let read_react flow =
 
@@ -89,8 +82,6 @@ module Make (TCP: TCPV4) = struct
     flow.state <- `Eof ;
     TCP.close flow.tcp
 
-  let get_dest flow = TCP.get_dest flow.tcp
-
   let rec drain_handshake flow =
     match flow.state with
     | `Active tls when Tls.Flow.can_send_appdata tls -> return (`Ok flow)
@@ -122,15 +113,16 @@ module Make (TCP: TCPV4) = struct
     } in
     drain_handshake tls_flow
 
-  let create_connection t tls_params host (addr, port) =
-    (* XXX addr -> (host : string) *)
+(*   let create_connection t tls_params host (addr, port) =
+    |+ XXX addr -> (host : string) +|
     TCP.create_connection t (addr, port) >>= function
       | `Error _ as e -> return e
-      | `Ok flow      -> client_of_tcp_flow tls_params host flow
+      | `Ok flow      -> client_of_tcp_flow tls_params host flow *)
 
-  let listen_ssl t cert ~port callback =
+(*   let listen_ssl t cert ~port callback =
     let cb flow =
       server_of_tcp_flow cert flow >>= callback in
-    TCP.input t ~listeners:(fun p -> if p = port then Some cb else None)
+    TCP.input t ~listeners:(fun p -> if p = port then Some cb else None) *)
 
 end
+
