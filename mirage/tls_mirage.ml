@@ -19,11 +19,6 @@ module Make (TCP: V1_LWT.TCPV4) = struct
     mutable linger : Cstruct.t list ;
   }
 
-
-  let handle_tls = function
-    | `Server -> Tls.Server.handle_tls
-    | `Client -> Tls.Client.handle_tls
-
   let error_of_alert alert =
     `Unknown (Tls.Packet.alert_type_to_string alert)
 
@@ -32,7 +27,7 @@ module Make (TCP: V1_LWT.TCPV4) = struct
   let read_react flow =
 
     let handle tls buf =
-      match handle_tls flow.role tls buf with
+      match Tls.Engine.handle_tls tls buf with
       | `Ok (tls, answer, appdata) ->
           flow.state <- `Active tls ;
           TCP.write flow.tcp answer >> return (`Ok appdata)

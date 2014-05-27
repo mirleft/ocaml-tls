@@ -14,10 +14,10 @@ module Flow = struct
     | Some (st', cs) -> Some (rewrap_st (state, st'), cs)
 
   let handle_tls ~tag state msg =
-    let (handler, descr) = match state with
-      | `S st -> (Tls.Server.handle_tls st, "server")
-      | `C st -> (Tls.Client.handle_tls st, "client") in
-    match handler msg with
+    let (st, descr) = match state with
+      | `S st -> (st, "server")
+      | `C st -> (st, "client") in
+    match Tls.Engine.handle_tls st msg with
     | `Fail _                 ->
         failwith @@ Printf.sprintf "[%s] error in %s" tag descr
     | `Ok (st', ans, appdata) -> (rewrap_st (state, st'), ans, appdata)

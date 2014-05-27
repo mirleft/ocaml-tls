@@ -36,11 +36,7 @@ let network_read_and_react socket =
   (* XXX smarter treatment of hangup *)
   lwt ()  = if str = "" then fail End_of_file else return () in
   match
-    ( match socket.direction with
-      | Server -> Tls.Server.handle_tls
-      | Client -> Tls.Client.handle_tls )
-    socket.state
-    (Cstruct.of_string str)
+    Tls.Engine.handle_tls socket.state (Cstruct.of_string str)
   with
   | `Ok (state, ans, adata) ->
       socket.state <- state ;
