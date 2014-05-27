@@ -1,7 +1,7 @@
 
 open Lwt
 
-module Make_core (TCP: V1_LWT.TCPV4) = struct
+module Make (TCP: V1_LWT.TCPV4) = struct
 
   module TCP = TCP
   type error = TCP.error
@@ -129,7 +129,7 @@ end
 (* Mock-`FLOW` module, for constructing a `Channel` on top of. *)
 module Make_flow (TCP: V1_LWT.TCPV4) = struct
 
-  include Make_core (TCP)
+  include Make (TCP)
 
   type t = {
     tcp        : TCP.t ;
@@ -158,7 +158,7 @@ module Make_flow (TCP: V1_LWT.TCPV4) = struct
   and id _ = assert false
 end
 
-module X509 (KV : V1_LWT.KV_RO) (CL : V1.CLOCK) = struct
+module X509 (KV : V1_LWT.KV_RO) = struct
 
   let (</>) p1 p2 = p1 ^ "/" ^ p2
 
@@ -182,7 +182,7 @@ module X509 (KV : V1_LWT.KV_RO) (CL : V1.CLOCK) = struct
   let validator kv = function
     | `Noop -> return Validator.null
     | `CAs  ->
-        let time = int_of_float @@ CL.time () in
+        let time = -666 in (* get a `CLOCK` instance *)
         read_full kv ca_roots_file
         >|= Cert.of_pem_cstruct
         >|= Validator.chain_of_trust ~time
