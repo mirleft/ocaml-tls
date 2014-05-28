@@ -1,28 +1,18 @@
 
-module Make(TCP : V1_LWT.TCPV4) : sig
+module Make (TCP : V1_LWT.TCPV4) : sig
+  include Tls_mirage_types.TLS_core
+end with module TCP := TCP
 
-  type +'a io = 'a Lwt.t
-  type t      = TCP.t
-  type error  = TCP.error
+module Make_flow (TCP : V1_LWT.TCPV4) : sig
+  include Tls_mirage_types.TLS_core
+  include V1_LWT.TCPV4
+    with type flow  := flow
+     and type error := error
+end with module TCP := TCP
 
-  type buffer   = Cstruct.t
-  type ipv4addr = TCP.ipv4addr
-
-  type cert = Tls.X509.Cert.t * Tls.X509.PK.t
-  type server_cfg = cert
-  type client_cfg = cert option * Tls.X509.Validator.t
-
-  type flow
-
-  val read   : flow -> [`Ok of buffer | `Eof | `Error of error ] io
-  val write  : flow -> buffer -> unit io
-  val writev : flow -> buffer list -> unit io
-  val close  : flow -> unit io
-
-  val create_connection : t -> client_cfg -> string -> ipv4addr * int ->
-    [ `Ok of flow | `Error of error ] io
-
-  val server_of_tcp_flow : server_cfg -> TCP.flow ->
-    [ `Ok of flow | `Error of error ] io
-
+(* XXX CLOCK *)
+module X509 (KV : V1_LWT.KV_RO) : sig
+  open Tls.X509
+  val validator   : KV.t -> [< `Noop | `CAs ] -> Validator.t Lwt.t
+  val certificate : KV.t -> [< `Default | `Name of string ] -> (Cert.t * PK.t) Lwt.t
 end

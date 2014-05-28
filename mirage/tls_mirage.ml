@@ -1,14 +1,10 @@
 
-open V1_LWT
+open Lwt
 
-module Make (TCP: TCPV4) = struct
+module Make (TCP: V1_LWT.TCPV4) = struct
 
-  type +'a io = 'a Lwt.t
-  type t      = TCP.t
-  type error  = TCP.error
-
-  type buffer   = Cstruct.t
-  type ipv4addr = TCP.ipv4addr
+  module TCP = TCP
+  type error = TCP.error
 
   type cert = Tls.X509.Cert.t * Tls.X509.PK.t
   type server_cfg = cert
@@ -32,9 +28,6 @@ module Make (TCP: TCPV4) = struct
     `Unknown (Tls.Packet.alert_type_to_string alert)
 
   let list_of_option = function None -> [] | Some x -> [x]
-
-
-  open Lwt
 
   let read_react flow =
 
@@ -89,8 +82,6 @@ module Make (TCP: TCPV4) = struct
     flow.state <- `Eof ;
     TCP.close flow.tcp
 
-  let get_dest flow = TCP.get_dest flow.tcp
-
   let rec drain_handshake flow =
     match flow.state with
     | `Active tls when Tls.Flow.can_send_appdata tls -> return (`Ok flow)
@@ -122,15 +113,90 @@ module Make (TCP: TCPV4) = struct
     } in
     drain_handshake tls_flow
 
-  let create_connection t tls_params host (addr, port) =
-    (* XXX addr -> (host : string) *)
+(*   let create_connection t tls_params host (addr, port) =
+    |+ XXX addr -> (host : string) +|
     TCP.create_connection t (addr, port) >>= function
       | `Error _ as e -> return e
-      | `Ok flow      -> client_of_tcp_flow tls_params host flow
+      | `Ok flow      -> client_of_tcp_flow tls_params host flow *)
 
-  let listen_ssl t cert ~port callback =
+(*   let listen_ssl t cert ~port callback =
     let cb flow =
       server_of_tcp_flow cert flow >>= callback in
-    TCP.input t ~listeners:(fun p -> if p = port then Some cb else None)
+    TCP.input t ~listeners:(fun p -> if p = port then Some cb else None) *)
 
+end
+
+(* Mock-`FLOW` module, for constructing a `Channel` on top of. *)
+module Make_flow (TCP: V1_LWT.TCPV4) = struct
+
+  include Make (TCP)
+
+  type t = {
+    tcp        : TCP.t ;
+    server_cfg : server_cfg ;
+    client_cfg : client_cfg ;
+  }
+
+  type buffer = Cstruct.t
+  type +'a io = 'a Lwt.t
+
+  type callback = flow -> unit io
+
+  type ipv4input = unit
+  type ipv4addr  = Ipaddr.V4.t
+  type ipv4      = unit
+
+  let lament = "not implemented"
+  let nope   = fail (Failure lament)
+  let nope = fail (Failure "not implemented")
+
+  let write_nodelay _ _     = nope
+  and writev_nodelay _ _    = nope
+  and create_connection _ _ = nope
+  and disconnect _          = nope
+  and connect _             = nope
+  and input _ ~listeners    = failwith lament
+  and get_dest _            = failwith lament
+
+  and id _ = assert false
+end
+
+module X509 (KV : V1_LWT.KV_RO) = struct
+
+  let (</>) p1 p2 = p1 ^ "/" ^ p2
+
+  let path          = "tls"
+  let ca_roots_file = path </> "ca-roots.crt"
+  let default_cert  = "server"
+
+  let (>>==) a f =
+    a >>= function
+      | `Ok x -> f x
+      | `Error (KV.Unknown_key key) -> fail (Invalid_argument key)
+
+  let (>|==) a f = a >>== fun x -> return (f x)
+
+  let read_full kv ~name =
+    KV.size kv name   >|== Int64.to_int >>=
+    KV.read kv name 0 >|== Tls.Utils.Cs.appends
+
+  open Tls.X509
+
+  let validator kv = function
+    | `Noop -> return Validator.null
+    | `CAs  ->
+        let time = -666 in (* get a `CLOCK` instance *)
+        read_full kv ca_roots_file
+        >|= Cert.of_pem_cstruct
+        >|= Validator.chain_of_trust ~time
+
+  let certificate kv =
+    let read name =
+      lwt cert =
+        read_full kv (path </> name ^ ".pem") >|= Cert.of_pem_cstruct1
+      and pk =
+        read_full kv (path </> name ^ ".key") >|= PK.of_pem_cstruct1 in
+      return (cert, pk)
+    in function | `Default   -> read default_cert
+                | `Name name -> read name
 end

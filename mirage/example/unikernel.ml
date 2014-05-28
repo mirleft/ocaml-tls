@@ -1,5 +1,15 @@
 open Lwt
+
+open V1
 open V1_LWT
+
+
+type ('a, 'e, 'c) m = ([< `Ok of 'a | `Error of 'e | `Eof ] as 'c) Lwt.t
+
+let (>>==) (a : ('a, 'e, _) m) (f : 'a -> ('b, 'e, _) m) : ('b, 'e, _) m =
+  a >>= function
+    | `Ok x                -> f x
+    | `Error _ | `Eof as e -> return e
 
 
 module Color = struct
@@ -10,19 +20,11 @@ module Color = struct
   let blue   fmt = sprintf ("\027[36m"^^fmt^^"\027[m")
 end
 
-module Cs  = Tls.Utils.Cs
-
-let o f g x = f (g x)
-
-let lower exn_of_err f =
-  f >>= function | `Ok r    -> return r
-                 | `Error e -> fail (exn_of_err e)
 
 let string_of_err = function
   | `Timeout     -> "TIMEOUT"
   | `Refused     -> "REFUSED"
   | `Unknown msg -> msg
-
 
 module Log (C: CONSOLE) = struct
 
@@ -35,63 +37,42 @@ module Log (C: CONSOLE) = struct
 
 end
 
-module Mir_X509 (Kv: KV_RO) = struct
-
-  let (>>==) a f =
-    a >>= function
-      | `Ok x -> f x
-      | `Error (Kv.Unknown_key key) -> fail (Invalid_argument key)
-
-  let (>|==) a f = a >>== fun x -> return (f x)
-
-  let read_full kv ~name =
-    Kv.size kv name   >|== Int64.to_int >>=
-    Kv.read kv name 0 >|== Cs.appends
-
-  open Tls.X509
-
-  let certificate kv ~cert ~key =
-    lwt cert = read_full kv cert >|= Cert.of_pem_cstruct1
-    and key  = read_full kv key  >|= PK.of_pem_cstruct1 in
-    return (cert, key)
-
-  let ca_roots kv ~cas =
-    read_full kv cas
-    >|= Cert.of_pem_cstruct
-    >|= Validator.chain_of_trust ~time:0
-
-end
-
-module Server (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
+module Server (C  : CONSOLE)
+              (S  : STACKV4)
+              (KV : KV_RO) =
+struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
-  module X509 = Mir_X509 (Kv)
+  module X509 = Tls_mirage.X509 (KV)
   module L    = Log (C)
 
   let rec handle c tls =
-    TLS.read tls >>= function
-    | `Eof     -> L.log_trace c "eof."
-    | `Error e -> L.log_error c e
-    | `Ok buf  -> L.log_data c "recv" buf >> TLS.write tls buf >> handle c tls
+    TLS.read tls >>== fun buf ->
+      L.log_data c "recv" buf >> TLS.write tls buf >> handle c tls
 
   let accept c cert k flow =
     L.log_trace c "accepted." >>
-    TLS.server_of_tcp_flow cert flow >>= function
-      | `Ok tls  -> L.log_trace c "shook hands" >> k c tls
+    TLS.server_of_tcp_flow cert flow
+    >>== (fun tls -> L.log_trace c "shook hands" >> k c tls)
+    >>= function
+      | `Ok _    -> assert false
       | `Error e -> L.log_error c e
+      | `Eof     -> L.log_trace c "eof."
 
   let start c stack kv =
-    lwt cert =
-      X509.certificate kv ~cert:"server.pem" ~key:"server.key" in
+    lwt cert = X509.certificate kv `Default in
     S.listen_tcpv4 stack 4433 (accept c cert handle) ;
     S.listen stack
 
 end
 
-module Client (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
+module Client (C  : CONSOLE)
+              (S  : STACKV4)
+              (KV : KV_RO) =
+struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
-  module X509 = Mir_X509 (Kv)
+  module X509 = Tls_mirage.X509 (KV)
   module L    = Log (C)
 
   open Ipaddr
@@ -99,21 +80,23 @@ module Client (C: CONSOLE) (S: STACKV4) (Kv: KV_RO) = struct
   let peer = ((V4.of_string_exn "127.0.0.1", 4433), "localhost")
   let peer = ((V4.of_string_exn "173.194.70.147", 443), "www.google.com")
 
+  let initial = Cstruct.of_string "ohai.\r\n\r\n"
+
   let chat c tls =
     let rec dump () =
-      TLS.read tls >>= function
-        | `Error e -> L.log_error c e
-        | `Eof     -> L.log_trace c "eof."
-        | `Ok buf  -> L.log_data  c "reply" buf >> dump ()
-    in
-    TLS.write tls (Cstruct.of_string "ohai\r\n\r\n") >> dump ()
+      TLS.read tls >>== fun buf ->
+        L.log_data c "recv" buf >> dump () in
+    TLS.write tls initial >> dump ()
 
   let start c stack kv =
-    lwt validator = X509.ca_roots kv ~cas:"ca-root-nss-short.crt" in
-    TLS.create_connection (S.tcpv4 stack)
-      (None, validator) (snd peer) (fst peer)
-    >>= function
-      | `Ok tls  -> L.log_trace c "connected." >> chat c tls
-      | `Error e -> L.log_error c e
+    lwt validator = X509.validator kv `CAs in
+    let param     = (None, validator)
+    in
+    S.TCPV4.create_connection (S.tcpv4 stack) (fst peer) >>==
+    TLS.client_of_tcp_flow param (snd peer) >>==
+    chat c >>= function
+    | `Error e -> L.log_error c e
+    | `Eof     -> L.log_trace c "eof." 
+    | `Ok _    -> assert false
 
 end
