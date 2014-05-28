@@ -146,14 +146,17 @@ module Make_flow (TCP: V1_LWT.TCPV4) = struct
   type ipv4addr  = Ipaddr.V4.t
   type ipv4      = unit
 
-  let write_nodelay  _ _ = assert false
-  and writev_nodelay _ _ = assert false
+  let lament = "not implemented"
+  let nope   = fail (Failure lament)
+  let nope = fail (Failure "not implemented")
 
-  let input _             = assert false
-  and create_connection _ = assert false
-  and get_dest _          = assert false
-  and disconnect _        = assert false
-  and connect _           = assert false
+  let write_nodelay _ _     = nope
+  and writev_nodelay _ _    = nope
+  and create_connection _ _ = nope
+  and disconnect _          = nope
+  and connect _             = nope
+  and input _ ~listeners    = failwith lament
+  and get_dest _            = failwith lament
 
   and id _ = assert false
 end
