@@ -1,7 +1,10 @@
 open Core
 open Nocrypto
-open Flow
-open Flow.Or_alert
+open Handshake_common_utils
+open Handshake_common_utils.Or_alert
+open Config
+
+let (<+>) = Utils.Cs.(<+>)
 
 let default_client_hello config =
   let host = match config.peer_name with
@@ -170,7 +173,7 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   and extract_signature pubkey raw_signature =
     match Crypto.verifyRSA_and_unpadPKCS1 pubkey raw_signature with
     | Some signature -> return signature
-    | None -> fail HANDSHAKE_FAILURE
+    | None -> fail Packet.HANDSHAKE_FAILURE
 
   in
 
@@ -220,7 +223,7 @@ let answer_server_finished state client_verify master_secret fin log =
   return ({ state with machina = Client machina ; rekeying = rekeying }, [], `Pass)
 
 let answer_hello_request state =
-  match state.config.rekeying with
+  match state.config.use_rekeying with
   | false -> fail Packet.HANDSHAKE_FAILURE
   | true  ->
      (match state.rekeying with
@@ -269,54 +272,3 @@ fun cs hs buf ->
        | _, _ -> fail Packet.HANDSHAKE_FAILURE )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
 
-let new_connection' config =
-  let state = new_state config `Client in
-
-  let dch, params = default_client_hello config in
-
-  let secure_rekeying = SecureRenegotiation (Cstruct.create 0) in
-
-  let ciphers, extensions = match dch.version with
-      (* from RFC 5746 section 3.3:
-   Both the SSLv3 and TLS 1.0/TLS 1.1 specifications require
-   implementations to ignore data following the ClientHello (i.e.,
-   extensions) if they do not understand it. However, some SSLv3 and
-   TLS 1.0 implementations incorrectly fail the handshake in such a
-   case.  This means that clients that offer the "renegotiation_info"
-   extension may encounter handshake failures.  In order to enhance
-   compatibility with such servers, this document defines a second
-   signaling mechanism via a special Signaling Cipher Suite Value (SCSV)
-   "TLS_EMPTY_RENEGOTIATION_INFO_SCSV", with code point {0x00, 0xFF}.
-   This SCSV is not a true cipher suite (it does not correspond to any
-   valid set of algorithms) and cannot be negotiated.  Instead, it has
-   the same semantics as an empty "renegotiation_info" extension, as
-   described in the following sections.  Because SSLv3 and TLS
-   implementations reliably ignore unknown cipher suites, the SCSV may
-   be safely sent to any server. *)
-    | TLS_1_0 -> ([Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
-    | TLS_1_1 | TLS_1_2 -> ([], [secure_rekeying])
-  in
-
-  let client_hello =
-    { dch with
-        ciphersuites = dch.ciphersuites @ ciphers ;
-        extensions   = extensions @ dch.extensions }
-  in
-
-  let raw = Writer.assemble_handshake (ClientHello client_hello) in
-  let machina = ClientHelloSent (params, [raw]) in
-  let handshake = { state.handshake with machina = Client machina } in
-  send_records
-      { state with handshake }
-      [(Packet.HANDSHAKE, raw)]
-
-let new_connection ?cert ?host:server ~validator () =
-  let config =
-  {
-    default_config with
-      validator = Some validator ;
-      own_certificate = cert ;
-      peer_name = server
-  }
-  in
-  new_connection' config

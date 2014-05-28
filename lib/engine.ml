@@ -1,8 +1,142 @@
 open Core
 open Nocrypto
-open Flow
-open Flow.Or_alert
+open Handshake_common_utils
+open Handshake_common_utils.Or_alert
 
+(* user API *)
+
+type role = [ `Server | `Client ]
+
+(* this is the externally-visible state somebody will keep track of for us. *)
+type state = {
+  handshake : tls_internal_state ;
+  decryptor : crypto_state ;
+  encryptor : crypto_state ;
+  fragment  : Cstruct.t ;
+}
+
+let new_state config role =
+  let handshake_state = match role with
+    | `Client -> Client ClientInitial
+    | `Server -> Server ServerInitial (* we should check that a own_cert is Some _ in config! *)
+  in
+  let handshake = {
+    version   = Config.max_protocol_version config ;
+    rekeying  = None ;
+    machina   = handshake_state ;
+    config    = config
+  }
+  in
+  {
+    handshake = handshake ;
+    decryptor = None ;
+    encryptor = None ;
+    fragment  = Cstruct.create 0
+  }
+
+let (<+>) = Utils.Cs.(<+>)
+
+(* well-behaved pure encryptor *)
+let encrypt (version : tls_version) (st : crypto_state) ty buf =
+  match st with
+  | None     -> (st, buf)
+  | Some ctx ->
+      let signature =
+        let ver = pair_of_tls_version version in
+        Crypto.mac ctx.mac ctx.sequence ty ver buf in
+
+      let to_encrypt = buf <+> signature in
+
+      let (st', enc) =
+        match ctx.cipher_st with
+
+        | Stream (m, key) ->
+            let (message, key') =
+              Crypto.encrypt_stream ~cipher:m ~key to_encrypt in
+            (Stream (m, key'), message)
+
+        | CBC (m, key, Iv iv) ->
+            let (message, iv') =
+              Crypto.encrypt_cbc ~cipher:m ~key ~iv to_encrypt in
+            (CBC (m, key, Iv iv'), message)
+
+        | CBC (m, key, Random_iv) ->
+            let iv = Rng.generate (Crypto.cbc_block m) in
+            let (message, _) =
+              Crypto.encrypt_cbc ~cipher:m ~key ~iv to_encrypt in
+            (CBC (m, key, Random_iv), iv <+> message)
+
+      in
+      let ctx' = { ctx with
+                     sequence  = Int64.succ ctx.sequence ;
+                     cipher_st = st' }
+      in
+      (Some ctx', enc)
+
+(* well-behaved pure decryptor *)
+let verify_mac { mac = (hash, _) as mac ; sequence } ty ver decrypted =
+  let macstart = Cstruct.len decrypted - Crypto.digest_size hash in
+  if macstart < 0 then fail Packet.BAD_RECORD_MAC else
+    let (body, mmac) = Cstruct.split decrypted macstart in
+    let cmac =
+      let ver = pair_of_tls_version ver in
+      Crypto.mac mac sequence ty ver body in
+    fail_neq cmac mmac Packet.BAD_RECORD_MAC >>= fun () -> return body
+
+
+let decrypt (version : tls_version) (st : crypto_state) ty buf =
+
+  let verify ctx (st', dec) =
+    verify_mac ctx ty version dec >>= fun body -> return (st', body)
+
+  (* hmac is computed in this failure branch from the encrypted data, in the
+     successful branch it is decrypted - padding (which is smaller equal than
+     encrypted data) *)
+  (* This comment is borrowed from miTLS, but applies here as well: *)
+  (* We implement standard mitigation for padding oracles. Still, we note a
+     small timing leak here: The time to verify the mac is linear in the
+     plaintext length. *)
+  (* defense against http://lasecwww.epfl.ch/memo/memo_ssl.shtml 1) in
+     https://www.openssl.org/~bodo/tls-cbc.txt *)
+  and mask_decrypt_failure ctx =
+    verify_mac ctx ty version buf >>= fun _ -> fail Packet.BAD_RECORD_MAC
+  in
+
+  let dec ctx =
+    match ctx.cipher_st with
+
+    | Stream (m, key) ->
+        let (message, key') = Crypto.decrypt_stream ~cipher:m ~key buf in
+        verify ctx (Stream (m, key'), message)
+
+    | CBC (m, key, Iv iv) ->
+      ( match Crypto.decrypt_cbc ~cipher:m ~key ~iv buf with
+        | None            -> mask_decrypt_failure ctx
+        | Some (dec, iv') ->
+            let st' = CBC (m, key, Iv iv') in
+            verify ctx (st', dec) )
+
+    | CBC (m, key, Random_iv) ->
+        if Cstruct.len buf < Crypto.cbc_block m then
+          fail Packet.BAD_RECORD_MAC
+        else
+          let (iv, buf) = Cstruct.split buf (Crypto.cbc_block m) in
+          match Crypto.decrypt_cbc ~cipher:m ~key ~iv buf with
+            | None          -> mask_decrypt_failure ctx
+            | Some (dec, _) ->
+                let st' = CBC (m, key, Random_iv) in
+                verify ctx (st', dec)
+
+  in
+  match st with
+  | None     -> return (st, buf)
+  | Some ctx ->
+      dec ctx >>= fun (st', msg) ->
+      let ctx' = { ctx with
+                     sequence  = Int64.succ ctx.sequence ;
+                     cipher_st = st' }
+      in
+      return (Some ctx', msg)
 
 (* party time *)
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) or_error
@@ -30,10 +164,19 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
     | (None, _, _)                                         ->
        fail Packet.UNEXPECTED_MESSAGE
 
+(* utility for user *)
+let can_send_appdata : state -> bool =
+  fun s ->
+    match s.handshake.machina with
+    | Client ClientEstablished -> true
+    | Server ServerEstablished -> true
+    | _                        -> false
+
+(* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =
   let hs = state.handshake in
   let version = hs.version in
-  ( match hs.machina, supported_protocol_version hs.config hdr.version with
+  ( match hs.machina, Config.supported_protocol_version hs.config hdr.version with
     | Client (ClientHelloSent _), Some _ -> return ()
     | Server (ServerInitial)    , Some _ -> return ()
     | _, _ when hdr.version = version    -> return ()
@@ -88,6 +231,11 @@ let maybe_app a b = match a, b with
   | None  , Some y -> Some y
   | None  , None   -> None
 
+let assemble_records : tls_version -> record list -> Cstruct.t =
+  fun version ->
+    o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
+
+(* main entry point *)
 let handle_tls : state -> Cstruct.t -> ret
 = fun state buf ->
   match
@@ -107,3 +255,89 @@ let handle_tls : state -> Cstruct.t -> ret
       let version    = state.handshake.version in
       let alert_resp = assemble_records version [alert x] in
       `Fail (x, alert_resp)
+
+let send_records (st : state) records =
+  let version = st.handshake.version in
+  let encryptor, encs = List.fold_left
+    (fun (est, encs) (ty, cs)  ->
+       let encryptor, enc = encrypt version est ty cs in
+       (encryptor, encs @ [(ty, enc)]))
+    (st.encryptor, [])
+    records
+  in
+  let data = assemble_records version encs in
+  ({ st with encryptor }, data)
+
+(* another entry for user data *)
+let send_application_data (st : state) css =
+  match can_send_appdata st with
+  | true ->
+     let datas = match st.encryptor with
+       (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
+       | Some { cipher_st = CBC (_, _, Iv _) } -> Cstruct.create 0 :: css
+       | _                                     -> css
+     in
+     let ty = Packet.APPLICATION_DATA in
+     let data = List.map (fun cs -> (ty, cs)) datas in
+     Some (send_records st data)
+  | false -> None
+
+let open_connection' config =
+  let state = new_state config `Client in
+
+  let dch, params = Client.default_client_hello config in
+
+  let secure_rekeying = SecureRenegotiation (Cstruct.create 0) in
+
+  let ciphers, extensions = match dch.version with
+      (* from RFC 5746 section 3.3:
+   Both the SSLv3 and TLS 1.0/TLS 1.1 specifications require
+   implementations to ignore data following the ClientHello (i.e.,
+   extensions) if they do not understand it. However, some SSLv3 and
+   TLS 1.0 implementations incorrectly fail the handshake in such a
+   case.  This means that clients that offer the "renegotiation_info"
+   extension may encounter handshake failures.  In order to enhance
+   compatibility with such servers, this document defines a second
+   signaling mechanism via a special Signaling Cipher Suite Value (SCSV)
+   "TLS_EMPTY_RENEGOTIATION_INFO_SCSV", with code point {0x00, 0xFF}.
+   This SCSV is not a true cipher suite (it does not correspond to any
+   valid set of algorithms) and cannot be negotiated.  Instead, it has
+   the same semantics as an empty "renegotiation_info" extension, as
+   described in the following sections.  Because SSLv3 and TLS
+   implementations reliably ignore unknown cipher suites, the SCSV may
+   be safely sent to any server. *)
+    | TLS_1_0 -> ([Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
+    | TLS_1_1 | TLS_1_2 -> ([], [secure_rekeying])
+  in
+
+  let client_hello =
+    { dch with
+        ciphersuites = dch.ciphersuites @ ciphers ;
+        extensions   = extensions @ dch.extensions }
+  in
+
+  let raw = Writer.assemble_handshake (ClientHello client_hello) in
+  let machina = ClientHelloSent (params, [raw]) in
+  let handshake = { state.handshake with machina = Client machina } in
+  send_records
+      { state with handshake }
+      [(Packet.HANDSHAKE, raw)]
+
+(* client *)
+let open_connection ?cert ?host:server ~validator () =
+  let open Config in
+  let config =
+  {
+    default_config with
+      validator = Some validator ;
+      own_certificate = cert ;
+      peer_name = server
+  }
+  in
+  open_connection' config
+
+(* server *)
+let listen_connection ?cert () =
+  let open Config in
+  let conf = { default_config with own_certificate = cert } in
+  new_state conf `Server

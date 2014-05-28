@@ -3,8 +3,6 @@ open Tls
 open Testlib
 open Nocrypto
 open Core
-open Flow
-open Flow.Or_alert
 open Asn_grammars
 (*
 let first_48_random =

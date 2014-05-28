@@ -9,7 +9,7 @@ type socket = {
   input     : Lwt_io.input_channel  ;
   output    : Lwt_io.output_channel ;
   direction : direction ;
-  mutable state : Tls.Flow.state ;
+  mutable state : Tls.Engine.state ;
   mutable input_leftovers : Cstruct.t list
 }
 
@@ -61,7 +61,7 @@ let rec read socket =
       return @@ Tls.Utils.Cs.appends (List.rev css)
 
 let writev socket css =
-  match Tls.Flow.send_application_data socket.state css with
+  match Tls.Engine.send_application_data socket.state css with
   | Some (state, tlsdata) ->
       socket.state <- state ;
       write_cs socket.output tlsdata
@@ -70,7 +70,7 @@ let writev socket css =
 let write socket cs = writev socket [cs]
 
 let rec drain_handshake = function
-  | socket when Tls.Flow.can_send_appdata socket.state ->
+  | socket when Tls.Engine.can_send_appdata socket.state ->
       return socket
   | socket ->
       lwt res = network_read_and_react socket in
@@ -84,7 +84,7 @@ let server_of_fd ?cert fd =
   let (input, output) = io_pair_of_fd fd in
   let socket1 =
     let direction       = Server
-    and state           = Tls.Server.new_connection ?cert ()
+    and state           = Tls.Engine.listen_connection ?cert ()
     and input_leftovers = [] in
     { input ; output ; direction ; state ; input_leftovers } in
   drain_handshake socket1
@@ -92,7 +92,7 @@ let server_of_fd ?cert fd =
 let client_of_fd ?cert ?host ~validator fd =
   let (input, output) = io_pair_of_fd fd in
   let (state, init) =
-    Tls.Client.new_connection ?cert ?host ~validator () in
+    Tls.Engine.open_connection ?cert ?host ~validator () in
   let socket1 =
     let direction       = Client
     and input_leftovers = [] in

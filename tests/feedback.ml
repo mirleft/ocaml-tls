@@ -6,10 +6,10 @@ module Flow = struct
   let unwrap_st = function `S st -> st | `C st -> st
 
   let can_send_appdata st =
-    Tls.Flow.can_send_appdata (unwrap_st st)
+    Tls.Engine.can_send_appdata (unwrap_st st)
 
   let send_application_data state data =
-    match Tls.Flow.send_application_data (unwrap_st state) data with
+    match Tls.Engine.send_application_data (unwrap_st state) data with
     | None           -> None
     | Some (st', cs) -> Some (rewrap_st (state, st'), cs)
 
@@ -28,9 +28,9 @@ let loop_chatter ~cert ~loops ~size =
   Printf.eprintf "Looping %d times, %d bytes.\n%!" loops size;
 
   let message  = Nocrypto.Rng.generate size
-  and server   = Tls.Server.new_connection ~cert ()
+  and server   = Tls.Engine.listen_connection ~cert ()
   and (client, init) =
-    Tls.Client.new_connection ~validator:Tls.X509.Validator.null ()
+    Tls.Engine.open_connection ~validator:Tls.X509.Validator.null ()
   in
   Testlib.time @@ fun () ->
 

@@ -1,10 +1,13 @@
 open Utils
 
 open Core
-open Flow
-open Flow.Or_alert
+open Handshake_common_utils
+open Handshake_common_utils.Or_alert
+open Config
 
 open Nocrypto
+
+let (<+>) = Utils.Cs.(<+>)
 
 let answer_client_finished state master_secret fin raw log =
   let client_computed = Crypto.finished state.version master_secret "client finished" log in
@@ -192,7 +195,7 @@ let answer_client_hello state (ch : client_hello) raw =
     | _ , _         -> return ()
   in
 
-  really_rekey state.rekeying state.config.rekeying >>= fun () ->
+  really_rekey state.rekeying state.config.use_rekeying >>= fun () ->
   find_version ch.version state.config >>= fun version ->
   find_ciphersuite ch.ciphersuites state.config.ciphers >>= fun cipher ->
   ensure_reneg state.rekeying ch.ciphersuites ch.extensions >>= fun () ->
@@ -239,7 +242,3 @@ fun ss hs buf ->
           answer_client_hello hs ch buf
        | _, _-> fail Packet.HANDSHAKE_FAILURE )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
-
-let new_connection ?cert () =
-  let conf = { default_config with own_certificate = cert } in
-  new_state conf `Server
