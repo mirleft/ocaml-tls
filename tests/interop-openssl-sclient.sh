@@ -1,6 +1,6 @@
 #!/bin/sh
 
-port=4433
+port=4455
 s_client_args="s_client -quiet -connect 127.0.0.1:"
 
 extra_args=""

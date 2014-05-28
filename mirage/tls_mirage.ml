@@ -13,16 +13,11 @@ module Make (TCP: V1_LWT.TCPV4) = struct
   type flow = {
     role           : [ `Server | `Client ] ;
     tcp            : TCP.flow ;
-    mutable state  : [ `Active of Tls.Flow.state
+    mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
                      | `Error of error ] ;
     mutable linger : Cstruct.t list ;
   }
-
-
-  let handle_tls = function
-    | `Server -> Tls.Server.handle_tls
-    | `Client -> Tls.Client.handle_tls
 
   let error_of_alert alert =
     `Unknown (Tls.Packet.alert_type_to_string alert)
@@ -32,7 +27,7 @@ module Make (TCP: V1_LWT.TCPV4) = struct
   let read_react flow =
 
     let handle tls buf =
-      match handle_tls flow.role tls buf with
+      match Tls.Engine.handle_tls tls buf with
       | `Ok (tls, answer, appdata) ->
           flow.state <- `Active tls ;
           TCP.write flow.tcp answer >> return (`Ok appdata)
@@ -68,7 +63,7 @@ module Make (TCP: V1_LWT.TCPV4) = struct
     | `Eof     -> fail @@ Invalid_argument "tls: write: flow is closed"
     | `Error e -> fail @@ Invalid_argument "tls: write: flow is broken"
     | `Active tls ->
-        match Tls.Flow.send_application_data tls bufs with
+        match Tls.Engine.send_application_data tls bufs with
         | Some (tls, answer) ->
             flow.state <- `Active tls ; TCP.write flow.tcp answer
         | None ->
@@ -84,7 +79,7 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 
   let rec drain_handshake flow =
     match flow.state with
-    | `Active tls when Tls.Flow.can_send_appdata tls -> return (`Ok flow)
+    | `Active tls when Tls.Engine.can_send_appdata tls -> return (`Ok flow)
     | _ ->
       read_react flow >>= function
         | `Ok mbuf ->
@@ -95,7 +90,7 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 
   let client_of_tcp_flow (cert, validator) host flow =
     let (tls, init) =
-      Tls.Client.new_connection ?cert ~host ~validator () in
+      Tls.Engine.open_connection ?cert ~host ~validator () in
     let tls_flow = {
       role   = `Client ;
       tcp    = flow ;
@@ -108,7 +103,7 @@ module Make (TCP: V1_LWT.TCPV4) = struct
     let tls_flow = {
       role   = `Server ;
       tcp    = flow ;
-      state  = `Active (Tls.Server.new_connection ~cert ()) ;
+      state  = `Active (Tls.Engine.listen_connection ~cert ()) ;
       linger = []
     } in
     drain_handshake tls_flow

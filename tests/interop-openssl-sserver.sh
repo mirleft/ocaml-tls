@@ -40,12 +40,11 @@ for i in $ciphers; do
     extra_args="-cipher $i"
     testit
 
-    #currently broken.. if server speaks only 1.0/1.1
-    #extra_args="-tls1 -cipher $i"
-    #testit
+    extra_args="-tls1 -cipher $i"
+    testit
 
-    #extra_args="-tls1_1 -cipher $i"
-    #testit
+    extra_args="-tls1_1 -cipher $i"
+    testit
 
     extra_args="-tls1_2 -cipher $i"
     testit
