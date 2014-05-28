@@ -42,7 +42,7 @@ let answer_client_key_exchange_RSA state params kex raw log =
        configuration option to disable the check.  Note that if the check
        fails, the PreMasterSecret SHOULD be randomized as described below *)
     match Cstruct.len k == 48, Reader.parse_version k with
-    | true, Reader.Or_error.Ok c_ver (* when c_ver = params.client_version *) -> return k
+    | true, Reader.Or_error.Ok c_ver when c_ver = params.client_version -> return k
     | _ -> return other
   in
 
