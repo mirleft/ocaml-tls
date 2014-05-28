@@ -22,11 +22,12 @@ val can_send_appdata : state -> bool
 val send_application_data : state -> Cstruct.t list -> (state * Cstruct.t) option
 
 val handle_tls : state -> Cstruct.t -> ret
+
 val open_connection' : Config.config -> (state * Cstruct.t)
 val open_connection : ?cert:Config.own_cert -> ?host:string -> validator:X509.Validator.t -> unit -> (state * Cstruct.t)
 val listen_connection : ?cert:Config.own_cert -> unit -> state
 
-
+(* internal API *)
 val encrypt   : tls_version -> crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t)
 val decrypt   : tls_version -> crypto_state -> Packet.content_type -> Cstruct.t -> (crypto_state * Cstruct.t) or_error
 
