@@ -165,12 +165,11 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
        fail Packet.UNEXPECTED_MESSAGE
 
 (* utility for user *)
-let can_send_appdata : state -> bool =
+let can_handle_appdata : state -> bool =
   fun s ->
-    match s.handshake.machina with
-    | Client ClientEstablished -> true
-    | Server ServerEstablished -> true
-    | _                        -> false
+    match s.handshake.rekeying with
+    | Some _ -> true
+    | None   -> false
 
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =
@@ -189,20 +188,22 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   | Packet.ALERT -> (* this always fails, might be ok to accept some WARNING-level alerts *)
      handle_alert dec
   | Packet.APPLICATION_DATA ->
-     ( match can_send_appdata state with
+     ( match can_handle_appdata state with
        | true  -> return (hs, Some dec, [], `Pass)
        | false -> fail Packet.UNEXPECTED_MESSAGE
      )
   | Packet.CHANGE_CIPHER_SPEC ->
      ( match hs.machina with
-       | Client cs -> Client.handle_change_cipher_spec cs hs dec
-       | Server ss -> Server.handle_change_cipher_spec ss hs dec ) >>= fun (hs, items, dec_cmd) ->
-     return (hs, None, items, dec_cmd)
+       | Client cs -> Handshake_client.handle_change_cipher_spec cs hs dec
+       | Server ss -> Handshake_server.handle_change_cipher_spec ss hs dec )
+     >|= fun (hs, items, dec_cmd) ->
+     (hs, None, items, dec_cmd)
   | Packet.HANDSHAKE ->
      ( match hs.machina with
-       | Client cs -> Client.handle_handshake cs hs dec
-       | Server ss -> Server.handle_handshake ss hs dec ) >>= fun (hs, items, dec) ->
-     return (hs, None, items, dec) )
+       | Client cs -> Handshake_client.handle_handshake cs hs dec
+       | Server ss -> Handshake_server.handle_handshake ss hs dec )
+     >|= fun (hs, items, dec) ->
+     (hs, None, items, dec) )
   >>= fun (handshake, data, items, dec_cmd) ->
   let (encryptor, encs) =
     List.fold_left (fun (st, es) -> function
@@ -270,7 +271,7 @@ let send_records (st : state) records =
 
 (* another entry for user data *)
 let send_application_data (st : state) css =
-  match can_send_appdata st with
+  match can_handle_appdata st with
   | true ->
      let datas = match st.encryptor with
        (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
@@ -285,7 +286,7 @@ let send_application_data (st : state) css =
 let open_connection' config =
   let state = new_state config `Client in
 
-  let dch, params = Client.default_client_hello config in
+  let dch, params = Handshake_client.default_client_hello config in
 
   let secure_rekeying = SecureRenegotiation (Cstruct.create 0) in
 

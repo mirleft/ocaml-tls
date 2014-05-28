@@ -70,7 +70,7 @@ let writev socket css =
 let write socket cs = writev socket [cs]
 
 let rec drain_handshake = function
-  | socket when Tls.Engine.can_send_appdata socket.state ->
+  | socket when Tls.Engine.can_handle_appdata socket.state ->
       return socket
   | socket ->
       lwt res = network_read_and_react socket in

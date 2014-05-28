@@ -5,8 +5,8 @@ module Flow = struct
 
   let unwrap_st = function `S st -> st | `C st -> st
 
-  let can_send_appdata st =
-    Tls.Engine.can_send_appdata (unwrap_st st)
+  let can_handle_appdata st =
+    Tls.Engine.can_handle_appdata (unwrap_st st)
 
   let send_application_data state data =
     match Tls.Engine.send_application_data (unwrap_st state) data with
@@ -38,7 +38,7 @@ let loop_chatter ~cert ~loops ~size =
       let tag = "handshake" in
       let (srv, ans, _) = Flow.handle_tls ~tag srv cli_msg in
       let (cli, ans, _) = Flow.handle_tls ~tag cli ans in
-      if Flow.can_send_appdata cli then (srv, cli)
+      if Flow.can_handle_appdata cli then (srv, cli)
       else handshake srv cli ans
 
     and chat srv cli data = function
