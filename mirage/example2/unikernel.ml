@@ -2,15 +2,6 @@
 open Lwt
 open V1_LWT
 
-type ('a, 'e, 'c) m = ([< `Ok of 'a | `Error of 'e | `Eof ] as 'c) Lwt.t
-
-let (>>==) (a : ('a, 'e, _) m) (f : 'a -> ('b, 'e, _) m) : ('b, 'e, _) m =
-  a >>= function
-    | `Ok x                -> f x
-    | `Error _ | `Eof as e -> return e
-
-let o f g x = f (g x)
-
 module Main (C  : CONSOLE)
             (S  : STACKV4)
             (KV : KV_RO) =
@@ -21,7 +12,23 @@ struct
   module Chan = Channel.Make (TLS)
   module Http = HTTP.Make (Chan)
 
-  let handle c conn req body = fail (Failure "No-one's home.")
+  open Http
+  module Body = Cohttp_lwt_body
+
+  let handle c conn req body =
+    let resp = Http.Response.make ~status:`OK () in
+    lwt body =
+      lwt inlet = match req.Http.Request.meth with
+        | `POST ->
+            lwt contents = Body.to_string body in
+            return @@ "<pre>" ^ contents ^ "</pre>"
+        | _     -> return "" in
+      return @@ Body.of_string @@
+        "<html><head><title>ohai</title></head>
+         <body><h3>Secure CoHTTP on-line.</h3>"
+         ^ inlet ^ "</body></html>\r\n"
+    in
+    return (resp, body)
 
   let upgrade c tls_param tcp =
     TLS.server_of_tcp_flow tls_param tcp >>= function
