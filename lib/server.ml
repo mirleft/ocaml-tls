@@ -185,8 +185,14 @@ let answer_client_hello state (ch : client_hello) raw =
     | None, false        -> check_reneg (Cstruct.create 0) exts
     | Some (cvd, _), _   -> check_reneg cvd exts
 
+  (* if we're asked to rekey, make sure the config says so as well *)
+  and really_rekey rekeying rekey =
+    match rekeying, rekey with
+    | Some _, false -> fail Packet.HANDSHAKE_FAILURE
+    | _ , _         -> return ()
   in
 
+  really_rekey state.rekeying state.config.rekeying >>= fun () ->
   find_version ch.version state.config >>= fun version ->
   find_ciphersuite ch.ciphersuites state.config.ciphers >>= fun cipher ->
   ensure_reneg state.rekeying ch.ciphersuites ch.extensions >>= fun () ->
