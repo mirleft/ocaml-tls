@@ -10,10 +10,10 @@ open Nocrypto
 let (<+>) = Utils.Cs.(<+>)
 
 let answer_client_finished state master_secret fin raw log =
-  let client_computed = Crypto.finished state.version master_secret "client finished" log in
+  let client_computed = Handshake_crypto.finished state.version master_secret "client finished" log in
   fail_neq client_computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
 
-  let server_checksum = Crypto.finished state.version master_secret "server finished" (log @ [raw]) in
+  let server_checksum = Handshake_crypto.finished state.version master_secret "server finished" (log @ [raw]) in
   let fin = Writer.assemble_handshake (Finished server_checksum) in
 
   let rekeying = Some (client_computed, server_checksum) in
@@ -23,7 +23,7 @@ let answer_client_finished state master_secret fin raw log =
 
 let establish_master_secret state params premastersecret raw log =
   let client_ctx, server_ctx, master_secret =
-    initialise_crypto_ctx state.version params premastersecret in
+    Handshake_crypto.initialise_crypto_ctx state.version params.client_random params.server_random params.cipher premastersecret in
   let machina = ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log @ [raw]) in
   return ({ state with machina = Server machina }, [], `Pass)
 

@@ -11,47 +11,6 @@ let (<+>) = Utils.Cs.(<+>)
 (* XXX todo :D *)
 let () = Rng.reseed (Cstruct.of_string "\001\002\003\004")
 
-let halve secret =
-  let size = Cstruct.len secret in
-  let half = size - size / 2 in
-  Cstruct.(sub secret 0 half, sub secret (size - half) half)
-
-let rec p_hash (hmac, hmac_n) key seed len =
-  let rec expand a to_go =
-    let res = hmac ~key (a <+> seed) in
-    if to_go > hmac_n then
-      res <+> expand (hmac ~key a) (to_go - hmac_n)
-    else Cstruct.sub res 0 to_go
-  in
-  expand (hmac ~key seed) len
-
-let pseudo_random_function version len secret label seed =
-  let labelled = Cstruct.of_string label <+> seed in
-  let open Core in
-  match version with
-  | TLS_1_2           ->
-     p_hash (SHA256.hmac, 32) secret labelled len
-  | TLS_1_1 | TLS_1_0 ->
-     let (s1, s2) = halve secret in
-     let md5 = p_hash (MD5.hmac, 16) s1 labelled len
-     and sha = p_hash (SHA1.hmac, 20) s2 labelled len in
-     Cs.xor md5 sha
-
-let generate_master_secret version pre_master_secret seed =
-  pseudo_random_function version 48 pre_master_secret "master secret" seed
-
-let key_block version len master_secret seed =
-  pseudo_random_function version len master_secret "key expansion" seed
-
-let finished version master_secret label ps =
-  let data = Utils.Cs.appends ps in
-  let open Core in
-  match version with
-  | TLS_1_0 | TLS_1_1 -> let seed = MD5.digest data <+> SHA1.digest data in
-                         pseudo_random_function version 12 master_secret label seed
-  | TLS_1_2 -> let seed = SHA256.digest data in
-               pseudo_random_function version 12 master_secret label seed
-
 let padPKCS1_and_signRSA key msg =
 
   (* XXX XXX temp *)
@@ -215,21 +174,7 @@ let hash hash_ctor cs =
 let hash_eq hash_ctor ~target cs =
   Utils.Cs.equal target (hash hash_ctor cs)
 
-(* Decoder + project asn algos into hashes we understand. *)
-let pkcs1_digest_info_of_cstruct cs =
-  match Asn_grammars.pkcs1_digest_info_of_cstruct cs with
-  | None -> None
-  | Some (asn_algo, digest) ->
-      match Ciphersuite.asn_to_hash_algorithm asn_algo with
-      | Some hash -> Some (hash, digest)
-      | None      -> None
-
-let pkcs1_digest_info_to_cstruct hashalgo data =
-  let signature = hash hashalgo data in
-  match Ciphersuite.hash_algorithm_to_asn hashalgo with
-  | Some x -> Some (Asn_grammars.pkcs1_digest_info_to_cstruct (x, signature))
-  | None   -> None
-
+(* MAC used in TLS *)
 let mac (hash, secret) seq ty (v_major, v_minor) data =
   let open Cstruct in
 
@@ -245,6 +190,20 @@ let mac (hash, secret) seq ty (v_major, v_minor) data =
   let module H = (val hash : Hash.T_MAC) in
   H.hmac ~key:secret (prefix <+> data)
 
+(* Decoder + project asn algos into hashes we understand. *)
+let pkcs1_digest_info_of_cstruct cs =
+  match Asn_grammars.pkcs1_digest_info_of_cstruct cs with
+  | None -> None
+  | Some (asn_algo, digest) ->
+      match Ciphersuite.asn_to_hash_algorithm asn_algo with
+      | Some hash -> Some (hash, digest)
+      | None      -> None
+
+let pkcs1_digest_info_to_cstruct hashalgo data =
+  let signature = hash hashalgo data in
+  match Ciphersuite.hash_algorithm_to_asn hashalgo with
+  | Some x -> Some (Asn_grammars.pkcs1_digest_info_to_cstruct (x, signature))
+  | None   -> None
 
 let cbc_block (type a) cipher =
   let module C = (val cipher : Block.T_CBC with type key = a) in C.block_size
@@ -264,6 +223,7 @@ let decrypt_stream (type a) ~cipher ~key data =
   (message, key)
 
 
+(* crazy CBC padding and unpadding for TLS *)
 let cbc_pad ~block data =
   let open Cstruct in
 

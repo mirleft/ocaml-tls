@@ -58,11 +58,11 @@ let answer_server_hello state params (sh : server_hello) raw log =
 
   find_version params.client_version state.config sh.version >>= fun () ->
   validate_cipher state.config.ciphers sh.ciphersuites >>= fun () ->
-  validate_rekeying state.rekeying sh.extensions >>= fun () ->
+  validate_rekeying state.rekeying sh.extensions >|= fun () ->
 
   let machina = ServerHelloReceived (adjust_params params sh, log @ [raw]) in
   let state = { state with version = sh.version ; machina = Client machina } in
-  return (state, [], `Pass)
+  (state, [], `Pass)
 
 let answer_certificate state params cs raw log =
   let open Certificate in
@@ -182,17 +182,18 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   peer_rsa_key cert >>= fun pubkey ->
   extract_signature pubkey raw_signature >>= fun signature ->
   let sigdata = params.client_random <+> params.server_random <+> raw_dh_params in
-  verifier signature sigdata >>= fun () ->
+  verifier signature sigdata >|= fun () ->
+
   let dh_received = Crypto.dh_params_unpack dh_params in
   let machina = ServerKeyExchangeReceived_DHE_RSA (params, dh_received, log @ [raw]) in
-  return ({ state with machina = Client machina }, [], `Pass)
+  ({ state with machina = Client machina }, [], `Pass)
 
 let answer_server_hello_done_common state kex premaster params raw log =
   let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
   let ccs = change_cipher_spec in
-  let client_ctx, server_ctx, master_secret = initialise_crypto_ctx state.version params premaster in
+  let client_ctx, server_ctx, master_secret = Handshake_crypto.initialise_crypto_ctx state.version params.client_random params.server_random params.cipher premaster in
   let to_fin = log @ [raw; ckex] in
-  let checksum = Crypto.finished state.version master_secret "client finished" to_fin in
+  let checksum = Handshake_crypto.finished state.version master_secret "client finished" to_fin in
   let fin = Writer.assemble_handshake (Finished checksum) in
   let ps = to_fin @ [fin] in
   let machina = ClientFinishedSent (server_ctx, checksum, master_secret, ps) in
@@ -216,7 +217,7 @@ let answer_server_hello_done_DHE_RSA state params (group, s_secret) raw log =
   return (answer_server_hello_done_common state kex premaster params raw log)
 
 let answer_server_finished state client_verify master_secret fin log =
-  let computed = Crypto.finished state.version master_secret "server finished" log in
+  let computed = Handshake_crypto.finished state.version master_secret "server finished" log in
   fail_neq computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
   let machina = ClientEstablished in
   let rekeying = Some (client_verify, computed) in
