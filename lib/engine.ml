@@ -5,25 +5,9 @@ open Utils
 open Core
 open State
 
-
-module Alert = struct
-
-  let make typ =
-    let buf = Writer.assemble_alert typ in
-    (Packet.ALERT, buf)
-
-  let handle buf =
-    match Reader.parse_alert buf with
-    | Reader.Or_error.Ok al ->
-      Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string al);
-      fail Packet.CLOSE_NOTIFY
-    | Reader.Or_error.Error _ ->
-      Printf.printf "unknown alert";
-      Cstruct.hexdump buf;
-      fail Packet.UNEXPECTED_MESSAGE
-end
-
 (* user API *)
+
+type state = State.state
 
 type role = [ `Server | `Client ]
 
@@ -181,6 +165,23 @@ let can_handle_appdata s =
   match s.handshake.rekeying with
   | Some _ -> true
   | None   -> false
+
+module Alert = struct
+
+  let make typ =
+    let buf = Writer.assemble_alert typ in
+    (Packet.ALERT, buf)
+
+  let handle buf =
+    match Reader.parse_alert buf with
+    | Reader.Or_error.Ok al ->
+      Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string al);
+      fail Packet.CLOSE_NOTIFY
+    | Reader.Or_error.Error _ ->
+      Printf.printf "unknown alert";
+      Cstruct.hexdump buf;
+      fail Packet.UNEXPECTED_MESSAGE
+end
 
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =

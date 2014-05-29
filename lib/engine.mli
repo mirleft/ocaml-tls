@@ -1,6 +1,8 @@
 open Core
 open State
 
+type state = State.state
+
 type role = [ `Server | `Client ]
 
 type ret = [
