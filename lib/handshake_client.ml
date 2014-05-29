@@ -226,19 +226,23 @@ let answer_server_finished state client_verify master_secret fin log =
   return ({ state with machina = Client machina ; rekeying = rekeying }, [], `Pass)
 
 let answer_hello_request state =
-  match state.config.use_rekeying with
-  | false -> fail Packet.HANDSHAKE_FAILURE
-  | true  ->
-     (match state.rekeying with
-      | None          -> fail Packet.HANDSHAKE_FAILURE
-      | Some (cvd, _) -> return (SecureRenegotiation cvd) ) >>= fun (rekeying) ->
+  let get_rekeying_data use_rk optdata =
+    match use_rk, optdata with
+    | false, _             -> fail Packet.HANDSHAKE_FAILURE
+    | _    , None          -> fail Packet.HANDSHAKE_FAILURE
+    | true , Some (cvd, _) -> return (SecureRenegotiation cvd)
 
-     let dch, params = default_client_hello state.config in
+  and produce_client_hello config exts =
+     let dch, params = default_client_hello config in
      let ch = { dch with
-                  extensions = rekeying :: dch.extensions } in
+                  extensions = exts @ dch.extensions } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
      let machina = ClientHelloSent (params, [raw]) in
-     return ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)], `Pass)
+     ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)], `Pass)
+
+  in
+  get_rekeying_data state.config.use_rekeying state.rekeying >|= fun ext ->
+  produce_client_hello state.config [ext]
 
 let handle_change_cipher_spec cs state packet =
   (* TODO: validate packet is good (ie parse it?) *)
