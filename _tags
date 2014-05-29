@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 934763ca2b47ba7875268786997dc8fc)
+# DO NOT EDIT (digest: 31dfb7c4dd66ec02059eac4d24bdcf1f)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -26,7 +26,7 @@
 "lib/crypto.cmx": for-pack(Tls)
 "lib/config.cmx": for-pack(Tls)
 "lib/state.cmx": for-pack(Tls)
-"lib/handshake_common_utils.cmx": for-pack(Tls)
+"lib/handshake_common.cmx": for-pack(Tls)
 "lib/handshake_crypto.cmx": for-pack(Tls)
 "lib/handshake_server.cmx": for-pack(Tls)
 "lib/handshake_client.cmx": for-pack(Tls)

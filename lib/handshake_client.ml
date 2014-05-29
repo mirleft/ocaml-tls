@@ -4,7 +4,7 @@ open Utils
 
 open Core
 open State
-open Handshake_common_utils
+open Handshake_common
 open Config
 
 let (<+>) = Cs.(<+>)

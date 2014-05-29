@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 060f654a3ef83e82bd2428d1efe5698e)
+# DO NOT EDIT (digest: 77194373eb8d8b1379dcec9f08dfea95)
 Ciphersuite
 Utils
 Packet
@@ -11,7 +11,7 @@ Writer
 Crypto
 Config
 State
-Handshake_common_utils
+Handshake_common
 Handshake_crypto
 Handshake_server
 Handshake_client
