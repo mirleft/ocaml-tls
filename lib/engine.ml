@@ -182,6 +182,14 @@ let hs_can_handle_appdata s =
   | Some _ -> true
   | None   -> false
 
+let merge_dec : dec_resp -> dec_resp -> dec_resp or_error =
+fun dec dec' ->
+  match dec, dec' with
+  | (`Change_dec _ as c), `Pass                -> return c
+  | `Pass               , (`Change_dec _ as c) -> return c
+  | `Pass               , `Pass                -> return `Pass
+  | `Change_dec _       , `Change_dec _        -> fail Packet.HANDSHAKE_FAILURE
+
 let handle_packet hs buf = function
 (* RFC 5246 -- 6.2.1.:
    Implementations MUST NOT send zero-length fragments of Handshake,
@@ -203,9 +211,27 @@ let handle_packet hs buf = function
      >|= fun (hs, items, dec_cmd) ->
      (hs, None, items, dec_cmd)
   | Packet.HANDSHAKE ->
-     ( match hs.machina with
-       | Client cs -> Handshake_client.handle_handshake cs hs buf
-       | Server ss -> Handshake_server.handle_handshake ss hs buf )
+     let rec parse_handshake_pieces buf =
+       match Cstruct.len buf with
+       | 0 -> return []
+       | _ ->
+          let open Reader in
+          ( match parse_handshake buf with
+            | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
+            | Or_error.Ok (handshake, raw, rest) ->
+               parse_handshake_pieces rest >|= fun rt ->
+               (handshake, raw) :: rt )
+     in
+     parse_handshake_pieces buf >>= fun hss ->
+     foldM (fun (hs, items, dec) (handshake, raw) ->
+            ( match hs.machina with
+              | Client cs -> Handshake_client.handle_handshake cs hs handshake raw
+              | Server ss -> Handshake_server.handle_handshake ss hs handshake raw
+            ) >>= fun (hs', items', dec') ->
+            merge_dec dec dec' >|= fun dec'' ->
+            (hs', items @ items', dec'') )
+           (hs, [], `Pass)
+           hss
      >|= fun (hs, items, dec) ->
      (hs, None, items, dec)
 

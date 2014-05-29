@@ -627,7 +627,7 @@ let good_handshakes_no_data = [
 let good_handshake_no_data_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok r -> assert_equal res r
+          | Or_error.Ok (r, _, rest) -> assert_equal res r ; assert_equal (Cstruct.len rest) 0
           | Or_error.Error _ -> assert_failure "handshake no data parser failed")
 
 let good_handshake_no_data_tests =
@@ -1033,7 +1033,7 @@ let cmp_handshake_cstruct hs hs' =
 let good_handshake_cstruct_data_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok r -> cmp_handshake_cstruct r res
+          | Or_error.Ok (r, _, rest) -> cmp_handshake_cstruct r res ; assert_equal (Cstruct.len rest) 0
           | Or_error.Error _ -> assert_failure "handshake cstruct data parser failed")
 
 let good_handshake_cstruct_data_tests =
@@ -1065,7 +1065,10 @@ let bad_handshake_cstruct_data =
 let bad_handshake_cstruct_data_parser xs _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok _ -> assert_failure "bad handshake cstruct parser won"
+          | Or_error.Ok (_, _, rest) ->
+             if (Cstruct.len rest) = 0 then
+               assert_failure "bad handshake cstruct parser won"
+             else ()
           | Or_error.Error _ -> ())
 
 let bad_handshake_cstruct_data_tests =
@@ -1266,7 +1269,7 @@ let cmp_client_hellos ch ch' =
 let good_client_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok (Core.ClientHello ch) -> cmp_client_hellos ch res
+          | Or_error.Ok (Core.ClientHello ch, _, rest) -> cmp_client_hellos ch res ; assert_equal (Cstruct.len rest) 0
           | _ -> assert_failure "handshake client hello parser failed")
 
 let good_client_hellos_tests =
@@ -1452,7 +1455,7 @@ let cmp_server_hellos sh sh' =
 let good_server_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok (Core.ServerHello sh) -> cmp_server_hellos sh res
+          | Or_error.Ok (Core.ServerHello sh, _, rest) -> cmp_server_hellos sh res ; assert_equal (Cstruct.len rest) 0
           | _ -> assert_failure "handshake server hello parser failed")
 
 let good_server_hellos_tests =

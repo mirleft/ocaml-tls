@@ -256,27 +256,23 @@ let handle_change_cipher_spec cs state packet =
   | _ ->
      fail Packet.UNEXPECTED_MESSAGE
 
-let handle_handshake cs hs buf =
-  let open Reader in
-  match parse_handshake buf with
-  | Or_error.Ok handshake ->
-     Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
-     Cstruct.hexdump buf;
-     ( match cs, handshake with
-       | ClientHelloSent (params, log), ServerHello sh ->
-          answer_server_hello hs params sh buf log
-       | ServerHelloReceived (params, log), Certificate cs ->
-          answer_certificate hs params cs buf log
-       | ServerCertificateReceived_RSA (params, cert, log), ServerHelloDone ->
-          answer_server_hello_done_RSA hs params cert buf log
-       | ServerCertificateReceived_DHE_RSA (params, cert, log), ServerKeyExchange kex ->
-          answer_server_key_exchange_DHE_RSA hs params cert kex buf log
-       | ServerKeyExchangeReceived_DHE_RSA (params, dh, log), ServerHelloDone ->
-          answer_server_hello_done_DHE_RSA hs params dh buf log
-       | ServerChangeCipherSpecReceived (client_verify, master, log), Finished fin ->
-          answer_server_finished hs client_verify master fin log
-       | ClientEstablished, HelloRequest ->
-          answer_hello_request hs
-       | _, _ -> fail Packet.HANDSHAKE_FAILURE )
-  | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
+let handle_handshake cs hs handshake buf =
+  Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
+  Cstruct.hexdump buf;
+  match cs, handshake with
+  | ClientHelloSent (params, log), ServerHello sh ->
+     answer_server_hello hs params sh buf log
+  | ServerHelloReceived (params, log), Certificate cs ->
+     answer_certificate hs params cs buf log
+  | ServerCertificateReceived_RSA (params, cert, log), ServerHelloDone ->
+     answer_server_hello_done_RSA hs params cert buf log
+  | ServerCertificateReceived_DHE_RSA (params, cert, log), ServerKeyExchange kex ->
+     answer_server_key_exchange_DHE_RSA hs params cert kex buf log
+  | ServerKeyExchangeReceived_DHE_RSA (params, dh, log), ServerHelloDone ->
+     answer_server_hello_done_DHE_RSA hs params dh buf log
+  | ServerChangeCipherSpecReceived (client_verify, master, log), Finished fin ->
+     answer_server_finished hs client_verify master fin log
+  | ClientEstablished, HelloRequest ->
+     answer_hello_request hs
+  | _, _ -> fail Packet.HANDSHAKE_FAILURE
 
