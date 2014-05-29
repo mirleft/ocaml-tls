@@ -156,21 +156,23 @@ let answer_client_hello_params state params ch raw =
   server_cert state.config params >>= fun certificates ->
 
   let hello_done = Writer.assemble_handshake ServerHelloDone in
-  let wrap ps = List.map (fun e -> `Record (HANDSHAKE, e)) ps in
 
-  match Ciphersuite.ciphersuite_kex cipher with
-  | Ciphersuite.DHE_RSA ->
-     kex_dhe_rsa state.config params state.version ch >>= fun (kex, dh) ->
-     let outs = sh :: certificates @ [ kex ; hello_done] in
-     let machina = ServerHelloDoneSent_DHE_RSA (params, dh, raw :: outs) in
-     return ({ state with machina = Server machina },
-             wrap outs,
-             `Pass)
+  ( match Ciphersuite.ciphersuite_kex cipher with
+    | Ciphersuite.DHE_RSA ->
+       kex_dhe_rsa state.config params state.version ch >>= fun (kex, dh) ->
+       let outs = sh :: certificates @ [ kex ; hello_done] in
+       let machina = ServerHelloDoneSent_DHE_RSA (params, dh, raw :: outs) in
+       return (outs, machina)
   | Ciphersuite.RSA ->
      let outs = sh :: certificates @ [ hello_done] in
      let machina = ServerHelloDoneSent_RSA (params, raw :: outs) in
-     return ({ state with machina = Server machina },
-             wrap outs, `Pass)
+     return (outs, machina)
+  ) >|= fun (out_recs, machina) ->
+
+  ({ state with machina = Server machina },
+   List.map (fun e -> `Record (HANDSHAKE, e)) out_recs,
+   `Pass)
+
 
 let answer_client_hello state (ch : client_hello) raw =
   let find_version requested config =
