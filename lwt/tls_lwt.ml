@@ -38,9 +38,8 @@ end
 module Unix = struct
 
   type t = {
-    role           : [ `Server | `Client ] ;
     fd             : Lwt_unix.file_descr ;
-    mutable state  : [ `Active of Tls.Flow.state
+    mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
                      | `Error of exn ] ;
     mutable linger : Cstruct.t option ;
@@ -62,16 +61,12 @@ module Unix = struct
   let safely f a =
     try_lwt ( f a >> return_unit ) with _ -> return_unit
 
-  let handle_tls = function
-    | `Server -> Tls.Server.handle_tls
-    | `Client -> Tls.Client.handle_tls
-
   let recv_buf = Cstruct.create 4096
 
   let rec read_react t =
 
     let handle tls buf =
-      match handle_tls t.role tls buf with
+      match Tls.Engine.handle_tls tls buf with
       | `Ok (tls, answer, appdata) ->
           t.state <- `Active tls ;
           write_t t answer >> return (`Ok appdata)
@@ -117,7 +112,7 @@ module Unix = struct
     | `Error err  -> fail err
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
-        match Tls.Flow.send_application_data tls css with
+        match Tls.Engine.send_application_data tls css with
         | Some (tls, tlsdata) ->
             ( t.state <- `Active tls ; write_t t tlsdata )
         | None -> fail @@ Invalid_argument "tls: write: socket not ready"
@@ -133,7 +128,7 @@ module Unix = struct
 
   let rec drain_handshake t =
     match t.state with
-    | `Active tls when Tls.Flow.can_send_appdata tls ->
+    | `Active tls when Tls.Engine.can_handle_appdata tls ->
         return t
     | _ ->
         read_react t >>= function
@@ -142,17 +137,15 @@ module Unix = struct
 
   let server_of_fd cert fd =
     drain_handshake {
-      role   = `Server ;
-      state  = `Active (Tls.Server.new_connection ~cert ()) ;
+      state  = `Active (Tls.Engine.listen_connection ~cert ()) ;
       fd     = fd ;
       linger = None ;
     }
 
   let client_of_fd validator ~host fd =
-    let (tls, init) = Tls.Client.new_connection ~validator ~host ()
+    let (tls, init) = Tls.Engine.open_connection ~validator ~host ()
     in
     let t = {
-      role   = `Client ;
       state  = `Active tls ;
       fd     = fd ;
       linger = None ;
