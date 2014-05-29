@@ -14,7 +14,7 @@ let http_client ?ca host port =
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ host ; "Connection: close" ; "" ; ""
   ] in
-  Lwt_io.(write oc req >> read ic >>= print)
+  Lwt_io.(write oc req >> read ic >>= print >> printf "++ done.\n%!")
 
 let () =
   try (
