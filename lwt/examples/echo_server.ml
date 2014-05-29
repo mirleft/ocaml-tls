@@ -4,6 +4,8 @@ open Ex_common
 
 let serve_ssl port callback =
 
+  let tag = "server" in
+
   lwt cert =
     X509_lwt.private_of_pems
       ~cert:server_cert
@@ -16,27 +18,31 @@ let serve_ssl port callback =
     listen s 10 ;
     s in
 
+  let handle channels addr =
+    async @@ fun () ->
+      try_lwt
+        callback channels addr >> yap ~tag "<- handler done"
+      with
+      | Tls_lwt.Tls_alert a ->
+          yap ~tag @@ "handler: " ^ Tls.Packet.alert_type_to_string a
+      | exn -> yap ~tag "handler: exception" >> fail exn
+  in
+
+  yap ~tag ("-> start @ " ^ string_of_int port)
+  >>
   let rec loop () =
-    lwt (socket, addr) = Tls_lwt.accept ~cert server_s in
-    yap ~tag:"server" "-> connect" >>
-    let _ =
-      try_lwt callback socket addr
-      with exn -> yap ~tag:"server" "+ handler error" in
-    loop () in
-  yap ~tag:"server" ("-> start @ " ^ string_of_int port) >>
+    lwt (channels, addr) = Tls_lwt.accept cert server_s in
+    yap ~tag "-> connect"
+    >>
+    ( handle channels addr ; loop () )
+  in
   loop ()
 
 
 let echo_server port =
-  serve_ssl port @@ fun socket addr ->
-    yap ~tag:"handler" "-> incoming" >>
-    let rec loop () =
-      try_lwt
-        lwt data = tls_read socket in
-        yap ~tag:"handler" ("recv: " ^ data) >> tls_write socket data >> loop ()
-      with End_of_file -> yap ~tag:"handler" "eof."
-    in
-    loop ()
+  serve_ssl port @@ fun (ic, oc) addr ->
+    lines ic |> Lwt_stream.iter_s (fun line ->
+      yap "handler" ("+ " ^ line) >> Lwt_io.write_line oc line)
 
 let () =
   let port =

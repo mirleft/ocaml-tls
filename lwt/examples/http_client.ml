@@ -3,18 +3,18 @@ open Lwt
 open Ex_common
 
 let http_client ?ca host port =
+  let port = int_of_string port in
   lwt validator = X509_lwt.validator
     (match ca with
      | None        -> `Ca_dir ca_cert_dir
      | Some "NONE" -> `No_validation_I'M_STUPID
      | Some f      -> `Ca_file f)
   in
-  lwt sock      = Tls_lwt.connect validator host port
-  in
-  let req = unlines [
-    "GET / HTTP/1.1" ; "Host: " ^ host ; "" ; "" ;
+  lwt (ic, oc) = Tls_lwt.connect validator (host, port) in
+  let req = String.concat "\r\n" [
+    "GET / HTTP/1.1" ; "Host: " ^ host ; "Connection: close" ; "" ; ""
   ] in
-  tls_write sock req >> tls_read sock >>= Lwt_io.print
+  Lwt_io.(write oc req >> read ic >>= print >> printf "++ done.\n%!")
 
 let () =
   try (

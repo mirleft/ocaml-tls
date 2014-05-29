@@ -1,31 +1,35 @@
 
 exception Tls_alert of Tls.Packet.alert_type
 
-type socket
+type o_server = X509_lwt.priv
+type o_client = X509_lwt.validator
 
-val resolve : string -> string -> Unix.sockaddr Lwt.t
+module Unix : sig
 
-val read   : socket -> Cstruct.t Lwt.t
-val write  : socket -> Cstruct.t      -> unit Lwt.t
-val writev : socket -> Cstruct.t list -> unit Lwt.t
+  type t
 
-val server_of_fd : ?cert:X509_lwt.priv
-                -> Lwt_unix.file_descr
-                -> socket Lwt.t
+  val close : t -> unit Lwt.t
 
-val client_of_fd : ?cert:X509_lwt.priv
-                -> ?host:string
-                -> validator:X509_lwt.validator
-                -> Lwt_unix.file_descr
-                -> socket Lwt.t
+  val server_of_fd : o_server ->                Lwt_unix.file_descr -> t Lwt.t
+  val client_of_fd : o_client -> host:string -> Lwt_unix.file_descr -> t Lwt.t
 
-val accept : ?cert:X509_lwt.priv
-          -> Lwt_unix.file_descr
-          -> (socket * Lwt_unix.sockaddr) Lwt.t
+  val accept  : o_server -> Lwt_unix.file_descr -> (t * Lwt_unix.sockaddr) Lwt.t
+  val connect : o_client -> string * int -> t Lwt.t
 
-val connect : ?cert:X509_lwt.priv
-           -> validator:X509_lwt.validator
-           -> host:string
-           -> port:string
-           -> socket Lwt.t
+  val read   : t -> Cstruct.t      -> int  Lwt.t
+  val write  : t -> Cstruct.t      -> unit Lwt.t
+  val writev : t -> Cstruct.t list -> unit Lwt.t
 
+  val read_bytes  : t -> Lwt_bytes.t -> int -> int -> int  Lwt.t
+  val write_bytes : t -> Lwt_bytes.t -> int -> int -> unit Lwt.t
+
+end
+
+type ic = Lwt_io.input_channel
+type oc = Lwt_io.output_channel
+
+val accept : o_server -> Lwt_unix.file_descr
+                      -> ((ic * oc) * Lwt_unix.sockaddr) Lwt.t
+val connect : o_client -> string * int -> (ic * oc) Lwt.t
+
+val of_t : Unix.t -> ic * oc
