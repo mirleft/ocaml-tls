@@ -183,6 +183,18 @@ let hs_can_handle_appdata s =
   | Some _ -> true
   | None   -> false
 
+let rec separate_handshakes buf =
+  let open Cstruct in
+  if len buf < 4 then
+    return ([], buf)
+  else
+    match Reader.parse_handshake_length buf with
+    | size when size > len buf -> return ([], buf)
+    | size                     ->
+       let hs, rest = split buf (size + 4) in
+       separate_handshakes rest >|= fun (rt, frag) ->
+       (hs :: rt, frag)
+
 let handle_packet hs buf = function
 (* RFC 5246 -- 6.2.1.:
    Implementations MUST NOT send zero-length fragments of Handshake,
@@ -204,20 +216,7 @@ let handle_packet hs buf = function
      >|= fun (hs, items, dec_cmd) ->
      (hs, None, items, dec_cmd)
   | Packet.HANDSHAKE ->
-     let rec consume_handshakes buf =
-       let open Reader in
-       let open Cstruct in
-       if len buf < 4 then
-         return ([], buf)
-       else
-         match parse_handshake_length buf with
-         | size when size > len buf -> return ([], buf)
-         | size                     ->
-            let hs, rest = split buf (size + 4) in
-            consume_handshakes rest >|= fun (rt, frag) ->
-            (hs :: rt, frag)
-     in
-     consume_handshakes (hs.fragment <+> buf) >>= fun (hss, frag) ->
+     separate_handshakes (hs.fragment <+> buf) >>= fun (hss, frag) ->
      foldM (fun (hs, items) raw ->
             ( match hs.machina with
               | Client cs -> Handshake_client.handle_handshake cs hs raw
