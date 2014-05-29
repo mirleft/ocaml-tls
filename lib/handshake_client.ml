@@ -65,7 +65,7 @@ let answer_server_hello state params (sh : server_hello) raw log =
 
   let machina = ServerHelloReceived (adjust_params params sh, log @ [raw]) in
   let state = { state with version = sh.version ; machina = Client machina } in
-  (state, [], `Pass)
+  (state, [])
 
 let answer_certificate state params cs raw log =
   let open Certificate in
@@ -134,7 +134,7 @@ let answer_certificate state params cs raw log =
                  | RSA     -> ServerCertificateReceived_RSA (params, peer_cert, data)
                  | DHE_RSA -> ServerCertificateReceived_DHE_RSA (params, peer_cert, data))
   in
-  return ({ state with machina = Client machina }, [], `Pass)
+  return ({ state with machina = Client machina }, [])
 
 let peer_rsa_key cert =
   let open Asn_grammars in
@@ -190,7 +190,7 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
 
   let dh_received = Crypto.dh_params_unpack dh_params in
   let machina = ServerKeyExchangeReceived_DHE_RSA (params, dh_received, log @ [raw]) in
-  ({ state with machina = Client machina }, [], `Pass)
+  ({ state with machina = Client machina }, [])
 
 let answer_server_hello_done_common state kex premaster params raw log =
   let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
@@ -206,8 +206,7 @@ let answer_server_hello_done_common state kex premaster params raw log =
    [`Record (Packet.HANDSHAKE, ckex);
     `Record ccs;
     `Change_enc (Some client_ctx);
-    `Record (Packet.HANDSHAKE, fin)],
-   `Pass)
+    `Record (Packet.HANDSHAKE, fin)])
 
 let answer_server_hello_done_RSA state params cert raw log =
   let ver = Writer.assemble_protocol_version params.client_version in
@@ -223,10 +222,11 @@ let answer_server_hello_done_DHE_RSA state params (group, s_secret) raw log =
 
 let answer_server_finished state client_verify master_secret fin log =
   let computed = Handshake_crypto.finished state.version master_secret "server finished" log in
-  guard (Cs.equal computed fin) Packet.HANDSHAKE_FAILURE >|= fun () ->
+  guard (Cs.equal computed fin) Packet.HANDSHAKE_FAILURE >>= fun () ->
+  guard (Cstruct.len state.fragment = 0) Packet.HANDSHAKE_FAILURE >|= fun () ->
   let machina = ClientEstablished in
   let rekeying = Some (client_verify, computed) in
-  ({ state with machina = Client machina ; rekeying = rekeying }, [], `Pass)
+  ({ state with machina = Client machina ; rekeying = rekeying }, [])
 
 let answer_hello_request state =
   let get_rekeying_data use_rk optdata =
@@ -241,7 +241,7 @@ let answer_hello_request state =
                   extensions = exts @ dch.extensions } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
      let machina = ClientHelloSent (params, [raw]) in
-     ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)], `Pass)
+     ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
 
   in
   get_rekeying_data state.config.use_rekeying state.rekeying >|= fun ext ->

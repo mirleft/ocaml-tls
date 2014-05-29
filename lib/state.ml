@@ -58,7 +58,8 @@ type handshake_state = {
   version   : tls_version ;
   machina   : handshake_machina_state ;
   config    : Config.config ;
-  rekeying  : rekeying_params option
+  rekeying  : rekeying_params option ;
+  fragment  : Cstruct.t
 }
 
 type crypto_state = crypto_context option
@@ -70,7 +71,8 @@ type rec_resp = [
   | `Record     of record
 ]
 type dec_resp = [ `Change_dec of crypto_state | `Pass ]
-type handshake_return = handshake_state * rec_resp list * dec_resp
+type handshake_return = handshake_state * rec_resp list
+type ccs_return = handshake_state * rec_resp list * dec_resp
 
 (* Top level state, encapsulating the entire session. *)
 type state = {
