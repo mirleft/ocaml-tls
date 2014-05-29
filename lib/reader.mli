@@ -12,7 +12,7 @@ open Or_error
 val parse_version   : Cstruct.t -> Core.tls_version or_error
 val parse_hdr       : Cstruct.t -> Packet.content_type option * Core.tls_version option * int
 
-val parse_handshake : Cstruct.t -> Core.tls_handshake or_error
+val parse_handshake : Cstruct.t -> (Core.tls_handshake * Cstruct.t * Cstruct.t) or_error
 
 val parse_alert     : Cstruct.t -> Core.tls_alert or_error
 

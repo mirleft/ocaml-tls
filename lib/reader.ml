@@ -328,11 +328,8 @@ let parse_handshake = catch @@ fun buf ->
   let typ = get_uint8 buf 0 in
   let handshake_type = int_to_handshake_type typ in
   let length = get_uint24_len (shift buf 1) in
-  if len buf <> length + 4 then
-    raise_trailing_bytes "handshake"
-  else
-    let payload = sub buf 4 length in
-    match handshake_type with
+  let payload = sub buf 4 length in
+  let hs = match handshake_type with
     | Some HELLO_REQUEST -> if len payload <> 0 then
                               raise_trailing_bytes "hello request"
                             else
@@ -349,4 +346,7 @@ let parse_handshake = catch @@ fun buf ->
     | Some CLIENT_KEY_EXCHANGE -> parse_client_key_exchange payload
     | Some FINISHED -> Finished payload
     | _  -> raise_unknown @@ "handshake type" ^ string_of_int typ
+  in
+  let raw, rest = split buf (length + 4) in
+  (hs, raw, rest)
 

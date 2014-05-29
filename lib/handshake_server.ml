@@ -224,22 +224,18 @@ let handle_change_cipher_spec ss state packet =
   | _ ->
      fail Packet.UNEXPECTED_MESSAGE
 
-let handle_handshake ss hs buf =
-  let open Reader in
-  match parse_handshake buf with
-  | Or_error.Ok handshake ->
-     Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
-     Cstruct.hexdump buf;
-     ( match ss, handshake with
-       | ServerInitial, ClientHello ch ->
-          answer_client_hello hs ch buf
-       | ServerHelloDoneSent_RSA (params, log), ClientKeyExchange kex ->
-          answer_client_key_exchange_RSA hs params kex buf log
-       | ServerHelloDoneSent_DHE_RSA (params, dh_sent, log), ClientKeyExchange kex ->
-          answer_client_key_exchange_DHE_RSA hs params dh_sent kex buf log
-       | ClientChangeCipherSpecReceived (master_secret, log), Finished fin ->
-          answer_client_finished hs master_secret fin buf log
-       | ServerEstablished, ClientHello ch -> (* rekeying *)
-          answer_client_hello hs ch buf
-       | _, _-> fail Packet.HANDSHAKE_FAILURE )
-  | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
+let handle_handshake ss hs handshake buf =
+  Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
+  Cstruct.hexdump buf;
+  match ss, handshake with
+  | ServerInitial, ClientHello ch ->
+     answer_client_hello hs ch buf
+  | ServerHelloDoneSent_RSA (params, log), ClientKeyExchange kex ->
+     answer_client_key_exchange_RSA hs params kex buf log
+  | ServerHelloDoneSent_DHE_RSA (params, dh_sent, log), ClientKeyExchange kex ->
+     answer_client_key_exchange_DHE_RSA hs params dh_sent kex buf log
+  | ClientChangeCipherSpecReceived (master_secret, log), Finished fin ->
+     answer_client_finished hs master_secret fin buf log
+  | ServerEstablished, ClientHello ch -> (* rekeying *)
+     answer_client_hello hs ch buf
+  | _, _-> fail Packet.HANDSHAKE_FAILURE

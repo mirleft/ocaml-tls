@@ -274,12 +274,13 @@ let rw_ds_1_2_tests =
 let rw_handshake_no_data hs _ =
   let buf = Writer.assemble_handshake hs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok hs' ->
+          | Or_error.Ok (hs', _, rest) ->
              assert_equal hs hs' ;
+             assert_equal (Cstruct.len rest) 0;
              (* lets get crazy and do it one more time *)
              let buf' = Writer.assemble_handshake hs' in
              (match parse_handshake buf' with
-              | Or_error.Ok hs'' -> assert_equal hs hs''
+              | Or_error.Ok (hs'', _, rest) -> assert_equal hs hs'' ; assert_equal (Cstruct.len rest) 0
               | Or_error.Error _ -> assert_failure "handshake no data inner failed")
           | Or_error.Error _ -> assert_failure "handshake no data failed")
 
@@ -293,12 +294,13 @@ let rw_handshake_no_data_tests =
 let rw_handshake_cstruct_data hs _ =
   let buf = Writer.assemble_handshake hs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok hs' ->
+          | Or_error.Ok (hs', _, rest) ->
              Readertests.cmp_handshake_cstruct hs hs' ;
+             assert_equal (Cstruct.len rest) 0 ;
              (* lets get crazy and do it one more time *)
              let buf' = Writer.assemble_handshake hs' in
              (match parse_handshake buf' with
-              | Or_error.Ok hs'' -> Readertests.cmp_handshake_cstruct hs hs'
+              | Or_error.Ok (hs'', _, rest) -> Readertests.cmp_handshake_cstruct hs hs' ; assert_equal (Cstruct.len rest) 0
               | Or_error.Error _ -> assert_failure "handshake cstruct data inner failed")
           | Or_error.Error _ -> assert_failure "handshake cstruct data failed")
 
@@ -328,15 +330,17 @@ let rw_handshake_cstruct_data_tests =
 let rw_handshake_client_hello hs _ =
   let buf = Writer.assemble_handshake hs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok hs' ->
+          | Or_error.Ok (hs', _, rest) ->
              Core.(match hs, hs' with
                    | ClientHello ch, ClientHello ch' ->
                       Readertests.cmp_client_hellos ch ch' ;
                    | _ -> assert_failure "handshake client hello broken") ;
+             assert_equal (Cstruct.len rest) 0 ;
              (* lets get crazy and do it one more time *)
              let buf' = Writer.assemble_handshake hs' in
              (match parse_handshake buf' with
-              | Or_error.Ok hs'' ->
+              | Or_error.Ok (hs'', _, rest) ->
+                 assert_equal (Cstruct.len rest) 0 ;
                  Core.(match hs, hs'' with
                        | ClientHello ch, ClientHello ch'' ->
                           Readertests.cmp_client_hellos ch ch'' ;
@@ -419,7 +423,8 @@ let rw_handshake_client_hello_tests =
 let rw_handshake_server_hello hs _ =
   let buf = Writer.assemble_handshake hs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok hs' ->
+          | Or_error.Ok (hs', _, rest) ->
+             assert_equal (Cstruct.len rest) 0 ;
              Core.(match hs, hs' with
                    | ServerHello sh, ServerHello sh' ->
                       Readertests.cmp_server_hellos sh sh' ;
@@ -427,7 +432,8 @@ let rw_handshake_server_hello hs _ =
              (* lets get crazy and do it one more time *)
              let buf' = Writer.assemble_handshake hs' in
              (match parse_handshake buf' with
-              | Or_error.Ok hs'' ->
+              | Or_error.Ok (hs'', _, rest) ->
+                 assert_equal (Cstruct.len rest) 0 ;
                  Core.(match hs, hs'' with
                        | ServerHello sh, ServerHello sh'' ->
                           Readertests.cmp_server_hellos sh sh'' ;

@@ -160,12 +160,6 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
     | (None, _, _)                                         ->
        fail Packet.UNEXPECTED_MESSAGE
 
-(* utility for user *)
-let can_handle_appdata s =
-  match s.handshake.rekeying with
-  | Some _ -> true
-  | None   -> false
-
 module Alert = struct
 
   let make typ =
@@ -183,6 +177,64 @@ module Alert = struct
       fail Packet.UNEXPECTED_MESSAGE
 end
 
+let hs_can_handle_appdata s =
+  match s.rekeying with
+  | Some _ -> true
+  | None   -> false
+
+let merge_dec : dec_resp -> dec_resp -> dec_resp or_error =
+fun dec dec' ->
+  match dec, dec' with
+  | (`Change_dec _ as c), `Pass                -> return c
+  | `Pass               , (`Change_dec _ as c) -> return c
+  | `Pass               , `Pass                -> return `Pass
+  | `Change_dec _       , `Change_dec _        -> fail Packet.HANDSHAKE_FAILURE
+
+let handle_packet hs buf = function
+(* RFC 5246 -- 6.2.1.:
+   Implementations MUST NOT send zero-length fragments of Handshake,
+   Alert, or ChangeCipherSpec content types.  Zero-length fragments of
+   Application data MAY be sent as they are potentially useful as a
+   traffic analysis countermeasure.
+ *)
+  | Packet.ALERT -> (* this always fails, might be ok to accept some WARNING-level alerts *)
+     Alert.handle buf
+  | Packet.APPLICATION_DATA ->
+     ( match hs_can_handle_appdata hs with
+       | true  -> return (hs, Some buf, [], `Pass)
+       | false -> fail Packet.UNEXPECTED_MESSAGE
+     )
+  | Packet.CHANGE_CIPHER_SPEC ->
+     ( match hs.machina with
+       | Client cs -> Handshake_client.handle_change_cipher_spec cs hs buf
+       | Server ss -> Handshake_server.handle_change_cipher_spec ss hs buf )
+     >|= fun (hs, items, dec_cmd) ->
+     (hs, None, items, dec_cmd)
+  | Packet.HANDSHAKE ->
+     let rec parse_handshake_pieces buf =
+       match Cstruct.len buf with
+       | 0 -> return []
+       | _ ->
+          let open Reader in
+          ( match parse_handshake buf with
+            | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
+            | Or_error.Ok (handshake, raw, rest) ->
+               parse_handshake_pieces rest >|= fun rt ->
+               (handshake, raw) :: rt )
+     in
+     parse_handshake_pieces buf >>= fun hss ->
+     foldM (fun (hs, items, dec) (handshake, raw) ->
+            ( match hs.machina with
+              | Client cs -> Handshake_client.handle_handshake cs hs handshake raw
+              | Server ss -> Handshake_server.handle_handshake ss hs handshake raw
+            ) >>= fun (hs', items', dec') ->
+            merge_dec dec dec' >|= fun dec'' ->
+            (hs', items @ items', dec'') )
+           (hs, [], `Pass)
+           hss
+     >|= fun (hs, items, dec) ->
+     (hs, None, items, dec)
+
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =
   let hs = state.handshake in
@@ -195,27 +247,7 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   >>= fun () ->
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->
-  let hs = state.handshake in
-  (match hdr.content_type with
-  | Packet.ALERT -> (* this always fails, might be ok to accept some WARNING-level alerts *)
-     Alert.handle dec
-  | Packet.APPLICATION_DATA ->
-     ( match can_handle_appdata state with
-       | true  -> return (hs, Some dec, [], `Pass)
-       | false -> fail Packet.UNEXPECTED_MESSAGE
-     )
-  | Packet.CHANGE_CIPHER_SPEC ->
-     ( match hs.machina with
-       | Client cs -> Handshake_client.handle_change_cipher_spec cs hs dec
-       | Server ss -> Handshake_server.handle_change_cipher_spec ss hs dec )
-     >|= fun (hs, items, dec_cmd) ->
-     (hs, None, items, dec_cmd)
-  | Packet.HANDSHAKE ->
-     ( match hs.machina with
-       | Client cs -> Handshake_client.handle_handshake cs hs dec
-       | Server ss -> Handshake_server.handle_handshake ss hs dec )
-     >|= fun (hs, items, dec) ->
-     (hs, None, items, dec) )
+  handle_packet state.handshake dec hdr.content_type
   >>= fun (handshake, data, items, dec_cmd) ->
   let (encryptor, encs) =
     List.fold_left (fun (st, es) -> function
@@ -279,6 +311,9 @@ let send_records (st : state) records =
   in
   let data = assemble_records version encs in
   ({ st with encryptor }, data)
+
+(* utility for user *)
+let can_handle_appdata s = hs_can_handle_appdata s.handshake
 
 (* another entry for user data *)
 let send_application_data st css =
