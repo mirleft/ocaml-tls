@@ -1,15 +1,9 @@
-open Handshake_common_utils
-open Handshake_common_utils.Or_alert
 open Core
+open State
+
+type state = State.state
 
 type role = [ `Server | `Client ]
-
-type state = {
-  handshake : tls_internal_state ;
-  decryptor : crypto_state ;
-  encryptor : crypto_state ;
-  fragment  : Cstruct.t ;
-}
 
 type ret = [
   | `Ok   of state * Cstruct.t * Cstruct.t option

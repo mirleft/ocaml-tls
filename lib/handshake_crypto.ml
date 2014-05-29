@@ -1,8 +1,9 @@
 open Nocrypto
 open Nocrypto.Common
 open Nocrypto.Hash
+
 open Core
-open Handshake_common_utils
+open State
 
 let (<+>) = Utils.Cs.(<+>)
 
@@ -22,7 +23,6 @@ let rec p_hash (hmac, hmac_n) key seed len =
 
 let pseudo_random_function version len secret label seed =
   let labelled = Cstruct.of_string label <+> seed in
-  let open Core in
   match version with
   | TLS_1_2           ->
      p_hash (SHA256.hmac, 32) secret labelled len
@@ -40,7 +40,6 @@ let key_block version len master_secret seed =
 
 let finished version master_secret label ps =
   let data = Utils.Cs.appends ps in
-  let open Core in
   match version with
   | TLS_1_0 | TLS_1_1 -> let seed = MD5.digest data <+> SHA1.digest data in
                          pseudo_random_function version 12 master_secret label seed
@@ -60,8 +59,11 @@ let divide_keyblock version key mac iv buf =
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
 
-let initialise_crypto_ctx version client_random server_random cipher premaster =
+let initialise_crypto_ctx version params premaster =
   let open Ciphersuite in
+  let client_random = params.client_random
+  and server_random = params.server_random
+  and cipher = params.cipher in
 
   let master = generate_master_secret version premaster
                 (client_random <+> server_random) in

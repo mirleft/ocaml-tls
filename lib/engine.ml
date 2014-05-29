@@ -1,19 +1,15 @@
-open Core
 open Nocrypto
-open Handshake_common_utils
-open Handshake_common_utils.Or_alert
+
+open Utils
+
+open Core
+open State
 
 (* user API *)
 
-type role = [ `Server | `Client ]
+type state = State.state
 
-(* this is the externally-visible state somebody will keep track of for us. *)
-type state = {
-  handshake : tls_internal_state ;
-  decryptor : crypto_state ;
-  encryptor : crypto_state ;
-  fragment  : Cstruct.t ;
-}
+type role = [ `Server | `Client ]
 
 let new_state config role =
   let handshake_state = match role with
@@ -81,7 +77,7 @@ let verify_mac { mac = (hash, _) as mac ; sequence } ty ver decrypted =
     let cmac =
       let ver = pair_of_tls_version ver in
       Crypto.mac mac sequence ty ver body in
-    fail_neq cmac mmac Packet.BAD_RECORD_MAC >>= fun () -> return body
+    guard (Cs.equal cmac mmac) Packet.BAD_RECORD_MAC >|= fun () -> body
 
 
 let decrypt (version : tls_version) (st : crypto_state) ty buf =
@@ -165,11 +161,27 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
        fail Packet.UNEXPECTED_MESSAGE
 
 (* utility for user *)
-let can_handle_appdata : state -> bool =
-  fun s ->
-    match s.handshake.rekeying with
-    | Some _ -> true
-    | None   -> false
+let can_handle_appdata s =
+  match s.handshake.rekeying with
+  | Some _ -> true
+  | None   -> false
+
+module Alert = struct
+
+  let make typ =
+    let buf = Writer.assemble_alert typ in
+    (Packet.ALERT, buf)
+
+  let handle buf =
+    match Reader.parse_alert buf with
+    | Reader.Or_error.Ok al ->
+      Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string al);
+      fail Packet.CLOSE_NOTIFY
+    | Reader.Or_error.Error _ ->
+      Printf.printf "unknown alert";
+      Cstruct.hexdump buf;
+      fail Packet.UNEXPECTED_MESSAGE
+end
 
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =
@@ -186,7 +198,7 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   let hs = state.handshake in
   (match hdr.content_type with
   | Packet.ALERT -> (* this always fails, might be ok to accept some WARNING-level alerts *)
-     handle_alert dec
+     Alert.handle dec
   | Packet.APPLICATION_DATA ->
      ( match can_handle_appdata state with
        | true  -> return (hs, Some dec, [], `Pass)
@@ -237,8 +249,7 @@ let assemble_records : tls_version -> record list -> Cstruct.t =
     o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
 
 (* main entry point *)
-let handle_tls : state -> Cstruct.t -> ret
-= fun state buf ->
+let handle_tls state buf =
   match
     separate_records (state.fragment <+> buf) >>= fun (in_records, frag) ->
     foldM (fun (st, datas, raw_rs) r ->
@@ -254,7 +265,7 @@ let handle_tls : state -> Cstruct.t -> ret
   | Ok v    -> `Ok v
   | Error x ->
       let version    = state.handshake.version in
-      let alert_resp = assemble_records version [alert x] in
+      let alert_resp = assemble_records version [Alert.make x] in
       `Fail (x, alert_resp)
 
 let send_records (st : state) records =
@@ -270,7 +281,7 @@ let send_records (st : state) records =
   ({ st with encryptor }, data)
 
 (* another entry for user data *)
-let send_application_data (st : state) css =
+let send_application_data st css =
   match can_handle_appdata st with
   | true ->
      let datas = match st.encryptor with

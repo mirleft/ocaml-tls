@@ -19,8 +19,6 @@ type crypto_context = {
 type hs_log = Cstruct.t list
 type master_secret = Cstruct.t
 
-type peer_cert = Certificate.certificate
-
 type dh_received = DH.group * Cstruct.t
 type dh_sent = DH.group * DH.secret
 
@@ -43,80 +41,41 @@ type client_handshake_state =
   | ClientInitial
   | ClientHelloSent of handshake_params * hs_log
   | ServerHelloReceived of handshake_params * hs_log
-  | ServerCertificateReceived_RSA of handshake_params * peer_cert * hs_log
-  | ServerCertificateReceived_DHE_RSA of handshake_params * peer_cert * hs_log
+  | ServerCertificateReceived_RSA of handshake_params * Certificate.certificate * hs_log
+  | ServerCertificateReceived_DHE_RSA of handshake_params * Certificate.certificate * hs_log
   | ServerKeyExchangeReceived_DHE_RSA of handshake_params * dh_received * hs_log
   | ClientFinishedSent of crypto_context * Cstruct.t * master_secret * hs_log
   | ServerChangeCipherSpecReceived of Cstruct.t * master_secret * hs_log
   | ClientEstablished
 
-type handshake_state =
+type handshake_machina_state =
   | Client of client_handshake_state
   | Server of server_handshake_state
 
 type rekeying_params = Cstruct.t * Cstruct.t
 
-type tls_internal_state = {
+type handshake_state = {
   version   : tls_version ;
-  machina   : handshake_state ;
+  machina   : handshake_machina_state ;
   config    : Config.config ;
   rekeying  : rekeying_params option
 }
 
 type crypto_state = crypto_context option
 
-(* return type of handshake handlers *)
+(* return type of handlers *)
 type record = Packet.content_type * Cstruct.t
 type rec_resp = [
   | `Change_enc of crypto_state
   | `Record     of record
 ]
 type dec_resp = [ `Change_dec of crypto_state | `Pass ]
-type handshake_return = tls_internal_state * rec_resp list * dec_resp
+type handshake_return = handshake_state * rec_resp list * dec_resp
 
-
-module Or_alert =
-  Control.Or_error_make (struct type err = Packet.alert_type end)
-open Or_alert
-
-let fail_false v err =
-  match v with
-  | true ->  return ()
-  | false -> fail err
-
-let fail_neq cs1 cs2 err =
-  fail_false (Utils.Cs.equal cs1 cs2) err
-
-let alert typ =
-  let buf = Writer.assemble_alert typ in
-  (Packet.ALERT, buf)
-
-let change_cipher_spec =
-  (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
-
-let find_hostname : 'a hello -> string option =
-  fun h ->
-    let hexts = List.filter (function
-                               | Hostname _ -> true
-                               | _          -> false)
-                             h.extensions
-    in
-    match hexts with
-    | [Hostname name] -> name
-    | _               -> None
-
-let rec check_reneg expected = function
-  | []                       -> fail Packet.NO_RENEGOTIATION
-  | SecureRenegotiation x::_ -> fail_neq expected x Packet.NO_RENEGOTIATION
-  | _::xs                    -> check_reneg expected xs
-
-let handle_alert buf =
-  match Reader.parse_alert buf with
-  | Reader.Or_error.Ok al ->
-     Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string al);
-     fail Packet.CLOSE_NOTIFY
-  | Reader.Or_error.Error _ ->
-     Printf.printf "unknown alert";
-     Cstruct.hexdump buf;
-     fail Packet.UNEXPECTED_MESSAGE
-
+(* Top level state, encapsulating the entire session. *)
+type state = {
+  handshake : handshake_state ;
+  decryptor : crypto_state ;
+  encryptor : crypto_state ;
+  fragment  : Cstruct.t ;
+}

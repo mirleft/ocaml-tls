@@ -1,10 +1,13 @@
-open Core
 open Nocrypto
-open Handshake_common_utils
-open Handshake_common_utils.Or_alert
+
+open Utils
+
+open Core
+open State
+open Handshake_common
 open Config
 
-let (<+>) = Utils.Cs.(<+>)
+let (<+>) = Cs.(<+>)
 
 let default_client_hello config =
   let host = match config.peer_name with
@@ -140,35 +143,36 @@ let peer_rsa_key cert =
     | _          -> fail Packet.HANDSHAKE_FAILURE )
 
 let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
+  let open Reader in
   let extract_dh_params kex =
-    Reader.(match parse_dh_parameters kex with
-            | Or_error.Ok data -> return data
-            | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE)
+    match parse_dh_parameters kex with
+    | Or_error.Ok data -> return data
+    | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE
 
   and signature_verifier version data =
     match version with
     | TLS_1_0 | TLS_1_1 ->
-        Reader.( match parse_digitally_signed data with
-                 | Or_error.Ok signature ->
-                    let compare_hashes should data =
-                      let computed_sig = Hash.(MD5.digest data <+> SHA1.digest data) in
-                      fail_neq should computed_sig Packet.HANDSHAKE_FAILURE
-                    in
-                    return (signature, compare_hashes)
-                 | Or_error.Error _      -> fail Packet.HANDSHAKE_FAILURE )
+        ( match parse_digitally_signed data with
+          | Or_error.Ok signature ->
+             let compare_hashes should data =
+               let computed_sig = Hash.(MD5.digest data <+> SHA1.digest data) in
+               guard (Cs.equal should computed_sig) Packet.HANDSHAKE_FAILURE
+             in
+             return (signature, compare_hashes)
+          | Or_error.Error _      -> fail Packet.HANDSHAKE_FAILURE )
     | TLS_1_2 ->
-       Reader.( match parse_digitally_signed_1_2 data with
-                | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
-                   let compare_hashes should data =
-                     match Crypto.pkcs1_digest_info_of_cstruct should with
-                     | Some (hash_algo', target) when hash_algo = hash_algo' ->
-                        ( match Crypto.hash_eq hash_algo ~target data with
-                          | true -> return ()
-                          | false -> fail Packet.HANDSHAKE_FAILURE )
-                     | _ -> fail Packet.HANDSHAKE_FAILURE
-                   in
-                   return (signature, compare_hashes)
-                | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE )
+       ( match parse_digitally_signed_1_2 data with
+         | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
+            let compare_hashes should data =
+              match Crypto.pkcs1_digest_info_of_cstruct should with
+              | Some (hash_algo', target) when hash_algo = hash_algo' ->
+                 ( match Crypto.hash_eq hash_algo ~target data with
+                   | true -> return ()
+                   | false -> fail Packet.HANDSHAKE_FAILURE )
+              | _ -> fail Packet.HANDSHAKE_FAILURE
+            in
+            return (signature, compare_hashes)
+         | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE )
 
   and extract_signature pubkey raw_signature =
     match Crypto.verifyRSA_and_unpadPKCS1 pubkey raw_signature with
@@ -191,7 +195,8 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
 let answer_server_hello_done_common state kex premaster params raw log =
   let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
   let ccs = change_cipher_spec in
-  let client_ctx, server_ctx, master_secret = Handshake_crypto.initialise_crypto_ctx state.version params.client_random params.server_random params.cipher premaster in
+  let client_ctx, server_ctx, master_secret =
+    Handshake_crypto.initialise_crypto_ctx state.version params premaster in
   let to_fin = log @ [raw; ckex] in
   let checksum = Handshake_crypto.finished state.version master_secret "client finished" to_fin in
   let fin = Writer.assemble_handshake (Finished checksum) in
@@ -218,25 +223,29 @@ let answer_server_hello_done_DHE_RSA state params (group, s_secret) raw log =
 
 let answer_server_finished state client_verify master_secret fin log =
   let computed = Handshake_crypto.finished state.version master_secret "server finished" log in
-  fail_neq computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
+  guard (Cs.equal computed fin) Packet.HANDSHAKE_FAILURE >|= fun () ->
   let machina = ClientEstablished in
   let rekeying = Some (client_verify, computed) in
-  return ({ state with machina = Client machina ; rekeying = rekeying }, [], `Pass)
+  ({ state with machina = Client machina ; rekeying = rekeying }, [], `Pass)
 
 let answer_hello_request state =
-  match state.config.use_rekeying with
-  | false -> fail Packet.HANDSHAKE_FAILURE
-  | true  ->
-     (match state.rekeying with
-      | None          -> fail Packet.HANDSHAKE_FAILURE
-      | Some (cvd, _) -> return (SecureRenegotiation cvd) ) >>= fun (rekeying) ->
+  let get_rekeying_data use_rk optdata =
+    match use_rk, optdata with
+    | false, _             -> fail Packet.HANDSHAKE_FAILURE
+    | _    , None          -> fail Packet.HANDSHAKE_FAILURE
+    | true , Some (cvd, _) -> return (SecureRenegotiation cvd)
 
-     let dch, params = default_client_hello state.config in
+  and produce_client_hello config exts =
+     let dch, params = default_client_hello config in
      let ch = { dch with
-                  extensions = rekeying :: dch.extensions } in
+                  extensions = exts @ dch.extensions } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
      let machina = ClientHelloSent (params, [raw]) in
-     return ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)], `Pass)
+     ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)], `Pass)
+
+  in
+  get_rekeying_data state.config.use_rekeying state.rekeying >|= fun ext ->
+  produce_client_hello state.config [ext]
 
 let handle_change_cipher_spec cs state packet =
   (* TODO: validate packet is good (ie parse it?) *)
@@ -247,9 +256,7 @@ let handle_change_cipher_spec cs state packet =
   | _ ->
      fail Packet.UNEXPECTED_MESSAGE
 
-let handle_handshake : client_handshake_state -> tls_internal_state -> Cstruct.t ->
-                       ( tls_internal_state * rec_resp list * dec_resp ) or_error =
-fun cs hs buf ->
+let handle_handshake cs hs buf =
   let open Reader in
   match parse_handshake buf with
   | Or_error.Ok handshake ->

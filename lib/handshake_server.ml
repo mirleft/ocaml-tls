@@ -1,17 +1,18 @@
+open Nocrypto
+
 open Utils
 
 open Core
-open Handshake_common_utils
-open Handshake_common_utils.Or_alert
+open State
+open Handshake_common
 open Config
 
-open Nocrypto
-
-let (<+>) = Utils.Cs.(<+>)
+let (<+>) = Cs.(<+>)
 
 let answer_client_finished state master_secret fin raw log =
-  let client_computed = Handshake_crypto.finished state.version master_secret "client finished" log in
-  fail_neq client_computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
+  let client_computed =
+    Handshake_crypto.finished state.version master_secret "client finished" log in
+  guard (Cs.equal client_computed fin) Packet.HANDSHAKE_FAILURE >>= fun () ->
 
   let server_checksum = Handshake_crypto.finished state.version master_secret "server finished" (log @ [raw]) in
   let fin = Writer.assemble_handshake (Finished server_checksum) in
@@ -23,7 +24,7 @@ let answer_client_finished state master_secret fin raw log =
 
 let establish_master_secret state params premastersecret raw log =
   let client_ctx, server_ctx, master_secret =
-    Handshake_crypto.initialise_crypto_ctx state.version params.client_random params.server_random params.cipher premastersecret in
+    Handshake_crypto.initialise_crypto_ctx state.version params premastersecret in
   let machina = ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log @ [raw]) in
   return ({ state with machina = Server machina }, [], `Pass)
 
@@ -155,21 +156,23 @@ let answer_client_hello_params state params ch raw =
   server_cert state.config params >>= fun certificates ->
 
   let hello_done = Writer.assemble_handshake ServerHelloDone in
-  let wrap ps = List.map (fun e -> `Record (HANDSHAKE, e)) ps in
 
-  match Ciphersuite.ciphersuite_kex cipher with
-  | Ciphersuite.DHE_RSA ->
-     kex_dhe_rsa state.config params state.version ch >>= fun (kex, dh) ->
-     let outs = sh :: certificates @ [ kex ; hello_done] in
-     let machina = ServerHelloDoneSent_DHE_RSA (params, dh, raw :: outs) in
-     return ({ state with machina = Server machina },
-             wrap outs,
-             `Pass)
+  ( match Ciphersuite.ciphersuite_kex cipher with
+    | Ciphersuite.DHE_RSA ->
+       kex_dhe_rsa state.config params state.version ch >>= fun (kex, dh) ->
+       let outs = sh :: certificates @ [ kex ; hello_done] in
+       let machina = ServerHelloDoneSent_DHE_RSA (params, dh, raw :: outs) in
+       return (outs, machina)
   | Ciphersuite.RSA ->
      let outs = sh :: certificates @ [ hello_done] in
      let machina = ServerHelloDoneSent_RSA (params, raw :: outs) in
-     return ({ state with machina = Server machina },
-             wrap outs, `Pass)
+     return (outs, machina)
+  ) >|= fun (out_recs, machina) ->
+
+  ({ state with machina = Server machina },
+   List.map (fun e -> `Record (HANDSHAKE, e)) out_recs,
+   `Pass)
+
 
 let answer_client_hello state (ch : client_hello) raw =
   let find_version requested config =
@@ -221,9 +224,7 @@ let handle_change_cipher_spec ss state packet =
   | _ ->
      fail Packet.UNEXPECTED_MESSAGE
 
-let handle_handshake : server_handshake_state -> tls_internal_state -> Cstruct.t ->
-                       ( tls_internal_state * rec_resp list * dec_resp ) or_error =
-fun ss hs buf ->
+let handle_handshake ss hs buf =
   let open Reader in
   match parse_handshake buf with
   | Or_error.Ok handshake ->
