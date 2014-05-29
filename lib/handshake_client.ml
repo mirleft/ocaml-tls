@@ -193,7 +193,8 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
 let answer_server_hello_done_common state kex premaster params raw log =
   let ckex = Writer.assemble_handshake (ClientKeyExchange kex) in
   let ccs = change_cipher_spec in
-  let client_ctx, server_ctx, master_secret = Handshake_crypto.initialise_crypto_ctx state.version params.client_random params.server_random params.cipher premaster in
+  let client_ctx, server_ctx, master_secret =
+    Handshake_crypto.initialise_crypto_ctx state.version params premaster in
   let to_fin = log @ [raw; ckex] in
   let checksum = Handshake_crypto.finished state.version master_secret "client finished" to_fin in
   let fin = Writer.assemble_handshake (Finished checksum) in

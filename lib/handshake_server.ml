@@ -24,7 +24,7 @@ let answer_client_finished state master_secret fin raw log =
 
 let establish_master_secret state params premastersecret raw log =
   let client_ctx, server_ctx, master_secret =
-    Handshake_crypto.initialise_crypto_ctx state.version params.client_random params.server_random params.cipher premastersecret in
+    Handshake_crypto.initialise_crypto_ctx state.version params premastersecret in
   let machina = ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log @ [raw]) in
   return ({ state with machina = Server machina }, [], `Pass)
 

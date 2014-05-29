@@ -58,8 +58,11 @@ let divide_keyblock version key mac iv buf =
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
 
-let initialise_crypto_ctx version client_random server_random cipher premaster =
+let initialise_crypto_ctx version params premaster =
   let open Ciphersuite in
+  let client_random = params.client_random
+  and server_random = params.server_random
+  and cipher = params.cipher in
 
   let master = generate_master_secret version premaster
                 (client_random <+> server_random) in
