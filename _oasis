@@ -25,7 +25,8 @@ Library "tls"
   Path            : lib/
   Modules         : Ciphersuite, Utils, Packet, Core, Certificate,
                     Printer, Reader, Writer, Crypto, Config,
-                    Handshake_common_utils, Handshake_crypto, Handshake_server, Handshake_client,
+                    Handshake_types, Handshake_common_utils, Handshake_crypto,
+                    Handshake_server, Handshake_client,
                     X509, Engine
   InternalModules : Registry, Asn_grammars, Control
   Pack            : true

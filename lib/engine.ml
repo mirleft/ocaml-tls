@@ -1,7 +1,8 @@
 open Core
 open Nocrypto
+open Handshake_types
+open Handshake_types.Or_alert
 open Handshake_common_utils
-open Handshake_common_utils.Or_alert
 
 (* user API *)
 
@@ -165,11 +166,10 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
        fail Packet.UNEXPECTED_MESSAGE
 
 (* utility for user *)
-let can_handle_appdata : state -> bool =
-  fun s ->
-    match s.handshake.rekeying with
-    | Some _ -> true
-    | None   -> false
+let can_handle_appdata s =
+  match s.handshake.rekeying with
+  | Some _ -> true
+  | None   -> false
 
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =
@@ -237,8 +237,7 @@ let assemble_records : tls_version -> record list -> Cstruct.t =
     o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
 
 (* main entry point *)
-let handle_tls : state -> Cstruct.t -> ret
-= fun state buf ->
+let handle_tls state buf =
   match
     separate_records (state.fragment <+> buf) >>= fun (in_records, frag) ->
     foldM (fun (st, datas, raw_rs) r ->
@@ -270,7 +269,7 @@ let send_records (st : state) records =
   ({ st with encryptor }, data)
 
 (* another entry for user data *)
-let send_application_data (st : state) css =
+let send_application_data st css =
   match can_handle_appdata st with
   | true ->
      let datas = match st.encryptor with

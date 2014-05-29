@@ -2,7 +2,7 @@ open Nocrypto
 open Nocrypto.Common
 open Nocrypto.Hash
 open Core
-open Handshake_common_utils
+open Handshake_types
 
 let (<+>) = Utils.Cs.(<+>)
 
@@ -22,7 +22,6 @@ let rec p_hash (hmac, hmac_n) key seed len =
 
 let pseudo_random_function version len secret label seed =
   let labelled = Cstruct.of_string label <+> seed in
-  let open Core in
   match version with
   | TLS_1_2           ->
      p_hash (SHA256.hmac, 32) secret labelled len
@@ -40,7 +39,6 @@ let key_block version len master_secret seed =
 
 let finished version master_secret label ps =
   let data = Utils.Cs.appends ps in
-  let open Core in
   match version with
   | TLS_1_0 | TLS_1_1 -> let seed = MD5.digest data <+> SHA1.digest data in
                          pseudo_random_function version 12 master_secret label seed

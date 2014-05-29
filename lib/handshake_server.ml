@@ -1,8 +1,9 @@
 open Utils
 
 open Core
+open Handshake_types
+open Handshake_types.Or_alert
 open Handshake_common_utils
-open Handshake_common_utils.Or_alert
 open Config
 
 open Nocrypto
@@ -221,9 +222,7 @@ let handle_change_cipher_spec ss state packet =
   | _ ->
      fail Packet.UNEXPECTED_MESSAGE
 
-let handle_handshake : server_handshake_state -> tls_internal_state -> Cstruct.t ->
-                       ( tls_internal_state * rec_resp list * dec_resp ) or_error =
-fun ss hs buf ->
+let handle_handshake ss hs buf =
   let open Reader in
   match parse_handshake buf with
   | Or_error.Ok handshake ->

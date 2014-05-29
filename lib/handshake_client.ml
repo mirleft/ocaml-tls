@@ -1,7 +1,8 @@
 open Core
 open Nocrypto
+open Handshake_types
+open Handshake_types.Or_alert
 open Handshake_common_utils
-open Handshake_common_utils.Or_alert
 open Config
 
 let (<+>) = Utils.Cs.(<+>)
@@ -140,35 +141,36 @@ let peer_rsa_key cert =
     | _          -> fail Packet.HANDSHAKE_FAILURE )
 
 let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
+  let open Reader in
   let extract_dh_params kex =
-    Reader.(match parse_dh_parameters kex with
-            | Or_error.Ok data -> return data
-            | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE)
+    match parse_dh_parameters kex with
+    | Or_error.Ok data -> return data
+    | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE
 
   and signature_verifier version data =
     match version with
     | TLS_1_0 | TLS_1_1 ->
-        Reader.( match parse_digitally_signed data with
-                 | Or_error.Ok signature ->
-                    let compare_hashes should data =
-                      let computed_sig = Hash.(MD5.digest data <+> SHA1.digest data) in
-                      fail_neq should computed_sig Packet.HANDSHAKE_FAILURE
-                    in
-                    return (signature, compare_hashes)
-                 | Or_error.Error _      -> fail Packet.HANDSHAKE_FAILURE )
+        ( match parse_digitally_signed data with
+          | Or_error.Ok signature ->
+             let compare_hashes should data =
+               let computed_sig = Hash.(MD5.digest data <+> SHA1.digest data) in
+               fail_neq should computed_sig Packet.HANDSHAKE_FAILURE
+             in
+             return (signature, compare_hashes)
+          | Or_error.Error _      -> fail Packet.HANDSHAKE_FAILURE )
     | TLS_1_2 ->
-       Reader.( match parse_digitally_signed_1_2 data with
-                | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
-                   let compare_hashes should data =
-                     match Crypto.pkcs1_digest_info_of_cstruct should with
-                     | Some (hash_algo', target) when hash_algo = hash_algo' ->
-                        ( match Crypto.hash_eq hash_algo ~target data with
-                          | true -> return ()
-                          | false -> fail Packet.HANDSHAKE_FAILURE )
-                     | _ -> fail Packet.HANDSHAKE_FAILURE
-                   in
-                   return (signature, compare_hashes)
-                | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE )
+       ( match parse_digitally_signed_1_2 data with
+         | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
+            let compare_hashes should data =
+              match Crypto.pkcs1_digest_info_of_cstruct should with
+              | Some (hash_algo', target) when hash_algo = hash_algo' ->
+                 ( match Crypto.hash_eq hash_algo ~target data with
+                   | true -> return ()
+                   | false -> fail Packet.HANDSHAKE_FAILURE )
+              | _ -> fail Packet.HANDSHAKE_FAILURE
+            in
+            return (signature, compare_hashes)
+         | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE )
 
   and extract_signature pubkey raw_signature =
     match Crypto.verifyRSA_and_unpadPKCS1 pubkey raw_signature with
@@ -247,9 +249,7 @@ let handle_change_cipher_spec cs state packet =
   | _ ->
      fail Packet.UNEXPECTED_MESSAGE
 
-let handle_handshake : client_handshake_state -> tls_internal_state -> Cstruct.t ->
-                       ( tls_internal_state * rec_resp list * dec_resp ) or_error =
-fun cs hs buf ->
+let handle_handshake cs hs buf =
   let open Reader in
   match parse_handshake buf with
   | Or_error.Ok handshake ->

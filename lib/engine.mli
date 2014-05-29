@@ -1,5 +1,6 @@
+open Handshake_types
+open Handshake_types.Or_alert
 open Handshake_common_utils
-open Handshake_common_utils.Or_alert
 open Core
 
 type role = [ `Server | `Client ]
