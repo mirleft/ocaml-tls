@@ -324,6 +324,9 @@ let parse_client_key_exchange buf =
   else
     ClientKeyExchange (sub buf 2 length)
 
+let parse_handshake_length buf =
+  get_uint24_len (shift buf 1)
+
 let parse_handshake = catch @@ fun buf ->
   let typ = get_uint8 buf 0 in
   let handshake_type = int_to_handshake_type typ in
@@ -349,4 +352,3 @@ let parse_handshake = catch @@ fun buf ->
     | Some CLIENT_KEY_EXCHANGE -> parse_client_key_exchange payload
     | Some FINISHED -> Finished payload
     | _  -> raise_unknown @@ "handshake type" ^ string_of_int typ
-

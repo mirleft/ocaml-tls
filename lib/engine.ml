@@ -20,7 +20,8 @@ let new_state config role =
     version   = Config.max_protocol_version config ;
     rekeying  = None ;
     machina   = handshake_state ;
-    config    = config
+    config    = config ;
+    fragment  = Cstruct.create 0
   }
   in
   {
@@ -152,9 +153,9 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
     | (Some _, Some _, size) when size > len payload       ->
        return ([], buf)
     | (Some content_type, Some version, size)              ->
-       separate_records (shift payload size) >>= fun (tl, frag) ->
+       separate_records (shift payload size) >|= fun (tl, frag) ->
        let packet = ({ content_type ; version }, sub payload 0 size) in
-       return (packet :: tl, frag)
+       (packet :: tl, frag)
     | (_, None, _)                                         ->
        fail Packet.PROTOCOL_VERSION
     | (None, _, _)                                         ->
@@ -182,6 +183,14 @@ let hs_can_handle_appdata s =
   | Some _ -> true
   | None   -> false
 
+let merge_dec : dec_resp -> dec_resp -> dec_resp or_error =
+fun dec dec' ->
+  match dec, dec' with
+  | (`Change_dec _ as c), `Pass                -> return c
+  | `Pass               , (`Change_dec _ as c) -> return c
+  | `Pass               , `Pass                -> return `Pass
+  | `Change_dec _       , `Change_dec _        -> fail Packet.HANDSHAKE_FAILURE
+
 let handle_packet hs buf = function
 (* RFC 5246 -- 6.2.1.:
    Implementations MUST NOT send zero-length fragments of Handshake,
@@ -203,11 +212,31 @@ let handle_packet hs buf = function
      >|= fun (hs, items, dec_cmd) ->
      (hs, None, items, dec_cmd)
   | Packet.HANDSHAKE ->
-     ( match hs.machina with
-       | Client cs -> Handshake_client.handle_handshake cs hs buf
-       | Server ss -> Handshake_server.handle_handshake ss hs buf )
+     let rec consume_handshakes buf =
+       let open Reader in
+       let open Cstruct in
+       if len buf < 4 then
+         return ([], buf)
+       else
+         match parse_handshake_length buf with
+         | size when size > len buf -> return ([], buf)
+         | size                     ->
+            let hs, rest = split buf (size + 4) in
+            consume_handshakes rest >|= fun (rt, frag) ->
+            (hs :: rt, frag)
+     in
+     consume_handshakes (hs.fragment <+> buf) >>= fun (hss, frag) ->
+     foldM (fun (hs, items, dec) raw ->
+            ( match hs.machina with
+              | Client cs -> Handshake_client.handle_handshake cs hs raw
+              | Server ss -> Handshake_server.handle_handshake ss hs raw
+            ) >>= fun (hs', items', dec') ->
+            merge_dec dec dec' >|= fun dec'' ->
+            (hs', items @ items', dec'') )
+           (hs, [], `Pass)
+           hss
      >|= fun (hs, items, dec) ->
-     (hs, None, items, dec)
+     ({ hs with fragment = frag }, None, items, dec)
 
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =

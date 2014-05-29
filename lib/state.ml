@@ -58,7 +58,8 @@ type handshake_state = {
   version   : tls_version ;
   machina   : handshake_machina_state ;
   config    : Config.config ;
-  rekeying  : rekeying_params option
+  rekeying  : rekeying_params option ;
+  fragment  : Cstruct.t
 }
 
 type crypto_state = crypto_context option
