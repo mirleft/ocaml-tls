@@ -71,7 +71,8 @@ type rec_resp = [
   | `Record     of record
 ]
 type dec_resp = [ `Change_dec of crypto_state | `Pass ]
-type handshake_return = handshake_state * rec_resp list * dec_resp
+type handshake_return = handshake_state * rec_resp list
+type ccs_return = handshake_state * rec_resp list * dec_resp
 
 (* Top level state, encapsulating the entire session. *)
 type state = {

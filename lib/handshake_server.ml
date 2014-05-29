@@ -21,13 +21,13 @@ let answer_client_finished state master_secret fin raw log =
   let rekeying = Some (client_computed, server_checksum) in
   let machina = Server ServerEstablished in
 
-  { state with machina ; rekeying }, [`Record (Packet.HANDSHAKE, fin)], `Pass
+  ({ state with machina ; rekeying }, [`Record (Packet.HANDSHAKE, fin)])
 
 let establish_master_secret state params premastersecret raw log =
   let client_ctx, server_ctx, master_secret =
     Handshake_crypto.initialise_crypto_ctx state.version params premastersecret in
   let machina = ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log @ [raw]) in
-  return ({ state with machina = Server machina }, [], `Pass)
+  return ({ state with machina = Server machina }, [])
 
 let answer_client_key_exchange_RSA state params kex raw log =
   let private_key config = match config.own_certificate with
@@ -171,8 +171,7 @@ let answer_client_hello_params state params ch raw =
   ) >|= fun (out_recs, machina) ->
 
   ({ state with machina = Server machina },
-   List.map (fun e -> `Record (HANDSHAKE, e)) out_recs,
-   `Pass)
+   List.map (fun e -> `Record (HANDSHAKE, e)) out_recs)
 
 
 let answer_client_hello state (ch : client_hello) raw =

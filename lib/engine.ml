@@ -183,14 +183,6 @@ let hs_can_handle_appdata s =
   | Some _ -> true
   | None   -> false
 
-let merge_dec : dec_resp -> dec_resp -> dec_resp or_error =
-fun dec dec' ->
-  match dec, dec' with
-  | (`Change_dec _ as c), `Pass                -> return c
-  | `Pass               , (`Change_dec _ as c) -> return c
-  | `Pass               , `Pass                -> return `Pass
-  | `Change_dec _       , `Change_dec _        -> fail Packet.HANDSHAKE_FAILURE
-
 let handle_packet hs buf = function
 (* RFC 5246 -- 6.2.1.:
    Implementations MUST NOT send zero-length fragments of Handshake,
@@ -226,17 +218,16 @@ let handle_packet hs buf = function
             (hs :: rt, frag)
      in
      consume_handshakes (hs.fragment <+> buf) >>= fun (hss, frag) ->
-     foldM (fun (hs, items, dec) raw ->
+     foldM (fun (hs, items) raw ->
             ( match hs.machina with
               | Client cs -> Handshake_client.handle_handshake cs hs raw
               | Server ss -> Handshake_server.handle_handshake ss hs raw
-            ) >>= fun (hs', items', dec') ->
-            merge_dec dec dec' >|= fun dec'' ->
-            (hs', items @ items', dec'') )
-           (hs, [], `Pass)
+            ) >|= fun (hs', items') ->
+            (hs', items @ items') )
+           (hs, [])
            hss
-     >|= fun (hs, items, dec) ->
-     ({ hs with fragment = frag }, None, items, dec)
+     >|= fun (hs, items) ->
+     ({ hs with fragment = frag }, None, items, `Pass)
 
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =
