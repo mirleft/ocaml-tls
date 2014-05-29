@@ -6,7 +6,7 @@ open Core
 type role = [ `Server | `Client ]
 
 type state = {
-  handshake : tls_internal_state ;
+  handshake : handshake_state ;
   decryptor : crypto_state ;
   encryptor : crypto_state ;
   fragment  : Cstruct.t ;

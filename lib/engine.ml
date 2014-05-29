@@ -10,7 +10,7 @@ type role = [ `Server | `Client ]
 
 (* this is the externally-visible state somebody will keep track of for us. *)
 type state = {
-  handshake : tls_internal_state ;
+  handshake : handshake_state ;
   decryptor : crypto_state ;
   encryptor : crypto_state ;
   fragment  : Cstruct.t ;

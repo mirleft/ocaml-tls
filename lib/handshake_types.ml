@@ -48,15 +48,15 @@ type client_handshake_state =
   | ServerChangeCipherSpecReceived of Cstruct.t * master_secret * hs_log
   | ClientEstablished
 
-type handshake_state =
+type handshake_machina_state =
   | Client of client_handshake_state
   | Server of server_handshake_state
 
 type rekeying_params = Cstruct.t * Cstruct.t
 
-type tls_internal_state = {
+type handshake_state = {
   version   : tls_version ;
-  machina   : handshake_state ;
+  machina   : handshake_machina_state ;
   config    : Config.config ;
   rekeying  : rekeying_params option
 }
@@ -70,7 +70,7 @@ type rec_resp = [
   | `Record     of record
 ]
 type dec_resp = [ `Change_dec of crypto_state | `Pass ]
-type handshake_return = tls_internal_state * rec_resp list * dec_resp
+type handshake_return = handshake_state * rec_resp list * dec_resp
 
 module Or_alert =
   Control.Or_error_make (struct type err = Packet.alert_type end)
