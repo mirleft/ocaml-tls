@@ -72,5 +72,10 @@ type rec_resp = [
 type dec_resp = [ `Change_dec of crypto_state | `Pass ]
 type handshake_return = handshake_state * rec_resp list * dec_resp
 
-module Or_alert =
-  Control.Or_error_make (struct type err = Packet.alert_type end)
+(* Top level state, encapsulating the entire session. *)
+type state = {
+  handshake : handshake_state ;
+  decryptor : crypto_state ;
+  encryptor : crypto_state ;
+  fragment  : Cstruct.t ;
+}

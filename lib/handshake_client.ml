@@ -1,11 +1,13 @@
-open Core
 open Nocrypto
-open Handshake_types
-open Handshake_types.Or_alert
+
+open Utils
+
+open Core
+open State
 open Handshake_common_utils
 open Config
 
-let (<+>) = Utils.Cs.(<+>)
+let (<+>) = Cs.(<+>)
 
 let default_client_hello config =
   let host = match config.peer_name with
@@ -154,7 +156,7 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
           | Or_error.Ok signature ->
              let compare_hashes should data =
                let computed_sig = Hash.(MD5.digest data <+> SHA1.digest data) in
-               fail_neq should computed_sig Packet.HANDSHAKE_FAILURE
+               guard (Cs.equal should computed_sig) Packet.HANDSHAKE_FAILURE
              in
              return (signature, compare_hashes)
           | Or_error.Error _      -> fail Packet.HANDSHAKE_FAILURE )
@@ -221,10 +223,10 @@ let answer_server_hello_done_DHE_RSA state params (group, s_secret) raw log =
 
 let answer_server_finished state client_verify master_secret fin log =
   let computed = Handshake_crypto.finished state.version master_secret "server finished" log in
-  fail_neq computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
+  guard (Cs.equal computed fin) Packet.HANDSHAKE_FAILURE >|= fun () ->
   let machina = ClientEstablished in
   let rekeying = Some (client_verify, computed) in
-  return ({ state with machina = Client machina ; rekeying = rekeying }, [], `Pass)
+  ({ state with machina = Client machina ; rekeying = rekeying }, [], `Pass)
 
 let answer_hello_request state =
   let get_rekeying_data use_rk optdata =

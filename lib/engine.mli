@@ -1,16 +1,7 @@
-open Handshake_types
-open Handshake_types.Or_alert
-open Handshake_common_utils
 open Core
+open State
 
 type role = [ `Server | `Client ]
-
-type state = {
-  handshake : handshake_state ;
-  decryptor : crypto_state ;
-  encryptor : crypto_state ;
-  fragment  : Cstruct.t ;
-}
 
 type ret = [
   | `Ok   of state * Cstruct.t * Cstruct.t option

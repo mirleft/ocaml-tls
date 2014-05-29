@@ -1,20 +1,31 @@
-open Core
 open Nocrypto
-open Handshake_types
-open Handshake_types.Or_alert
-open Handshake_common_utils
+
+open Utils
+
+open Core
+open State
+
+
+module Alert = struct
+
+  let make typ =
+    let buf = Writer.assemble_alert typ in
+    (Packet.ALERT, buf)
+
+  let handle buf =
+    match Reader.parse_alert buf with
+    | Reader.Or_error.Ok al ->
+      Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string al);
+      fail Packet.CLOSE_NOTIFY
+    | Reader.Or_error.Error _ ->
+      Printf.printf "unknown alert";
+      Cstruct.hexdump buf;
+      fail Packet.UNEXPECTED_MESSAGE
+end
 
 (* user API *)
 
 type role = [ `Server | `Client ]
-
-(* this is the externally-visible state somebody will keep track of for us. *)
-type state = {
-  handshake : handshake_state ;
-  decryptor : crypto_state ;
-  encryptor : crypto_state ;
-  fragment  : Cstruct.t ;
-}
 
 let new_state config role =
   let handshake_state = match role with
@@ -82,7 +93,7 @@ let verify_mac { mac = (hash, _) as mac ; sequence } ty ver decrypted =
     let cmac =
       let ver = pair_of_tls_version ver in
       Crypto.mac mac sequence ty ver body in
-    fail_neq cmac mmac Packet.BAD_RECORD_MAC >>= fun () -> return body
+    guard (Cs.equal cmac mmac) Packet.BAD_RECORD_MAC >|= fun () -> body
 
 
 let decrypt (version : tls_version) (st : crypto_state) ty buf =
@@ -186,7 +197,7 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   let hs = state.handshake in
   (match hdr.content_type with
   | Packet.ALERT -> (* this always fails, might be ok to accept some WARNING-level alerts *)
-     handle_alert dec
+     Alert.handle dec
   | Packet.APPLICATION_DATA ->
      ( match can_handle_appdata state with
        | true  -> return (hs, Some dec, [], `Pass)
@@ -253,7 +264,7 @@ let handle_tls state buf =
   | Ok v    -> `Ok v
   | Error x ->
       let version    = state.handshake.version in
-      let alert_resp = assemble_records version [alert x] in
+      let alert_resp = assemble_records version [Alert.make x] in
       `Fail (x, alert_resp)
 
 let send_records (st : state) records =

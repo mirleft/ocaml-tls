@@ -1,18 +1,18 @@
+open Nocrypto
+
 open Utils
 
 open Core
-open Handshake_types
-open Handshake_types.Or_alert
+open State
 open Handshake_common_utils
 open Config
 
-open Nocrypto
-
-let (<+>) = Utils.Cs.(<+>)
+let (<+>) = Cs.(<+>)
 
 let answer_client_finished state master_secret fin raw log =
-  let client_computed = Handshake_crypto.finished state.version master_secret "client finished" log in
-  fail_neq client_computed fin Packet.HANDSHAKE_FAILURE >>= fun () ->
+  let client_computed =
+    Handshake_crypto.finished state.version master_secret "client finished" log in
+  guard (Cs.equal client_computed fin) Packet.HANDSHAKE_FAILURE >>= fun () ->
 
   let server_checksum = Handshake_crypto.finished state.version master_secret "server finished" (log @ [raw]) in
   let fin = Writer.assemble_handshake (Finished server_checksum) in

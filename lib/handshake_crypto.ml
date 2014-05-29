@@ -1,8 +1,9 @@
 open Nocrypto
 open Nocrypto.Common
 open Nocrypto.Hash
+
 open Core
-open Handshake_types
+open State
 
 let (<+>) = Utils.Cs.(<+>)
 

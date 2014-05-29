@@ -1,7 +1,7 @@
 open Packet
 open Ciphersuite
 
-let o f g x = f (g x)
+include Control.Or_error_make (struct type err = Packet.alert_type end)
 
 type tls_version =
   | SSL_3

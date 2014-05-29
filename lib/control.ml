@@ -69,6 +69,7 @@ module type Or_error = sig
   val is_success : 'a or_error -> bool
   val is_error   : 'a or_error -> bool
   include Monad_ext with type 'a t = 'a or_error
+  val guard      : bool -> err -> unit or_error
 end
 
 module Or_error_make (M : sig type err end) :
@@ -83,14 +84,14 @@ struct
   let is_error = function
     | Ok    _ -> false
     | Error _ -> true
-  module Monad_impl = Monad_ext_make (struct
+  include Monad_ext_make ( struct
     type 'a t = 'a or_error
     let return a = Ok a
     let bind a f = match a with
       | Ok x    -> f x
       | Error e -> Error e
-  end)
-  include Monad_impl
+  end )
+  let guard pred err = if pred then return () else fail err
 end
 
 module Or_string_error =

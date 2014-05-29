@@ -35,15 +35,6 @@ module List_set = struct
 
 end
 
-(*
- * MORNING PRAYER:
- *
- * I will allocate data, more and more data and all new data, since i'm not
- * writing C like a peasant.
- *
- * This kinda travesty will go away. After we reach correctness. Not before.
- *)
-
 module Cs = struct
 
   let appends = function
