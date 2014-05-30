@@ -618,6 +618,32 @@ let bad_digitally_signed_tests =
     (fun i f -> "Parse bad digitally signed " ^ string_of_int i >:: bad_digitally_signed_parser f)
     bad_dss
 
+let good_handshake_hdrs =
+  let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
+  [
+  ([0; 0; 0; 0], 0) ;
+  ([0; 0; 0; 0xFF], 255) ;
+  ([0; 0; 1; 0], 256) ;
+  ([0; 0; 0xFF; 0], 65280) ;
+  ([0; 0; 0xFF; 0xFF], 65535) ;
+  ([16; 0; 0; 14; 0; 12] @ data , 14) ;
+  ([16; 0; 0; 14] , 14) ;
+  ([3; 0x10; 0x10; 0x10] , 1052688) ;
+  ([3; 1; 0; 0] , 65536) ;
+  ([3; 0xFF; 0; 0] , 16711680) ;
+  ([3; 0xFF; 0xFF; 0xFF], 16777215)
+  ]
+
+let good_handshake_hdr_parser (xs, res) _ =
+  let buf = list_to_cstruct xs in
+  let value = Reader.parse_handshake_length buf in
+  assert_equal value res
+
+let good_handshake_hdr_tests =
+  List.mapi
+    (fun i f -> "Parse good handshake header " ^ string_of_int i >:: good_handshake_hdr_parser f)
+    good_handshake_hdrs
+
 (* 1byte type ; 3 byte length ; data *)
 let good_handshakes_no_data = [
   ([0; 0; 0; 0] , Core.HelloRequest) ;
@@ -1501,6 +1527,7 @@ let reader_tests =
   good_dh_params_tests @ bad_dh_params_tests @
   good_digitally_signed_1_2_tests @ bad_digitally_signed_1_2_tests @
   good_digitally_signed_tests @ bad_digitally_signed_tests @
+  good_handshake_hdr_tests @
   good_handshake_no_data_tests @ bad_handshake_no_data_tests @
   good_handshake_cstruct_data_tests @ bad_handshake_cstruct_data_tests @
   good_client_hellos_tests @ bad_client_hello_tests @
