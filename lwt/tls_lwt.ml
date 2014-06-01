@@ -1,7 +1,8 @@
 
 open Lwt
 
-exception Tls_alert  of Tls.Packet.alert_type
+exception Tls_alert   of Tls.Packet.alert_type
+exception Tls_failure of Tls.Packet.alert_type
 
 type o_server = X509_lwt.priv
 type o_client = X509_lwt.validator
@@ -67,16 +68,22 @@ module Unix = struct
 
     let handle tls buf =
       match Tls.Engine.handle_tls tls buf with
-      | `Ok (tls, answer, appdata) ->
-          t.state <- `Active tls ;
-          write_t t answer >> return (`Ok appdata)
+      | `Ok (res, answer, appdata) ->
+          t.state <- ( match res with
+            | `Ok tls  -> `Active tls
+            | `Eof     -> `Eof
+            | `Alert a -> `Error (Tls_alert a) );
+          write_t t answer >>
+          ( match res with
+            | `Ok _ -> return_unit
+            | _     -> Lwt_unix.close t.fd ) >>
+          return (`Ok appdata)
+
       | `Fail (alert, answer) ->
-          t.state <-
-            ( match alert with
-              | Tls.Packet.CLOSE_NOTIFY -> `Eof
-              | _                       -> `Error (Tls_alert alert) ) ;
-          safely (Lwt_cs.write_full t.fd) answer >> Lwt_unix.close t.fd
-          >> read_react t
+          t.state <- `Error (Tls_failure alert) ;
+          safely (Lwt_cs.write_full t.fd) answer >>
+          Lwt_unix.close t.fd >>
+          read_react t
     in
 
     match t.state with
