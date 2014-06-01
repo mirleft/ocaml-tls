@@ -215,6 +215,9 @@ and handle_handshake = function
   | Client cs -> Handshake_client.handle_handshake cs
   | Server ss -> Handshake_server.handle_handshake ss
 
+let non_empty cs =
+  if Cstruct.len cs = 0 then None else Some cs
+
 let handle_packet hs buf = function
 (* RFC 5246 -- 6.2.1.:
    Implementations MUST NOT send zero-length fragments of Handshake,
@@ -227,7 +230,7 @@ let handle_packet hs buf = function
 
   | Packet.APPLICATION_DATA ->
     ( match hs_can_handle_appdata hs with
-      | true  -> return (State_or_err.return hs, Some buf, [], `Pass)
+      | true  -> return (State_or_err.return hs, non_empty buf, [], `Pass)
       | false -> fail Packet.UNEXPECTED_MESSAGE )
 
   | Packet.CHANGE_CIPHER_SPEC ->
