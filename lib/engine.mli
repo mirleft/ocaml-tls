@@ -20,7 +20,7 @@ type ret = result * output
 *)
 
 type ret = [
-  | `Ok   of [ `Ok of state | `Alert of Packet.alert_type ] * Cstruct.t * Cstruct.t option
+  | `Ok   of [ `Ok of state | `Eof | `Alert of Packet.alert_type ] * Cstruct.t * Cstruct.t option
   | `Fail of Packet.alert_type * Cstruct.t
 ]
 
