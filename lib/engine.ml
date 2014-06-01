@@ -171,7 +171,8 @@ module Alert = struct
     match Reader.parse_alert buf with
     | Reader.Or_error.Ok al ->
       Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string al);
-      fail Packet.CLOSE_NOTIFY
+      return (`Alert (snd al), None, [], `Pass)
+(*       fail Packet.CLOSE_NOTIFY *)
     | Reader.Or_error.Error _ ->
       Printf.printf "unknown alert";
       Cstruct.hexdump buf;
@@ -195,6 +196,7 @@ let rec separate_handshakes buf =
        separate_handshakes rest >|= fun (rt, frag) ->
        (hs :: rt, frag)
 
+
 let handle_packet hs buf = function
 (* RFC 5246 -- 6.2.1.:
    Implementations MUST NOT send zero-length fragments of Handshake,
@@ -202,19 +204,18 @@ let handle_packet hs buf = function
    Application data MAY be sent as they are potentially useful as a
    traffic analysis countermeasure.
  *)
-  | Packet.ALERT -> (* this always fails, might be ok to accept some WARNING-level alerts *)
-     Alert.handle buf
+  | Packet.ALERT ->
+      Alert.handle buf
   | Packet.APPLICATION_DATA ->
-     ( match hs_can_handle_appdata hs with
-       | true  -> return (hs, Some buf, [], `Pass)
-       | false -> fail Packet.UNEXPECTED_MESSAGE
-     )
+    ( match hs_can_handle_appdata hs with
+      | true  -> return (`Ok hs, Some buf, [], `Pass)
+      | false -> fail Packet.UNEXPECTED_MESSAGE )
   | Packet.CHANGE_CIPHER_SPEC ->
      ( match hs.machina with
        | Client cs -> Handshake_client.handle_change_cipher_spec cs hs buf
        | Server ss -> Handshake_server.handle_change_cipher_spec ss hs buf )
      >|= fun (hs, items, dec_cmd) ->
-     (hs, None, items, dec_cmd)
+     (`Ok hs, None, items, dec_cmd)
   | Packet.HANDSHAKE ->
      separate_handshakes (hs.fragment <+> buf) >>= fun (hss, frag) ->
      foldM (fun (hs, items) raw ->
@@ -225,8 +226,7 @@ let handle_packet hs buf = function
             (hs', items @ items') )
            (hs, [])
            hss
-     >|= fun (hs, items) ->
-     ({ hs with fragment = frag }, None, items, `Pass)
+     >|= fun (hs, items) -> (`Ok { hs with fragment = frag }, None, items, `Pass)
 
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =
@@ -241,12 +241,16 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->
   handle_packet state.handshake dec hdr.content_type
-  >>= fun (handshake, data, items, dec_cmd) ->
+  >|= fun (handshake, data, items, dec_cmd) ->
   let (encryptor, encs) =
     List.fold_left (fun (st, es) -> function
       | `Change_enc st' -> (st', es)
       | `Record (ty, buf) ->
-          let (st', enc) = encrypt handshake.version st ty buf in
+          let version = match handshake with
+            | `Ok hs -> hs.version
+            | _      -> state.handshake.version in
+(*           let (st', enc) = encrypt handshake.version st ty buf in *)
+          let (st', enc) = encrypt version st ty buf in
           (st', es @ [(ty, enc)]))
     (state.encryptor, [])
     items
@@ -256,10 +260,13 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
     | `Pass           -> dec_st
   in
   let fragment = state.fragment in
-  return ({ handshake ; encryptor ; decryptor ; fragment }, data, encs)
+  match handshake with
+  | `Alert a -> (`Alert a, data, encs)
+  | `Ok handshake -> 
+    (`Ok { handshake ; encryptor ; decryptor ; fragment }, data, encs)
 
 type ret = [
-  | `Ok   of state * Cstruct.t * Cstruct.t option
+  | `Ok   of [ `Ok of state | `Alert of Packet.alert_type ] * Cstruct.t * Cstruct.t option
   | `Fail of Packet.alert_type * Cstruct.t
 ]
 
@@ -275,17 +282,37 @@ let assemble_records : tls_version -> record list -> Cstruct.t =
 
 (* main entry point *)
 let handle_tls state buf =
+
+  let rec h_record st = function
+    | []    -> return (`Ok st, None, [])
+    | r::rs ->
+        handle_raw_record st r >>= function
+          | (`Alert _, _, _ as res) -> return res
+          | (`Ok st, data, raw_rs) ->
+              h_record st rs >|= fun (st', data', raw_rs') ->
+                (st', maybe_app data data', raw_rs @ raw_rs')
+  in
   match
-    separate_records (state.fragment <+> buf) >>= fun (in_records, frag) ->
-    foldM (fun (st, datas, raw_rs) r ->
+    separate_records (state.fragment <+> buf)
+    >>= fun (in_records, frag) ->
+      h_record state in_records
+    >|= function (state', data, out_records) ->
+      let version = match state' with
+        | `Ok st -> st.handshake.version
+        | _       -> state.handshake.version in
+      let buf'    = assemble_records version out_records in
+      match state' with
+      | `Alert a -> (`Alert a, buf', data)
+      | `Ok st   -> (`Ok { st with fragment = frag }, buf', data)
+(*     foldM (fun (st, datas, raw_rs) r ->
            map (fun (st', data', raw_rs') -> (st', maybe_app datas data', raw_rs @ raw_rs')) @@
              handle_raw_record st r)
-          (state, None, [])
+          (`Ok state, None, [])
           in_records
     >>= fun (state', data, out_records) ->
     let version = state'.handshake.version in
     let buf' = assemble_records version out_records in
-    return ({ state' with fragment = frag }, buf', data)
+    return ({ state' with fragment = frag }, buf', data) *)
   with
   | Ok v    -> `Ok v
   | Error x ->
