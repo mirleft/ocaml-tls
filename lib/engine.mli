@@ -3,26 +3,12 @@ open State
 
 type state = State.state
 
-type role = [ `Server | `Client ]
-
-(*
-type alert  = Packet.alert_type
-
-type output = Cstruct.t * Cstruct.t option
-
-type result = [
-  | `Ok    of state
-  | `Alert of alert
-  | `Fail  of alert
-] 
-
-type ret = result * output
-*)
-
 type ret = [
   | `Ok   of [ `Ok of state | `Eof | `Alert of Packet.alert_type ] * Cstruct.t * Cstruct.t option
   | `Fail of Packet.alert_type * Cstruct.t
 ]
+
+type role = [ `Server | `Client ]
 
 val new_state : Config.config -> role -> state
 
