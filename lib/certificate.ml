@@ -131,14 +131,13 @@ let validate_path_len pathlen { asn = cert } =
   (* intermediate CAs are checked by is_cert_valid, which checks that the CA extensions are there *)
   (* whereas trust anchor are ok with getting V1/2 certificates *)
   (* TODO: make it configurable whether to accept V1/2 certificates at all *)
-  match cert.tbs_cert.version with
-  | `V1 | `V2 -> true
-  | `V3 ->
-     let open Extension in
-     match extn_basic_constr cert with
-     | Some (_ , Basic_constraints (true, None))   -> true
-     | Some (_ , Basic_constraints (true, Some n)) -> n >= pathlen
-     | _                                           -> false
+  let open Extension in
+  match cert.tbs_cert.version, extn_basic_constr cert with
+  | `V1, _                                           -> true
+  | `V2, _                                           -> true
+  | `V3, Some (_ , Basic_constraints (true, None))   -> true
+  | `V3, Some (_ , Basic_constraints (true, Some n)) -> n >= pathlen
+  | `V3, _                                           -> false
 
 let validate_ca_extensions { asn = cert } =
   let open Extension in
@@ -197,18 +196,18 @@ let is_cert_valid now cert =
     | (false, _)   -> fail CertificateExpired
     | (_, false)   -> fail InvalidExtensions
 
-let is_either_v1_or_hash_valid_extensions cert =
-  match cert.asn.tbs_cert.version with
-  | `V1 -> true
-  | `V2 -> true
-  | `V3 -> validate_ca_extensions cert
+let has_valid_extensions cert =
+  match cert.asn.tbs_cert.version, validate_ca_extensions cert with
+  | `V1, _ -> true
+  | `V2, _ -> true
+  | `V3, x -> x
 
 let is_ca_cert_valid now cert =
   match
     is_self_signed cert,
     validate_signature cert cert,
     validate_time now cert,
-    is_either_v1_or_hash_valid_extensions cert
+    has_valid_extensions cert
   with
   | (true, true, true, true) -> success
   | (false, _, _, _)         -> fail InvalidCA
