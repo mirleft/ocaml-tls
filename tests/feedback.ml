@@ -18,10 +18,11 @@ module Flow = struct
       | `S st -> (st, "server")
       | `C st -> (st, "client") in
     match Tls.Engine.handle_tls st msg with
-    | `Fail _                 ->
-        failwith @@ Printf.sprintf "[%s] error in %s" tag descr
     | `Ok (`Ok st', ans, appdata) -> (rewrap_st (state, st'), ans, appdata)
-    | `Ok _                       -> failwith "alert"
+    | `Fail (a, _) ->
+        failwith @@ Printf.sprintf "[%s] %s error: %s"
+          tag descr (Tls.Packet.alert_type_to_string a)
+    | `Ok _ -> failwith "decoded alert"
 end
 
 let loop_chatter ~cert ~loops ~size =
