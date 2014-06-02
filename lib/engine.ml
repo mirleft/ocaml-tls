@@ -300,9 +300,9 @@ let handle_tls state buf =
     separate_records (state.fragment <+> buf)
     >>= fun (in_records, fragment) ->
       handle_records state in_records
-    >|= function (state', data, out_records, err) ->
-      let ver  = state.handshake.version in
-      let buf' = assemble_records ver out_records in
+    >|= fun (state', data, out_records, err) ->
+      let version = state'.handshake.version in
+      let buf'    = assemble_records version out_records in
       ({ state' with fragment }, buf', data, err)
   with
   | Ok (state, data, resp, err) ->
