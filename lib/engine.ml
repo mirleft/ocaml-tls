@@ -265,7 +265,7 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
     List.fold_left (fun (st, es) -> function
       | `Change_enc st' -> (st', es)
       | `Record (ty, buf) ->
-          let (st', enc) = encrypt hs.version st ty buf in
+          let (st', enc) = encrypt handshake.version st ty buf in
           (st', es @ [(ty, enc)]))
     (state.encryptor, [])
     items
