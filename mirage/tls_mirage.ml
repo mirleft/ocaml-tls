@@ -76,9 +76,12 @@ module Make (TCP: V1_LWT.TCPV4) = struct
   let write flow buf = writev flow [buf]
 
   let close flow =
-    (* XXX Tickle the engine to produce the closing message? *)
-    flow.state <- `Eof ;
-    TCP.close flow.tcp
+    match flow.state with
+    | `Active tls ->
+      flow.state <- `Eof ;
+      let (_, buf) = Tls.Engine.send_close_notify tls in
+      TCP.(write flow.tcp buf >> close flow.tcp)
+    | _           -> return_unit
 
   let rec drain_handshake flow =
     match flow.state with

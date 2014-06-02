@@ -46,12 +46,6 @@ module Unix = struct
     mutable linger : Cstruct.t option ;
   }
 
-  let close t =
-    (* XXX send close alert *)
-    match t.state with
-    | `Active _ -> t.state <- `Eof ; Lwt_unix.close t.fd
-    | _         -> return_unit
-
   let (read_t, write_t) =
     let finalize op t cs =
       try_lwt op t.fd cs with exn ->
@@ -61,6 +55,15 @@ module Unix = struct
 
   let safely f a =
     try_lwt ( f a >> return_unit ) with _ -> return_unit
+
+  let close t =
+    match t.state with
+    | `Active tls ->
+        let (_, buf) = Tls.Engine.send_close_notify tls in
+        t.state <- `Eof ;
+        safely (write_t t) buf >> Lwt_unix.close t.fd
+    | _         -> return_unit
+
 
   let recv_buf = Cstruct.create 4096
 

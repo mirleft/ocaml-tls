@@ -358,6 +358,8 @@ let send_application_data st css =
      Some (send_records st data)
   | false -> None
 
+let send_close_notify st = send_records st [Alert.close_notify]
+
 let open_connection' config =
   let state = new_state config `Client in
 

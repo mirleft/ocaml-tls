@@ -12,8 +12,9 @@ type role = [ `Server | `Client ]
 
 val new_state : Config.config -> role -> state
 
-val can_handle_appdata : state -> bool
+val can_handle_appdata    : state -> bool
 val send_application_data : state -> Cstruct.t list -> (state * Cstruct.t) option
+val send_close_notify     : state -> state * Cstruct.t
 
 val handle_tls : state -> Cstruct.t -> ret
 
