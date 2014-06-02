@@ -30,8 +30,12 @@ let serve_ssl port callback =
 
 let test_server port =
   serve_ssl port @@ fun (ic, oc) addr ->
-    lines ic |> Lwt_stream.iter_s (fun line ->
-      yap "handler" ("+ " ^ line) >> Lwt_io.write_line oc line)
+    Lwt_io.read_line ic >>= fun line ->
+    yap "handler" ("+ " ^ line)
+    >>
+    Lwt_io.write_line oc line
+    >>
+    Lwt_io.close oc
 
 let () =
   let port =
