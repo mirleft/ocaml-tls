@@ -5,10 +5,6 @@ open Utils
 open Core
 open State
 
-module State_or_err = Control.Or_error_make ( struct
-  type err = [ `Eof | `Alert of Packet.alert_type ]
-end )
-
 (* user API *)
 
 type state = State.state
@@ -185,7 +181,7 @@ module Alert = struct
       let err = match a_type with
         | CLOSE_NOTIFY -> `Eof
         | _            -> `Alert a_type in
-      return (State_or_err.fail err, None, [`Record close_notify], `Pass)
+      return (err, [`Record close_notify])
     | Reader.Or_error.Error _ ->
       Printf.printf "unknown alert";
       Cstruct.hexdump buf;
@@ -228,17 +224,18 @@ let handle_packet hs buf = function
    traffic analysis countermeasure.
  *)
 
-  | Packet.ALERT -> Alert.handle buf
+  | Packet.ALERT ->
+      Alert.handle buf >|= fun (err, out) ->
+        (hs, None, out, `Pass, err)
 
   | Packet.APPLICATION_DATA ->
     ( match hs_can_handle_appdata hs with
-      | true  -> return (State_or_err.return hs, non_empty buf, [], `Pass)
+      | true  -> return (hs, non_empty buf, [], `Pass, `No_err)
       | false -> fail Packet.UNEXPECTED_MESSAGE )
 
   | Packet.CHANGE_CIPHER_SPEC ->
       handle_change_cipher_spec hs.machina hs buf
-      >|= fun (hs, items, dec_cmd) ->
-        (State_or_err.return hs, None, items, dec_cmd)
+      >|= fun (hs, items, dec_cmd) -> (hs, None, items, dec_cmd, `No_err)
 
   | Packet.HANDSHAKE ->
      separate_handshakes (hs.fragment <+> buf)
@@ -248,7 +245,7 @@ let handle_packet hs buf = function
          >|= fun (hs', items') -> (hs', items @ items'))
        (hs, []) hss
      >|= fun (hs, items) ->
-       (State_or_err.return { hs with fragment }, None, items, `Pass)
+       ({ hs with fragment }, None, items, `Pass, `No_err)
 
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =
@@ -263,15 +260,12 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->
   handle_packet state.handshake dec hdr.content_type
-  >|= fun (hs_or_err, data, items, dec_cmd) ->
+  >|= fun (handshake, data, items, dec_cmd, err) ->
   let (encryptor, encs) =
     List.fold_left (fun (st, es) -> function
       | `Change_enc st' -> (st', es)
       | `Record (ty, buf) ->
-          let ver = State_or_err.(
-            or_else (hs_or_err >|= fun hs -> hs.version)
-              state.handshake.version) in
-          let (st', enc) = encrypt ver st ty buf in
+          let (st', enc) = encrypt hs.version st ty buf in
           (st', es @ [(ty, enc)]))
     (state.encryptor, [])
     items
@@ -279,11 +273,7 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   let decryptor = match dec_cmd with
     | `Change_dec dec -> dec
     | `Pass           -> dec_st in
-  let state_or_err =
-    let open State_or_err in
-    hs_or_err >|= fun handshake ->
-      { state with handshake ; encryptor ; decryptor } in
-  (state_or_err, data, encs)
+  ({ state with handshake ; encryptor ; decryptor }, data, encs, err)
 
 let maybe_app a b = match a, b with
   | Some x, Some y -> Some (x <+> y)
@@ -298,32 +288,28 @@ let assemble_records (version : tls_version) : record list -> Cstruct.t =
 let handle_tls state buf =
 
   let rec handle_records st = function
-    | []    -> return (State_or_err.return st, None, [])
+    | []    -> return (st, None, [], `No_err)
     | r::rs ->
         handle_raw_record st r >>= function
-          | (State_or_err.Ok st, data, raw_rs) ->
-              handle_records st rs >|= fun (st', data', raw_rs') ->
-                (st', maybe_app data data', raw_rs @ raw_rs')
+          | (st, data, raw_rs, `No_err) ->
+              handle_records st rs >|= fun (st', data', raw_rs', err') ->
+                (st', maybe_app data data', raw_rs @ raw_rs', err')
           | res -> return res
   in
   match
     separate_records (state.fragment <+> buf)
     >>= fun (in_records, fragment) ->
       handle_records state in_records
-    >|= function (state_or_err, data, out_records) ->
-      let open State_or_err in
-      let ver  = or_else (state_or_err >|= fun state -> state.handshake.version)
-                   state.handshake.version in
+    >|= function (state', data, out_records, err) ->
+      let ver  = state.handshake.version in
       let buf' = assemble_records ver out_records in
-      let state' = state_or_err >|= fun st -> { st with fragment } in
-      (state', buf', data)
+      ({ state' with fragment }, buf', data, err)
   with
-  | Ok (st_e, data, resp) ->
-      let to_state = State_or_err.( function
-        | Ok state         -> `Ok state
-        | Error `Eof       -> `Eof
-        | Error (`Alert a) -> `Alert a ) in
-      `Ok (to_state st_e, data, resp)
+  | Ok (state, data, resp, err) ->
+      let res = match err with
+        | `Eof | `Alert _ as err -> err
+        | `No_err                -> `Ok state in
+      `Ok (res, data, resp)
   | Error x ->
       let version    = state.handshake.version in
       let alert_resp = assemble_records version [Alert.make x] in
