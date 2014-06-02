@@ -201,9 +201,11 @@ let answer_client_hello state (ch : client_hello) raw =
     | _    , _      -> return ()
   in
 
+
   let cfg = state.config in
   let cciphers = ch.ciphersuites in
   let theirs = get_secure_renegotiation ch.extensions in
+  (try return (validate_client_hello ch) with | Invalid_argument x -> Printf.printf "invalid %s\n%!" x ; fail Packet.HANDSHAKE_FAILURE | _ -> fail Packet.HANDSHAKE_FAILURE) >>= fun () ->
   find_version cfg.protocol_versions ch.version >>= fun version ->
   find_ciphersuite cfg.ciphers cciphers >>= fun cipher ->
   renegotiate cfg.use_rekeying state.rekeying >>= fun () ->

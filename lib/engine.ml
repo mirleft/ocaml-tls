@@ -198,10 +198,40 @@ module Alert = struct
 
   let close_notify = make CLOSE_NOTIFY
 
+  let validate_alert (lvl, typ) =
+    (* from RFC, find out which ones must be always FATAL
+       and report if this does not meet the expectations *)
+    let always_fatal =
+      Packet.([ UNEXPECTED_MESSAGE ; BAD_RECORD_MAC ; RECORD_OVERFLOW ;
+                DECOMPRESSION_FAILURE ; HANDSHAKE_FAILURE ; UNKNOWN_CA ;
+                ACCESS_DENIED ; DECODE_ERROR ; DECRYPT_ERROR ;
+                PROTOCOL_VERSION ; INSUFFICIENT_SECURITY ;
+                INTERNAL_ERROR ; UNSUPPORTED_EXTENSION ])
+    in
+    (* unsupported_extension sent by a client if server hello contains an extension not present in client hello *)
+    let always_warning = Packet.([ USER_CANCELED ; NO_RENEGOTIATION ]) in
+    (* if you send this, cbcattack applies to your implementation *)
+    let mustnot = Packet.DECRYPTION_FAILED in
+    (* should not be observed by well-playing implementations *)
+    (* let blacklist = Packet.([ BAD_RECORD_MAC ; DECOMPRESSION_FAILURE ;
+        NO_CERTIFICATE_RESERVED ; DECODE_ERROR ; EXPORT_RESTRICTION_RESERVED ]) in *)
+    ( if typ = mustnot then
+        invalid_arg "mustn't use the decryption failed alert due to CBCATT" );
+    ( match (List.mem typ always_fatal, lvl) with
+      | true , Packet.FATAL   -> ()
+      | true , Packet.WARNING -> invalid_arg "warning level must be FATAL"
+      | false, _              -> () ) ;
+    ( match (List.mem typ always_warning, lvl) with
+      | true, Packet.WARNING -> ()
+      | true, Packet.FATAL   -> invalid_arg "warning level must be WARNING"
+      | false, _             -> () )
+
   let handle buf =
     match Reader.parse_alert buf with
     | Reader.Or_error.Ok (_, a_type as alert) ->
       Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string alert);
+      (try return (validate_alert alert) with
+       | _ -> fail Packet.UNEXPECTED_MESSAGE ) >>= fun () ->
       let err = match a_type with
         | CLOSE_NOTIFY -> `Eof
         | _            -> `Alert a_type in
