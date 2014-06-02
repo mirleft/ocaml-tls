@@ -281,8 +281,20 @@ let maybe_app a b = match a, b with
   | None  , Some y -> Some y
   | None  , None   -> None
 
+let rec maybe_merge = function
+  | []                                    -> []
+  | (t1, a) :: (t2, b) :: xs when t1 = t2 -> maybe_merge ((t1, a <+> b) :: xs)
+  | x::xs                                 -> x :: maybe_merge xs
+
+let rec maybe_split = function
+  | [] -> []
+  | (t1, a) :: xs when Cstruct.len a >= 1 lsl 14 ->
+     let fst, snd = Cstruct.split a (1 lsl 14) in
+     (t1, fst) :: maybe_split ((t1, snd) :: xs)
+  | x::xs -> x :: maybe_split xs
+
 let assemble_records (version : tls_version) : record list -> Cstruct.t =
-  o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
+  o (o (o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version) maybe_split) maybe_merge
 
 (* main entry point *)
 let handle_tls state buf =
