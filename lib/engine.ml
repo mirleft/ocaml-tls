@@ -176,6 +176,8 @@ module Alert = struct
 
   let make typ = (ALERT, Writer.assemble_alert typ)
 
+  let close_notify = make CLOSE_NOTIFY
+
   let handle buf =
     match Reader.parse_alert buf with
     | Reader.Or_error.Ok (_, a_type as alert) ->
@@ -183,7 +185,7 @@ module Alert = struct
       let err = match a_type with
         | CLOSE_NOTIFY -> `Eof
         | _            -> `Alert a_type in
-      return (State_or_err.fail err, None, [], `Pass)
+      return (State_or_err.fail err, None, [`Record close_notify], `Pass)
     | Reader.Or_error.Error _ ->
       Printf.printf "unknown alert";
       Cstruct.hexdump buf;
