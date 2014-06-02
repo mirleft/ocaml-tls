@@ -78,9 +78,11 @@ struct
   open Ipaddr
 
   let peer = ((V4.of_string_exn "127.0.0.1", 4433), "localhost")
+  let peer = ((V4.of_string_exn "2.19.157.15", 443), "www.apple.com")
   let peer = ((V4.of_string_exn "173.194.70.147", 443), "www.google.com")
 
-  let initial = Cstruct.of_string "ohai.\r\n\r\n"
+  let initial = Cstruct.of_string @@
+    "GET / HTTP/1.1\r\nConnection: Close\r\nHost: " ^ snd peer ^ "\r\n\r\n"
 
   let chat c tls =
     let rec dump () =

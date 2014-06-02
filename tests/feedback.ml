@@ -20,7 +20,8 @@ module Flow = struct
     match Tls.Engine.handle_tls st msg with
     | `Fail _                 ->
         failwith @@ Printf.sprintf "[%s] error in %s" tag descr
-    | `Ok (st', ans, appdata) -> (rewrap_st (state, st'), ans, appdata)
+    | `Ok (`Ok st', ans, appdata) -> (rewrap_st (state, st'), ans, appdata)
+    | `Ok _                       -> failwith "alert"
 end
 
 let loop_chatter ~cert ~loops ~size =

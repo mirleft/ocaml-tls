@@ -9,6 +9,11 @@ open State
 
 type state = State.state
 
+type ret = [
+  | `Ok   of [ `Ok of state | `Eof | `Alert of Packet.alert_type ] * Cstruct.t * Cstruct.t option
+  | `Fail of Packet.alert_type * Cstruct.t
+]
+
 type role = [ `Server | `Client ]
 
 let new_state config role =
@@ -163,15 +168,20 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
 
 module Alert = struct
 
-  let make typ =
-    let buf = Writer.assemble_alert typ in
-    (Packet.ALERT, buf)
+  open Packet
+
+  let make typ = (ALERT, Writer.assemble_alert typ)
+
+  let close_notify = make CLOSE_NOTIFY
 
   let handle buf =
     match Reader.parse_alert buf with
-    | Reader.Or_error.Ok al ->
-      Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string al);
-      fail Packet.CLOSE_NOTIFY
+    | Reader.Or_error.Ok (_, a_type as alert) ->
+      Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string alert);
+      let err = match a_type with
+        | CLOSE_NOTIFY -> `Eof
+        | _            -> `Alert a_type in
+      return (err, [`Record close_notify])
     | Reader.Or_error.Error _ ->
       Printf.printf "unknown alert";
       Cstruct.hexdump buf;
@@ -195,6 +205,17 @@ let rec separate_handshakes buf =
        separate_handshakes rest >|= fun (rt, frag) ->
        (hs :: rt, frag)
 
+let handle_change_cipher_spec = function
+  | Client cs -> Handshake_client.handle_change_cipher_spec cs
+  | Server ss -> Handshake_server.handle_change_cipher_spec ss
+
+and handle_handshake = function
+  | Client cs -> Handshake_client.handle_handshake cs
+  | Server ss -> Handshake_server.handle_handshake ss
+
+let non_empty cs =
+  if Cstruct.len cs = 0 then None else Some cs
+
 let handle_packet hs buf = function
 (* RFC 5246 -- 6.2.1.:
    Implementations MUST NOT send zero-length fragments of Handshake,
@@ -202,31 +223,29 @@ let handle_packet hs buf = function
    Application data MAY be sent as they are potentially useful as a
    traffic analysis countermeasure.
  *)
-  | Packet.ALERT -> (* this always fails, might be ok to accept some WARNING-level alerts *)
-     Alert.handle buf
+
+  | Packet.ALERT ->
+      Alert.handle buf >|= fun (err, out) ->
+        (hs, None, out, `Pass, err)
+
   | Packet.APPLICATION_DATA ->
-     ( match hs_can_handle_appdata hs with
-       | true  -> return (hs, Some buf, [], `Pass)
-       | false -> fail Packet.UNEXPECTED_MESSAGE
-     )
+    ( match hs_can_handle_appdata hs with
+      | true  -> return (hs, non_empty buf, [], `Pass, `No_err)
+      | false -> fail Packet.UNEXPECTED_MESSAGE )
+
   | Packet.CHANGE_CIPHER_SPEC ->
-     ( match hs.machina with
-       | Client cs -> Handshake_client.handle_change_cipher_spec cs hs buf
-       | Server ss -> Handshake_server.handle_change_cipher_spec ss hs buf )
-     >|= fun (hs, items, dec_cmd) ->
-     (hs, None, items, dec_cmd)
+      handle_change_cipher_spec hs.machina hs buf
+      >|= fun (hs, items, dec_cmd) -> (hs, None, items, dec_cmd, `No_err)
+
   | Packet.HANDSHAKE ->
-     separate_handshakes (hs.fragment <+> buf) >>= fun (hss, frag) ->
-     foldM (fun (hs, items) raw ->
-            ( match hs.machina with
-              | Client cs -> Handshake_client.handle_handshake cs hs raw
-              | Server ss -> Handshake_server.handle_handshake ss hs raw
-            ) >|= fun (hs', items') ->
-            (hs', items @ items') )
-           (hs, [])
-           hss
+     separate_handshakes (hs.fragment <+> buf)
+     >>= fun (hss, fragment) ->
+       foldM (fun (hs, items) raw ->
+         handle_handshake hs.machina hs raw
+         >|= fun (hs', items') -> (hs', items @ items'))
+       (hs, []) hss
      >|= fun (hs, items) ->
-     ({ hs with fragment = frag }, None, items, `Pass)
+       ({ hs with fragment }, None, items, `Pass, `No_err)
 
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =
@@ -241,7 +260,7 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->
   handle_packet state.handshake dec hdr.content_type
-  >>= fun (handshake, data, items, dec_cmd) ->
+  >|= fun (handshake, data, items, dec_cmd, err) ->
   let (encryptor, encs) =
     List.fold_left (fun (st, es) -> function
       | `Change_enc st' -> (st', es)
@@ -253,15 +272,8 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   in
   let decryptor = match dec_cmd with
     | `Change_dec dec -> dec
-    | `Pass           -> dec_st
-  in
-  let fragment = state.fragment in
-  return ({ handshake ; encryptor ; decryptor ; fragment }, data, encs)
-
-type ret = [
-  | `Ok   of state * Cstruct.t * Cstruct.t option
-  | `Fail of Packet.alert_type * Cstruct.t
-]
+    | `Pass           -> dec_st in
+  ({ state with handshake ; encryptor ; decryptor }, data, encs, err)
 
 let maybe_app a b = match a, b with
   | Some x, Some y -> Some (x <+> y)
@@ -269,25 +281,35 @@ let maybe_app a b = match a, b with
   | None  , Some y -> Some y
   | None  , None   -> None
 
-let assemble_records : tls_version -> record list -> Cstruct.t =
-  fun version ->
-    o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
+let assemble_records (version : tls_version) : record list -> Cstruct.t =
+  o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
 
 (* main entry point *)
 let handle_tls state buf =
+
+  let rec handle_records st = function
+    | []    -> return (st, None, [], `No_err)
+    | r::rs ->
+        handle_raw_record st r >>= function
+          | (st, data, raw_rs, `No_err) ->
+              handle_records st rs >|= fun (st', data', raw_rs', err') ->
+                (st', maybe_app data data', raw_rs @ raw_rs', err')
+          | res -> return res
+  in
   match
-    separate_records (state.fragment <+> buf) >>= fun (in_records, frag) ->
-    foldM (fun (st, datas, raw_rs) r ->
-           map (fun (st', data', raw_rs') -> (st', maybe_app datas data', raw_rs @ raw_rs')) @@
-             handle_raw_record st r)
-          (state, None, [])
-          in_records
-    >>= fun (state', data, out_records) ->
-    let version = state'.handshake.version in
-    let buf' = assemble_records version out_records in
-    return ({ state' with fragment = frag }, buf', data)
+    separate_records (state.fragment <+> buf)
+    >>= fun (in_records, fragment) ->
+      handle_records state in_records
+    >|= fun (state', data, out_records, err) ->
+      let version = state'.handshake.version in
+      let buf'    = assemble_records version out_records in
+      ({ state' with fragment }, buf', data, err)
   with
-  | Ok v    -> `Ok v
+  | Ok (state, data, resp, err) ->
+      let res = match err with
+        | `Eof | `Alert _ as err -> err
+        | `No_err                -> `Ok state in
+      `Ok (res, data, resp)
   | Error x ->
       let version    = state.handshake.version in
       let alert_resp = assemble_records version [Alert.make x] in
@@ -321,6 +343,8 @@ let send_application_data st css =
      let data = List.map (fun cs -> (ty, cs)) datas in
      Some (send_records st data)
   | false -> None
+
+let send_close_notify st = send_records st [Alert.close_notify]
 
 let open_connection' config =
   let state = new_state config `Client in

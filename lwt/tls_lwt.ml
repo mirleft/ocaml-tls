@@ -1,7 +1,8 @@
 
 open Lwt
 
-exception Tls_alert  of Tls.Packet.alert_type
+exception Tls_alert   of Tls.Packet.alert_type
+exception Tls_failure of Tls.Packet.alert_type
 
 type o_server = X509_lwt.priv
 type o_client = X509_lwt.validator
@@ -45,21 +46,28 @@ module Unix = struct
     mutable linger : Cstruct.t option ;
   }
 
-  let close t =
-    (* XXX send close alert *)
-    match t.state with
-    | `Active _ -> t.state <- `Eof ; Lwt_unix.close t.fd
-    | _         -> return_unit
+  let safely th =
+    try_lwt (th >> return_unit) with _ -> return_unit
 
   let (read_t, write_t) =
-    let finalize op t cs =
+    let recording_errors op t cs =
       try_lwt op t.fd cs with exn ->
-        ( t.state <- `Error exn ; Lwt_unix.close t.fd >> fail exn )
+        t.state <- `Error exn ;
+        safely (Lwt_unix.close t.fd) >> fail exn
     in
-    ( finalize Lwt_cs.read, finalize Lwt_cs.write_full )
+    (recording_errors Lwt_cs.read, recording_errors Lwt_cs.write_full)
 
-  let safely f a =
-    try_lwt ( f a >> return_unit ) with _ -> return_unit
+  let send_and_close_no_exn fd buf =
+    safely (Lwt_cs.write_full fd buf >> Lwt_unix.close fd)
+
+  let close t =
+    match t.state with
+    | `Active tls ->
+        let (_, buf) = Tls.Engine.send_close_notify tls in
+        t.state <- `Eof ;
+        send_and_close_no_exn t.fd buf
+    | _ -> return_unit
+
 
   let recv_buf = Cstruct.create 4096
 
@@ -67,16 +75,20 @@ module Unix = struct
 
     let handle tls buf =
       match Tls.Engine.handle_tls tls buf with
-      | `Ok (tls, answer, appdata) ->
+      | `Ok (`Ok tls, answer, appdata) ->
           t.state <- `Active tls ;
           write_t t answer >> return (`Ok appdata)
+
+      | `Ok ((`Eof | `Alert _ as err), answer, appdata) ->
+          let e_res = match err with
+            | `Eof     -> `Eof
+            | `Alert a -> `Error (Tls_alert a) in
+          t.state <- e_res ;
+          send_and_close_no_exn t.fd answer >> return (`Ok appdata)
+
       | `Fail (alert, answer) ->
-          t.state <-
-            ( match alert with
-              | Tls.Packet.CLOSE_NOTIFY -> `Eof
-              | _                       -> `Error (Tls_alert alert) ) ;
-          safely (Lwt_cs.write_full t.fd) answer >> Lwt_unix.close t.fd
-          >> read_react t
+          t.state <- `Error (Tls_failure alert) ;
+          send_and_close_no_exn t.fd answer >> read_react t
     in
 
     match t.state with

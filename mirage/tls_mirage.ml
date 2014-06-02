@@ -28,15 +28,18 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 
     let handle tls buf =
       match Tls.Engine.handle_tls tls buf with
-      | `Ok (tls, answer, appdata) ->
-          flow.state <- `Active tls ;
-          TCP.write flow.tcp answer >> return (`Ok appdata)
+      | `Ok (res, answer, appdata) ->
+          flow.state <- ( match res with
+            | `Ok tls      -> `Active tls
+            | `Eof         -> `Eof
+            | `Alert alert -> `Error (error_of_alert alert) );
+          TCP.write flow.tcp answer >>
+          ( match res with
+            | `Ok _ -> return_unit
+            | _     -> TCP.close flow.tcp ) >>
+          return (`Ok appdata)
       | `Fail (alert, answer)      ->
-          let reason =
-            match alert with
-            | Tls.Packet.CLOSE_NOTIFY -> `Eof
-            | _                       -> `Error (error_of_alert alert)
-          in
+          let reason = `Error (error_of_alert alert) in
           flow.state <- reason ;
           TCP.(write flow.tcp answer >> close flow.tcp) >> return reason
     in
@@ -73,9 +76,12 @@ module Make (TCP: V1_LWT.TCPV4) = struct
   let write flow buf = writev flow [buf]
 
   let close flow =
-    (* XXX Tickle the engine to produce the closing message? *)
-    flow.state <- `Eof ;
-    TCP.close flow.tcp
+    match flow.state with
+    | `Active tls ->
+      flow.state <- `Eof ;
+      let (_, buf) = Tls.Engine.send_close_notify tls in
+      TCP.(write flow.tcp buf >> close flow.tcp)
+    | _           -> return_unit
 
   let rec drain_handshake flow =
     match flow.state with
