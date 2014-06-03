@@ -18,6 +18,5 @@ val send_close_notify     : state -> state * Cstruct.t
 
 val handle_tls : state -> Cstruct.t -> ret
 
-val open_connection' : Config.config -> (state * Cstruct.t)
-val open_connection : ?cert:Config.own_cert -> ?host:string -> validator:X509.Validator.t -> unit -> (state * Cstruct.t)
-val listen_connection : ?cert:Config.own_cert -> unit -> state
+val client : Config.config -> (state * Cstruct.t)
+val server : Config.config -> state
