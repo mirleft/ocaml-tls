@@ -62,7 +62,7 @@ let answer_server_hello state params (sh : server_hello) raw log =
   in
 
   let cfg = state.config in
-  (try return (validate_server_hello sh) with | _ -> fail Packet.HANDSHAKE_FAILURE) >>= fun () ->
+  (try return (validate_server_hello sh) with _ -> fail Packet.HANDSHAKE_FAILURE) >>= fun () ->
   find_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let rekeying_data = get_secure_renegotiation sh.extensions in

@@ -231,7 +231,7 @@ module Alert = struct
     | Reader.Or_error.Ok (_, a_type as alert) ->
       Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string alert);
       (try return (validate_alert alert) with
-       | _ -> fail Packet.UNEXPECTED_MESSAGE ) >>= fun () ->
+         _ -> fail Packet.UNEXPECTED_MESSAGE ) >>= fun () ->
       let err = match a_type with
         | CLOSE_NOTIFY -> `Eof
         | _            -> `Alert a_type in
