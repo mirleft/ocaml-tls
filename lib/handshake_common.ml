@@ -44,6 +44,33 @@ let rec not_multiple_same_extensions = function
   | (UnknownExtension _)::xs -> not_multiple_same_extensions xs
   | [] -> ()
 
+(* a server hello may only contain extensions which are also in the client hello *)
+(*  RFC5246, 7.4.7.1
+   An extension type MUST NOT appear in the ServerHello unless the same
+   extension type appeared in the corresponding ClientHello.  If a
+   client receives an extension type in ServerHello that it did not
+   request in the associated ClientHello, it MUST abort the handshake
+   with an unsupported_extension fatal alert. *)
+let rec server_exts_subset_of_client sexts cexts =
+  match sexts, cexts with
+  | (Hostname _)::ses, (Hostname _)::ces -> server_exts_subset_of_client ses ces
+  | ses, (Hostname _)::ces -> server_exts_subset_of_client ses ces
+  | (MaxFragmentLength _)::ses, (MaxFragmentLength _)::ces -> server_exts_subset_of_client ses ces
+  | ses, (MaxFragmentLength _)::ces -> server_exts_subset_of_client ses ces
+  | (EllipticCurves _)::ses, (EllipticCurves _)::ces -> server_exts_subset_of_client ses ces
+  | ses, (EllipticCurves _)::ces -> server_exts_subset_of_client ses ces
+  | (ECPointFormats _)::ses, (ECPointFormats _)::ces -> server_exts_subset_of_client ses ces
+  | ses, (ECPointFormats _)::ces -> server_exts_subset_of_client ses ces
+  | (SecureRenegotiation _)::ses, (SecureRenegotiation _)::ces -> server_exts_subset_of_client ses ces
+  | ses, (SecureRenegotiation _)::ces -> server_exts_subset_of_client ses ces
+  | ses, (Padding _)::ces -> server_exts_subset_of_client ses ces
+  | ses, (SignatureAlgorithms _)::ces -> server_exts_subset_of_client ses ces
+  | (UnknownExtension _)::ses, ces -> server_exts_subset_of_client ses ces
+  | ses, (UnknownExtension _)::ces -> server_exts_subset_of_client ses ces
+  | [], [] -> ()
+  | _, _ -> invalid_arg "server extensions not subset of client extensions"
+
+
 let rec check_not_null = function
   | []    -> ()
   | c::cs -> (match Ciphersuite.get_kex_enc_hash c with
@@ -103,32 +130,16 @@ let validate_server_hello sh =
 
   not_multiple_same_extensions sh.extensions ;
 
-  ( let servername = get_hostname_ext sh in
+  let servername = get_hostname_ext sh in
     match servername with
     | Some (Some _) -> invalid_arg "non-empty servername in server hello"
-    | _ -> () ) ;
-
-  (match
-      map_find
-        sh.extensions
-        ~f:(function Padding s -> Some s | _ -> None)
-    with
-    | Some _ -> invalid_arg "padding not allowed in server hello"
-    | _ -> () ) ;
-
-  match
-    map_find
-      sh.extensions
-      ~f:(function SignatureAlgorithms s -> Some s | _ -> None)
-  with
-  | Some _ -> invalid_arg "signature algorithms not allowed in server hello"
-  | _ -> ()
+    | _ -> ()
   (* TODO: validation of extensions
       - EC stuff must be present if EC ciphersuite chosen
-      - only those which are in a client hello are allowed
    *)
 
 (* TODO: *)
 let validate_dh_params dh =
   (* public parameter should be >= 2 and also <= p - 2 *)
   true
+
