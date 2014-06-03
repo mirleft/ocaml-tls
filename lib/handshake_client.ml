@@ -234,11 +234,10 @@ let answer_server_finished state client_verify master_secret fin log =
   ({ state with machina = Client machina ; rekeying = rekeying }, [])
 
 let answer_hello_request state =
-  let get_rekeying_data use_rk optdata =
-    match use_rk, optdata with
-    | false, _             -> fail Packet.NO_RENEGOTIATION
-    | _    , None          -> fail Packet.HANDSHAKE_FAILURE
-    | true , Some (cvd, _) -> return (SecureRenegotiation cvd)
+  let get_rekeying_data optdata =
+    match optdata with
+    | None          -> fail Packet.HANDSHAKE_FAILURE
+    | Some (cvd, _) -> return (SecureRenegotiation cvd)
 
   and produce_client_hello config exts =
      let dch, params = default_client_hello config in
@@ -249,8 +248,12 @@ let answer_hello_request state =
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
 
   in
-  get_rekeying_data state.config.use_rekeying state.rekeying >|= fun ext ->
-  produce_client_hello state.config [ext]
+  if state.config.use_rekeying then
+    get_rekeying_data state.rekeying >|= fun ext ->
+    produce_client_hello state.config [ext]
+  else
+    let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
+    return (state, [`Record (Packet.ALERT, no_reneg)])
 
 let handle_change_cipher_spec cs state packet =
   (* TODO: validate packet is good (ie parse it?) *)
