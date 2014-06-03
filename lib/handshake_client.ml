@@ -14,7 +14,7 @@ let default_client_hello config =
     | None   -> []
     | Some x -> [Hostname (Some x)]
   in
-  let version = max_protocol_version config in
+  let version = max_protocol_version config.protocol_versions in
   let signature_algos = match version with
     | TLS_1_0 | TLS_1_1 -> []
     | TLS_1_2 ->
@@ -22,7 +22,7 @@ let default_client_hello config =
        [SignatureAlgorithms supported]
   in
   let ch = {
-    version      = max_protocol_version config ;
+    version      = version ;
     random       = Rng.generate 32 ;
     sessionid    = None ;
     ciphersuites = config.ciphers ;
@@ -35,10 +35,10 @@ let default_client_hello config =
            cipher = List.hd ch.ciphersuites })
 
 let answer_server_hello state params (sh : server_hello) raw log =
-  let find_version requested config server_version =
+  let find_version requested supported server_version =
     match
       requested >= server_version,
-      supported_protocol_version config server_version
+      supported_protocol_version supported server_version
     with
     | true, Some _ -> return ()
     | _ -> fail Packet.PROTOCOL_VERSION
@@ -63,7 +63,7 @@ let answer_server_hello state params (sh : server_hello) raw log =
   in
 
   let cfg = state.config in
-  find_version params.client_version state.config sh.version >>= fun () ->
+  find_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let rekeying_data = get_secure_renegotiation sh.extensions in
   validate_rekeying cfg.require_secure_rekeying state.rekeying rekeying_data >|= fun () ->

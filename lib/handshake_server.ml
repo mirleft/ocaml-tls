@@ -175,8 +175,8 @@ let answer_client_hello_params state params ch raw =
 
 
 let answer_client_hello state (ch : client_hello) raw =
-  let find_version config requested =
-    match supported_protocol_version config requested with
+  let find_version supported requested =
+    match supported_protocol_version supported requested with
     | Some x -> return x
     | None   -> fail Packet.PROTOCOL_VERSION
 
@@ -204,7 +204,7 @@ let answer_client_hello state (ch : client_hello) raw =
   let cfg = state.config in
   let cciphers = ch.ciphersuites in
   let theirs = get_secure_renegotiation ch.extensions in
-  find_version cfg ch.version >>= fun version ->
+  find_version cfg.protocol_versions ch.version >>= fun version ->
   find_ciphersuite cfg.ciphers cciphers >>= fun cipher ->
   renegotiate cfg.use_rekeying state.rekeying >>= fun () ->
   ensure_reneg cfg.require_secure_rekeying state.rekeying cciphers theirs >>= fun () ->
