@@ -166,6 +166,29 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
     | (None, _, _)                                         ->
        fail Packet.UNEXPECTED_MESSAGE
 
+
+let encrypt_records encryptor version records =
+  let rec merge = function
+    | []                                    -> []
+    | (t1, a) :: (t2, b) :: xs when t1 = t2 -> merge ((t1, a <+> b) :: xs)
+    | x::xs                                 -> x :: merge xs
+
+  and split = function
+    | [] -> []
+    | (t1, a) :: xs when Cstruct.len a >= 1 lsl 14 ->
+      let fst, snd = Cstruct.split a (1 lsl 14) in
+      (t1, fst) :: split ((t1, snd) :: xs)
+    | x::xs -> x :: split xs
+
+  and crypt st = function
+    | []            -> (st, [])
+    | (ty, buf)::rs ->
+        let (st, enc)  = encrypt version st ty buf in
+        let (st, encs) = crypt st rs in
+        (st, (ty, enc) :: encs)
+  in
+  crypt encryptor (split @@ merge records)
+
 module Alert = struct
 
   open Packet
@@ -247,6 +270,7 @@ let handle_packet hs buf = function
      >|= fun (hs, items) ->
        ({ hs with fragment }, None, items, `Pass, `No_err)
 
+
 (* the main thingy *)
 let handle_raw_record state ((hdr : tls_hdr), buf) =
   let hs = state.handshake in
@@ -264,9 +288,9 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   let (encryptor, encs) =
     List.fold_left (fun (st, es) -> function
       | `Change_enc st' -> (st', es)
-      | `Record (ty, buf) ->
-          let (st', enc) = encrypt handshake.version st ty buf in
-          (st', es @ [(ty, enc)]))
+      | `Record r       ->
+          let (st', enc) = encrypt_records st handshake.version [r] in
+          (st', es @ enc))
     (state.encryptor, [])
     items
   in
@@ -281,20 +305,8 @@ let maybe_app a b = match a, b with
   | None  , Some y -> Some y
   | None  , None   -> None
 
-let rec maybe_merge = function
-  | []                                    -> []
-  | (t1, a) :: (t2, b) :: xs when t1 = t2 -> maybe_merge ((t1, a <+> b) :: xs)
-  | x::xs                                 -> x :: maybe_merge xs
-
-let rec maybe_split = function
-  | [] -> []
-  | (t1, a) :: xs when Cstruct.len a >= 1 lsl 14 ->
-     let fst, snd = Cstruct.split a (1 lsl 14) in
-     (t1, fst) :: maybe_split ((t1, snd) :: xs)
-  | x::xs -> x :: maybe_split xs
-
 let assemble_records (version : tls_version) : record list -> Cstruct.t =
-  o (o (o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version) maybe_split) maybe_merge
+  o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
 
 (* main entry point *)
 let handle_tls state buf =
@@ -329,13 +341,8 @@ let handle_tls state buf =
 
 let send_records (st : state) records =
   let version = st.handshake.version in
-  let encryptor, encs = List.fold_left
-    (fun (est, encs) (ty, cs)  ->
-       let encryptor, enc = encrypt version est ty cs in
-       (encryptor, encs @ [(ty, enc)]))
-    (st.encryptor, [])
-    records
-  in
+  let (encryptor, encs) =
+    encrypt_records st.encryptor version records in
   let data = assemble_records version encs in
   ({ st with encryptor }, data)
 
