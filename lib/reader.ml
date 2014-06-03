@@ -56,6 +56,11 @@ let parse_alert = catch @@ fun buf ->
       | (Some _  , None)     -> raise_unknown @@ "alert type " ^ string_of_int typ
       | _                    -> raise_unknown @@ "alert level " ^ string_of_int level
 
+let parse_change_cipher_spec buf =
+  match len buf, get_uint8 buf 0 with
+  | 1, 1 -> return ()
+  | _    -> fail (Unknown "bad change cipher spec message")
+
 let rec parse_count_list parsef buf acc = function
   | 0 -> (List.rev acc, buf)
   | n ->
