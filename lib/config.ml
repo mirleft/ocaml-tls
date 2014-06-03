@@ -4,14 +4,15 @@ type own_cert = Certificate.certificate * Nocrypto.RSA.priv
 
 (* some config parameters *)
 type config = {
-  ciphers           : Ciphersuite.ciphersuite list ;
-  protocol_versions : tls_version list ;
-  hashes            : Ciphersuite.hash_algorithm list ;
-  (* signatures        : Packet.signature_algorithm_type list ; *)
-  use_rekeying      : bool ;
-  validator         : X509.Validator.t option ;
-  peer_name         : string option ;
-  own_certificate   : own_cert option ;
+  ciphers                 : Ciphersuite.ciphersuite list ;
+  protocol_versions       : tls_version list ;
+  hashes                  : Ciphersuite.hash_algorithm list ;
+  (* signatures              : Packet.signature_algorithm_type list ; *)
+  use_rekeying            : bool ;
+  require_secure_rekeying : bool ;
+  validator               : X509.Validator.t option ;
+  peer_name               : string option ;
+  own_certificate         : own_cert option ;
 }
 
 let default_config = {
@@ -31,6 +32,7 @@ let default_config = {
   (* signatures = [ Packet.RSA ] *)
   (* whether or not to rekey *)
   use_rekeying = true ;
+  require_secure_rekeying = true ;
   validator = None ;
   peer_name = None ;
   own_certificate = None ;
