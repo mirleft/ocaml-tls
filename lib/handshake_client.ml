@@ -35,13 +35,12 @@ let default_client_hello config =
            cipher = List.hd ch.ciphersuites })
 
 let answer_server_hello state params (sh : server_hello) raw log =
-  let find_version requested supported server_version =
+  let find_version requested (_, lo) server_version =
     match
-      requested >= server_version,
-      supported_protocol_version supported server_version
+      requested >= server_version, server_version >= lo
     with
-    | true, Some _ -> return ()
-    | _ -> fail Packet.PROTOCOL_VERSION
+    | true, true -> return ()
+    | _   , _    -> fail Packet.PROTOCOL_VERSION
 
   and validate_cipher suites suite =
     match List.mem suite suites with

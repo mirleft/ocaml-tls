@@ -5,7 +5,7 @@ type own_cert = Certificate.certificate * Nocrypto.RSA.priv
 (* some config parameters *)
 type config = {
   ciphers                 : Ciphersuite.ciphersuite list ;
-  protocol_versions       : tls_version list ;
+  protocol_versions       : tls_version * tls_version ;
   hashes                  : Ciphersuite.hash_algorithm list ;
   (* signatures              : Packet.signature_algorithm_type list ; *)
   use_rekeying            : bool ;
@@ -26,7 +26,7 @@ let default_config = {
                            TLS_RSA_WITH_RC4_128_SHA ;
                            TLS_RSA_WITH_RC4_128_MD5 ]) ;
   (* ordered list of decreasing protocol versions *)
-  protocol_versions = [ TLS_1_2 ; TLS_1_1 ; TLS_1_0 ] ;
+  protocol_versions = ( TLS_1_2 , TLS_1_0 ) ;
   (* ordered list (regarding preference) *)
   hashes = Ciphersuite.([ SHA512 ; SHA384 ; SHA256 ; SHA ; MD5 ]) ;
   (* signatures = [ Packet.RSA ] *)

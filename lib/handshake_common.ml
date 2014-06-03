@@ -20,11 +20,7 @@ let get_secure_renegotiation exts =
     exts
     ~f:(function SecureRenegotiation data -> Some data | _ -> None)
 
-(* find highest version between v and supported versions *)
-let supported_protocol_version versions v =
-  (* implicitly assumes that versions is without any holes *)
-  let max = max_protocol_version versions in
-  let min = min_protocol_version versions in
+let supported_protocol_version (max, min) v =
   match v >= max, v >= min with
     | true, _    -> Some max
     | _   , true -> Some v
