@@ -48,11 +48,13 @@ let answer_server_hello state params (sh : server_hello) raw log =
     | true -> return ()
     | false -> fail Packet.HANDSHAKE_FAILURE
 
-  and validate_rekeying required rekeying extensions =
-    match required, rekeying with
-    | false, _               -> return ()
-    | true , None            -> check_reneg (Cstruct.create 0) extensions
-    | true , Some (cvd, svd) -> check_reneg (cvd <+> svd) extensions
+  and validate_rekeying required rekeying data =
+    match required, rekeying, data with
+    | _    , None           , None   -> return ()
+    | _    , None           , Some x -> guard (Cstruct.len x = 0) Packet.HANDSHAKE_FAILURE
+    | _    , Some (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) Packet.HANDSHAKE_FAILURE
+    | false, _              , _      -> return ()
+    | true , _              , _      -> fail Packet.HANDSHAKE_FAILURE
 
   and adjust_params params sh =
     { params with
@@ -60,9 +62,11 @@ let answer_server_hello state params (sh : server_hello) raw log =
         cipher = sh.ciphersuites }
   in
 
+  let cfg = state.config in
   find_version params.client_version state.config sh.version >>= fun () ->
-  validate_cipher state.config.ciphers sh.ciphersuites >>= fun () ->
-  validate_rekeying state.config.require_secure_rekeying state.rekeying sh.extensions >|= fun () ->
+  validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
+  let rekeying_data = get_secure_renegotiation sh.extensions in
+  validate_rekeying cfg.require_secure_rekeying state.rekeying rekeying_data >|= fun () ->
 
   let machina = ServerHelloReceived (adjust_params params sh, log @ [raw]) in
   let state = { state with version = sh.version ; machina = Client machina } in
@@ -232,7 +236,7 @@ let answer_server_finished state client_verify master_secret fin log =
 let answer_hello_request state =
   let get_rekeying_data use_rk optdata =
     match use_rk, optdata with
-    | false, _             -> fail Packet.HANDSHAKE_FAILURE
+    | false, _             -> fail Packet.NO_RENEGOTIATION
     | _    , None          -> fail Packet.HANDSHAKE_FAILURE
     | true , Some (cvd, _) -> return (SecureRenegotiation cvd)
 

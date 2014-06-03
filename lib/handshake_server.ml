@@ -175,35 +175,39 @@ let answer_client_hello_params state params ch raw =
 
 
 let answer_client_hello state (ch : client_hello) raw =
-  let find_version requested config =
+  let find_version config requested =
     match supported_protocol_version config requested with
     | Some x -> return x
     | None   -> fail Packet.PROTOCOL_VERSION
 
-  and find_ciphersuite requested server_supported =
+  and find_ciphersuite server_supported requested =
     match List_set.inter server_supported requested with
     | []   -> fail Packet.HANDSHAKE_FAILURE
     | c::_ -> return c
 
-  and ensure_reneg require rekeying ciphers exts =
-    match require, rekeying, List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers with
-    | false, _            , _     -> return ()
-    | true , None         , true  -> return ()
-    | true , None         , false -> check_reneg (Cstruct.create 0) exts
-    | true , Some (cvd, _), _     -> check_reneg cvd exts
+  and ensure_reneg require our_data ciphers their_data  =
+    let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
+    match require, reneg_cs, our_data, their_data with
+    | _    , _    , None         , Some x -> guard (Cstruct.len x = 0) Packet.HANDSHAKE_FAILURE
+    | _    , _    , Some (cvd, _), Some x -> guard (Cs.equal cvd x) Packet.HANDSHAKE_FAILURE
+    | _    , true , None         , _      -> return ()
+    | false, _    , _            , _      -> return ()
+    | true , _    , _            , _      -> fail Packet.HANDSHAKE_FAILURE
 
-  (* if we're asked to rekey, make sure the config says so as well *)
-  and really_rekey rekeying rekey =
-    match rekeying, rekey with
-    | Some _, false -> fail Packet.HANDSHAKE_FAILURE
-    | _ , _         -> return ()
+  (* only renegotiate if the config allows us to *)
+  and renegotiate use_rk rekeying =
+    match use_rk, rekeying with
+    | false, Some _ -> fail Packet.HANDSHAKE_FAILURE
+    | _    , _      -> return ()
   in
 
   let cfg = state.config in
-  really_rekey state.rekeying cfg.use_rekeying >>= fun () ->
-  find_version ch.version cfg >>= fun version ->
-  find_ciphersuite ch.ciphersuites cfg.ciphers >>= fun cipher ->
-  ensure_reneg cfg.require_secure_rekeying state.rekeying ch.ciphersuites ch.extensions >>= fun () ->
+  let cciphers = ch.ciphersuites in
+  let theirs = get_secure_renegotiation ch.extensions in
+  find_version cfg ch.version >>= fun version ->
+  find_ciphersuite cfg.ciphers cciphers >>= fun cipher ->
+  renegotiate cfg.use_rekeying state.rekeying >>= fun () ->
+  ensure_reneg cfg.require_secure_rekeying state.rekeying cciphers theirs >>= fun () ->
 
   let params =
     { server_random = Rng.generate 32 ;
