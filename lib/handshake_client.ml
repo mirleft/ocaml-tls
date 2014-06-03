@@ -256,9 +256,9 @@ let answer_hello_request state =
     return (state, [`Record (Packet.ALERT, no_reneg)])
 
 let handle_change_cipher_spec cs state packet =
-  (* TODO: validate packet is good (ie parse it?) *)
-  match cs with
-  | ClientFinishedSent (server_ctx, client_verify, ms, log) ->
+  let open Reader in
+  match parse_change_cipher_spec packet, cs with
+  | Or_error.Ok (), ClientFinishedSent (server_ctx, client_verify, ms, log) ->
      let machina = ServerChangeCipherSpecReceived (client_verify, ms, log) in
      return ({ state with machina = Client machina }, [], `Change_dec (Some server_ctx))
   | _ ->
