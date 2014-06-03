@@ -185,11 +185,12 @@ let answer_client_hello state (ch : client_hello) raw =
     | []   -> fail Packet.HANDSHAKE_FAILURE
     | c::_ -> return c
 
-  and ensure_reneg rekeying ciphers exts =
-    match rekeying, List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers with
-    | None, true         -> return ()
-    | None, false        -> check_reneg (Cstruct.create 0) exts
-    | Some (cvd, _), _   -> check_reneg cvd exts
+  and ensure_reneg require rekeying ciphers exts =
+    match require, rekeying, List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers with
+    | false, _            , _     -> return ()
+    | true , None         , true  -> return ()
+    | true , None         , false -> check_reneg (Cstruct.create 0) exts
+    | true , Some (cvd, _), _     -> check_reneg cvd exts
 
   (* if we're asked to rekey, make sure the config says so as well *)
   and really_rekey rekeying rekey =
@@ -198,10 +199,11 @@ let answer_client_hello state (ch : client_hello) raw =
     | _ , _         -> return ()
   in
 
-  really_rekey state.rekeying state.config.use_rekeying >>= fun () ->
-  find_version ch.version state.config >>= fun version ->
-  find_ciphersuite ch.ciphersuites state.config.ciphers >>= fun cipher ->
-  ensure_reneg state.rekeying ch.ciphersuites ch.extensions >>= fun () ->
+  let cfg = state.config in
+  really_rekey state.rekeying cfg.use_rekeying >>= fun () ->
+  find_version ch.version cfg >>= fun version ->
+  find_ciphersuite ch.ciphersuites cfg.ciphers >>= fun cipher ->
+  ensure_reneg cfg.require_secure_rekeying state.rekeying ch.ciphersuites ch.extensions >>= fun () ->
 
   let params =
     { server_random = Rng.generate 32 ;
