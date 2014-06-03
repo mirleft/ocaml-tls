@@ -73,12 +73,11 @@ let rec server_exts_subset_of_client sexts cexts =
 
 let rec check_not_null = function
   | []    -> ()
-  | c::cs -> (match Ciphersuite.get_kex_enc_hash c with
-              | NULL, _, _ -> invalid_arg "kex is NULL"
-              | _, NULL, _ -> invalid_arg "encryption algorithm is NULL"
-              | _, _, NULL -> invalid_arg "hash algorithm is NULL"
-              | _, _, _    -> () ) ;
-             check_not_null cs
+  | c::cs -> match Ciphersuite.get_kex_enc_hash c with
+              | NULL, _, _ -> Printf.printf "kex null\n" ; invalid_arg "kex is NULL"
+              | _, NULL, _ -> Printf.printf "enc null\n" ; invalid_arg "encryption algorithm is NULL"
+              | _, _, NULL -> Printf.printf "hash null\n" ; invalid_arg "hash algorithm is NULL"
+              | _, _, _    -> check_not_null cs
 
 let validate_client_hello ch =
   ( if List.length ch.ciphersuites = 0 then
