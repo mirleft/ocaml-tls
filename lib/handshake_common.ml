@@ -93,9 +93,11 @@ let validate_client_hello ch =
   in
   check ch.ciphersuites ;
 
-(*  check_not_null ch.ciphersuites ; *)
+  check_not_null (List.filter
+                    (fun c -> not (c = Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
+                    ch.ciphersuites) ;
 
-  (* if any ciphersuite has ecc stuff, better have ellipticcurves and ecpointformats as extensions as well! *)
+  (* TODO: if ecc ciphersuite, require ellipticcurves and ecpointformats extensions! *)
 (*  ( match ch.version with
     | TLS_1_0 ->
        if not (List.mem Ciphersuite.TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA ch.ciphersuites) then
@@ -134,7 +136,7 @@ let validate_server_hello sh =
     match servername with
     | Some (Some _) -> invalid_arg "non-empty servername in server hello"
     | _ -> ()
-  (* TODO: validation of extensions
+  (* TODO:
       - EC stuff must be present if EC ciphersuite chosen
    *)
 
