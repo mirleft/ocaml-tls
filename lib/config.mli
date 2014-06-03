@@ -16,8 +16,3 @@ type config = {
 }
 
 val default_config : config
-
-val max_protocol_version : tls_version list -> tls_version
-val min_protocol_version : tls_version list -> tls_version
-
-val supported_protocol_version : tls_version list -> tls_version -> tls_version option

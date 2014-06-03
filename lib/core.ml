@@ -25,6 +25,9 @@ let tls_version_of_pair = function
   | (3, x) -> Some (TLS_1_X (3, x))
   | _      -> None
 
+let max_protocol_version versions = Utils.last (List.sort compare versions)
+let min_protocol_version versions = List.hd (List.sort compare versions)
+
 type tls_hdr = {
   content_type : content_type;
   version      : tls_version;
