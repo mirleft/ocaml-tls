@@ -16,6 +16,8 @@ type config = {
   own_certificate         : own_cert option ;
 }
 
+type rekeying = [ `No | `Yes | `Yes_require_secure ]
+
 let supported_hashes =
   Ciphersuite.([ SHA512 ; SHA384 ; SHA256 ; SHA ; MD5 ])
 
@@ -44,25 +46,34 @@ let validate_exn config =
     | _ -> () )
 
 
-let create ?( ciphers  = supported_ciphers )
-           ?( version  = (TLS_1_2, TLS_1_0) )
-           ?( hashes   = supported_hashes )
-           ?( rekeying  = true )
-           ?( secure_rekeying_required = true )
+let (<?>) opt def = match opt with Some x -> x | None -> def
+
+let create ?ciphers
+           ?version
+           ?hashes
+           ?rekeying
            ?validator
            ?peer_name
            ?certificate
            () =
+
+  let (rekey, sec_rekey) =
+    match rekeying with
+    | None                     -> (true, true)
+    | Some `No                 -> (false, false)
+    | Some `Yes                -> (true, false)
+    | Some `Yes_require_secure -> (true, true) in
+
   let config = {
-        ciphers                 = ciphers ;
-        protocol_versions       = version ;
-        hashes                  = hashes ;
-        use_rekeying            = rekeying ;
-        require_secure_rekeying = secure_rekeying_required ;
-        validator               = validator ;
-        peer_name               = peer_name ;
-        own_certificate         = certificate ;
-    } in
+    ciphers           = ciphers  <?> supported_ciphers ;
+    protocol_versions = version  <?> (TLS_1_2, TLS_1_0) ;
+    hashes            = hashes   <?> supported_hashes ;
+    use_rekeying      = rekey ;
+    require_secure_rekeying = sec_rekey ;
+    validator         = validator ;
+    peer_name         = peer_name ;
+    own_certificate   = certificate ;
+  } in
   ( validate_exn config ; config )
 
 (* |+ client +|

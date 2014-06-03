@@ -20,13 +20,14 @@ type config = private {
   own_certificate         : own_cert option ;
 }
 
+type rekeying = [ `No | `Yes | `Yes_require_secure ]
+
 val supported_ciphers : Ciphersuite.ciphersuite list
 val supported_hashes  : Ciphersuite.hash_algorithm list
 val create : ?ciphers:     Ciphersuite.ciphersuite list    ->
              ?version:     tls_version * tls_version       ->
              ?hashes:      Ciphersuite.hash_algorithm list ->
-             ?rekeying:    bool                            ->
-             ?secure_rekeying_required: bool               ->
+             ?rekeying:    rekeying                        ->
              ?validator:   X509.Validator.t                ->
              ?peer_name:   string                          ->
              ?certificate: own_cert                        ->
