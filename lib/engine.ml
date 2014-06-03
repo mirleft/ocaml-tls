@@ -168,10 +168,11 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
 
 
 let encrypt_records encryptor version records =
+  let open Packet in
   let rec merge = function
-    | []                                    -> []
-    | (t1, a) :: (t2, b) :: xs when t1 = t2 -> merge ((t1, a <+> b) :: xs)
-    | x::xs                                 -> x :: merge xs
+    | []                                     -> []
+    | (HANDSHAKE, a) :: (HANDSHAKE, b) :: xs -> merge ((HANDSHAKE, a <+> b) :: xs)
+    | x::xs                                  -> x :: merge xs
 
   and split = function
     | [] -> []
