@@ -49,7 +49,6 @@ let answer_server_hello state params (sh : server_hello) raw log =
 
   and validate_rekeying required rekeying data =
     match required, rekeying, data with
-    | _    , None           , None   -> return ()
     | _    , None           , Some x -> guard (Cstruct.len x = 0) Packet.HANDSHAKE_FAILURE
     | _    , Some (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) Packet.HANDSHAKE_FAILURE
     | false, _              , _      -> return ()
