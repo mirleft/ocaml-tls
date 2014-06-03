@@ -48,10 +48,11 @@ let answer_server_hello state params (sh : server_hello) raw log =
     | true -> return ()
     | false -> fail Packet.HANDSHAKE_FAILURE
 
-  and validate_rekeying rekeying extensions =
-    match rekeying with
-    | None            -> check_reneg (Cstruct.create 0) extensions
-    | Some (cvd, svd) -> check_reneg (cvd <+> svd) extensions
+  and validate_rekeying required rekeying extensions =
+    match required, rekeying with
+    | false, _               -> return ()
+    | true , None            -> check_reneg (Cstruct.create 0) extensions
+    | true , Some (cvd, svd) -> check_reneg (cvd <+> svd) extensions
 
   and adjust_params params sh =
     { params with
@@ -61,7 +62,7 @@ let answer_server_hello state params (sh : server_hello) raw log =
 
   find_version params.client_version state.config sh.version >>= fun () ->
   validate_cipher state.config.ciphers sh.ciphersuites >>= fun () ->
-  validate_rekeying state.rekeying sh.extensions >|= fun () ->
+  validate_rekeying state.config.require_secure_rekeying state.rekeying sh.extensions >|= fun () ->
 
   let machina = ServerHelloReceived (adjust_params params sh, log @ [raw]) in
   let state = { state with version = sh.version ; machina = Client machina } in
