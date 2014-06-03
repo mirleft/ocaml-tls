@@ -20,6 +20,12 @@ let get_secure_renegotiation exts =
     exts
     ~f:(function SecureRenegotiation data -> Some data | _ -> None)
 
+let supported_protocol_version (max, min) v =
+  match v >= max, v >= min with
+    | true, _ -> Some max
+    | _ , true -> Some v
+    | _ , _ -> None
+
 let rec not_multiple_same_extensions = function
   | (Hostname _)::(Hostname _)::xs -> invalid_arg "multiple hostname extensions"
   | (Hostname _)::xs -> not_multiple_same_extensions xs
