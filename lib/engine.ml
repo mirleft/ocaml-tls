@@ -431,7 +431,7 @@ let open_connection' config =
   in
 
   let raw = Writer.assemble_handshake (ClientHello client_hello) in
-  let machina = ClientHelloSent (params, [raw]) in
+  let machina = ClientHelloSent (client_hello, params, [raw]) in
   let handshake = { state.handshake with machina = Client machina } in
   send_records
       { state with handshake }
