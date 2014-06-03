@@ -14,7 +14,7 @@ let default_client_hello config =
     | None   -> []
     | Some x -> [Hostname (Some x)]
   in
-  let version = max_protocol_version config in
+  let version = max_protocol_version config.protocol_versions in
   let signature_algos = match version with
     | TLS_1_0 | TLS_1_1 -> []
     | TLS_1_2 ->
@@ -22,7 +22,7 @@ let default_client_hello config =
        [SignatureAlgorithms supported]
   in
   let ch = {
-    version      = max_protocol_version config ;
+    version      = version ;
     random       = Rng.generate 32 ;
     sessionid    = None ;
     ciphersuites = config.ciphers ;
@@ -35,23 +35,25 @@ let default_client_hello config =
            cipher = List.hd ch.ciphersuites })
 
 let answer_server_hello state params (sh : server_hello) raw log =
-  let find_version requested config server_version =
+  let find_version requested (_, lo) server_version =
     match
-      requested >= server_version,
-      supported_protocol_version config server_version
+      requested >= server_version, server_version >= lo
     with
-    | true, Some _ -> return ()
-    | _ -> fail Packet.PROTOCOL_VERSION
+    | true, true -> return ()
+    | _   , _    -> fail Packet.PROTOCOL_VERSION
 
   and validate_cipher suites suite =
     match List.mem suite suites with
     | true -> return ()
     | false -> fail Packet.HANDSHAKE_FAILURE
 
-  and validate_rekeying rekeying extensions =
-    match rekeying with
-    | None            -> check_reneg (Cstruct.create 0) extensions
-    | Some (cvd, svd) -> check_reneg (cvd <+> svd) extensions
+  and validate_rekeying required rekeying data =
+    match required, rekeying, data with
+    | _    , None           , None   -> return ()
+    | _    , None           , Some x -> guard (Cstruct.len x = 0) Packet.HANDSHAKE_FAILURE
+    | _    , Some (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) Packet.HANDSHAKE_FAILURE
+    | false, _              , _      -> return ()
+    | true , _              , _      -> fail Packet.HANDSHAKE_FAILURE
 
   and adjust_params params sh =
     { params with
@@ -59,9 +61,11 @@ let answer_server_hello state params (sh : server_hello) raw log =
         cipher = sh.ciphersuites }
   in
 
-  find_version params.client_version state.config sh.version >>= fun () ->
-  validate_cipher state.config.ciphers sh.ciphersuites >>= fun () ->
-  validate_rekeying state.rekeying sh.extensions >|= fun () ->
+  let cfg = state.config in
+  find_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
+  validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
+  let rekeying_data = get_secure_renegotiation sh.extensions in
+  validate_rekeying cfg.require_secure_rekeying state.rekeying rekeying_data >|= fun () ->
 
   let machina = ServerHelloReceived (adjust_params params sh, log @ [raw]) in
   let state = { state with version = sh.version ; machina = Client machina } in
@@ -229,11 +233,10 @@ let answer_server_finished state client_verify master_secret fin log =
   ({ state with machina = Client machina ; rekeying = rekeying }, [])
 
 let answer_hello_request state =
-  let get_rekeying_data use_rk optdata =
-    match use_rk, optdata with
-    | false, _             -> fail Packet.HANDSHAKE_FAILURE
-    | _    , None          -> fail Packet.HANDSHAKE_FAILURE
-    | true , Some (cvd, _) -> return (SecureRenegotiation cvd)
+  let get_rekeying_data optdata =
+    match optdata with
+    | None          -> fail Packet.HANDSHAKE_FAILURE
+    | Some (cvd, _) -> return (SecureRenegotiation cvd)
 
   and produce_client_hello config exts =
      let dch, params = default_client_hello config in
@@ -244,8 +247,12 @@ let answer_hello_request state =
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
 
   in
-  get_rekeying_data state.config.use_rekeying state.rekeying >|= fun ext ->
-  produce_client_hello state.config [ext]
+  if state.config.use_rekeying then
+    get_rekeying_data state.rekeying >|= fun ext ->
+    produce_client_hello state.config [ext]
+  else
+    let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
+    return (state, [`Record (Packet.ALERT, no_reneg)])
 
 let handle_change_cipher_spec cs state packet =
   (* TODO: validate packet is good (ie parse it?) *)

@@ -22,7 +22,7 @@ let new_state config role =
     | `Server -> Server ServerInitial (* we should check that a own_cert is Some _ in config! *)
   in
   let handshake = {
-    version   = Config.max_protocol_version config ;
+    version   = max_protocol_version Config.(config.protocol_versions) ;
     rekeying  = None ;
     machina   = handshake_state ;
     config    = config ;
@@ -276,11 +276,11 @@ let handle_packet hs buf = function
 let handle_raw_record state ((hdr : tls_hdr), buf) =
   let hs = state.handshake in
   let version = hs.version in
-  ( match hs.machina, Config.supported_protocol_version hs.config hdr.version with
-    | Client (ClientHelloSent _), Some _ -> return ()
-    | Server (ServerInitial)    , Some _ -> return ()
-    | _, _ when hdr.version = version    -> return ()
-    | _, _                               -> fail Packet.PROTOCOL_VERSION )
+  ( match hs.machina, hdr.version = version with
+    | Client (ClientHelloSent _), _     -> return ()
+    | Server (ServerInitial)    , _     -> return ()
+    | _                         , true  -> return ()
+    | _                         , false -> fail Packet.PROTOCOL_VERSION )
   >>= fun () ->
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->

@@ -15,8 +15,13 @@ let find_hostname : 'a hello -> string option =
     | [Hostname name] -> name
     | _               -> None
 
-let rec check_reneg expected = function
-  | []                       -> fail Packet.NO_RENEGOTIATION
-  | SecureRenegotiation x::_ -> guard (Cs.equal expected x) Packet.NO_RENEGOTIATION
-  | _::xs                    -> check_reneg expected xs
+let get_secure_renegotiation exts =
+  map_find
+    exts
+    ~f:(function SecureRenegotiation data -> Some data | _ -> None)
 
+let supported_protocol_version (max, min) v =
+  match v >= max, v >= min with
+    | true, _    -> Some max
+    | _   , true -> Some v
+    | _   , _    -> None
