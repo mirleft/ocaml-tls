@@ -33,6 +33,12 @@ module List_set = struct
   let equal ?(compare = compare) l1 l2 =
     List.(sort compare l1 = sort compare l2)
 
+  let is_proper_set l =
+    let rec repeats = function
+      | x::(y::_ as xs) -> x = y || repeats xs
+      | _               -> false in
+    not @@ repeats (List.sort compare l)
+
 end
 
 module Cs = struct
