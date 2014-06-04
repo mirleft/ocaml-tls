@@ -124,7 +124,7 @@ let server_hello_valid sh =
 
   sh.ciphersuites <> TLS_EMPTY_RENEGOTIATION_INFO_SCSV
   &&
-  not (List.exists null_cipher [sh.ciphersuites])
+  not (null_cipher sh.ciphersuites)
   &&
   not_multiple_same_extensions sh.extensions
   &&
