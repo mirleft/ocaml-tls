@@ -52,6 +52,7 @@ let validate_alert (lvl, typ) =
      and report if this does not meet the expectations *)
   | WARNING, UNEXPECTED_MESSAGE -> raise_unknown "unexpected_message must always be fatal"
   | WARNING, BAD_RECORD_MAC -> raise_unknown "bad_record_mac must always be fatal"
+  | WARNING, DECRYPTION_FAILED -> raise_unknown "decryption_failed must always be fatal"
   | WARNING, RECORD_OVERFLOW -> raise_unknown "record_overflow must always be fatal"
   | WARNING, DECOMPRESSION_FAILURE -> raise_unknown "decompression_failure must always be fatal"
   | WARNING, HANDSHAKE_FAILURE -> raise_unknown "handshake_failure must always be fatal"

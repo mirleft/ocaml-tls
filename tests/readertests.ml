@@ -99,17 +99,17 @@ let good_alerts =
   [
     (1, 0, (w, Packet.CLOSE_NOTIFY));
     (2, 0, (f, Packet.CLOSE_NOTIFY));
-    (1, 10, (w, Packet.UNEXPECTED_MESSAGE));
+(*    (1, 10, (w, Packet.UNEXPECTED_MESSAGE)); *)
     (2, 10, (f, Packet.UNEXPECTED_MESSAGE));
-    (1, 20, (w, Packet.BAD_RECORD_MAC));
+(*    (1, 20, (w, Packet.BAD_RECORD_MAC)); *)
     (2, 20, (f, Packet.BAD_RECORD_MAC));
-    (1, 21, (w, Packet.DECRYPTION_FAILED));
+(*    (1, 21, (w, Packet.DECRYPTION_FAILED)); *)
     (2, 21, (f, Packet.DECRYPTION_FAILED));
-    (1, 22, (w, Packet.RECORD_OVERFLOW));
+(*    (1, 22, (w, Packet.RECORD_OVERFLOW)); *)
     (2, 22, (f, Packet.RECORD_OVERFLOW));
-    (1, 30, (w, Packet.DECOMPRESSION_FAILURE));
+(*    (1, 30, (w, Packet.DECOMPRESSION_FAILURE)); *)
     (2, 30, (f, Packet.DECOMPRESSION_FAILURE));
-    (1, 40, (w, Packet.HANDSHAKE_FAILURE));
+(*    (1, 40, (w, Packet.HANDSHAKE_FAILURE)); *)
     (2, 40, (f, Packet.HANDSHAKE_FAILURE));
     (1, 41, (w, Packet.NO_CERTIFICATE_RESERVED));
     (2, 41, (f, Packet.NO_CERTIFICATE_RESERVED));
@@ -125,27 +125,27 @@ let good_alerts =
     (2, 46, (f, Packet.CERTIFICATE_UNKNOWN));
     (1, 47, (w, Packet.ILLEGAL_PARAMETER));
     (2, 47, (f, Packet.ILLEGAL_PARAMETER));
-    (1, 48, (w, Packet.UNKNOWN_CA));
+(*    (1, 48, (w, Packet.UNKNOWN_CA)); *)
     (2, 48, (f, Packet.UNKNOWN_CA));
-    (1, 49, (w, Packet.ACCESS_DENIED));
+(*    (1, 49, (w, Packet.ACCESS_DENIED)); *)
     (2, 49, (f, Packet.ACCESS_DENIED));
-    (1, 50, (w, Packet.DECODE_ERROR));
+(*    (1, 50, (w, Packet.DECODE_ERROR)); *)
     (2, 50, (f, Packet.DECODE_ERROR));
-    (1, 51, (w, Packet.DECRYPT_ERROR));
+(*    (1, 51, (w, Packet.DECRYPT_ERROR)); *)
     (2, 51, (f, Packet.DECRYPT_ERROR));
     (1, 60, (w, Packet.EXPORT_RESTRICTION_RESERVED));
     (2, 60, (f, Packet.EXPORT_RESTRICTION_RESERVED));
-    (1, 70, (w, Packet.PROTOCOL_VERSION));
+(*    (1, 70, (w, Packet.PROTOCOL_VERSION)); *)
     (2, 70, (f, Packet.PROTOCOL_VERSION));
-    (1, 71, (w, Packet.INSUFFICIENT_SECURITY));
+(*    (1, 71, (w, Packet.INSUFFICIENT_SECURITY)); *)
     (2, 71, (f, Packet.INSUFFICIENT_SECURITY));
-    (1, 80, (w, Packet.INTERNAL_ERROR));
+(*    (1, 80, (w, Packet.INTERNAL_ERROR)); *)
     (2, 80, (f, Packet.INTERNAL_ERROR));
     (1, 90, (w, Packet.USER_CANCELED));
-    (2, 90, (f, Packet.USER_CANCELED));
+(*    (2, 90, (f, Packet.USER_CANCELED)); *)
     (1, 100, (w, Packet.NO_RENEGOTIATION));
-    (2, 100, (f, Packet.NO_RENEGOTIATION));
-    (1, 110, (w, Packet.UNSUPPORTED_EXTENSION));
+(*    (2, 100, (f, Packet.NO_RENEGOTIATION)); *)
+(*    (1, 110, (w, Packet.UNSUPPORTED_EXTENSION)); *)
     (2, 110, (f, Packet.UNSUPPORTED_EXTENSION));
     (1, 111, (w, Packet.CERTIFICATE_UNOBTAINABLE));
     (2, 111, (f, Packet.CERTIFICATE_UNOBTAINABLE));
