@@ -34,7 +34,7 @@ let default_client_hello config =
            client_version = ch.version ;
            cipher = List.hd ch.ciphersuites })
 
-let answer_server_hello state params (sh : server_hello) raw log =
+let answer_server_hello state params ch (sh : server_hello) raw log =
   let find_version requested (_, lo) server_version =
     match
       requested >= server_version, server_version >= lo
@@ -49,7 +49,6 @@ let answer_server_hello state params (sh : server_hello) raw log =
 
   and validate_rekeying required rekeying data =
     match required, rekeying, data with
-    | _    , None           , None   -> return ()
     | _    , None           , Some x -> guard (Cstruct.len x = 0) Packet.HANDSHAKE_FAILURE
     | _    , Some (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) Packet.HANDSHAKE_FAILURE
     | false, _              , _      -> return ()
@@ -62,6 +61,12 @@ let answer_server_hello state params (sh : server_hello) raw log =
   in
 
   let cfg = state.config in
+  validate_server_hello sh >>= fun () ->
+  let shexts, chexts =
+    let sorter a = List.sort compare a in
+    (sorter sh.extensions, sorter ch.extensions)
+  in
+  server_exts_subset_of_client shexts chexts >>= fun () ->
   find_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let rekeying_data = get_secure_renegotiation sh.extensions in
@@ -243,7 +248,7 @@ let answer_hello_request state =
      let ch = { dch with
                   extensions = exts @ dch.extensions } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
-     let machina = ClientHelloSent (params, [raw]) in
+     let machina = ClientHelloSent (ch, params, [raw]) in
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
 
   in
@@ -255,9 +260,9 @@ let answer_hello_request state =
     return (state, [`Record (Packet.ALERT, no_reneg)])
 
 let handle_change_cipher_spec cs state packet =
-  (* TODO: validate packet is good (ie parse it?) *)
-  match cs with
-  | ClientFinishedSent (server_ctx, client_verify, ms, log) ->
+  let open Reader in
+  match parse_change_cipher_spec packet, cs with
+  | Or_error.Ok (), ClientFinishedSent (server_ctx, client_verify, ms, log) ->
      let machina = ServerChangeCipherSpecReceived (client_verify, ms, log) in
      return ({ state with machina = Client machina }, [], `Change_dec (Some server_ctx))
   | _ ->
@@ -270,8 +275,8 @@ let handle_handshake cs hs buf =
      Printf.printf "HANDSHAKE: %s" (Printer.handshake_to_string handshake);
      Cstruct.hexdump buf;
      ( match cs, handshake with
-       | ClientHelloSent (params, log), ServerHello sh ->
-          answer_server_hello hs params sh buf log
+       | ClientHelloSent (ch, params, log), ServerHello sh ->
+          answer_server_hello hs params ch sh buf log
        | ServerHelloReceived (params, log), Certificate cs ->
           answer_certificate hs params cs buf log
        | ServerCertificateReceived_RSA (params, cert, log), ServerHelloDone ->

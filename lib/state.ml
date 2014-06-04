@@ -39,7 +39,7 @@ type server_handshake_state =
 
 type client_handshake_state =
   | ClientInitial
-  | ClientHelloSent of handshake_params * hs_log
+  | ClientHelloSent of client_hello * handshake_params * hs_log
   | ServerHelloReceived of handshake_params * hs_log
   | ServerCertificateReceived_RSA of handshake_params * Certificate.certificate * hs_log
   | ServerCertificateReceived_DHE_RSA of handshake_params * Certificate.certificate * hs_log

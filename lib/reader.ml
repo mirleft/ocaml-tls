@@ -45,6 +45,32 @@ let parse_hdr buf =
   let len = BE.get_uint16 buf 3 in
   (int_to_content_type typ, tls_version_of_pair version, len)
 
+let validate_alert (lvl, typ) =
+  let open Packet in
+  match lvl, typ with
+  (* from RFC, find out which ones must be always FATAL
+     and report if this does not meet the expectations *)
+  | WARNING, UNEXPECTED_MESSAGE -> raise_unknown "unexpected_message must always be fatal"
+  | WARNING, BAD_RECORD_MAC -> raise_unknown "bad_record_mac must always be fatal"
+  | WARNING, DECRYPTION_FAILED -> raise_unknown "decryption_failed must always be fatal"
+  | WARNING, RECORD_OVERFLOW -> raise_unknown "record_overflow must always be fatal"
+  | WARNING, DECOMPRESSION_FAILURE -> raise_unknown "decompression_failure must always be fatal"
+  | WARNING, HANDSHAKE_FAILURE -> raise_unknown "handshake_failure must always be fatal"
+  | WARNING, UNKNOWN_CA -> raise_unknown "unknown_ca must always be fatal"
+  | WARNING, ACCESS_DENIED -> raise_unknown "access_denied must always be fatal"
+  | WARNING, DECODE_ERROR -> raise_unknown "decode_error must always be fatal"
+  | WARNING, DECRYPT_ERROR -> raise_unknown "decrypt_error must always be fatal"
+  | WARNING, PROTOCOL_VERSION -> raise_unknown "protocol_version must always be fatal"
+  | WARNING, INSUFFICIENT_SECURITY -> raise_unknown "insufficient_security must always be fatal"
+  | WARNING, INTERNAL_ERROR -> raise_unknown "internal_error must always be fatal"
+  | WARNING, UNSUPPORTED_EXTENSION -> raise_unknown "unsupported_extension must always be fatal"
+
+  (* those are always warnings *)
+  | FATAL, USER_CANCELED -> raise_unknown "user_canceled must always be a warning"
+  | FATAL, NO_RENEGOTIATION -> raise_unknown "no_renegotiation must always be a warning"
+
+  | lvl, typ -> (lvl, typ)
+
 let parse_alert = catch @@ fun buf ->
   if len buf <> 2 then
     raise_trailing_bytes "after alert"
@@ -52,9 +78,14 @@ let parse_alert = catch @@ fun buf ->
     let level = get_uint8 buf 0 in
     let typ = get_uint8 buf 1 in
     match int_to_alert_level level, int_to_alert_type typ with
-      | (Some lvl, Some msg) -> (lvl, msg)
+      | (Some lvl, Some msg) -> validate_alert (lvl, msg)
       | (Some _  , None)     -> raise_unknown @@ "alert type " ^ string_of_int typ
       | _                    -> raise_unknown @@ "alert level " ^ string_of_int level
+
+let parse_change_cipher_spec buf =
+  match len buf, get_uint8 buf 0 with
+  | 1, 1 -> return ()
+  | _    -> fail (Unknown "bad change cipher spec message")
 
 let rec parse_count_list parsef buf acc = function
   | 0 -> (List.rev acc, buf)

@@ -204,6 +204,7 @@ let answer_client_hello state (ch : client_hello) raw =
   let cfg = state.config in
   let cciphers = ch.ciphersuites in
   let theirs = get_secure_renegotiation ch.extensions in
+  validate_client_hello ch >>= fun () ->
   find_version cfg.protocol_versions ch.version >>= fun version ->
   find_ciphersuite cfg.ciphers cciphers >>= fun cipher ->
   renegotiate cfg.use_rekeying state.rekeying >>= fun () ->
@@ -219,9 +220,9 @@ let answer_client_hello state (ch : client_hello) raw =
   answer_client_hello_params hs params ch raw
 
 let handle_change_cipher_spec ss state packet =
-  (* TODO: validate packet is good (ie parse it?) *)
-  match ss with
-  | ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log) ->
+  let open Reader in
+  match parse_change_cipher_spec packet, ss with
+  | Or_error.Ok (), ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log) ->
      let ccs = change_cipher_spec in
      let machina = ClientChangeCipherSpecReceived (master_secret, log) in
      return ({ state with machina = Server machina },
