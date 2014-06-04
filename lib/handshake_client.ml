@@ -61,12 +61,11 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
   in
 
   let cfg = state.config in
-  validate_server_hello sh >>= fun () ->
-  let shexts, chexts =
-    let sorter a = List.sort compare a in
-    (sorter sh.extensions, sorter ch.extensions)
-  in
-  server_exts_subset_of_client shexts chexts >>= fun () ->
+  guard (server_hello_valid sh) Packet.HANDSHAKE_FAILURE
+  >>= fun () ->
+  guard (server_exts_subset_of_client sh.extensions ch.extensions)
+        Packet.HANDSHAKE_FAILURE
+  >>= fun () ->
   find_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let rekeying_data = get_secure_renegotiation sh.extensions in

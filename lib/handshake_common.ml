@@ -1,6 +1,9 @@
 open Utils
 open Core
 
+
+let empty = function [] -> true | _ -> false
+
 let change_cipher_spec =
   (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
 
@@ -9,11 +12,10 @@ let get_hostname_ext h =
     h.extensions
     ~f:(function Hostname s -> Some s | _ -> None)
 
-let find_hostname : 'a hello -> string option =
-  fun h ->
-    match get_hostname_ext h with
-    | Some (Some name) -> Some name
-    | _                -> None
+let find_hostname (h: 'a hello): string option =
+  match get_hostname_ext h with
+  | Some (Some name) -> Some name
+  | _                -> None
 
 let get_secure_renegotiation exts =
   map_find
@@ -26,23 +28,23 @@ let supported_protocol_version (max, min) v =
     | _   , true -> Some v
     | _   , _    -> None
 
-let rec not_multiple_same_extensions = function
-  | (Hostname _)::(Hostname _)::xs -> fail Packet.HANDSHAKE_FAILURE
-  | (Hostname _)::xs -> not_multiple_same_extensions xs
-  | (MaxFragmentLength _)::(MaxFragmentLength _)::xs -> fail Packet.HANDSHAKE_FAILURE
-  | (MaxFragmentLength _)::xs -> not_multiple_same_extensions xs
-  | (EllipticCurves _)::(EllipticCurves _)::xs -> fail Packet.HANDSHAKE_FAILURE
-  | (EllipticCurves _)::xs -> not_multiple_same_extensions xs
-  | (ECPointFormats _)::(ECPointFormats _)::xs -> fail Packet.HANDSHAKE_FAILURE
-  | (ECPointFormats _)::xs -> not_multiple_same_extensions xs
-  | (SecureRenegotiation _)::(SecureRenegotiation _)::xs -> fail Packet.HANDSHAKE_FAILURE
-  | (SecureRenegotiation _)::xs -> not_multiple_same_extensions xs
-  | (Padding _)::(Padding _)::xs -> fail Packet.HANDSHAKE_FAILURE
-  | (Padding _)::xs -> not_multiple_same_extensions xs
-  | (SignatureAlgorithms _)::(SignatureAlgorithms _)::xs -> fail Packet.HANDSHAKE_FAILURE
-  | (SignatureAlgorithms _)::xs -> not_multiple_same_extensions xs
-  | (UnknownExtension _)::xs -> not_multiple_same_extensions xs
-  | [] -> return ()
+let to_ext_type = function
+  | Hostname _            -> `Hostname
+  | MaxFragmentLength _   -> `MaxFragmentLength
+  | EllipticCurves _      -> `EllipticCurves
+  | ECPointFormats _      -> `ECPointFormats
+  | SecureRenegotiation _ -> `SecureRenegotiation
+  | Padding _             -> `Padding
+  | SignatureAlgorithms _ -> `SignatureAlgorithms
+  | UnknownExtension _    -> `UnknownExtension
+
+let extension_types exts = List.(
+  exts |> map to_ext_type
+       |> filter @@ function `UnknownExtension -> false | _ -> true
+  )
+
+let not_multiple_same_extensions exts =
+  List_set.is_proper_set (extension_types exts)
 
 (* a server hello may only contain extensions which are also in the client hello *)
 (*  RFC5246, 7.4.7.1
@@ -51,42 +53,26 @@ let rec not_multiple_same_extensions = function
    client receives an extension type in ServerHello that it did not
    request in the associated ClientHello, it MUST abort the handshake
    with an unsupported_extension fatal alert. *)
-let rec server_exts_subset_of_client sexts cexts =
-  match sexts, cexts with
-  | (Hostname _)::ses, (Hostname _)::ces -> server_exts_subset_of_client ses ces
-  | ses, (Hostname _)::ces -> server_exts_subset_of_client ses ces
-  | (MaxFragmentLength _)::ses, (MaxFragmentLength _)::ces -> server_exts_subset_of_client ses ces
-  | ses, (MaxFragmentLength _)::ces -> server_exts_subset_of_client ses ces
-  | (EllipticCurves _)::ses, (EllipticCurves _)::ces -> server_exts_subset_of_client ses ces
-  | ses, (EllipticCurves _)::ces -> server_exts_subset_of_client ses ces
-  | (ECPointFormats _)::ses, (ECPointFormats _)::ces -> server_exts_subset_of_client ses ces
-  | ses, (ECPointFormats _)::ces -> server_exts_subset_of_client ses ces
-  | (SecureRenegotiation _)::ses, (SecureRenegotiation _)::ces -> server_exts_subset_of_client ses ces
-  | ses, (SecureRenegotiation _)::ces -> server_exts_subset_of_client ses ces
-  | ses, (Padding _)::ces -> server_exts_subset_of_client ses ces
-  | ses, (SignatureAlgorithms _)::ces -> server_exts_subset_of_client ses ces
-  | (UnknownExtension _)::ses, ces -> server_exts_subset_of_client ses ces
-  | ses, (UnknownExtension _)::ces -> server_exts_subset_of_client ses ces
-  | [], [] -> return ()
-  | _, _ -> fail Packet.HANDSHAKE_FAILURE
+let server_exts_subset_of_client sexts cexts =
+  let (sexts', cexts') =
+    (extension_types sexts, extension_types cexts) in
+  List_set.(equal (union sexts' cexts') cexts')
+  &&
+  let forbidden = function
+    | `Padding | `SignatureAlgorithms -> true
+    | _                               -> false in
+  not (List.exists forbidden sexts')
 
-
-let rec check_not_null = function
-  | []    -> return ()
-  | c::cs -> Ciphersuite.(match get_kex_enc_hash c with
-                          | NULL, _, _ -> fail Packet.HANDSHAKE_FAILURE
-                          | _, NULL, _ -> fail Packet.HANDSHAKE_FAILURE
-                          | _, _, NULL -> fail Packet.HANDSHAKE_FAILURE
-                          | _, _, _    -> check_not_null cs)
-
-let validate_client_hello ch =
-  let open Packet in
+let null_cipher c =
   let open Ciphersuite in
-  let rec check_duplicate_ciphersuites = function
-    | []                       -> return ()
-    | f::rt when List.mem f rt -> fail HANDSHAKE_FAILURE
-    | _::rt                    -> check_duplicate_ciphersuites rt
-  in
+  match get_kex_enc_hash c with
+  | NULL, _, _ -> true
+  | _, NULL, _ -> true
+  | _, _, NULL -> true
+  | _          -> false
+
+let client_hello_valid ch =
+  let open Ciphersuite in
 
   (* match ch.version with
     | TLS_1_0 ->
@@ -105,47 +91,45 @@ let validate_client_hello ch =
        else
          fail HANDSHAKE_FAILURE *)
 
-  (if List.length ch.ciphersuites = 0 then fail HANDSHAKE_FAILURE else return ()) >>= fun () ->
-  check_duplicate_ciphersuites ch.ciphersuites >>= fun () ->
-  let ciphers_no_reneg =
-    List.filter (fun c -> not (c = TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
-                ch.ciphersuites
-  in
-  check_not_null ciphers_no_reneg >>= fun () ->
+  not (empty ch.ciphersuites)
+  &&
+
+  (List_set.is_proper_set ch.ciphersuites)
+  &&
+
+  ( let has_null_cipher =
+      ch.ciphersuites
+      |> List.filter (fun c -> not (c = TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
+      |> List.exists null_cipher in
+    not has_null_cipher )
+  &&
 
   (* TODO: if ecc ciphersuite, require ellipticcurves and ecpointformats extensions! *)
-  not_multiple_same_extensions (List.sort compare ch.extensions) >>= fun () ->
+  not_multiple_same_extensions ch.extensions
+  &&
 
-  let sigs = map_find
-               ch.extensions
-               ~f:(function SignatureAlgorithms s -> Some s | _ -> None)
-  in
-  ( match ch.version, sigs with
-    | TLS_1_0, Some _ | TLS_1_1, Some _ -> fail HANDSHAKE_FAILURE
-    | _ , _ -> return ()
-  ) >>= fun () ->
+  ( match ch.version with
+    | TLS_1_2           -> true
+    | TLS_1_0 | TLS_1_1 ->
+        let has_sig_algo =
+          List.exists (function SignatureAlgorithms _ -> true | _ -> false)
+            ch.extensions in
+        not has_sig_algo )
+  &&
 
-  let servername = get_hostname_ext ch in
-  match servername with
-  | Some None -> fail HANDSHAKE_FAILURE
-  | _ -> return ()
+  get_hostname_ext ch <> Some None
 
-let validate_server_hello sh =
-  ( if sh.ciphersuites = Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV then
-      fail Packet.HANDSHAKE_FAILURE
-    else
-      return ()
-  ) >>= fun () ->
+let server_hello_valid sh =
+  let open Ciphersuite in
 
-  check_not_null [sh.ciphersuites] >>= fun () ->
-
-  not_multiple_same_extensions sh.extensions >>= fun () ->
-
-  let servername = get_hostname_ext sh in
-    match servername with
-    | Some (Some _) -> fail Packet.HANDSHAKE_FAILURE
-    | _ -> return ()
+  sh.ciphersuites <> TLS_EMPTY_RENEGOTIATION_INFO_SCSV
+  &&
+  not (List.exists null_cipher [sh.ciphersuites])
+  &&
+  not_multiple_same_extensions sh.extensions
+  &&
+  ( match get_hostname_ext sh with
+    Some (Some _) -> false | _ -> true )
   (* TODO:
       - EC stuff must be present if EC ciphersuite chosen
    *)
-
