@@ -41,9 +41,12 @@ type certificate_failure =
   | NoTrustAnchor
   | InvalidInput
   | InvalidServerExtensions
+  | InvalidServerKeyType
   | InvalidServerName
   | InvalidCA
 
+type keyusage = [ `KeyEncipherment | `DigitalSignature | `KeyAgreement ]
+type keytype = [ `RSA | `DH | `ECDH | `ECDSA ]
 
 module Or_error =
   Control.Or_error_make ( struct type err = certificate_failure end )
@@ -170,14 +173,23 @@ let validate_ca_extensions { asn = cert } =
       | (crit, _)                   -> not crit )
     cert.tbs_cert.extensions
 
-let validate_server_extensions { asn = cert } =
+let usage_to_sum u =
+  let open Asn_grammars.Extension in
+  match u with
+  | `KeyEncipherment  -> Key_encipherment
+  | `DigitalSignature -> Digital_signature
+  | `KeyAgreement     -> Key_agreement
+
+let validate_server_extensions { asn = cert } usage =
   let open Extension in
+  let keyusage_matches xs = match usage with
+    | None   -> true
+    | Some x -> List.mem (usage_to_sum x) xs
+  in
   List.for_all (function
       | (_, Basic_constraints (true, _))  -> false
       | (_, Basic_constraints (false, _)) -> true
-      (* key_encipherment (RSA) *)
-      (* signing (DHE_RSA) *)
-      | (_, Key_usage usage    ) -> List.mem Key_encipherment usage
+      | (_, Key_usage usage    ) -> keyusage_matches usage
       | (_, Ext_key_usage usage) -> List.mem Server_auth usage
       | (c, Policies ps        ) -> not c || List.mem `Any ps
       (* we've to deal with _all_ extensions marked critical! *)
@@ -215,18 +227,26 @@ let is_ca_cert_valid now cert =
   | (_, _, false, _)         -> fail CertificateExpired
   | (_, _, _, false)         -> fail InvalidExtensions
 
-let is_server_cert_valid ?host now cert =
+let validate_public_key_type { asn = cert } = function
+  | None   -> true
+  | Some x -> match x, cert.tbs_cert.pk_info with
+              | `RSA , RSA _ -> true
+              | _    , _     -> false
+
+let is_server_cert_valid ?host ?keytype ?usage now cert =
   Printf.printf "verify server certificate %s\n"
                 (common_name_to_string cert.asn);
   match
     validate_time now cert,
     option false (hostname_matches cert) host,
-    validate_server_extensions cert
+    validate_server_extensions cert usage,
+    validate_public_key_type cert keytype
   with
-  | (true, true, true) -> success
-  | (false, _, _)      -> fail CertificateExpired
-  | (_, false, _)      -> fail InvalidServerName
-  | (_, _, false)      -> fail InvalidServerExtensions
+  | (true, true, true, true) -> success
+  | (false, _, _, _)         -> fail CertificateExpired
+  | (_, false, _, _)         -> fail InvalidServerName
+  | (_, _, false, _)         -> fail InvalidServerExtensions
+  | (_, _, _, false)         -> fail InvalidServerKeyType
 
 
 let ext_authority_matches_subject trusted cert =
@@ -284,7 +304,7 @@ let rec validate_anchors pathlen cert = function
              | Ok _    -> success
              | Error _ -> validate_anchors pathlen cert xs
 
-let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
+let verify_chain_of_trust ?host ?keytype ?usage ~time ~anchors (server, certs) =
   let res =
     let rec climb pathlen cert = function
       | super :: certs ->
@@ -297,7 +317,7 @@ let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
           | anchors                     ->
              validate_anchors pathlen cert anchors
     in
-    is_server_cert_valid ?host time server >>= fun () ->
+    is_server_cert_valid ?host ?keytype ?usage time server >>= fun () ->
     mapM_ (is_cert_valid time) certs       >>= fun () ->
     climb 0 server certs
   in

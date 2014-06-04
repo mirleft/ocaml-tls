@@ -17,11 +17,15 @@ type certificate_failure =
   | NoTrustAnchor
   | InvalidInput
   | InvalidServerExtensions
+  | InvalidServerKeyType
   | InvalidServerName
   | InvalidCA
 
+type keyusage = [ `KeyEncipherment | `DigitalSignature | `KeyAgreement ]
+type keytype = [ `RSA | `DH | `ECDH | `ECDSA ]
+
 val verify_chain_of_trust :
-  ?host:string -> time:int -> anchors:(certificate list) -> stack
+  ?host:string -> ?keytype:keytype -> ?usage:keyusage -> time:int -> anchors:(certificate list) -> stack
   -> [ `Ok | `Fail of certificate_failure ]
 
 val valid_cas : time:int -> certificate list -> certificate list
