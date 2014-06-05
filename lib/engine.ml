@@ -367,6 +367,8 @@ let send_application_data st css =
 let send_close_notify st = send_records st [Alert.close_notify]
 
 let client config =
+  let config = Config.of_client config in
+
   let state = new_state config `Client in
 
   let dch, params = Handshake_client.default_client_hello config in
@@ -407,5 +409,5 @@ let client config =
       { state with handshake }
       [(Packet.HANDSHAKE, raw)]
 
-let server config = new_state config `Server
+let server config = new_state Config.(of_server config) `Server
 

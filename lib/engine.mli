@@ -18,5 +18,5 @@ val send_close_notify     : state -> state * Cstruct.t
 
 val handle_tls : state -> Cstruct.t -> ret
 
-val client : Config.config -> (state * Cstruct.t)
-val server : Config.config -> state
+val client : Config.client -> (state * Cstruct.t)
+val server : Config.server -> state

@@ -16,8 +16,6 @@ type config = {
   own_certificate         : own_cert option ;
 }
 
-type rekeying = [ `No | `Yes | `Yes_require_secure ]
-
 let supported_hashes =
   Ciphersuite.([ SHA512 ; SHA384 ; SHA256 ; SHA ; MD5 ])
 
@@ -32,10 +30,25 @@ let supported_ciphers = Ciphersuite.([
     TLS_RSA_WITH_RC4_128_MD5
   ])
 
+
+let default_config = {
+  ciphers           = supported_ciphers ;
+  protocol_versions = (TLS_1_2, TLS_1_0) ;
+  hashes            = supported_hashes ;
+  use_rekeying      = true ;
+  require_secure_rekeying = true ;
+  validator         = None ;
+  peer_name         = None ;
+  own_certificate   = None ;
+}
+
 let invalid msg = raise (Invalid_configuration msg)
 
-let validate_exn config =
-  let (v_max, v_min) = config.protocol_versions in
+let validate_common config = ()
+let validate_client config = ()
+let validate_server config = ()
+
+(*   let (v_max, v_min) = config.protocol_versions in
   if v_max < v_min then invalid "bad version range" ;
   if config.require_secure_rekeying &&
      not config.use_rekeying
@@ -43,54 +56,51 @@ let validate_exn config =
   ( match config.hashes with
     | [] when v_max >= TLS_1_2 ->
         invalid "TLS 1.2 allowed but no hashes specified"
-    | _ -> () )
+    | _ -> () ) *)
 
+type client = config
+type server = config
 
-let (<?>) opt def = match opt with Some x -> x | None -> def
+let of_server conf = conf
+and of_client conf = conf
 
-let create ?ciphers
+let peer conf name = { conf with peer_name = Some name }
+
+let (<?>) ma b = match ma with None -> b | Some a -> a
+
+let client ?ciphers
            ?version
            ?hashes
            ?rekeying
            ?validator
            ?peer_name
+           ?require_secure_rekeying
+           () =
+  let config =
+    { default_config with
+        ciphers           = ciphers  <?> default_config.ciphers ;
+        protocol_versions = version  <?> default_config.protocol_versions ;
+        hashes            = hashes   <?> default_config.hashes ;
+        use_rekeying      = rekeying <?> default_config.use_rekeying ;
+        validator         = validator ;
+        peer_name         = peer_name ;
+        require_secure_rekeying =
+          require_secure_rekeying    <?> default_config.require_secure_rekeying ;
+    } in
+  ( validate_common config ; validate_client config ; config )
+
+let server ?ciphers
+           ?version
+           ?hashes
+           ?rekeying
            ?certificate
            () =
-
-  let (rekey, sec_rekey) =
-    match rekeying with
-    | None                     -> (true, true)
-    | Some `No                 -> (false, false)
-    | Some `Yes                -> (true, false)
-    | Some `Yes_require_secure -> (true, true) in
-
-  let config = {
-    ciphers           = ciphers  <?> supported_ciphers ;
-    protocol_versions = version  <?> (TLS_1_2, TLS_1_0) ;
-    hashes            = hashes   <?> supported_hashes ;
-    use_rekeying      = rekey ;
-    require_secure_rekeying = sec_rekey ;
-    validator         = validator ;
-    peer_name         = peer_name ;
-    own_certificate   = certificate ;
-  } in
-  ( validate_exn config ; config )
-
-(* |+ client +|
-let open_connection ?cert ?host:server ~validator () =
-  let open Config in
   let config =
-  {
-    default_config with
-      validator = Some validator ;
-      own_certificate = cert ;
-      peer_name = server
-  }
-  in
-  open_connection' config
-
-|+ server +|
-let listen_connection ?cert () =
-  let open Config in
-  let conf = { default_config with own_certificate = cert } in
-  new_state conf `Server *)
+    { default_config with
+        ciphers           = ciphers  <?> default_config.ciphers ;
+        protocol_versions = version  <?> default_config.protocol_versions ;
+        hashes            = hashes   <?> default_config.hashes ;
+        use_rekeying      = rekeying <?> default_config.use_rekeying ;
+        own_certificate   = certificate;
+    } in
+  ( validate_common config ; validate_server config ; config )
