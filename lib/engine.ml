@@ -366,7 +366,9 @@ let send_application_data st css =
 
 let send_close_notify st = send_records st [Alert.close_notify]
 
-let open_connection' config =
+let client config =
+  let config = Config.of_client config in
+
   let state = new_state config `Client in
 
   let dch, params = Handshake_client.default_client_hello config in
@@ -407,21 +409,5 @@ let open_connection' config =
       { state with handshake }
       [(Packet.HANDSHAKE, raw)]
 
-(* client *)
-let open_connection ?cert ?host:server ~validator () =
-  let open Config in
-  let config =
-  {
-    default_config with
-      validator = Some validator ;
-      own_certificate = cert ;
-      peer_name = server
-  }
-  in
-  open_connection' config
+let server config = new_state Config.(of_server config) `Server
 
-(* server *)
-let listen_connection ?cert () =
-  let open Config in
-  let conf = { default_config with own_certificate = cert } in
-  new_state conf `Server

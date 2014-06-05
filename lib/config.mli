@@ -1,12 +1,19 @@
 open Core
+open Ciphersuite
+
+exception Invalid_configuration of string
 
 type own_cert = Certificate.certificate * Nocrypto.RSA.priv
 
+
 (* some config parameters *)
-type config = {
-  ciphers                 : Ciphersuite.ciphersuite list ;
+type config = private {
+  (* ordered list (regarding preference) of supported cipher suites *)
+  ciphers                 : ciphersuite list ;
+  (* (max, min) *)
   protocol_versions       : tls_version * tls_version ;
-  hashes                  : Ciphersuite.hash_algorithm list ;
+  (* ordered list (regarding preference) *)
+  hashes                  : hash_algorithm list ;
   (* signatures              : Packet.signature_algorithm_type list ; *)
   use_rekeying            : bool ;
   require_secure_rekeying : bool ;
@@ -15,4 +22,31 @@ type config = {
   own_certificate         : own_cert option ;
 }
 
-val default_config : config
+val supported_ciphers : ciphersuite list
+val supported_hashes  : hash_algorithm list
+
+type client
+type server
+
+val peer : client -> string -> client
+
+val of_client : client -> config
+val of_server : server -> config
+
+val client_exn :
+  ?ciphers   : ciphersuite list ->
+  ?version   : tls_version * tls_version ->
+  ?hashes    : hash_algorithm list ->
+  ?rekeying  : bool ->
+  ?validator : X509.Validator.t ->
+  ?require_secure_rekeying : bool ->
+  unit -> client
+
+val server_exn :
+  ?ciphers     : ciphersuite list ->
+  ?version     : tls_version * tls_version ->
+  ?hashes      : hash_algorithm list ->
+  ?rekeying    : bool ->
+  ?certificate : own_cert ->
+  unit -> server
+

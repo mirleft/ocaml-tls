@@ -30,8 +30,8 @@ struct
     in
     return (resp, body)
 
-  let upgrade c tls_param tcp =
-    TLS.server_of_tcp_flow tls_param tcp >>= function
+  let upgrade c conf tcp =
+    TLS.server_of_tcp_flow conf tcp >>= function
       | `Error _ -> fail (Failure "tls init")
       | `Ok tls  ->
           let open Http.Server in
@@ -39,7 +39,8 @@ struct
 
   let start c stack kv =
     lwt cert = X509.certificate kv `Default in
-    S.listen_tcpv4 stack 4433 (upgrade c cert) ;
+    let conf = Tls.Config.server_exn ~certificate:cert () in
+    S.listen_tcpv4 stack 4433 (upgrade c conf) ;
     S.listen stack
 
 end

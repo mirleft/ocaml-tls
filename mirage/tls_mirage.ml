@@ -6,10 +6,6 @@ module Make (TCP: V1_LWT.TCPV4) = struct
   module TCP = TCP
   type error = TCP.error
 
-  type cert = Tls.X509.Cert.t * Tls.X509.PK.t
-  type server_cfg = cert
-  type client_cfg = cert option * Tls.X509.Validator.t
-
   type flow = {
     role           : [ `Server | `Client ] ;
     tcp            : TCP.flow ;
@@ -94,9 +90,8 @@ module Make (TCP: V1_LWT.TCPV4) = struct
         | `Error e -> return (`Error e)
         | `Eof     -> return (`Error (`Unknown "tls: end_of_file in handshake"))
 
-  let client_of_tcp_flow (cert, validator) host flow =
-    let (tls, init) =
-      Tls.Engine.open_connection ?cert ~host ~validator () in
+  let client_of_tcp_flow conf host flow =
+    let (tls, init) = Tls.Engine.client conf in
     let tls_flow = {
       role   = `Client ;
       tcp    = flow ;
@@ -105,11 +100,11 @@ module Make (TCP: V1_LWT.TCPV4) = struct
     } in
     TCP.write flow init >> drain_handshake tls_flow
 
-  let server_of_tcp_flow cert flow =
+  let server_of_tcp_flow conf flow =
     let tls_flow = {
       role   = `Server ;
       tcp    = flow ;
-      state  = `Active (Tls.Engine.listen_connection ~cert ()) ;
+      state  = `Active (Tls.Engine.server conf) ;
       linger = []
     } in
     drain_handshake tls_flow
@@ -132,11 +127,7 @@ module Make_flow (TCP: V1_LWT.TCPV4) = struct
 
   include Make (TCP)
 
-  type t = {
-    tcp        : TCP.t ;
-    server_cfg : server_cfg ;
-    client_cfg : client_cfg ;
-  }
+  type t = unit
 
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
@@ -149,7 +140,6 @@ module Make_flow (TCP: V1_LWT.TCPV4) = struct
 
   let lament = "not implemented"
   let nope   = fail (Failure lament)
-  let nope = fail (Failure "not implemented")
 
   let write_nodelay _ _     = nope
   and writev_nodelay _ _    = nope

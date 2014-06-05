@@ -4,9 +4,6 @@ open Lwt
 exception Tls_alert   of Tls.Packet.alert_type
 exception Tls_failure of Tls.Packet.alert_type
 
-type o_server = X509_lwt.priv
-type o_client = X509_lwt.validator
-
 let o f g x = f (g x)
 
 (* This really belongs just about anywhere else: generic unix name resolution. *)
@@ -147,16 +144,16 @@ module Unix = struct
           | `Eof     -> fail End_of_file
           | `Ok cs   -> push_linger t cs ; drain_handshake t
 
-  let server_of_fd cert fd =
+  let server_of_fd config fd =
     drain_handshake {
-      state  = `Active (Tls.Engine.listen_connection ~cert ()) ;
+      state  = `Active (Tls.Engine.server config) ;
       fd     = fd ;
       linger = None ;
     }
 
-  let client_of_fd validator ~host fd =
-    let (tls, init) = Tls.Engine.open_connection ~validator ~host ()
-    in
+  let client_of_fd config ~host fd =
+    let config'     = Tls.Config.peer config host in
+    let (tls, init) = Tls.Engine.client config' in
     let t = {
       state  = `Active tls ;
       fd     = fd ;
@@ -165,15 +162,15 @@ module Unix = struct
     Lwt_cs.write_full fd init >> drain_handshake t
 
 
-  let accept param fd =
+  let accept conf fd =
     lwt (fd', addr) = Lwt_unix.accept fd in
-    lwt t = server_of_fd param fd' in
+    lwt t = server_of_fd conf fd' in
     return (t, addr)
 
-  let connect param (host, port) =
+  let connect conf (host, port) =
     lwt addr = resolve host (string_of_int port) in
     let fd   = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
-    Lwt_unix.connect fd addr >> client_of_fd param ~host fd
+    Lwt_unix.connect fd addr >> client_of_fd conf ~host fd
 
 
   let read_bytes t bs off len =
@@ -195,8 +192,17 @@ let of_t t =
   (make ~close ~mode:Output @@
     fun a b c -> Unix.write_bytes t a b c >> return c)
 
-let accept param fd =
-  Unix.accept param fd >|= fun (t, peer) -> (of_t t, peer)
+let accept_ext conf fd =
+  Unix.accept conf fd >|= fun (t, peer) -> (of_t t, peer)
 
-and connect param addr = Unix.connect param addr >|= of_t
+and connect_ext conf addr =
+  Unix.connect conf addr >|= of_t
+
+let accept certificate =
+  let config = Tls.Config.server_exn ~certificate ()
+  in accept_ext config
+
+and connect validator addr =
+  let config = Tls.Config.client_exn ~validator ()
+  in connect_ext config addr
 

@@ -25,14 +25,13 @@ module Flow = struct
     | `Ok _ -> failwith "decoded alert"
 end
 
-let loop_chatter ~cert ~loops ~size =
+let loop_chatter ~certificate ~loops ~size =
 
   Printf.eprintf "Looping %d times, %d bytes.\n%!" loops size;
 
   let message  = Nocrypto.Rng.generate size
-  and server   = Tls.Engine.listen_connection ~cert ()
-  and (client, init) =
-    Tls.Engine.open_connection ~validator:Tls.X509.Validator.null ()
+  and server   = Tls.(Engine.server (Config.server_exn ~certificate ()))
+  and (client, init) = Tls.(Engine.client @@ Config.client_exn ())
   in
   Testlib.time @@ fun () ->
 
@@ -78,7 +77,7 @@ let _ =
     try int_of_string Sys.argv.(1) with _ -> 10
   and size  =
     try int_of_string Sys.argv.(2) with _ -> 1024
-  and cert  = load_priv ()
+  and certificate = load_priv ()
   in
-  loop_chatter ~cert ~loops ~size
+  loop_chatter ~certificate ~loops ~size
 

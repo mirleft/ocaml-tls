@@ -138,7 +138,7 @@ let answer_client_hello_params state params ch raw =
               let client_hashes =
                 List.(map fst @@ filter (fun (_, x) -> x = RSA) client_algos)
               in
-              match List_set.inter client_hashes default_config.hashes with
+              match List_set.inter client_hashes supported_hashes with
               | []        -> fail HANDSHAKE_FAILURE
               | hash :: _ -> return hash )
           >>= fun hash ->
