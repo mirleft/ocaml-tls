@@ -10,9 +10,10 @@ Client and server side are working. At least the lwt backend (echo_client / http
 
 You can pass ``openssl s_server`` a ``-cipher`` argument (following values work at the moment: ``DHE-RSA-AES256-SHA AES256-SHA DHE-RSA-AES128-SHA AES128-SHA AES128-SHA EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA RC4-SHA RC4-MD5``.
 
-implemented
+implements
 
 - RFC 2246 - TLS Protocol version 1.0
+- RFC 2818 - HTTP over TLS (notably wildcard domain names in X509 certificates)
 - RFC 3268 - AES Ciphersuites for TLS
 - RFC 4346 - TLS Protocol version 1.1
 - RFC 4366 - TLS Extensions (notably Server Name Indication - SNI)
@@ -35,9 +36,9 @@ trusted code base
 - zarith from https://forge.ocamlcore.org/projects/zarith/ (which interfaces libgmp https://gmplib.org/)
 - asn.1 parser combinator from https://github.com/pqwy/ocaml-asn1-combinators
 - OCaml runtime
+- OCaml compiler
 - operating system
 - hardware
-- OCaml compiler
 
 ciphersuites
 ============
@@ -63,5 +64,3 @@ TODO (before any deployment)
 ============================
 
 - address all [security concerns](https://github.com/mirleft/ocaml-tls/issues?labels=security+concern&page=1&state=open) in a convincing way
-- fix config (currently Flow.default_config and Server.default_server_config)
-- bits and pieces from useful extensions (heartbeat)
