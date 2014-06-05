@@ -73,7 +73,6 @@ let client ?ciphers
            ?hashes
            ?rekeying
            ?validator
-           ?peer_name
            ?require_secure_rekeying
            () =
   let config =
@@ -83,7 +82,6 @@ let client ?ciphers
         hashes            = hashes   <?> default_config.hashes ;
         use_rekeying      = rekeying <?> default_config.use_rekeying ;
         validator         = validator ;
-        peer_name         = peer_name ;
         require_secure_rekeying =
           require_secure_rekeying    <?> default_config.require_secure_rekeying ;
     } in

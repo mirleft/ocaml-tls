@@ -39,7 +39,6 @@ val client :
   ?hashes    : hash_algorithm list ->
   ?rekeying  : bool ->
   ?validator : X509.Validator.t ->
-  ?peer_name : string ->
   ?require_secure_rekeying : bool ->
   unit -> client
 
