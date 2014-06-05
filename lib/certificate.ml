@@ -284,14 +284,16 @@ let is_ca_cert_valid now cert =
 let validate_public_key_type { asn = cert } = function
   | None   -> true
   | Some x -> match x, cert.tbs_cert.pk_info with
-              | `RSA , RSA _ -> true
-              | _    , _     -> false
+              | `RSA , PK.RSA _ -> true
+              | _    , _        -> false
 
 let hostname_matches_wildcard should given =
   let open String in
-  match sub given 0 2, sub given 2 (length given - 2) with
-  | "*.", dn when dn = should -> true
-  | _   , _                   -> false
+  try
+    match sub given 0 2, sub given 2 (length given - 2) with
+    | ".", dn when dn = should -> true
+    | _   , _                   -> false
+  with _ -> false
 
 let validate_hostname cert host =
   let names = cert_hostnames cert in
