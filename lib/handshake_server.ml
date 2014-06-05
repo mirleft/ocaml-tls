@@ -16,7 +16,7 @@ let answer_client_finished state master_secret fin raw log =
 
   let server_checksum = Handshake_crypto.finished state.version master_secret "server finished" (log @ [raw]) in
   let fin = Writer.assemble_handshake (Finished server_checksum) in
-  guard (Cstruct.len state.fragment = 0) Packet.HANDSHAKE_FAILURE >|= fun () ->
+  guard (Cstruct.len state.hs_fragment = 0) Packet.HANDSHAKE_FAILURE >|= fun () ->
 
   let rekeying = Some (client_computed, server_checksum) in
   let machina = Server ServerEstablished in

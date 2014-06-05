@@ -22,11 +22,11 @@ let new_state config role =
     | `Server -> Server ServerInitial (* we should check that a own_cert is Some _ in config! *)
   in
   let handshake = {
-    version   = max_protocol_version Config.(config.protocol_versions) ;
-    rekeying  = None ;
-    machina   = handshake_state ;
-    config    = config ;
-    fragment  = Cstruct.create 0
+    version      = max_protocol_version Config.(config.protocol_versions) ;
+    rekeying     = None ;
+    machina      = handshake_state ;
+    config       = config ;
+    hs_fragment  = Cstruct.create 0
   }
   in
   {
@@ -262,14 +262,14 @@ let handle_packet hs buf = function
       >|= fun (hs, items, dec_cmd) -> (hs, None, items, dec_cmd, `No_err)
 
   | Packet.HANDSHAKE ->
-     separate_handshakes (hs.fragment <+> buf)
-     >>= fun (hss, fragment) ->
+     separate_handshakes (hs.hs_fragment <+> buf)
+     >>= fun (hss, hs_fragment) ->
        foldM (fun (hs, items) raw ->
          handle_handshake hs.machina hs raw
          >|= fun (hs', items') -> (hs', items @ items'))
        (hs, []) hss
      >|= fun (hs, items) ->
-       ({ hs with fragment }, None, items, `Pass, `No_err)
+       ({ hs with hs_fragment }, None, items, `Pass, `No_err)
 
 
 (* the main thingy *)

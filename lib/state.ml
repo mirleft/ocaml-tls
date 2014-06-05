@@ -55,11 +55,11 @@ type handshake_machina_state =
 type rekeying_params = Cstruct.t * Cstruct.t
 
 type handshake_state = {
-  version   : tls_version ;
-  machina   : handshake_machina_state ;
-  config    : Config.config ;
-  rekeying  : rekeying_params option ;
-  fragment  : Cstruct.t
+  version      : tls_version ;
+  machina      : handshake_machina_state ;
+  config       : Config.config ;
+  rekeying     : rekeying_params option ;
+  hs_fragment  : Cstruct.t
 }
 
 type crypto_state = crypto_context option

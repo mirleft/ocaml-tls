@@ -224,7 +224,7 @@ let answer_server_hello_done_DHE_RSA state params (group, s_secret) raw log =
 let answer_server_finished state client_verify master_secret fin log =
   let computed = Handshake_crypto.finished state.version master_secret "server finished" log in
   guard (Cs.equal computed fin) Packet.HANDSHAKE_FAILURE >>= fun () ->
-  guard (Cstruct.len state.fragment = 0) Packet.HANDSHAKE_FAILURE >|= fun () ->
+  guard (Cstruct.len state.hs_fragment = 0) Packet.HANDSHAKE_FAILURE >|= fun () ->
   let machina = ClientEstablished in
   let rekeying = Some (client_verify, computed) in
   ({ state with machina = Client machina ; rekeying = rekeying }, [])
