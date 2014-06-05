@@ -44,19 +44,27 @@ let default_config = {
 
 let invalid msg = raise (Invalid_configuration msg)
 
-let validate_common config = ()
-let validate_client config = ()
-let validate_server config = ()
-
-(*   let (v_max, v_min) = config.protocol_versions in
+let validate_common config =
+  let (v_max, v_min) = config.protocol_versions in
   if v_max < v_min then invalid "bad version range" ;
-  if config.require_secure_rekeying &&
-     not config.use_rekeying
-  then invalid "rekeying disabled but secure rekeying required" ;
   ( match config.hashes with
-    | [] when v_max >= TLS_1_2 ->
-        invalid "TLS 1.2 allowed but no hashes specified"
-    | _ -> () ) *)
+    | [] when v_max >= TLS_1_2 -> invalid "TLS 1.2 allowed but not hashes"
+    | _                        -> () )
+
+let validate_client config = ()
+
+let validate_server config = ()
+(*   config.ciphers |> List.iter (fun cip ->
+    let open Ciphersuite in
+    let kex = ciphersuite_kex cip in
+    match (config.own_certificate, needs_certificate kex) with
+    | (_, false)        -> ()
+    | (None, true)      ->
+        invalid "some allowed ciphers need cert when none given"
+    | (Some cert, true) ->
+        match (kex, cert_type cert) with
+        |  *)
+
 
 type client = config
 type server = config
@@ -68,13 +76,8 @@ let peer conf name = { conf with peer_name = Some name }
 
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
-let client ?ciphers
-           ?version
-           ?hashes
-           ?rekeying
-           ?validator
-           ?require_secure_rekeying
-           () =
+let client_exn
+  ?ciphers ?version ?hashes ?rekeying ?validator ?require_secure_rekeying () =
   let config =
     { default_config with
         ciphers           = ciphers  <?> default_config.ciphers ;
@@ -87,12 +90,8 @@ let client ?ciphers
     } in
   ( validate_common config ; validate_client config ; config )
 
-let server ?ciphers
-           ?version
-           ?hashes
-           ?rekeying
-           ?certificate
-           () =
+let server_exn
+  ?ciphers ?version ?hashes ?rekeying ?certificate () =
   let config =
     { default_config with
         ciphers           = ciphers  <?> default_config.ciphers ;

@@ -33,7 +33,7 @@ val peer : client -> string -> client
 val of_client : client -> config
 val of_server : server -> config
 
-val client :
+val client_exn :
   ?ciphers   : ciphersuite list ->
   ?version   : tls_version * tls_version ->
   ?hashes    : hash_algorithm list ->
@@ -42,7 +42,7 @@ val client :
   ?require_secure_rekeying : bool ->
   unit -> client
 
-val server :
+val server_exn :
   ?ciphers     : ciphersuite list ->
   ?version     : tls_version * tls_version ->
   ?hashes      : hash_algorithm list ->
