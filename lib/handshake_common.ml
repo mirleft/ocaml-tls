@@ -63,14 +63,6 @@ let server_exts_subset_of_client sexts cexts =
     | _                               -> false in
   not (List.exists forbidden sexts')
 
-let null_cipher c =
-  let open Ciphersuite in
-  match get_kex_enc_hash c with
-  | NULL, _, _ -> true
-  | _, NULL, _ -> true
-  | _, _, NULL -> true
-  | _          -> false
-
 let client_hello_valid ch =
   let open Ciphersuite in
 
@@ -100,7 +92,7 @@ let client_hello_valid ch =
   ( let has_null_cipher =
       ch.ciphersuites
       |> List.filter (fun c -> not (c = TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
-      |> List.exists null_cipher in
+      |> List.exists Ciphersuite.null_cipher in
     not has_null_cipher )
   &&
 
@@ -124,7 +116,7 @@ let server_hello_valid sh =
 
   sh.ciphersuites <> TLS_EMPTY_RENEGOTIATION_INFO_SCSV
   &&
-  not (null_cipher sh.ciphersuites)
+  not (Ciphersuite.null_cipher sh.ciphersuites)
   &&
   not_multiple_same_extensions sh.extensions
   &&
