@@ -56,7 +56,7 @@ let not_multiple_same_extensions exts =
 let server_exts_subset_of_client sexts cexts =
   let (sexts', cexts') =
     (extension_types sexts, extension_types cexts) in
-  List_set.(equal (union sexts' cexts') cexts')
+  List_set.subset sexts' cexts'
   &&
   let forbidden = function
     | `Padding | `SignatureAlgorithms -> true
