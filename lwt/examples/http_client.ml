@@ -10,8 +10,10 @@ let http_client ?ca host port =
       | Some "NONE" -> `No_validation_I'M_STUPID
       | Some f      -> `Ca_file f )
   in
-  let config = Tls.Config.client ~validator ~require_secure_rekeying:false () in
-  lwt (ic, oc) = Tls_lwt.connect_ext config (host, port) in
+  lwt (ic, oc) =
+    Tls_lwt.connect_ext
+      (Tls.Config.client_exn ~validator ~require_secure_rekeying:false ())
+      (host, port) in
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ host ; "Connection: close" ; "" ; ""
   ] in

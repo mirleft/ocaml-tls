@@ -199,10 +199,10 @@ and connect_ext conf addr =
   Unix.connect conf addr >|= of_t
 
 let accept certificate =
-  let config = Tls.Config.server ~certificate ()
+  let config = Tls.Config.server_exn ~certificate ()
   in accept_ext config
 
 and connect validator addr =
-  let config = Tls.Config.client ~validator ()
+  let config = Tls.Config.client_exn ~validator ()
   in connect_ext config addr
 
