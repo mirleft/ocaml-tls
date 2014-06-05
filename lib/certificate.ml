@@ -91,8 +91,8 @@ let usage_export = Extension.(function
 
 let cert_usage { asn = cert } =
   match extn_key_usage cert with
-  | Some (_, Key_usage usages) -> Some (List.map usage_export usages)
-  | _                          -> None
+  | Some (_, Extension.Key_usage usages) -> Some (List.map usage_export usages)
+  | _                                    -> None
 
 (* partial: does not deal with 'Other of OID.t' *)
 let extended_usage_export = Extension.(function
@@ -109,8 +109,8 @@ let extended_usage_export = Extension.(function
 
 let cert_extended_usage { asn = cert } =
   match extn_ext_key_usage cert with
-  | Some (_, Ext_key_usage usages) -> Some (List.map extended_usage_export usages)
-  | _                              -> None
+  | Some (_, Extension.Ext_key_usage usages) -> Some (List.map extended_usage_export usages)
+  | _                                        -> None
 
 module Or_error =
   Control.Or_error_make ( struct type err = certificate_failure end )
