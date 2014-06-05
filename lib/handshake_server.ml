@@ -223,6 +223,7 @@ let handle_change_cipher_spec ss state packet =
   let open Reader in
   match parse_change_cipher_spec packet, ss with
   | Or_error.Ok (), ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log) ->
+     guard (Cstruct.len state.hs_fragment = 0) Packet.HANDSHAKE_FAILURE >>= fun () ->
      let ccs = change_cipher_spec in
      let machina = ClientChangeCipherSpecReceived (master_secret, log) in
      return ({ state with machina = Server machina },
