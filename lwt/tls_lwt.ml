@@ -206,3 +206,25 @@ and connect validator addr =
   let config = Tls.Config.client_exn ~validator ()
   in connect_ext config addr
 
+(*
+ * XXX
+ * This is wrong, revisit.
+ *
+ * Either Rng should be functorized out of Nocrypto and we should use
+ * non-blocking system rng (/dev/urandom), or we should satisfy Fortuna's
+ * assumptions and keep on reseeding the rng as we go.
+ * Plus, this one-time seeding uses non-blocking randomness.
+ * ....
+ *)
+let rng_init ?(rng_file = "/dev/urandom") () =
+  let random = Cstruct.create 16 in
+  lwt rng    = Lwt_unix.(openfile rng_file [O_RDONLY] 0) in
+  let rec read off = function
+    | len when len <= 0 -> return_unit
+    | len ->
+        Lwt_bytes.read rng random.Cstruct.buffer off len
+        >>= fun n -> read (off + n) (len - n)
+  in
+  read random.Cstruct.off random.Cstruct.len >>
+  ( Nocrypto.Rng.reseed random ; return_unit )
+

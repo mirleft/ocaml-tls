@@ -1,6 +1,8 @@
 open OUnit2
 open Tls
 
+let () = Nocrypto.Rng.reseed (Cstruct.of_string "\001\002\003\004")
+
 let time f =
   let t1 = Sys.time () in
   let r  = f () in
