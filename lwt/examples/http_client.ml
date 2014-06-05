@@ -3,6 +3,7 @@ open Lwt
 open Ex_common
 
 let http_client ?ca host port =
+  lwt () = Tls_lwt.rng_init () in
   let port      = int_of_string port in
   lwt validator = X509_lwt.validator
     ( match ca with

@@ -29,6 +29,7 @@ let serve_ssl port callback =
 
 
 let test_server port =
+  lwt () = Tls_lwt.rng_init () in
   serve_ssl port @@ fun (ic, oc) addr ->
     Lwt_io.read_line ic >>= fun line ->
     yap "handler" ("+ " ^ line)

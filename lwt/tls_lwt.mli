@@ -37,3 +37,5 @@ val connect_ext : Tls.Config.client -> string * int -> (ic * oc) Lwt.t
 val connect : X509_lwt.validator -> string * int -> (ic * oc) Lwt.t
 
 val of_t : Unix.t -> ic * oc
+
+val rng_init : ?rng_file:string -> unit -> unit Lwt.t

@@ -8,9 +8,6 @@ open Ciphersuite
 
 let (<+>) = Utils.Cs.(<+>)
 
-(* XXX todo :D *)
-let () = Rng.reseed (Cstruct.of_string "\001\002\003\004")
-
 let padPKCS1_and_signRSA key msg =
 
   (* XXX XXX temp *)
