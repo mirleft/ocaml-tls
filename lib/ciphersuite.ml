@@ -33,6 +33,14 @@ let needs_server_kex = function
 
   | RSA | DH_DSS | DH_RSA -> false
 
+let required_keytype_and_usage = function
+  | RSA | RSA_PSK          -> (`RSA, `KeyEncipherment)
+  | DHE_RSA | ECDHE_RSA    -> (`RSA, `DigitalSignature) (* signing with the signature scheme and hash algorithm that will be employed in the server key exchange message. *)
+(* | DHE_DSS               -> (`DSA, the certificate MUST allow the key to be used for signing with the hash algorithm that will be employed in the server key exchange message *)
+  | DH_DSS | DH_RSA        -> (`DH, `KeyAgreement)
+(* | ECDH_ECDSA | ECDH_RSA -> (`ECDH,  the public key MUST use a curve and point format supported by the client, as described in [TLSECC]. *)
+(* | ECDHE_ECDSA           -> (`ECDSA, the certificate MUST allow the key to be used for signing with the hash algorithm that will be employed in the server key exchange message.  The public key MUST use a curve and point format supported by the client, as described in  [TLSECC]. *)
+
 type encryption_algorithm =
   | NULL
   | RC4_40

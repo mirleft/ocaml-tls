@@ -83,62 +83,55 @@ let answer_certificate state params cs raw log =
     | None       -> fail Packet.BAD_CERTIFICATE
     | Some stack -> return stack
 
-  (* actually, depending on key exchange method we should check for validity of cert:
-      Key Exchange Alg.  Certificate Key Type
-
-      RSA                RSA public key; the certificate MUST allow the
-      RSA_PSK            key to be used for encryption (the
-                         keyEncipherment bit MUST be set if the key
-                         usage extension is present).
-                         Note: RSA_PSK is defined in [TLSPSK].
-
-      DHE_RSA            RSA public key; the certificate MUST allow the
-      ECDHE_RSA          key to be used for signing (the
-                         digitalSignature bit MUST be set if the key
-                         usage extension is present) with the signature
-                         scheme and hash algorithm that will be employed
-                         in the server key exchange message.
-                         Note: ECDHE_RSA is defined in [TLSECC].
-
-      DHE_DSS            DSA public key; the certificate MUST allow the
-                         key to be used for signing with the hash
-                         algorithm that will be employed in the server
-                         key exchange message.
-
-      DH_DSS             Diffie-Hellman public key; the keyAgreement bit
-      DH_RSA             MUST be set if the key usage extension is
-                         present.
-
-      ECDH_ECDSA         ECDH-capable public key; the public key MUST
-      ECDH_RSA           use a curve and point format supported by the
-                         client, as described in [TLSECC].
-
-      ECDHE_ECDSA        ECDSA-capable public key; the certificate MUST
-                         allow the key to be used for signing with the
-                         hash algorithm that will be employed in the
-                         server key exchange message.  The public key
-                         MUST use a curve and point format supported by
-                         the client, as described in  [TLSECC].
-   *)
-  and validate validator server_name ((server, _) as stack) =
+  and validate validator server_name ((server_cert, _) as stack) =
     match
-      X509.Validator.validate validator ?host:server_name stack
+      X509.Validator.validate ?host:server_name validator stack
     with
     | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
     | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
     | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
     | `Fail _                  -> fail Packet.BAD_CERTIFICATE
-    | `Ok                      -> return server
+    | `Ok                      -> return server_cert
+
+  and validate_keytype cert ktype =
+    cert_type cert = ktype
+
+  and validate_usage cert usage =
+    match cert_usage cert with
+    | None        -> true
+    | Some usages -> List.mem usage usages
+
+  and validate_ext_usage cert ext_use =
+    match cert_extended_usage cert with
+    | None            -> true
+    | Some ext_usages -> List.mem ext_use ext_usages || List.mem `Any ext_usages
+
+  in
+  let kex = Ciphersuite.ciphersuite_kex params.cipher in
+  let keytype, usage = Ciphersuite.required_keytype_and_usage kex in
+
+  (* RFC5246: must be x509v3, take signaturealgorithms into account! *)
+  (* RFC2246/4346: is generally x509v3, signing algorithm for certificate _must_ be same as algorithm for certificate key *)
+
+  let host = match state.config.peer_name with
+    | None -> None
+    | Some x -> Some (`Wildcard x)
   in
 
   ( match state.config.validator with
     | None -> parse cs >>= fun (server, _) ->
               return server
-    | Some validator -> parse cs >>= validate validator state.config.peer_name ) >>= fun peer_cert ->
+    | Some validator -> parse cs >>=
+                        validate validator host >>= fun cert ->
+                        guard (validate_keytype cert keytype &&
+                                 validate_usage cert usage &&
+                                   validate_ext_usage cert `ServerAuth)
+                              Packet.BAD_CERTIFICATE >>= fun () ->
+                        return cert ) >>= fun peer_cert ->
 
   let machina =
     let data = log @ [raw] in
-    Ciphersuite.(match ciphersuite_kex params.cipher with
+    Ciphersuite.(match kex with
                  | RSA     -> ServerCertificateReceived_RSA (params, peer_cert, data)
                  | DHE_RSA -> ServerCertificateReceived_DHE_RSA (params, peer_cert, data))
   in

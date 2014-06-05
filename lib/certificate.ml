@@ -26,6 +26,8 @@ let asn_of_cert { asn ; _ } = asn
 
 type stack = certificate * certificate list
 
+type host = [ `Strict of string | `Wildcard of string ]
+
 let parse cs =
   match Asn_grammars.certificate_of_cstruct cs with
   | None     -> None
@@ -44,6 +46,71 @@ type certificate_failure =
   | InvalidServerName
   | InvalidCA
 
+type key_type = [ `RSA | `DH | `ECDH | `ECDSA ]
+
+type key_usage = [
+  | `DigitalSignature
+  | `ContentCommitment
+  | `KeyEncipherment
+  | `DataEncipherment
+  | `KeyAgreement
+  | `KeyCertSign
+  | `CRLSign
+  | `EncipherOnly
+  | `DeciperOnly
+]
+
+type extended_key_usage = [
+  | `Any
+  | `ServerAuth
+  | `ClientAuth
+  | `CodeSigning
+  | `EmailProtection
+  | `IPSecEnd
+  | `IPSecTunnel
+  | `IPSecUser
+  | `TimeStamping
+  | `OCSPSigning
+]
+
+(* partial: does not deal with other public key types *)
+let cert_type { asn = cert } =
+  match cert.tbs_cert.pk_info with
+  | PK.RSA _    -> `RSA
+
+let usage_export = Extension.(function
+  | Digital_signature  -> `DigitalSignature
+  | Content_commitment -> `ContentCommitment
+  | Key_encipherment   -> `KeyEncipherment
+  | Data_encipherment  -> `DataEncipherment
+  | Key_agreement      -> `KeyAgreement
+  | Key_cert_sign      -> `KeyCertSign
+  | CRL_sign           -> `CRLSign
+  | Encipher_only      -> `EncipherOnly
+  | Decipher_only      -> `DeciperOnly )
+
+let cert_usage { asn = cert } =
+  match extn_key_usage cert with
+  | Some (_, Key_usage usages) -> Some (List.map usage_export usages)
+  | _                          -> None
+
+(* partial: does not deal with 'Other of OID.t' *)
+let extended_usage_export = Extension.(function
+  | Any              -> `Any
+  | Server_auth      -> `ServerAuth
+  | Client_auth      -> `ClientAuth
+  | Code_signing     -> `CodeSigning
+  | Email_protection -> `EmailProtection
+  | Ipsec_end        -> `IPSecEnd
+  | Ipsec_tunnel     -> `IPSecTunnel
+  | Ipsec_user       -> `IPSecUser
+  | Time_stamping    -> `TimeStamping
+  | Ocsp_signing     -> `OCSPSigning )
+
+let cert_extended_usage { asn = cert } =
+  match extn_ext_key_usage cert with
+  | Some (_, Ext_key_usage usages) -> Some (List.map extended_usage_export usages)
+  | _                              -> None
 
 module Or_error =
   Control.Or_error_make ( struct type err = certificate_failure end )
@@ -75,15 +142,15 @@ let common_name_to_string cert =
   | None   -> "NO commonName:" ^ Utils.hexdump_to_str cert.signature_val
   | Some x -> x
 
-let hostname_matches { asn = cert } name =
+let cert_hostnames { asn = cert } =
   let open Extension in
   match extn_subject_alt_name cert with
   | Some (_, Subject_alt_name names) ->
-      List.exists
-        (function General_name.DNS x -> x = name | _ -> false)
-        names
-  | _ -> option false ((=) name) (subject cert)
-
+     filter_map names ~f:(function General_name.DNS x -> Some x | _ -> None)
+  | _ ->
+     match subject cert with
+     | None   -> []
+     | Some x -> [x]
 
 (* XXX should return the tbs_cert blob from the parser, this is insane *)
 let raw_cert_hack { asn ; raw } =
@@ -175,13 +242,12 @@ let validate_server_extensions { asn = cert } =
   List.for_all (function
       | (_, Basic_constraints (true, _))  -> false
       | (_, Basic_constraints (false, _)) -> true
-      (* key_encipherment (RSA) *)
-      (* signing (DHE_RSA) *)
-      | (_, Key_usage usage    ) -> List.mem Key_encipherment usage
-      | (_, Ext_key_usage usage) -> List.mem Server_auth usage
-      | (c, Policies ps        ) -> not c || List.mem `Any ps
+      | (_, Key_usage _)                  -> true
+      | (_, Ext_key_usage _)              -> true
+      | (_, Subject_alt_name _)           -> true
+      | (c, Policies ps)                  -> not c || List.mem `Any ps
       (* we've to deal with _all_ extensions marked critical! *)
-      | (crit, _)                -> not crit )
+      | (crit, _)                         -> not crit )
     cert.tbs_cert.extensions
 
 
@@ -215,12 +281,37 @@ let is_ca_cert_valid now cert =
   | (_, _, false, _)         -> fail CertificateExpired
   | (_, _, _, false)         -> fail InvalidExtensions
 
+let validate_public_key_type { asn = cert } = function
+  | None   -> true
+  | Some x -> match x, cert.tbs_cert.pk_info with
+              | `RSA , RSA _ -> true
+              | _    , _     -> false
+
+let hostname_matches_wildcard should given =
+  let open String in
+  match sub given 0 2, sub given 2 (length given - 2) with
+  | "*.", dn when dn = should -> true
+  | _   , _                   -> false
+
+let validate_hostname cert host =
+  let names = cert_hostnames cert in
+  match host with
+  | None                  -> true
+  | Some (`Strict name)   -> List.mem name names
+  | Some (`Wildcard name) ->
+     List.mem name names ||
+       try
+         let idx = String.index name '.' + 1 in (* might throw *)
+         let rt = String.sub name idx (String.length name - idx) in
+         List.exists (hostname_matches_wildcard rt) names (* might throw *)
+       with _ -> false
+
 let is_server_cert_valid ?host now cert =
   Printf.printf "verify server certificate %s\n"
                 (common_name_to_string cert.asn);
   match
     validate_time now cert,
-    option false (hostname_matches cert) host,
+    validate_hostname cert host,
     validate_server_extensions cert
   with
   | (true, true, true) -> success
