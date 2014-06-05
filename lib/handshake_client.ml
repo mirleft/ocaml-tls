@@ -74,29 +74,51 @@ let answer_server_hello state params (sh : server_hello) raw log =
 let answer_certificate state params cs raw log =
   let open Certificate in
 
-  let kex = Ciphersuite.ciphersuite_kex params.cipher in
-  let keytype, usage = Ciphersuite.required_keytype_and_usage kex in
-
   let parse css =
     match parse_stack css with
     | None       -> fail Packet.BAD_CERTIFICATE
     | Some stack -> return stack
 
-  and validate validator server_name ((server, _) as stack) =
+  and validate validator server_name ((server_cert, _) as stack) =
     match
-      X509.Validator.validate validator ?host:server_name ~keytype ~usage stack
+      X509.Validator.validate ?host:server_name validator stack
     with
     | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
     | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
     | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
     | `Fail _                  -> fail Packet.BAD_CERTIFICATE
-    | `Ok                      -> return server
+    | `Ok                      -> return server_cert
+
+  and validate_keytype cert ktype =
+    cert_type cert = ktype
+
+  and validate_usage cert usage =
+    match cert_usage cert with
+    | None        -> true
+    | Some usages -> List.mem usage usages
+
+  and validate_ext_usage cert ext_use =
+    match cert_extended_usage cert with
+    | None            -> true
+    | Some ext_usages -> List.mem ext_use ext_usages || List.mem `Any ext_usages
+
   in
+  let kex = Ciphersuite.ciphersuite_kex params.cipher in
+  let keytype, usage = Ciphersuite.required_keytype_and_usage kex in
+
+  (* RFC5246: must be x509v3, take signaturealgorithms into account! *)
+  (* RFC2246/4346: is generally x509v3, signing algorithm for certificate _must_ be same as algorithm for certificate key *)
 
   ( match state.config.validator with
     | None -> parse cs >>= fun (server, _) ->
               return server
-    | Some validator -> parse cs >>= validate validator state.config.peer_name ) >>= fun peer_cert ->
+    | Some validator -> parse cs >>=
+                        validate validator state.config.peer_name >>= fun cert ->
+                        guard (validate_keytype cert keytype &&
+                                 validate_usage cert usage &&
+                                   validate_ext_usage cert `ServerAuth)
+                              Packet.BAD_CERTIFICATE >>= fun () ->
+                        return cert ) >>= fun peer_cert ->
 
   let machina =
     let data = log @ [raw] in

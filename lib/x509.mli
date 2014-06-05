@@ -20,12 +20,7 @@ module Validator : sig
   type validation = [ `Ok | `Fail of Certificate.certificate_failure ]
   type t
 
-  val validate : t ->
-                 ?host:string ->
-                 ?keytype:Certificate.keytype ->
-                 ?usage:Certificate.keyusage ->
-                 Certificate.stack ->
-                 validation
+  val validate : t -> ?host:string -> Certificate.stack -> validation
 
   val chain_of_trust : time:int -> Cert.t list -> t
   val null : t

@@ -41,12 +41,74 @@ type certificate_failure =
   | NoTrustAnchor
   | InvalidInput
   | InvalidServerExtensions
-  | InvalidServerKeyType
   | InvalidServerName
   | InvalidCA
 
-type keyusage = [ `KeyEncipherment | `DigitalSignature | `KeyAgreement ]
-type keytype = [ `RSA | `DH | `ECDH | `ECDSA ]
+type key_type = [ `RSA | `DH | `ECDH | `ECDSA ]
+
+type key_usage = [
+  | `DigitalSignature
+  | `ContentCommitment
+  | `KeyEncipherment
+  | `DataEncipherment
+  | `KeyAgreement
+  | `KeyCertSign
+  | `CRLSign
+  | `EncipherOnly
+  | `DeciperOnly
+]
+
+type extended_key_usage = [
+  | `Any
+  | `ServerAuth
+  | `ClientAuth
+  | `CodeSigning
+  | `EmailProtection
+  | `IPSecEnd
+  | `IPSecTunnel
+  | `IPSecUser
+  | `TimeStamping
+  | `OCSPSigning
+]
+
+(* partial: does not deal with other public key types *)
+let cert_type { asn = cert } =
+  match cert.tbs_cert.pk_info with
+  | PK.RSA _    -> `RSA
+
+let usage_export = Extension.(function
+  | Digital_signature  -> `DigitalSignature
+  | Content_commitment -> `ContentCommitment
+  | Key_encipherment   -> `KeyEncipherment
+  | Data_encipherment  -> `DataEncipherment
+  | Key_agreement      -> `KeyAgreement
+  | Key_cert_sign      -> `KeyCertSign
+  | CRL_sign           -> `CRLSign
+  | Encipher_only      -> `EncipherOnly
+  | Decipher_only      -> `DeciperOnly )
+
+let cert_usage { asn = cert } =
+  match extn_key_usage cert with
+  | Some (_, Key_usage usages) -> Some (List.map usage_export usages)
+  | _                          -> None
+
+(* partial: does not deal with 'Other of OID.t' *)
+let extended_usage_export = Extension.(function
+  | Any              -> `Any
+  | Server_auth      -> `ServerAuth
+  | Client_auth      -> `ClientAuth
+  | Code_signing     -> `CodeSigning
+  | Email_protection -> `EmailProtection
+  | Ipsec_end        -> `IPSecEnd
+  | Ipsec_tunnel     -> `IPSecTunnel
+  | Ipsec_user       -> `IPSecUser
+  | Time_stamping    -> `TimeStamping
+  | Ocsp_signing     -> `OCSPSigning )
+
+let cert_extended_usage { asn = cert } =
+  match extn_ext_key_usage cert with
+  | Some (_, Ext_key_usage usages) -> Some (List.map extended_usage_export usages)
+  | _                              -> None
 
 module Or_error =
   Control.Or_error_make ( struct type err = certificate_failure end )
@@ -173,27 +235,17 @@ let validate_ca_extensions { asn = cert } =
       | (crit, _)                   -> not crit )
     cert.tbs_cert.extensions
 
-let usage_to_sum u =
-  let open Asn_grammars.Extension in
-  match u with
-  | `KeyEncipherment  -> Key_encipherment
-  | `DigitalSignature -> Digital_signature
-  | `KeyAgreement     -> Key_agreement
-
-let validate_server_extensions { asn = cert } usage =
+let validate_server_extensions { asn = cert } =
   let open Extension in
-  let keyusage_matches xs = match usage with
-    | None   -> true
-    | Some x -> List.mem (usage_to_sum x) xs
-  in
   List.for_all (function
       | (_, Basic_constraints (true, _))  -> false
       | (_, Basic_constraints (false, _)) -> true
-      | (_, Key_usage usage    ) -> keyusage_matches usage
-      | (_, Ext_key_usage usage) -> List.mem Server_auth usage
-      | (c, Policies ps        ) -> not c || List.mem `Any ps
+      | (_, Key_usage _)                  -> true
+      | (_, Ext_key_usage _)              -> true
+      | (_, Subject_alt_name _)           -> true
+      | (c, Policies ps)                  -> not c || List.mem `Any ps
       (* we've to deal with _all_ extensions marked critical! *)
-      | (crit, _)                -> not crit )
+      | (crit, _)                         -> not crit )
     cert.tbs_cert.extensions
 
 
@@ -233,20 +285,18 @@ let validate_public_key_type { asn = cert } = function
               | `RSA , RSA _ -> true
               | _    , _     -> false
 
-let is_server_cert_valid ?host ?keytype ?usage now cert =
+let is_server_cert_valid ?host now cert =
   Printf.printf "verify server certificate %s\n"
                 (common_name_to_string cert.asn);
   match
     validate_time now cert,
     option false (hostname_matches cert) host,
-    validate_server_extensions cert usage,
-    validate_public_key_type cert keytype
+    validate_server_extensions cert
   with
-  | (true, true, true, true) -> success
-  | (false, _, _, _)         -> fail CertificateExpired
-  | (_, false, _, _)         -> fail InvalidServerName
-  | (_, _, false, _)         -> fail InvalidServerExtensions
-  | (_, _, _, false)         -> fail InvalidServerKeyType
+  | (true, true, true) -> success
+  | (false, _, _)      -> fail CertificateExpired
+  | (_, false, _)      -> fail InvalidServerName
+  | (_, _, false)      -> fail InvalidServerExtensions
 
 
 let ext_authority_matches_subject trusted cert =
@@ -304,7 +354,7 @@ let rec validate_anchors pathlen cert = function
              | Ok _    -> success
              | Error _ -> validate_anchors pathlen cert xs
 
-let verify_chain_of_trust ?host ?keytype ?usage ~time ~anchors (server, certs) =
+let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
   let res =
     let rec climb pathlen cert = function
       | super :: certs ->
@@ -317,7 +367,7 @@ let verify_chain_of_trust ?host ?keytype ?usage ~time ~anchors (server, certs) =
           | anchors                     ->
              validate_anchors pathlen cert anchors
     in
-    is_server_cert_valid ?host ?keytype ?usage time server >>= fun () ->
+    is_server_cert_valid ?host time server >>= fun () ->
     mapM_ (is_cert_valid time) certs       >>= fun () ->
     climb 0 server certs
   in

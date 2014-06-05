@@ -107,23 +107,18 @@ end
 module Validator = struct
 
   type validation = [ `Ok | `Fail of Certificate.certificate_failure ]
-  type t = ?host:string ->
-           ?keytype:Certificate.keytype ->
-           ?usage:Certificate.keyusage ->
-           time:int ->
-           Certificate.stack ->
-           validation
+  type t = ?host:string -> time:int -> Certificate.stack -> validation
 
-  let validate t ?host ?keytype ?usage stack = t ?host ?keytype ?usage ~time:0 stack
+  let validate t ?host stack = t ?host ~time:0 stack
 
   (* XXX
    * Validator just hands off a list of certs. Should be indexed. *)
   let chain_of_trust ~time cas =
     let cas = Certificate.valid_cas ~time cas in
-    fun ?host ?keytype ?usage ~time stack ->
-      Certificate.verify_chain_of_trust ?host ?keytype ?usage ~time ~anchors:cas stack
+    fun ?host ~time stack ->
+      Certificate.verify_chain_of_trust ?host ~time ~anchors:cas stack
 
-  let null ?host:_ ?keytype:_ ?usage:_ ~time:_ _ = `Ok
+  let null ?host:_ ~time:_ _ = `Ok
 
 end
 
