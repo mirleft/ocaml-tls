@@ -1,6 +1,10 @@
 
 open Lwt
 
+(* XXX
+ * Awaiting proper entropy devices.... *)
+let () = Nocrypto.Rng.reseed Cstruct.(of_string "\001\002\003\004")
+
 module Make (TCP: V1_LWT.TCPV4) = struct
 
   module TCP = TCP
