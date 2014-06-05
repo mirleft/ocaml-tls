@@ -291,7 +291,7 @@ let hostname_matches_wildcard should given =
   let open String in
   try
     match sub given 0 2, sub given 2 (length given - 2) with
-    | ".", dn when dn = should -> true
+    | "*.", dn when dn = should -> true
     | _   , _                   -> false
   with _ -> false
 
@@ -305,7 +305,7 @@ let validate_hostname cert host =
        try
          let idx = String.index name '.' + 1 in (* might throw *)
          let rt = String.sub name idx (String.length name - idx) in
-         List.exists (hostname_matches_wildcard rt) names (* might throw *)
+         List.exists (hostname_matches_wildcard rt) names
        with _ -> false
 
 let is_server_cert_valid ?host now cert =
