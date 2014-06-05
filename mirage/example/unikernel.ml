@@ -50,9 +50,9 @@ struct
     TLS.read tls >>== fun buf ->
       L.log_data c "recv" buf >> TLS.write tls buf >> handle c tls
 
-  let accept c cert k flow =
+  let accept c conf k flow =
     L.log_trace c "accepted." >>
-    TLS.server_of_tcp_flow cert flow
+    TLS.server_of_tcp_flow conf flow
     >>== (fun tls -> L.log_trace c "shook hands" >> k c tls)
     >>= function
       | `Ok _    -> assert false
@@ -60,8 +60,9 @@ struct
       | `Eof     -> L.log_trace c "eof."
 
   let start c stack kv =
-    lwt cert = X509.certificate kv `Default in
-    S.listen_tcpv4 stack 4433 (accept c cert handle) ;
+    lwt certificate = X509.certificate kv `Default in
+    let conf        = Tls.Config.server_exn ~certificate () in
+    S.listen_tcpv4 stack 4433 (accept c conf handle) ;
     S.listen stack
 
 end
@@ -92,10 +93,9 @@ struct
 
   let start c stack kv =
     lwt validator = X509.validator kv `CAs in
-    let param     = (None, validator)
-    in
+    let conf      = Tls.Config.client_exn ~validator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer) >>==
-    TLS.client_of_tcp_flow param (snd peer) >>==
+    TLS.client_of_tcp_flow conf (snd peer) >>==
     chat c >>= function
     | `Error e -> L.log_error c e
     | `Eof     -> L.log_trace c "eof." 
