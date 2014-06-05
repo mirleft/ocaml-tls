@@ -107,7 +107,7 @@ end
 module Validator = struct
 
   type validation = [ `Ok | `Fail of Certificate.certificate_failure ]
-  type t = ?host:string -> time:int -> Certificate.stack -> validation
+  type t = ?host:Certificate.host -> time:int -> Certificate.stack -> validation
 
   let validate t ?host stack = t ?host ~time:0 stack
 

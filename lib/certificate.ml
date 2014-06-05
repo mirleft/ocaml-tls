@@ -26,6 +26,8 @@ let asn_of_cert { asn ; _ } = asn
 
 type stack = certificate * certificate list
 
+type host = [ `Strict of string | `Wildcard of string ]
+
 let parse cs =
   match Asn_grammars.certificate_of_cstruct cs with
   | None     -> None
@@ -140,15 +142,15 @@ let common_name_to_string cert =
   | None   -> "NO commonName:" ^ Utils.hexdump_to_str cert.signature_val
   | Some x -> x
 
-let hostname_matches { asn = cert } name =
+let cert_hostnames { asn = cert } =
   let open Extension in
   match extn_subject_alt_name cert with
   | Some (_, Subject_alt_name names) ->
-      List.exists
-        (function General_name.DNS x -> x = name | _ -> false)
-        names
-  | _ -> option false ((=) name) (subject cert)
-
+     filter_map names ~f:(function General_name.DNS x -> Some x | _ -> None)
+  | _ ->
+     match subject cert with
+     | None   -> []
+     | Some x -> [x]
 
 (* XXX should return the tbs_cert blob from the parser, this is insane *)
 let raw_cert_hack { asn ; raw } =
@@ -285,12 +287,31 @@ let validate_public_key_type { asn = cert } = function
               | `RSA , RSA _ -> true
               | _    , _     -> false
 
+let hostname_matches_wildcard should given =
+  let open String in
+  match sub given 0 2, sub given 2 (length given - 2) with
+  | "*.", dn when dn = should -> true
+  | _   , _                   -> false
+
+let validate_hostname cert host =
+  let names = cert_hostnames cert in
+  match host with
+  | None                  -> true
+  | Some (`Strict name)   -> List.mem name names
+  | Some (`Wildcard name) ->
+     List.mem name names ||
+       try
+         let idx = String.index name '.' + 1 in (* might throw *)
+         let rt = String.sub name idx (String.length name - idx) in
+         List.exists (hostname_matches_wildcard rt) names (* might throw *)
+       with _ -> false
+
 let is_server_cert_valid ?host now cert =
   Printf.printf "verify server certificate %s\n"
                 (common_name_to_string cert.asn);
   match
     validate_time now cert,
-    option false (hostname_matches cert) host,
+    validate_hostname cert host,
     validate_server_extensions cert
   with
   | (true, true, true) -> success

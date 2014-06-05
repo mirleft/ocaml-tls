@@ -109,11 +109,16 @@ let answer_certificate state params cs raw log =
   (* RFC5246: must be x509v3, take signaturealgorithms into account! *)
   (* RFC2246/4346: is generally x509v3, signing algorithm for certificate _must_ be same as algorithm for certificate key *)
 
+  let host = match state.config.peer_name with
+    | None -> None
+    | Some x -> Some (`Wildcard x)
+  in
+
   ( match state.config.validator with
     | None -> parse cs >>= fun (server, _) ->
               return server
     | Some validator -> parse cs >>=
-                        validate validator state.config.peer_name >>= fun cert ->
+                        validate validator host >>= fun cert ->
                         guard (validate_keytype cert keytype &&
                                  validate_usage cert usage &&
                                    validate_ext_usage cert `ServerAuth)

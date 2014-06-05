@@ -2,6 +2,8 @@
 type certificate
 type stack = certificate * certificate list
 
+type host = [ `Strict of string | `Wildcard of string ]
+
 val parse       : Cstruct.t -> certificate option
 val parse_stack : Cstruct.t list -> stack option
 val cs_of_cert  : certificate -> Cstruct.t
@@ -52,7 +54,7 @@ val cert_usage          : certificate -> key_usage list option
 val cert_extended_usage : certificate -> extended_key_usage list option
 
 val verify_chain_of_trust :
-  ?host:string -> time:int -> anchors:(certificate list) -> stack
+  ?host:host -> time:int -> anchors:(certificate list) -> stack
   -> [ `Ok | `Fail of certificate_failure ]
 
 val valid_cas : time:int -> certificate list -> certificate list
