@@ -4,6 +4,7 @@ open Lwt
 
 let echo_client ?ca host port =
   let open Lwt_io in
+  lwt () = Tls_lwt.rng_init () in
 
   let port = int_of_string port in
   lwt validator = X509_lwt.validator
