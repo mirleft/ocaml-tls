@@ -776,3 +776,10 @@ let ciphersuite_mac c = let (_, _, k) = get_kex_enc_hash c in k
 let ciphersuite_cipher_mac_length c =
   let cipher = ciphersuite_cipher c in
   key_lengths cipher
+
+let null_cipher c =
+  match get_kex_enc_hash c with
+  | NULL, _, _ -> true
+  | _, NULL, _ -> true
+  | _, _, NULL -> true
+  | _          -> false

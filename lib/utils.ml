@@ -30,6 +30,12 @@ module List_set = struct
           |  _ -> x :: loop xss yss in
     loop List.(sort compare l1) List.(sort compare l2)
 
+  let subset l1 l2 =
+    let rec loop super = function
+      | []    -> true
+      | x::xs -> List.mem x super && loop super xs in
+    loop l2 l1
+
   let equal ?(compare = compare) l1 l2 =
     List.(sort compare l1 = sort compare l2)
 

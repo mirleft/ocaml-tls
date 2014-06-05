@@ -1,3 +1,5 @@
+open Utils
+
 open Core
 
 exception Invalid_configuration of string
@@ -32,14 +34,14 @@ let supported_ciphers = Ciphersuite.([
 
 
 let default_config = {
-  ciphers           = supported_ciphers ;
-  protocol_versions = (TLS_1_2, TLS_1_0) ;
-  hashes            = supported_hashes ;
-  use_rekeying      = true ;
+  ciphers                 = supported_ciphers ;
+  protocol_versions       = (TLS_1_2, TLS_1_0) ;
+  hashes                  = supported_hashes ;
+  use_rekeying            = true ;
   require_secure_rekeying = true ;
-  validator         = None ;
-  peer_name         = None ;
-  own_certificate   = None ;
+  validator               = None ;
+  peer_name               = None ;
+  own_certificate         = None ;
 }
 
 let invalid msg = raise (Invalid_configuration msg)
@@ -48,23 +50,37 @@ let validate_common config =
   let (v_max, v_min) = config.protocol_versions in
   if v_max < v_min then invalid "bad version range" ;
   ( match config.hashes with
-    | [] when v_max >= TLS_1_2 -> invalid "TLS 1.2 allowed but not hashes"
-    | _                        -> () )
+    | [] when v_max >= TLS_1_2                          ->
+       invalid "TLS 1.2 allowed but not hashes"
+    | hs when not (List_set.subset hs supported_hashes) ->
+       invalid "Some hash algorithms are not supported"
+    | _                                                 ->
+       () ) ;
+  if not (List_set.subset config.ciphers supported_ciphers) then
+    invalid "given ciphers are not supported" ;
+  if not (List_set.is_proper_set config.ciphers) then
+    invalid "set of ciphers is not a proper set" ;
+  if List.exists Ciphersuite.null_cipher config.ciphers then
+    invalid "some provided cipher offers a NULL method"
 
 let validate_client config = ()
 
-let validate_server config = ()
-(*   config.ciphers |> List.iter (fun cip ->
-    let open Ciphersuite in
-    let kex = ciphersuite_kex cip in
-    match (config.own_certificate, needs_certificate kex) with
-    | (_, false)        -> ()
-    | (None, true)      ->
-        invalid "some allowed ciphers need cert when none given"
-    | (Some cert, true) ->
-        match (kex, cert_type cert) with
-        |  *)
-
+let validate_server config =
+  let open Ciphersuite in
+  List.map ciphersuite_kex config.ciphers |>
+    List.filter needs_certificate |>
+    List.iter (fun kex ->
+      let ctype, cusage = match config.own_certificate with
+        | None        -> invalid "no certificate provided"
+        | Some (c, _) -> (Certificate.cert_type c, Certificate.cert_usage c)
+      in
+      let ktype, usage = required_keytype_and_usage kex in
+      if ktype != ctype then invalid "need a certificate of different keytype for selected ciphers" ;
+      match cusage with
+      | None    -> ()
+      | Some us ->
+         if not (List.mem usage us) then
+           invalid "require a certificate with a different keyusage" )
 
 type client = config
 type server = config
