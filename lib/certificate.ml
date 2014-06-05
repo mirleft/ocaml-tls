@@ -91,8 +91,8 @@ let usage_export = Extension.(function
 
 let cert_usage { asn = cert } =
   match extn_key_usage cert with
-  | Some (_, Key_usage usages) -> Some (List.map usage_export usages)
-  | _                          -> None
+  | Some (_, Extension.Key_usage usages) -> Some (List.map usage_export usages)
+  | _                                    -> None
 
 (* partial: does not deal with 'Other of OID.t' *)
 let extended_usage_export = Extension.(function
@@ -109,8 +109,8 @@ let extended_usage_export = Extension.(function
 
 let cert_extended_usage { asn = cert } =
   match extn_ext_key_usage cert with
-  | Some (_, Ext_key_usage usages) -> Some (List.map extended_usage_export usages)
-  | _                              -> None
+  | Some (_, Extension.Ext_key_usage usages) -> Some (List.map extended_usage_export usages)
+  | _                                        -> None
 
 module Or_error =
   Control.Or_error_make ( struct type err = certificate_failure end )
@@ -284,14 +284,16 @@ let is_ca_cert_valid now cert =
 let validate_public_key_type { asn = cert } = function
   | None   -> true
   | Some x -> match x, cert.tbs_cert.pk_info with
-              | `RSA , RSA _ -> true
-              | _    , _     -> false
+              | `RSA , PK.RSA _ -> true
+              | _    , _        -> false
 
 let hostname_matches_wildcard should given =
   let open String in
-  match sub given 0 2, sub given 2 (length given - 2) with
-  | "*.", dn when dn = should -> true
-  | _   , _                   -> false
+  try
+    match sub given 0 2, sub given 2 (length given - 2) with
+    | ".", dn when dn = should -> true
+    | _   , _                   -> false
+  with _ -> false
 
 let validate_hostname cert host =
   let names = cert_hostnames cert in
