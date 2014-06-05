@@ -30,9 +30,8 @@ let loop_chatter ~certificate ~loops ~size =
   Printf.eprintf "Looping %d times, %d bytes.\n%!" loops size;
 
   let message  = Nocrypto.Rng.generate size
-  and server   = Tls.(Engine.server (Config.server ~certificate ()))
-  and (client, init) =
-    Tls.(Engine.client (Config.client ~validator:Tls.X509.Validator.null ()))
+  and server   = Tls.(Engine.server (Config.server_exn ~certificate ()))
+  and (client, init) = Tls.(Engine.client @@ Config.client_exn ())
   in
   Testlib.time @@ fun () ->
 
