@@ -29,7 +29,7 @@ let establish_master_secret state params premastersecret raw log =
   let machina = ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log @ [raw]) in
   return ({ state with machina = Server machina }, [])
 
-let extract_private_key config =
+let private_key config =
   match config.own_certificate with
     | Some (_, priv) -> return priv
     | None           -> fail_handshake
@@ -51,7 +51,7 @@ let answer_client_key_exchange_RSA state params kex raw log =
     | _ -> return other
   in
 
-  extract_private_key state.config >>= fun priv ->
+  private_key state.config >>= fun priv ->
   ( match Crypto.decryptRSA_unpadPKCS1 priv kex with
     | None   -> validate_premastersecret other
     | Some k -> validate_premastersecret k ) >>= fun pms ->
@@ -69,7 +69,7 @@ let answer_client_hello_params state params ch raw =
   let server_hello client_hello rekeying version random =
     (* we could provide a certificate with any of the given hostnames *)
     (* TODO: preserve this hostname somewhere maybe? *)
-    let server_name = find_hostname client_hello in
+    let server_name = hostname client_hello in
 
     let server_hello =
       (* RFC 4366: server shall reply with an empty hostname extension *)
@@ -143,7 +143,7 @@ let answer_client_hello_params state params ch raw =
                 sign to_sign >|= Writer.assemble_digitally_signed_1_2 hash RSA
     in
 
-    extract_private_key state.config >>= signature >|= fun sgn ->
+    private_key state.config >>= signature >|= fun sgn ->
       let kex = written <+> sgn in
       let hs  = Writer.assemble_handshake (ServerKeyExchange kex) in
       (hs, dh_state) in

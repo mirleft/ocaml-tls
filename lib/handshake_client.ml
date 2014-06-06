@@ -35,7 +35,7 @@ let default_client_hello config =
            cipher = List.hd ch.ciphersuites })
 
 let answer_server_hello state params ch (sh : server_hello) raw log =
-  let find_version requested (_, lo) server_version =
+  let validate_version requested (_, lo) server_version =
     match
       requested >= server_version, server_version >= lo
     with
@@ -64,7 +64,7 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
   assure (server_hello_valid sh &&
           server_exts_subset_of_client sh.extensions ch.extensions)
   >>= fun () ->
-  find_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
+  validate_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let rekeying_data = get_secure_renegotiation sh.extensions in
   validate_rekeying cfg.require_secure_rekeying state.rekeying rekeying_data >|= fun () ->
@@ -143,7 +143,7 @@ let peer_rsa_key cert =
 
 let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   let open Reader in
-  let extract_dh_params kex =
+  let dh_params kex =
     match parse_dh_parameters kex with
     | Or_error.Ok data -> return data
     | Or_error.Error _ -> fail_handshake
@@ -173,17 +173,17 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
             return (signature, compare_hashes)
          | Or_error.Error _ -> fail_handshake )
 
-  and extract_signature pubkey raw_signature =
+  and signature pubkey raw_signature =
     match Crypto.verifyRSA_and_unpadPKCS1 pubkey raw_signature with
     | Some signature -> return signature
     | None -> fail_handshake
 
   in
 
-  extract_dh_params kex >>= fun (dh_params, raw_dh_params, leftover) ->
+  dh_params kex >>= fun (dh_params, raw_dh_params, leftover) ->
   signature_verifier state.version leftover >>= fun (raw_signature, verifier) ->
   peer_rsa_key cert >>= fun pubkey ->
-  extract_signature pubkey raw_signature >>= fun signature ->
+  signature pubkey raw_signature >>= fun signature ->
   let sigdata = params.client_random <+> params.server_random <+> raw_dh_params in
   verifier signature sigdata >|= fun () ->
 

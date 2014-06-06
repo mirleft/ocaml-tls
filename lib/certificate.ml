@@ -353,7 +353,7 @@ let signs pathlen trusted cert =
   | (_, _, _, false)         -> fail InvalidPathlen
 
 
-let find_issuer trusted cert =
+let issuer trusted cert =
   (* first have to find issuer of ``c`` in ``trusted`` *)
   Printf.printf "looking for issuer of %s (%d CAs)\n"
                 (common_name_to_string cert.asn)
@@ -385,7 +385,7 @@ let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
           signs pathlen super cert >>= fun () ->
           climb (succ pathlen) super certs
       | [] ->
-          match List.filter (validate_time time) (find_issuer anchors cert) with
+          match List.filter (validate_time time) (issuer anchors cert) with
           | [] when is_self_signed cert -> fail SelfSigned
           | []                          -> fail NoTrustAnchor
           | anchors                     ->
