@@ -45,14 +45,14 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
   and validate_cipher suites suite =
     match List.mem suite suites with
     | true  -> return ()
-    | false -> fail Packet.HANDSHAKE_FAILURE
+    | false -> fail_handshake
 
   and validate_rekeying required rekeying data =
     match required, rekeying, data with
     | _    , None           , Some x -> assure (Cs.null x)
     | _    , Some (cvd, svd), Some x -> assure (Cs.equal (cvd <+> svd) x)
     | false, _              , _      -> return ()
-    | true , _              , _      -> fail Packet.HANDSHAKE_FAILURE
+    | true , _              , _      -> fail_handshake
 
   and adjust_params params sh =
     { params with
@@ -139,14 +139,14 @@ let peer_rsa_key cert =
   let open Asn_grammars in
   ( match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
     | PK.RSA key -> return key
-    | _          -> fail Packet.HANDSHAKE_FAILURE )
+    | _          -> fail_handshake )
 
 let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   let open Reader in
   let extract_dh_params kex =
     match parse_dh_parameters kex with
     | Or_error.Ok data -> return data
-    | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE
+    | Or_error.Error _ -> fail_handshake
 
   and signature_verifier version data =
     match version with
@@ -158,7 +158,7 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
                assure (Cs.equal should computed_sig)
              in
              return (signature, compare_hashes)
-          | Or_error.Error _      -> fail Packet.HANDSHAKE_FAILURE )
+          | Or_error.Error _      -> fail_handshake )
     | TLS_1_2 ->
        ( match parse_digitally_signed_1_2 data with
          | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
@@ -166,17 +166,17 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
               match Crypto.pkcs1_digest_info_of_cstruct should with
               | Some (hash_algo', target) when hash_algo = hash_algo' ->
                  ( match Crypto.hash_eq hash_algo ~target data with
-                   | true -> return ()
-                   | false -> fail Packet.HANDSHAKE_FAILURE )
-              | _ -> fail Packet.HANDSHAKE_FAILURE
+                   | true  -> return ()
+                   | false -> fail_handshake )
+              | _ -> fail_handshake
             in
             return (signature, compare_hashes)
-         | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE )
+         | Or_error.Error _ -> fail_handshake )
 
   and extract_signature pubkey raw_signature =
     match Crypto.verifyRSA_and_unpadPKCS1 pubkey raw_signature with
     | Some signature -> return signature
-    | None -> fail Packet.HANDSHAKE_FAILURE
+    | None -> fail_handshake
 
   in
 
@@ -230,7 +230,7 @@ let answer_server_finished state client_verify master_secret fin log =
 let answer_hello_request state =
   let get_rekeying_data optdata =
     match optdata with
-    | None          -> fail Packet.HANDSHAKE_FAILURE
+    | None          -> fail_handshake
     | Some (cvd, _) -> return (SecureRenegotiation cvd)
 
   and produce_client_hello config exts =
@@ -280,6 +280,6 @@ let handle_handshake cs hs buf =
           answer_server_finished hs client_verify master fin log
        | ClientEstablished, HelloRequest ->
           answer_hello_request hs
-       | _, _ -> fail Packet.HANDSHAKE_FAILURE )
+       | _, _ -> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
 
