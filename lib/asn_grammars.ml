@@ -733,10 +733,9 @@ type certificate = {
 }
 
 
-(* XXX really default other versions to V1 or bail out? *)
 let version =
-  map (function 2 -> `V2 | 3 -> `V3 | _ -> `V1)
-      (function `V2 -> 2 | `V3 -> 3 | _ -> 1)
+  map (function 2 -> `V3 | 1 -> `V2 | 0 -> `V1 | _ -> parse_error "unknown version")
+      (function `V3 -> 2 | `V2 -> 1 | `V1 -> 0)
   int
 
 let certificate_sn = integer
