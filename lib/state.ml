@@ -1,9 +1,14 @@
+open Sexplib
+open Sexplib.Conv
+
 open Core
 open Nocrypto
 
-type iv_mode =       (* IV style *)
-  | Iv of Cstruct.t  (* traditional CBC *)
-  | Random_iv        (* tls 1.1 style *)
+
+type iv_mode =         (* IV style *)
+  | Iv of Cstruct_s.t  (* traditional CBC *)
+  | Random_iv          (* tls 1.1 style *)
+  with sexp
 
 type cipher_st =
   | Stream : 'k Crypto.stream_cipher * 'k -> cipher_st
@@ -16,18 +21,40 @@ type crypto_context = {
   mac       : Crypto.hash_fn * Cstruct.t
 }
 
-type hs_log = Cstruct.t list
-type master_secret = Cstruct.t
+(* Sexplib stubs -- rethink how to play with crypto. *)
 
-type dh_received = DH.group * Cstruct.t
+let crypto_context_of_sexp _ = failwith "can't parse crypto context from sexp"
+and sexp_of_crypto_context cc =
+  Sexp.(List [Atom "sequence"; sexp_of_int64 cc.sequence])
+
+module DH = struct
+  include DH
+  let group_of_sexp _ = failwith "can't parse dh_group from sexp"
+  and sexp_of_group _ = Sexp.Atom "-SOME-DH-GROUP-"
+  let secret_of_sexp _ = failwith "can't parse dh_secret from sexp"
+  and sexp_of_secret _ = Sexp.Atom "-A-DH-SECRET-"
+end
+
+(* *** *)
+
+
+type hs_log = Cstruct_s.t list
+  with sexp
+type master_secret = Cstruct_s.t
+  with sexp
+
+type dh_received = DH.group * Cstruct_s.t
+  with sexp
 type dh_sent = DH.group * DH.secret
+  with sexp
+
 
 type handshake_params = {
-  server_random  : Cstruct.t ;
-  client_random  : Cstruct.t ;
+  server_random  : Cstruct_s.t ;
+  client_random  : Cstruct_s.t ;
   client_version : tls_version ;
   cipher         : Ciphersuite.ciphersuite
-}
+} with sexp
 
 type server_handshake_state =
   | ServerInitial
@@ -36,6 +63,7 @@ type server_handshake_state =
   | ClientKeyExchangeReceived of crypto_context * crypto_context * master_secret * hs_log
   | ClientChangeCipherSpecReceived of master_secret * hs_log
   | ServerEstablished
+  with sexp
 
 type client_handshake_state =
   | ClientInitial
@@ -44,28 +72,33 @@ type client_handshake_state =
   | ServerCertificateReceived_RSA of handshake_params * Certificate.certificate * hs_log
   | ServerCertificateReceived_DHE_RSA of handshake_params * Certificate.certificate * hs_log
   | ServerKeyExchangeReceived_DHE_RSA of handshake_params * dh_received * hs_log
-  | ClientFinishedSent of crypto_context * Cstruct.t * master_secret * hs_log
-  | ServerChangeCipherSpecReceived of Cstruct.t * master_secret * hs_log
+  | ClientFinishedSent of crypto_context * Cstruct_s.t * master_secret * hs_log
+  | ServerChangeCipherSpecReceived of Cstruct_s.t * master_secret * hs_log
   | ClientEstablished
+  with sexp
 
 type handshake_machina_state =
   | Client of client_handshake_state
   | Server of server_handshake_state
+  with sexp
 
-type rekeying_params = Cstruct.t * Cstruct.t
+type rekeying_params = Cstruct_s.t * Cstruct_s.t
+  with sexp
 
 type handshake_state = {
   version      : tls_version ;
   machina      : handshake_machina_state ;
   config       : Config.config ;
   rekeying     : rekeying_params option ;
-  hs_fragment  : Cstruct.t
-}
+  hs_fragment  : Cstruct_s.t
+} with sexp
 
 type crypto_state = crypto_context option
+  with sexp
 
 (* return type of handlers *)
-type record = Packet.content_type * Cstruct.t
+type record = Packet.content_type * Cstruct_s.t
+  with sexp
 type rec_resp = [
   | `Change_enc of crypto_state
   | `Record     of record
@@ -79,5 +112,5 @@ type state = {
   handshake : handshake_state ;
   decryptor : crypto_state ;
   encryptor : crypto_state ;
-  fragment  : Cstruct.t ;
-}
+  fragment  : Cstruct_s.t ;
+} with sexp
