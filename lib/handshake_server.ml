@@ -12,12 +12,12 @@ let (<+>) = Cs.(<+>)
 let answer_client_finished state master_secret fin raw log =
   let client_computed =
     Handshake_crypto.finished state.version master_secret "client finished" log in
-  guard (Cs.equal client_computed fin) Packet.HANDSHAKE_FAILURE >>= fun () ->
-
+  assure (Cs.equal client_computed fin)
+  >>= fun () ->
   let server_checksum = Handshake_crypto.finished state.version master_secret "server finished" (log @ [raw]) in
   let fin = Writer.assemble_handshake (Finished server_checksum) in
-  guard (Cstruct.len state.hs_fragment = 0) Packet.HANDSHAKE_FAILURE >|= fun () ->
-
+  assure (Cs.null state.hs_fragment)
+  >|= fun () ->
   let rekeying = Some (client_computed, server_checksum) in
   let machina = Server ServerEstablished in
 
@@ -32,7 +32,7 @@ let establish_master_secret state params premastersecret raw log =
 let extract_private_key config =
   match config.own_certificate with
     | Some (_, priv) -> return priv
-    | None           -> fail Packet.HANDSHAKE_FAILURE
+    | None           -> fail_handshake
 
 let answer_client_key_exchange_RSA state params kex raw log =
   (* due to bleichenbacher attach, we should use a random pms *)
@@ -95,7 +95,7 @@ let answer_client_hello_params state params ch raw =
     | Some (certs, _), true ->
         return [ Writer.assemble_handshake @@ Certificate (List.map Certificate.cs_of_cert certs) ]
     | _, false -> return []
-    | _        -> fail HANDSHAKE_FAILURE in
+    | _        -> fail_handshake in
     (* ^^^ Rig ciphersuite selection never to end up with one than needs a cert
      * if we haven't got one. *)
 
@@ -113,7 +113,7 @@ let answer_client_hello_params state params ch raw =
 
       let sign x =
         match Crypto.padPKCS1_and_signRSA pk x with
-        | None        -> fail HANDSHAKE_FAILURE
+        | None        -> fail_handshake
         | Some signed -> return signed
       in
       match version with
@@ -134,11 +134,11 @@ let answer_client_hello_params state params ch raw =
                 List.(map fst @@ filter (fun (_, x) -> x = RSA) client_algos)
               in
               match List_set.inter client_hashes supported_hashes with
-              | []        -> fail HANDSHAKE_FAILURE
+              | []        -> fail_handshake
               | hash :: _ -> return hash )
           >>= fun hash ->
             match Crypto.pkcs1_digest_info_to_cstruct hash data with
-            | None         -> fail HANDSHAKE_FAILURE
+            | None         -> fail_handshake
             | Some to_sign ->
                 sign to_sign >|= Writer.assemble_digitally_signed_1_2 hash RSA
     in
@@ -177,29 +177,29 @@ let answer_client_hello state (ch : client_hello) raw =
 
   and find_ciphersuite server_supported requested =
     match List_set.inter server_supported requested with
-    | []   -> fail Packet.HANDSHAKE_FAILURE
+    | []   -> fail_handshake
     | c::_ -> return c
 
   and ensure_reneg require our_data ciphers their_data  =
     let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
     match require, reneg_cs, our_data, their_data with
-    | _    , _    , None         , Some x -> guard (Cstruct.len x = 0) Packet.HANDSHAKE_FAILURE
-    | _    , _    , Some (cvd, _), Some x -> guard (Cs.equal cvd x) Packet.HANDSHAKE_FAILURE
+    | _    , _    , None         , Some x -> assure (Cs.null x)
+    | _    , _    , Some (cvd, _), Some x -> assure (Cs.equal cvd x)
     | _    , true , None         , _      -> return ()
     | false, _    , _            , _      -> return ()
-    | true , _    , _            , _      -> fail Packet.HANDSHAKE_FAILURE
+    | true , _    , _            , _      -> fail_handshake
 
   (* only renegotiate if the config allows us to *)
   and renegotiate use_rk rekeying =
     match use_rk, rekeying with
-    | false, Some _ -> fail Packet.HANDSHAKE_FAILURE
+    | false, Some _ -> fail_handshake
     | _    , _      -> return ()
   in
 
   let cfg = state.config in
   let cciphers = ch.ciphersuites in
   let theirs = get_secure_renegotiation ch.extensions in
-  guard (client_hello_valid ch) Packet.HANDSHAKE_FAILURE >>= fun () ->
+  assure (client_hello_valid ch) >>= fun () ->
   find_version cfg.protocol_versions ch.version >>= fun version ->
   find_ciphersuite cfg.ciphers cciphers >>= fun cipher ->
   renegotiate cfg.use_rekeying state.rekeying >>= fun () ->
@@ -218,7 +218,8 @@ let handle_change_cipher_spec ss state packet =
   let open Reader in
   match parse_change_cipher_spec packet, ss with
   | Or_error.Ok (), ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log) ->
-     guard (Cstruct.len state.hs_fragment = 0) Packet.HANDSHAKE_FAILURE >>= fun () ->
+     assure (Cs.null state.hs_fragment)
+     >>= fun () ->
      let ccs = change_cipher_spec in
      let machina = ClientChangeCipherSpecReceived (master_secret, log) in
      return ({ state with machina = Server machina },
@@ -244,5 +245,5 @@ let handle_handshake ss hs buf =
           answer_client_finished hs master_secret fin buf log
        | ServerEstablished, ClientHello ch -> (* rekeying *)
           answer_client_hello hs ch buf
-       | _, _-> fail Packet.HANDSHAKE_FAILURE )
+       | _, _-> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE

@@ -44,15 +44,15 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
 
   and validate_cipher suites suite =
     match List.mem suite suites with
-    | true -> return ()
-    | false -> fail Packet.HANDSHAKE_FAILURE
+    | true  -> return ()
+    | false -> fail_handshake
 
   and validate_rekeying required rekeying data =
     match required, rekeying, data with
-    | _    , None           , Some x -> guard (Cstruct.len x = 0) Packet.HANDSHAKE_FAILURE
-    | _    , Some (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) Packet.HANDSHAKE_FAILURE
+    | _    , None           , Some x -> assure (Cs.null x)
+    | _    , Some (cvd, svd), Some x -> assure (Cs.equal (cvd <+> svd) x)
     | false, _              , _      -> return ()
-    | true , _              , _      -> fail Packet.HANDSHAKE_FAILURE
+    | true , _              , _      -> fail_handshake
 
   and adjust_params params sh =
     { params with
@@ -61,10 +61,8 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
   in
 
   let cfg = state.config in
-  guard (server_hello_valid sh) Packet.HANDSHAKE_FAILURE
-  >>= fun () ->
-  guard (server_exts_subset_of_client sh.extensions ch.extensions)
-        Packet.HANDSHAKE_FAILURE
+  assure (server_hello_valid sh &&
+          server_exts_subset_of_client sh.extensions ch.extensions)
   >>= fun () ->
   find_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
@@ -141,14 +139,14 @@ let peer_rsa_key cert =
   let open Asn_grammars in
   ( match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
     | PK.RSA key -> return key
-    | _          -> fail Packet.HANDSHAKE_FAILURE )
+    | _          -> fail_handshake )
 
 let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   let open Reader in
   let extract_dh_params kex =
     match parse_dh_parameters kex with
     | Or_error.Ok data -> return data
-    | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE
+    | Or_error.Error _ -> fail_handshake
 
   and signature_verifier version data =
     match version with
@@ -157,10 +155,10 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
           | Or_error.Ok signature ->
              let compare_hashes should data =
                let computed_sig = Hash.(MD5.digest data <+> SHA1.digest data) in
-               guard (Cs.equal should computed_sig) Packet.HANDSHAKE_FAILURE
+               assure (Cs.equal should computed_sig)
              in
              return (signature, compare_hashes)
-          | Or_error.Error _      -> fail Packet.HANDSHAKE_FAILURE )
+          | Or_error.Error _      -> fail_handshake )
     | TLS_1_2 ->
        ( match parse_digitally_signed_1_2 data with
          | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
@@ -168,17 +166,17 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
               match Crypto.pkcs1_digest_info_of_cstruct should with
               | Some (hash_algo', target) when hash_algo = hash_algo' ->
                  ( match Crypto.hash_eq hash_algo ~target data with
-                   | true -> return ()
-                   | false -> fail Packet.HANDSHAKE_FAILURE )
-              | _ -> fail Packet.HANDSHAKE_FAILURE
+                   | true  -> return ()
+                   | false -> fail_handshake )
+              | _ -> fail_handshake
             in
             return (signature, compare_hashes)
-         | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE )
+         | Or_error.Error _ -> fail_handshake )
 
   and extract_signature pubkey raw_signature =
     match Crypto.verifyRSA_and_unpadPKCS1 pubkey raw_signature with
     | Some signature -> return signature
-    | None -> fail Packet.HANDSHAKE_FAILURE
+    | None -> fail_handshake
 
   in
 
@@ -223,8 +221,8 @@ let answer_server_hello_done_DHE_RSA state params (group, s_secret) raw log =
 
 let answer_server_finished state client_verify master_secret fin log =
   let computed = Handshake_crypto.finished state.version master_secret "server finished" log in
-  guard (Cs.equal computed fin) Packet.HANDSHAKE_FAILURE >>= fun () ->
-  guard (Cstruct.len state.hs_fragment = 0) Packet.HANDSHAKE_FAILURE >|= fun () ->
+  assure (Cs.equal computed fin && Cs.null state.hs_fragment)
+  >|= fun () ->
   let machina = ClientEstablished in
   let rekeying = Some (client_verify, computed) in
   ({ state with machina = Client machina ; rekeying = rekeying }, [])
@@ -232,7 +230,7 @@ let answer_server_finished state client_verify master_secret fin log =
 let answer_hello_request state =
   let get_rekeying_data optdata =
     match optdata with
-    | None          -> fail Packet.HANDSHAKE_FAILURE
+    | None          -> fail_handshake
     | Some (cvd, _) -> return (SecureRenegotiation cvd)
 
   and produce_client_hello config exts =
@@ -255,7 +253,7 @@ let handle_change_cipher_spec cs state packet =
   let open Reader in
   match parse_change_cipher_spec packet, cs with
   | Or_error.Ok (), ClientFinishedSent (server_ctx, client_verify, ms, log) ->
-     guard (Cstruct.len state.hs_fragment = 0) Packet.HANDSHAKE_FAILURE >>= fun () ->
+     assure (Cs.null state.hs_fragment) >>= fun () ->
      let machina = ServerChangeCipherSpecReceived (client_verify, ms, log) in
      return ({ state with machina = Client machina }, [], `Change_dec (Some server_ctx))
   | _ ->
@@ -282,6 +280,6 @@ let handle_handshake cs hs buf =
           answer_server_finished hs client_verify master fin log
        | ClientEstablished, HelloRequest ->
           answer_hello_request hs
-       | _, _ -> fail Packet.HANDSHAKE_FAILURE )
+       | _, _ -> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
 

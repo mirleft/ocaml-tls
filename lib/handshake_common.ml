@@ -4,6 +4,10 @@ open Core
 
 let empty = function [] -> true | _ -> false
 
+let assure p = guard p Packet.HANDSHAKE_FAILURE
+
+let fail_handshake = fail Packet.HANDSHAKE_FAILURE
+
 let change_cipher_spec =
   (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
 
