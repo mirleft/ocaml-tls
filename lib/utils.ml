@@ -98,6 +98,8 @@ module Cs = struct
     l1 >= l2 && equal (sub cs (l1 - l2) l2) target
 
   let empty = Cstruct.create 0
+
+  let null cs = Cstruct.len cs = 0
 end
 
 let rec filter_map ~f = function
