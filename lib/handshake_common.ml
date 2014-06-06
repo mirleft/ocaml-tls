@@ -12,7 +12,7 @@ let get_hostname_ext h =
     h.extensions
     ~f:(function Hostname s -> Some s | _ -> None)
 
-let find_hostname (h: 'a hello): string option =
+let hostname (h : 'a hello) : string option =
   match get_hostname_ext h with
   | Some (Some name) -> Some name
   | _                -> None

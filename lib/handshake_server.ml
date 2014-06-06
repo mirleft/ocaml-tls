@@ -69,7 +69,7 @@ let answer_client_hello_params state params ch raw =
   let server_hello client_hello rekeying version random =
     (* we could provide a certificate with any of the given hostnames *)
     (* TODO: preserve this hostname somewhere maybe? *)
-    let server_name = find_hostname client_hello in
+    let server_name = hostname client_hello in
 
     let server_hello =
       (* RFC 4366: server shall reply with an empty hostname extension *)
