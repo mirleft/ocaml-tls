@@ -35,7 +35,7 @@ let default_client_hello config =
            cipher = List.hd ch.ciphersuites })
 
 let answer_server_hello state params ch (sh : server_hello) raw log =
-  let find_version requested (_, lo) server_version =
+  let validate_version requested (_, lo) server_version =
     match
       requested >= server_version, server_version >= lo
     with
@@ -66,7 +66,7 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
   guard (server_exts_subset_of_client sh.extensions ch.extensions)
         Packet.HANDSHAKE_FAILURE
   >>= fun () ->
-  find_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
+  validate_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let rekeying_data = get_secure_renegotiation sh.extensions in
   validate_rekeying cfg.require_secure_rekeying state.rekeying rekeying_data >|= fun () ->
