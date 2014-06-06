@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 30518b4fdb3639908ad71128ba6483ba)
+# DO NOT EDIT (digest: f14f76e251ed99f75b53d2af3455eed0)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -40,6 +40,8 @@
 <lib/*.ml{,i}>: pkg_cstruct
 <lib/*.ml{,i}>: pkg_cstruct.syntax
 <lib/*.ml{,i}>: pkg_nocrypto
+<lib/*.ml{,i}>: pkg_sexplib
+<lib/*.ml{,i}>: pkg_sexplib.syntax
 # Library tests
 "tests/tests.cmxs": use_tests
 # Library tls-lwt
@@ -50,6 +52,8 @@
 <lwt/*.ml{,i}>: pkg_lwt.syntax
 <lwt/*.ml{,i}>: pkg_lwt.unix
 <lwt/*.ml{,i}>: pkg_nocrypto
+<lwt/*.ml{,i}>: pkg_sexplib
+<lwt/*.ml{,i}>: pkg_sexplib.syntax
 <lwt/*.ml{,i}>: use_tls
 # Library tls-mirage
 "mirage/tls-mirage.cmxs": use_tls-mirage
@@ -60,6 +64,8 @@
 <mirage/*.ml{,i}>: pkg_lwt.syntax
 <mirage/*.ml{,i}>: pkg_mirage
 <mirage/*.ml{,i}>: pkg_nocrypto
+<mirage/*.ml{,i}>: pkg_sexplib
+<mirage/*.ml{,i}>: pkg_sexplib.syntax
 <mirage/*.ml{,i}>: use_tls
 # Executable test_runner
 "tests/unittestrunner.native": pkg_asn1-combinators
@@ -68,6 +74,8 @@
 "tests/unittestrunner.native": pkg_cstruct.unix
 "tests/unittestrunner.native": pkg_nocrypto
 "tests/unittestrunner.native": pkg_oUnit
+"tests/unittestrunner.native": pkg_sexplib
+"tests/unittestrunner.native": pkg_sexplib.syntax
 "tests/unittestrunner.native": use_tests
 "tests/unittestrunner.native": use_tls
 # Executable feedback
@@ -77,6 +85,8 @@
 "tests/feedback.native": pkg_cstruct.unix
 "tests/feedback.native": pkg_nocrypto
 "tests/feedback.native": pkg_oUnit
+"tests/feedback.native": pkg_sexplib
+"tests/feedback.native": pkg_sexplib.syntax
 "tests/feedback.native": use_tests
 "tests/feedback.native": use_tls
 <tests/*.ml{,i}>: pkg_asn1-combinators
@@ -85,6 +95,8 @@
 <tests/*.ml{,i}>: pkg_cstruct.unix
 <tests/*.ml{,i}>: pkg_nocrypto
 <tests/*.ml{,i}>: pkg_oUnit
+<tests/*.ml{,i}>: pkg_sexplib
+<tests/*.ml{,i}>: pkg_sexplib.syntax
 <tests/*.ml{,i}>: use_tests
 <tests/*.ml{,i}>: use_tls
 # Executable echo_server
@@ -94,6 +106,8 @@
 "lwt/examples/echo_server.native": pkg_lwt.syntax
 "lwt/examples/echo_server.native": pkg_lwt.unix
 "lwt/examples/echo_server.native": pkg_nocrypto
+"lwt/examples/echo_server.native": pkg_sexplib
+"lwt/examples/echo_server.native": pkg_sexplib.syntax
 "lwt/examples/echo_server.native": use_tls
 "lwt/examples/echo_server.native": use_tls-lwt
 # Executable test_server
@@ -103,6 +117,8 @@
 "lwt/examples/test_server.native": pkg_lwt.syntax
 "lwt/examples/test_server.native": pkg_lwt.unix
 "lwt/examples/test_server.native": pkg_nocrypto
+"lwt/examples/test_server.native": pkg_sexplib
+"lwt/examples/test_server.native": pkg_sexplib.syntax
 "lwt/examples/test_server.native": use_tls
 "lwt/examples/test_server.native": use_tls-lwt
 # Executable echo_client
@@ -112,6 +128,8 @@
 "lwt/examples/echo_client.native": pkg_lwt.syntax
 "lwt/examples/echo_client.native": pkg_lwt.unix
 "lwt/examples/echo_client.native": pkg_nocrypto
+"lwt/examples/echo_client.native": pkg_sexplib
+"lwt/examples/echo_client.native": pkg_sexplib.syntax
 "lwt/examples/echo_client.native": use_tls
 "lwt/examples/echo_client.native": use_tls-lwt
 # Executable http_client
@@ -121,6 +139,8 @@
 "lwt/examples/http_client.native": pkg_lwt.syntax
 "lwt/examples/http_client.native": pkg_lwt.unix
 "lwt/examples/http_client.native": pkg_nocrypto
+"lwt/examples/http_client.native": pkg_sexplib
+"lwt/examples/http_client.native": pkg_sexplib.syntax
 "lwt/examples/http_client.native": use_tls
 "lwt/examples/http_client.native": use_tls-lwt
 <lwt/examples/*.ml{,i}>: pkg_asn1-combinators
@@ -129,6 +149,8 @@
 <lwt/examples/*.ml{,i}>: pkg_lwt.syntax
 <lwt/examples/*.ml{,i}>: pkg_lwt.unix
 <lwt/examples/*.ml{,i}>: pkg_nocrypto
+<lwt/examples/*.ml{,i}>: pkg_sexplib
+<lwt/examples/*.ml{,i}>: pkg_sexplib.syntax
 <lwt/examples/*.ml{,i}>: use_tls
 <lwt/examples/*.ml{,i}>: use_tls-lwt
 # OASIS_STOP

@@ -30,7 +30,9 @@ Library "tls"
                     X509, Engine
   InternalModules : Registry, Asn_grammars, Control
   Pack            : true
-  BuildDepends    : cstruct, cstruct.syntax, nocrypto, asn1-combinators
+  BuildDepends    : cstruct, cstruct.syntax,
+                    sexplib, sexplib.syntax,
+                    nocrypto, asn1-combinators
 #, bisect
 
 Library "tests"
