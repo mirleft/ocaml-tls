@@ -59,3 +59,5 @@ val verify_chain_of_trust :
 
 val valid_cas : time:int -> certificate list -> certificate list
 
+val common_name_to_string         : certificate -> string
+val certificate_failure_to_string : certificate_failure -> string

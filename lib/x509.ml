@@ -76,7 +76,7 @@ module Cert = struct
     List.fold_left (fun certs -> function
       | ("CERTIFICATE", cs) ->
         ( match Certificate.parse cs with
-          | Some cert -> cert :: certs
+          | Some cert -> certs @ [cert]
           | None      -> invalid_arg "X509: failed to parse certificate" )
       | _ -> certs)
     []

@@ -80,9 +80,22 @@ let validate_server config =
       | None    -> ()
       | Some us ->
          if not (List.mem usage us) then
-           invalid "require a certificate with a different keyusage" )
-   (* TODO: verify that first certificate matches pubkey *)
-   (* TODO: verify that it is a certificate chain (validity of time?) *)
+           invalid "require a certificate with a different keyusage" ) ;
+  ( match config.own_certificate with
+    | Some (c::_, priv) ->
+       let pub = Nocrypto.RSA.pub_of_priv priv in
+       let open Asn_grammars in
+       ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
+         | PK.RSA pub' when pub = pub' -> ()
+         | _                           -> invalid "public / private key combination" )
+    | None -> () ) ;
+  ( match config.own_certificate with
+    | Some (s::cs as xs, _) ->
+       let ta = last xs in
+       match Certificate.verify_chain_of_trust ~time:0 ~anchors:[ta] (s, cs) with
+       | `Ok -> ()
+       | `Fail x -> invalid ("certificate chain does not validate: " ^
+                               (Certificate.certificate_failure_to_string x)) )
    (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
 
 type client = config
