@@ -29,7 +29,7 @@ let establish_master_secret state params premastersecret raw log =
   let machina = ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log @ [raw]) in
   return ({ state with machina = Server machina }, [])
 
-let extract_private_key config =
+let private_key config =
   match config.own_certificate with
     | Some (_, priv) -> return priv
     | None           -> fail Packet.HANDSHAKE_FAILURE
@@ -51,7 +51,7 @@ let answer_client_key_exchange_RSA state params kex raw log =
     | _ -> return other
   in
 
-  extract_private_key state.config >>= fun priv ->
+  private_key state.config >>= fun priv ->
   ( match Crypto.decryptRSA_unpadPKCS1 priv kex with
     | None   -> validate_premastersecret other
     | Some k -> validate_premastersecret k ) >>= fun pms ->
@@ -143,7 +143,7 @@ let answer_client_hello_params state params ch raw =
                 sign to_sign >|= Writer.assemble_digitally_signed_1_2 hash RSA
     in
 
-    extract_private_key state.config >>= signature >|= fun sgn ->
+    private_key state.config >>= signature >|= fun sgn ->
       let kex = written <+> sgn in
       let hs  = Writer.assemble_handshake (ServerKeyExchange kex) in
       (hs, dh_state) in
