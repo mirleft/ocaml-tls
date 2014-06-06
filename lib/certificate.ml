@@ -1,9 +1,12 @@
+open Sexplib
+open Sexplib.Conv
+
+open Nocrypto
+
 open Registry
 open Asn_grammars
 open Asn
 open Utils
-
-open Nocrypto
 
 
 (*
@@ -21,10 +24,15 @@ type certificate = {
   raw : Cstruct.t
 }
 
+(* XXX Revisit this - would be lovely to dump the full ASN tree. *)
+let certificate_of_sexp _ = failwith "can't parse cert from sexps"
+let sexp_of_certificate _ = Sexplib.Sexp.Atom "-SOME-CERTIFICATE-"
+
 let cs_of_cert  { raw ; _ } = raw
 let asn_of_cert { asn ; _ } = asn
 
 type stack = certificate * certificate list
+  with sexp
 
 type host = [ `Strict of string | `Wildcard of string ]
 
@@ -45,6 +53,7 @@ type certificate_failure =
   | InvalidServerExtensions
   | InvalidServerName
   | InvalidCA
+  with sexp
 
 type key_type = [ `RSA | `DH | `ECDH | `ECDSA ]
 

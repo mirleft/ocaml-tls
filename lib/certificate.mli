@@ -1,5 +1,9 @@
 
 type certificate
+
+val certificate_of_sexp : Sexplib.Type.t -> certificate
+val sexp_of_certificate : certificate -> Sexplib.Type.t
+
 type stack = certificate * certificate list
 
 type host = [ `Strict of string | `Wildcard of string ]
