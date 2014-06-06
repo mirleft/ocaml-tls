@@ -137,7 +137,7 @@ let subject cert =
   map_find cert.tbs_cert.subject
            ~f:(function Name.CN n -> Some n | _ -> None)
 
-let common_name_to_string cert =
+let common_name_to_string { asn = cert } =
   match subject cert with
   | None   -> "NO commonName:" ^ Utils.hexdump_to_str cert.signature_val
   | Some x -> x
@@ -254,7 +254,7 @@ let validate_server_extensions { asn = cert } =
 
 let is_cert_valid now cert =
     Printf.printf "verify intermediate certificate %s\n"
-                  (common_name_to_string cert.asn);
+                  (common_name_to_string cert);
     match
       validate_time now cert,
       validate_ca_extensions cert
@@ -311,7 +311,7 @@ let validate_hostname cert host =
 
 let is_server_cert_valid ?host now cert =
   Printf.printf "verify server certificate %s\n"
-                (common_name_to_string cert.asn);
+                (common_name_to_string cert);
   match
     validate_time now cert,
     validate_hostname cert host,
@@ -337,8 +337,8 @@ let ext_authority_matches_subject trusted cert =
 
 let signs pathlen trusted cert =
   Printf.printf "verifying relation of %s -> %s (pathlen %d)\n"
-                (common_name_to_string trusted.asn)
-                (common_name_to_string cert.asn)
+                (common_name_to_string trusted)
+                (common_name_to_string cert)
                 pathlen;
   match
     issuer_matches_subject trusted cert,
@@ -356,7 +356,7 @@ let signs pathlen trusted cert =
 let issuer trusted cert =
   (* first have to find issuer of ``c`` in ``trusted`` *)
   Printf.printf "looking for issuer of %s (%d CAs)\n"
-                (common_name_to_string cert.asn)
+                (common_name_to_string cert)
                 (List.length trusted);
   List.filter (fun p -> issuer_matches_subject p cert) trusted
 
