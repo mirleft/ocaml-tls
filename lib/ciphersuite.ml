@@ -20,6 +20,7 @@ type key_exchange_algorithm =
   | SRP_SHA
   | SRP_SHA_RSA
   | SRP_SHA_DSS
+  with sexp
 
 let needs_certificate = function
   | DH_anon | PSK -> false
@@ -67,6 +68,7 @@ type encryption_algorithm =
   | ARIA_256_GCM
   | ARIA_128_CBC
   | ARIA_256_CBC
+  with sexp
 
 (* encryption_algorithm ->
    (key_material          : int -- bytes from key_block to generate write keys
@@ -101,6 +103,7 @@ type hash_algorithm =
   | SHA256
   | SHA384
   | SHA512
+  with sexp
 
 let asn_to_hash_algorithm a =
   let module A = Asn_grammars.Algorithm in
@@ -783,3 +786,15 @@ let null_cipher c =
   | _, NULL, _ -> true
   | _, _, NULL -> true
   | _          -> false
+
+
+
+(*
+ * Stubs, waiting either on https://github.com/mirage/ocaml-cstruct/issues/20 or
+ * manual boilerplate.
+ *)
+
+let not_yet _ = failwith "not implemented"
+
+let ciphersuite_of_sexp = not_yet
+and sexp_of_ciphersuite = not_yet

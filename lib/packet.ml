@@ -231,3 +231,50 @@ cenum ec_basis_type {
   TRINOMIAL   = 0;
   PENTANOMIAL = 1;
 } as uint8_t
+
+
+(*
+ * Stubs, waiting either on https://github.com/mirage/ocaml-cstruct/issues/20 or
+ * manual boilerplate.
+ *)
+
+let not_yet _ = failwith "not implemented"
+
+let content_type_of_sexp = not_yet
+and sexp_of_content_type = not_yet
+
+let alert_level_of_sexp = not_yet
+and sexp_of_alert_level = not_yet
+
+let alert_type_of_sexp = not_yet
+and sexp_of_alert_type = not_yet
+
+let handshake_type_of_sexp = not_yet
+and sexp_of_handshake_type = not_yet
+
+let client_certificate_type_of_sexp = not_yet
+and sexp_of_client_certificate_type = not_yet
+
+let compression_method_of_sexp = not_yet
+and sexp_of_compression_method = not_yet
+
+let extension_type_of_sexp = not_yet
+and sexp_of_extension_type = not_yet
+
+let max_fragment_length_of_sexp = not_yet
+and sexp_of_max_fragment_length = not_yet
+
+let signature_algorithm_type_of_sexp = not_yet
+and sexp_of_signature_algorithm_type = not_yet
+
+let ec_curve_type_of_sexp = not_yet
+and sexp_of_ec_curve_type = not_yet
+
+let named_curve_type_of_sexp = not_yet
+and sexp_of_named_curve_type = not_yet
+
+let ec_point_format_of_sexp = not_yet
+and sexp_of_ec_point_format = not_yet
+
+let ec_basis_type_of_sexp = not_yet
+and sexp_of_ec_basis_type = not_yet
