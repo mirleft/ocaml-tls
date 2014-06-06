@@ -182,6 +182,7 @@ let validate_signature { asn = trusted } cert =
                 | (A.SHA1_RSA  , Cs.SHA)    -> matches
                 | (A.SHA256_RSA, Cs.SHA256) -> matches
                 | (A.SHA384_RSA, Cs.SHA384) -> matches
+                | (A.SHA512_RSA, Cs.SHA512) -> matches
                 | _                         -> false )
        | None -> false )
 

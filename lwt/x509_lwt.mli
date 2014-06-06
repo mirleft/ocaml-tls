@@ -1,5 +1,5 @@
 
-type priv      = Tls.X509.Cert.t * Tls.X509.PK.t
+type priv      = Tls.X509.Cert.t list * Tls.X509.PK.t
 type validator = Tls.X509.Validator.t
 
 val private_of_pems : cert:Lwt_io.file_name -> priv_key:Lwt_io.file_name -> priv Lwt.t

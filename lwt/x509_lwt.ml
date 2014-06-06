@@ -1,7 +1,7 @@
 
 open Lwt
 
-type priv = Tls.X509.Cert.t * Tls.X509.PK.t
+type priv = Tls.X509.Cert.t list * Tls.X509.PK.t
 
 type validator = Tls.X509.Validator.t
 
@@ -47,15 +47,15 @@ let extension str =
 
 
 let private_of_pems ~cert ~priv_key =
-  lwt cert =
+  lwt certs =
     catch_invalid_arg
-      (read_file cert >|= Tls.X509.Cert.of_pem_cstruct1)
-      (o failure @@ Printf.sprintf "Private cert (%s): %s" cert)
+      (read_file cert >|= Tls.X509.Cert.of_pem_cstruct)
+      (o failure @@ Printf.sprintf "Private certificates (%s): %s" cert)
   and pk =
     catch_invalid_arg
       (read_file priv_key >|= Tls.X509.PK.of_pem_cstruct1)
       (o failure @@ Printf.sprintf "Private key (%s): %s" priv_key)
-  in return (cert, pk)
+  in return (certs, pk)
 
 let certs_of_pem path =
   catch_invalid_arg

@@ -70,7 +70,7 @@ let cs_mmap file =
 let load_priv () =
   let cs1 = cs_mmap "./certificates/server.pem"
   and cs2 = cs_mmap "./certificates/server.key" in
-  Tls.X509.(Cert.of_pem_cstruct1 cs1, PK.of_pem_cstruct1 cs2) 
+  Tls.X509.(Cert.of_pem_cstruct cs1, PK.of_pem_cstruct1 cs2)
 
 let _ =
   let loops =

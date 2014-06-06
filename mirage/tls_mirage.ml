@@ -187,11 +187,11 @@ module X509 (KV : V1_LWT.KV_RO) = struct
 
   let certificate kv =
     let read name =
-      lwt cert =
-        read_full kv (path </> name ^ ".pem") >|= Cert.of_pem_cstruct1
+      lwt certs =
+        read_full kv (path </> name ^ ".pem") >|= Cert.of_pem_cstruct
       and pk =
         read_full kv (path </> name ^ ".key") >|= PK.of_pem_cstruct1 in
-      return (cert, pk)
+      return (certs, pk)
     in function | `Default   -> read default_cert
                 | `Name name -> read name
 end
