@@ -145,7 +145,7 @@ let peer_rsa_key cert =
 
 let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   let open Reader in
-  let extract_dh_params kex =
+  let dh_params kex =
     match parse_dh_parameters kex with
     | Or_error.Ok data -> return data
     | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE
@@ -175,17 +175,17 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
             return (signature, compare_hashes)
          | Or_error.Error _ -> fail Packet.HANDSHAKE_FAILURE )
 
-  and extract_signature pubkey raw_signature =
+  and signature pubkey raw_signature =
     match Crypto.verifyRSA_and_unpadPKCS1 pubkey raw_signature with
     | Some signature -> return signature
     | None -> fail Packet.HANDSHAKE_FAILURE
 
   in
 
-  extract_dh_params kex >>= fun (dh_params, raw_dh_params, leftover) ->
+  dh_params kex >>= fun (dh_params, raw_dh_params, leftover) ->
   signature_verifier state.version leftover >>= fun (raw_signature, verifier) ->
   peer_rsa_key cert >>= fun pubkey ->
-  extract_signature pubkey raw_signature >>= fun signature ->
+  signature pubkey raw_signature >>= fun signature ->
   let sigdata = params.client_random <+> params.server_random <+> raw_dh_params in
   verifier signature sigdata >|= fun () ->
 
