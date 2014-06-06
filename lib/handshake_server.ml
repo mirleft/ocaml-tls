@@ -92,8 +92,8 @@ let answer_client_hello_params state params ch raw =
     let cert_needed =
       Ciphersuite.(needs_certificate @@ ciphersuite_kex cipher) in
     match config.own_certificate, cert_needed with
-    | Some (cert, _), true ->
-        return [ Writer.assemble_handshake @@ Certificate [Certificate.cs_of_cert cert] ]
+    | Some (certs, _), true ->
+        return [ Writer.assemble_handshake @@ Certificate (List.map Certificate.cs_of_cert certs) ]
     | _, false -> return []
     | _        -> fail HANDSHAKE_FAILURE in
     (* ^^^ Rig ciphersuite selection never to end up with one than needs a cert

@@ -4,7 +4,7 @@ open Core
 
 exception Invalid_configuration of string
 
-type own_cert = Certificate.certificate * Nocrypto.RSA.priv
+type own_cert = Certificate.certificate list * Nocrypto.RSA.priv
 
 type config = {
   ciphers                 : Ciphersuite.ciphersuite list ;
@@ -71,8 +71,8 @@ let validate_server config =
     List.filter needs_certificate |>
     List.iter (fun kex ->
       let ctype, cusage = match config.own_certificate with
-        | None        -> invalid "no certificate provided"
-        | Some (c, _) -> (Certificate.cert_type c, Certificate.cert_usage c)
+        | None           -> invalid "no certificate provided"
+        | Some (c::_, _) -> (Certificate.cert_type c, Certificate.cert_usage c)
       in
       let ktype, usage = required_keytype_and_usage kex in
       if ktype != ctype then invalid "need a certificate of different keytype for selected ciphers" ;
@@ -81,6 +81,9 @@ let validate_server config =
       | Some us ->
          if not (List.mem usage us) then
            invalid "require a certificate with a different keyusage" )
+   (* TODO: verify that first certificate matches pubkey *)
+   (* TODO: verify that it is a certificate chain (validity of time?) *)
+   (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
 
 type client = config
 type server = config

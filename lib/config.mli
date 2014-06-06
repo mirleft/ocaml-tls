@@ -3,8 +3,7 @@ open Ciphersuite
 
 exception Invalid_configuration of string
 
-type own_cert = Certificate.certificate * Nocrypto.RSA.priv
-
+type own_cert = Certificate.certificate list * Nocrypto.RSA.priv
 
 (* some config parameters *)
 type config = private {
