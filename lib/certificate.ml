@@ -402,6 +402,19 @@ let valid_cas ~time cas =
     (fun cert -> is_success @@ is_ca_cert_valid time cert)
     cas
 
+let certificate_failure_to_string = function
+  | InvalidCertificate      -> "Invalid Certificate"
+  | InvalidSignature        -> "Invalid Signature"
+  | CertificateExpired      -> "Certificate Expired"
+  | InvalidExtensions       -> "Invalid Extensions"
+  | InvalidPathlen          -> "Invalid Pathlength"
+  | SelfSigned              -> "Self Signed Certificate"
+  | NoTrustAnchor           -> "No Trust Anchor"
+  | InvalidInput            -> "Invalid Input"
+  | InvalidServerExtensions -> "Invalid Server Certificate Extensions"
+  | InvalidServerName       -> "Invalid Server Certificate Name"
+  | InvalidCA               -> "Invalid CA"
+
 (* RFC5246 says 'root certificate authority MAY be omitted' *)
 
 (* TODO: how to deal with
