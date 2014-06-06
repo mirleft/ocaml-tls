@@ -16,7 +16,7 @@ let answer_client_finished state master_secret fin raw log =
   >>= fun () ->
   let server_checksum = Handshake_crypto.finished state.version master_secret "server finished" (log @ [raw]) in
   let fin = Writer.assemble_handshake (Finished server_checksum) in
-  assure (Cstruct.len state.hs_fragment = 0)
+  assure (Cs.null state.hs_fragment)
   >|= fun () ->
   let rekeying = Some (client_computed, server_checksum) in
   let machina = Server ServerEstablished in
@@ -183,7 +183,7 @@ let answer_client_hello state (ch : client_hello) raw =
   and ensure_reneg require our_data ciphers their_data  =
     let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
     match require, reneg_cs, our_data, their_data with
-    | _    , _    , None         , Some x -> assure (Cstruct.len x = 0)
+    | _    , _    , None         , Some x -> assure (Cs.null x)
     | _    , _    , Some (cvd, _), Some x -> assure (Cs.equal cvd x)
     | _    , true , None         , _      -> return ()
     | false, _    , _            , _      -> return ()
@@ -218,7 +218,7 @@ let handle_change_cipher_spec ss state packet =
   let open Reader in
   match parse_change_cipher_spec packet, ss with
   | Or_error.Ok (), ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log) ->
-     assure (Cstruct.len state.hs_fragment = 0)
+     assure (Cs.null state.hs_fragment)
      >>= fun () ->
      let ccs = change_cipher_spec in
      let machina = ClientChangeCipherSpecReceived (master_secret, log) in

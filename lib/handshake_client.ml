@@ -49,7 +49,7 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
 
   and validate_rekeying required rekeying data =
     match required, rekeying, data with
-    | _    , None           , Some x -> assure (Cstruct.len x = 0)
+    | _    , None           , Some x -> assure (Cs.null x)
     | _    , Some (cvd, svd), Some x -> assure (Cs.equal (cvd <+> svd) x)
     | false, _              , _      -> return ()
     | true , _              , _      -> fail Packet.HANDSHAKE_FAILURE
@@ -253,7 +253,7 @@ let handle_change_cipher_spec cs state packet =
   let open Reader in
   match parse_change_cipher_spec packet, cs with
   | Or_error.Ok (), ClientFinishedSent (server_ctx, client_verify, ms, log) ->
-     assure (Cstruct.len state.hs_fragment = 0) >>= fun () ->
+     assure (Cs.null state.hs_fragment) >>= fun () ->
      let machina = ServerChangeCipherSpecReceived (client_verify, ms, log) in
      return ({ state with machina = Client machina }, [], `Change_dec (Some server_ctx))
   | _ ->
