@@ -12,12 +12,12 @@ let (<+>) = Cs.(<+>)
 let answer_client_finished state master_secret fin raw log =
   let client_computed =
     Handshake_crypto.finished state.version master_secret "client finished" log in
-  guard (Cs.equal client_computed fin) Packet.HANDSHAKE_FAILURE >>= fun () ->
-
+  assure (Cs.equal client_computed fin)
+  >>= fun () ->
   let server_checksum = Handshake_crypto.finished state.version master_secret "server finished" (log @ [raw]) in
   let fin = Writer.assemble_handshake (Finished server_checksum) in
-  guard (Cstruct.len state.hs_fragment = 0) Packet.HANDSHAKE_FAILURE >|= fun () ->
-
+  assure (Cstruct.len state.hs_fragment = 0)
+  >|= fun () ->
   let rekeying = Some (client_computed, server_checksum) in
   let machina = Server ServerEstablished in
 
@@ -183,8 +183,8 @@ let answer_client_hello state (ch : client_hello) raw =
   and ensure_reneg require our_data ciphers their_data  =
     let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
     match require, reneg_cs, our_data, their_data with
-    | _    , _    , None         , Some x -> guard (Cstruct.len x = 0) Packet.HANDSHAKE_FAILURE
-    | _    , _    , Some (cvd, _), Some x -> guard (Cs.equal cvd x) Packet.HANDSHAKE_FAILURE
+    | _    , _    , None         , Some x -> assure (Cstruct.len x = 0)
+    | _    , _    , Some (cvd, _), Some x -> assure (Cs.equal cvd x)
     | _    , true , None         , _      -> return ()
     | false, _    , _            , _      -> return ()
     | true , _    , _            , _      -> fail Packet.HANDSHAKE_FAILURE
@@ -199,7 +199,7 @@ let answer_client_hello state (ch : client_hello) raw =
   let cfg = state.config in
   let cciphers = ch.ciphersuites in
   let theirs = get_secure_renegotiation ch.extensions in
-  guard (client_hello_valid ch) Packet.HANDSHAKE_FAILURE >>= fun () ->
+  assure (client_hello_valid ch) >>= fun () ->
   find_version cfg.protocol_versions ch.version >>= fun version ->
   find_ciphersuite cfg.ciphers cciphers >>= fun cipher ->
   renegotiate cfg.use_rekeying state.rekeying >>= fun () ->
@@ -218,7 +218,8 @@ let handle_change_cipher_spec ss state packet =
   let open Reader in
   match parse_change_cipher_spec packet, ss with
   | Or_error.Ok (), ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log) ->
-     guard (Cstruct.len state.hs_fragment = 0) Packet.HANDSHAKE_FAILURE >>= fun () ->
+     assure (Cstruct.len state.hs_fragment = 0)
+     >>= fun () ->
      let ccs = change_cipher_spec in
      let machina = ClientChangeCipherSpecReceived (master_secret, log) in
      return ({ state with machina = Server machina },
