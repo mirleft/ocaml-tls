@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 966b5602d722b4c48637b434801e0c4b)
+# DO NOT EDIT (digest: 30518b4fdb3639908ad71128ba6483ba)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -17,6 +17,7 @@
 "lib/tls.cmxs": use_tls
 "lib/ciphersuite.cmx": for-pack(Tls)
 "lib/utils.cmx": for-pack(Tls)
+"lib/tracing.cmx": for-pack(Tls)
 "lib/packet.cmx": for-pack(Tls)
 "lib/core.cmx": for-pack(Tls)
 "lib/certificate.cmx": for-pack(Tls)

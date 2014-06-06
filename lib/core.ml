@@ -1,7 +1,14 @@
 open Packet
 open Ciphersuite
 
+(* Monadic control-flow core. *)
 include Control.Or_error_make (struct type err = Packet.alert_type end)
+
+(* Monadically rewraps the real (effectful) tracing to ease out transition to
+ * actual monadic tracer. *)
+module Trace = struct
+  let item id x = ( Tracing.item id x ; return () )
+end
 
 type tls_version =
   | SSL_3
