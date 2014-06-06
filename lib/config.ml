@@ -88,8 +88,14 @@ let validate_server config =
        ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
          | PK.RSA pub' when pub = pub' -> ()
          | _                           -> invalid "public / private key combination" )
-    | None -> () )
-   (* TODO: verify that it is a certificate chain (validity of time?) *)
+    | None -> () ) ;
+  ( match config.own_certificate with
+    | Some (s::cs as xs, _) ->
+       let ta = last xs in
+       match Certificate.verify_chain_of_trust ~time:0 ~anchors:[ta] (s, cs) with
+       | `Ok -> ()
+       | `Fail x -> invalid ("certificate chain does not validate: " ^
+                               (Certificate.certificate_failure_to_string x)) )
    (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
 
 type client = config
