@@ -236,11 +236,23 @@ let validate_ca_extensions { asn = cert } =
     | Some (crit, Key_usage usage) -> List.mem Key_cert_sign usage
     | _                            -> false ) &&
 
+  (* 4.2.1.12.  Extended Key Usage
+   If a certificate contains both a key usage extension and an extended
+   key usage extension, then both extensions MUST be processed
+   independently and the certificate MUST only be used for a purpose
+   consistent with both extensions.  If there is no purpose consistent
+   with both extensions, then the certificate MUST NOT be used for any
+   purpose. *)
+  ( match extn_ext_key_usage cert with
+    | Some (_, Ext_key_usage usages) -> List.mem Any usages
+    | _                              -> true ) &&
+
   (* Name Constraints - name constraints should match servername *)
 
   (* check criticality *)
   List.for_all (function
       | (true, Key_usage _)         -> true
+      | (true, Ext_key_usage _)     -> true
       | (true, Basic_constraints _) -> true
       | (crit, _)                   -> not crit )
     cert.tbs_cert.extensions
