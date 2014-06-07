@@ -14,4 +14,3 @@ module Cstruct_s = struct
     Conv.sexp_of_string (Cstruct.to_string cs)
 
 end
-

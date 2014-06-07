@@ -6,15 +6,11 @@ open Ciphersuite
 module Cstruct_s = Sexp_ext.Cstruct_s
 
 (* Monadic control-flow core. *)
-include Control.Or_error_make (struct type err = Packet.alert_type end)
+module Error_monad = Control.Or_error_make (struct type err = Packet.alert_type end)
+include Error_monad
 
-(* Monadically rewraps the real (effectful) tracing to ease out transition to
- * actual monadic tracer. *)
-module Trace = struct
-  let item ~id x = ( Tracing.item ~id x ; return () )
-  let item_with ~id ~sexpf x = ( Tracing.item_with ~id ~sexpf x ; return () )
-  let cs ~id ~tag cs = ( Tracing.cs ~id ~tag cs ; return () )
-end
+module Trace = Tracing.Monadic (Error_monad)
+
 
 type tls_version =
   | SSL_3
