@@ -3,6 +3,8 @@ open Sexplib.Conv
 open Packet
 open Ciphersuite
 
+module Cstruct_s = Sexp_ext.Cstruct_s
+
 (* Monadic control-flow core. *)
 include Control.Or_error_make (struct type err = Packet.alert_type end)
 
@@ -12,12 +14,6 @@ module Trace = struct
   let item ~id x = ( Tracing.item ~id x ; return () )
   let item_with ~id ~sexpf x = ( Tracing.item_with ~id ~sexpf x ; return () )
   let cs ~id ~tag cs = ( Tracing.cs ~id ~tag cs ; return () )
-end
-
-module Cstruct_s = struct
-  type t = Cstruct.t
-  let t_of_sexp _ = assert false
-  let sexp_of_t _ = assert false
 end
 
 type tls_version =

@@ -26,7 +26,7 @@ let new_state config role =
     rekeying     = None ;
     machina      = handshake_state ;
     config       = config ;
-    hs_fragment  = Cstruct.create 0
+    hs_fragment  = Cstruct.create 0 ;
   }
   in
   {
