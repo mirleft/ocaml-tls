@@ -35,10 +35,10 @@ Library "tls"
 
 Library "tests"
   Path            : tests/
-  Modules         : Testlib, Readertests, Writertests, Readerwritertests, Handshakes, Unittests
+  Modules         : Testlib, Readertests, Writertests, Readerwritertests, Handshakes, X509tests, Unittests
   Install         : false
   Build          $: flag(tests)
-  BuildDepends    : tls, oUnit
+  BuildDepends    : tls, oUnit, cstruct.unix
 
 Library "tls-lwt"
   Build          $: flag(lwt)
