@@ -795,6 +795,7 @@ let null_cipher c =
  *)
 
 let not_yet _ = failwith "not implemented"
+and not_really _ = Sexplib.Sexp.Atom "-NO-INFO-YET-"
 
 let ciphersuite_of_sexp = not_yet
-and sexp_of_ciphersuite = not_yet
+and sexp_of_ciphersuite = not_really

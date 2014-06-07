@@ -239,42 +239,43 @@ cenum ec_basis_type {
  *)
 
 let not_yet _ = failwith "not implemented"
+and not_really _ = Sexplib.Sexp.Atom "-NO-INFO-YET-"
 
 let content_type_of_sexp = not_yet
-and sexp_of_content_type = not_yet
+and sexp_of_content_type = not_really
 
 let alert_level_of_sexp = not_yet
-and sexp_of_alert_level = not_yet
+and sexp_of_alert_level = not_really
 
 let alert_type_of_sexp = not_yet
-and sexp_of_alert_type = not_yet
+and sexp_of_alert_type = not_really
 
 let handshake_type_of_sexp = not_yet
-and sexp_of_handshake_type = not_yet
+and sexp_of_handshake_type = not_really
 
 let client_certificate_type_of_sexp = not_yet
-and sexp_of_client_certificate_type = not_yet
+and sexp_of_client_certificate_type = not_really
 
 let compression_method_of_sexp = not_yet
-and sexp_of_compression_method = not_yet
+and sexp_of_compression_method = not_really
 
 let extension_type_of_sexp = not_yet
-and sexp_of_extension_type = not_yet
+and sexp_of_extension_type = not_really
 
 let max_fragment_length_of_sexp = not_yet
-and sexp_of_max_fragment_length = not_yet
+and sexp_of_max_fragment_length = not_really
 
 let signature_algorithm_type_of_sexp = not_yet
-and sexp_of_signature_algorithm_type = not_yet
+and sexp_of_signature_algorithm_type = not_really
 
 let ec_curve_type_of_sexp = not_yet
-and sexp_of_ec_curve_type = not_yet
+and sexp_of_ec_curve_type = not_really
 
 let named_curve_type_of_sexp = not_yet
-and sexp_of_named_curve_type = not_yet
+and sexp_of_named_curve_type = not_really
 
 let ec_point_format_of_sexp = not_yet
-and sexp_of_ec_point_format = not_yet
+and sexp_of_ec_point_format = not_really
 
 let ec_basis_type_of_sexp = not_yet
-and sexp_of_ec_basis_type = not_yet
+and sexp_of_ec_basis_type = not_really
