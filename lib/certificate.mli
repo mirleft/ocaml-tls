@@ -1,9 +1,6 @@
 
 type certificate
 
-val certificate_of_sexp : Sexplib.Type.t -> certificate
-val sexp_of_certificate : certificate -> Sexplib.Type.t
-
 type stack = certificate * certificate list
 
 type host = [ `Strict of string | `Wildcard of string ]
@@ -65,3 +62,7 @@ val valid_cas : time:int -> certificate list -> certificate list
 
 val common_name_to_string         : certificate -> string
 val certificate_failure_to_string : certificate_failure -> string
+
+open Sexplib
+val certificate_of_sexp : Sexp.t -> certificate
+val sexp_of_certificate : certificate -> Sexp.t

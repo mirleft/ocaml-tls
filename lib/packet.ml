@@ -15,13 +15,13 @@ cenum content_type {
   HANDSHAKE          = 22;
   APPLICATION_DATA   = 23;
   HEARTBEAT          = 24;
-} as uint8_t
+} as uint8_t (sexp)
 
 (* TLS alert level *)
 cenum alert_level {
   WARNING = 1;
   FATAL   = 2;
-} as uint8_t
+} as uint8_t (sexp)
 
 (* TLS alert types *)
 cenum alert_type {
@@ -55,7 +55,7 @@ cenum alert_type {
   BAD_CERTIFICATE_STATUS_RESPONSE = 113; (*RFC6066*)
   BAD_CERTIFICATE_HASH_VALUE      = 114; (*RFC6066*)
   UNKNOWN_PSK_IDENTITY            = 115; (*RFC4279*)
-} as uint8_t
+} as uint8_t (sexp)
 
 (* TLS handshake type *)
 cenum handshake_type {
@@ -75,7 +75,7 @@ cenum handshake_type {
   CERTIFICATE_URL      = 21;
   CERTIFICATE_STATUS   = 22;
   SUPPLEMENTAL_DATA    = 23; (*RFC4680*)
-} as uint8_t
+} as uint8_t (sexp)
 
 (* TLS certificate types *)
 cenum client_certificate_type {
@@ -89,14 +89,14 @@ cenum client_certificate_type {
   ECDSA_SIGN                = 64; (*RFC4492*)
   RSA_FIXED_ECDH            = 65; (*RFC4492*)
   ECDSA_FIXED_ECDH          = 66; (*RFC4492*)
-} as uint8_t
+} as uint8_t (sexp)
 
 (* TLS compression methods, used in hello packets *)
 cenum compression_method {
   NULL    = 0;
   DEFLATE = 1;
   LZS     = 64;
-} as uint8_t
+} as uint8_t (sexp)
 
 (* TLS extensions in hello packets from RFC 4366 *)
 cenum extension_type {
@@ -125,7 +125,7 @@ cenum extension_type {
   PADDING                                = 21; (*draft-agl-tls-padding*)
   SESSIONTICKET_TLS                      = 35; (*RFC4507*)
   RENEGOTIATION_INFO                     = 0xFF01; (*RFC5746*)
-} as uint16_t
+} as uint16_t (sexp)
 
 (* TLS maximum fragment length *)
 cenum max_fragment_length {
@@ -133,7 +133,7 @@ cenum max_fragment_length {
   TWO_10 = 2;
   TWO_11 = 3;
   TWO_12 = 4;
-} as uint8_t
+} as uint8_t (sexp)
 
 (* RFC 5246 *)
 cenum signature_algorithm_type {
@@ -141,7 +141,7 @@ cenum signature_algorithm_type {
   RSA       = 1;
   DSA       = 2;
   ECDSA     = 3;
-} as uint8_t
+} as uint8_t (sexp)
 
 let int_to_hash_algorithm i =
   let open Ciphersuite in
@@ -183,7 +183,7 @@ cenum ec_curve_type {
   EXPLICIT_PRIME = 1;
   EXPLICIT_CHAR2 = 2;
   NAMED_CURVE    = 3
-} as uint8_t
+} as uint8_t (sexp)
 
 cenum named_curve_type {
   SECT163K1 = 1;
@@ -218,64 +218,16 @@ cenum named_curve_type {
   (* reserved (0xFE00..0xFEFF), *)
   ARBITRARY_EXPLICIT_PRIME_CURVES = 0xFF01;
   ARBITRARY_EXPLICIT_CHAR2_CURVES = 0xFF02
-} as uint16_t
+} as uint16_t (sexp)
 
 cenum ec_point_format {
   UNCOMPRESSED              = 0;
   ANSIX962_COMPRESSED_PRIME = 1;
   ANSIX962_COMPRESSED_CHAR2 = 2;
   (* reserved 248..255 *)
-} as uint8_t
+} as uint8_t (sexp)
 
 cenum ec_basis_type {
   TRINOMIAL   = 0;
   PENTANOMIAL = 1;
-} as uint8_t
-
-
-(*
- * Stubs, waiting either on https://github.com/mirage/ocaml-cstruct/issues/20 or
- * manual boilerplate.
- *)
-
-let not_yet _ = failwith "not implemented"
-and not_really _ = Sexplib.Sexp.Atom "-NO-INFO-YET-"
-
-let content_type_of_sexp = not_yet
-and sexp_of_content_type = not_really
-
-let alert_level_of_sexp = not_yet
-and sexp_of_alert_level = not_really
-
-let alert_type_of_sexp = not_yet
-and sexp_of_alert_type = not_really
-
-let handshake_type_of_sexp = not_yet
-and sexp_of_handshake_type = not_really
-
-let client_certificate_type_of_sexp = not_yet
-and sexp_of_client_certificate_type = not_really
-
-let compression_method_of_sexp = not_yet
-and sexp_of_compression_method = not_really
-
-let extension_type_of_sexp = not_yet
-and sexp_of_extension_type = not_really
-
-let max_fragment_length_of_sexp = not_yet
-and sexp_of_max_fragment_length = not_really
-
-let signature_algorithm_type_of_sexp = not_yet
-and sexp_of_signature_algorithm_type = not_really
-
-let ec_curve_type_of_sexp = not_yet
-and sexp_of_ec_curve_type = not_really
-
-let named_curve_type_of_sexp = not_yet
-and sexp_of_named_curve_type = not_really
-
-let ec_point_format_of_sexp = not_yet
-and sexp_of_ec_point_format = not_really
-
-let ec_basis_type_of_sexp = not_yet
-and sexp_of_ec_basis_type = not_really
+} as uint8_t (sexp)

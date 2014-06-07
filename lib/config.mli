@@ -21,9 +21,6 @@ type config = private {
   own_certificate         : own_cert option ;
 }
 
-val sexp_of_config : config -> Sexplib.Type.t
-val config_of_sexp : Sexplib.Type.t -> config
-
 val supported_ciphers : ciphersuite list
 val supported_hashes  : hash_algorithm list
 
@@ -52,3 +49,6 @@ val server_exn :
   ?certificate : own_cert ->
   unit -> server
 
+open Sexplib
+val sexp_of_config : config -> Sexp.t
+val config_of_sexp : Sexp.t -> config

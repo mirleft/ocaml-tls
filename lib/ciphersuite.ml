@@ -449,7 +449,7 @@ cenum ciphersuite {
   TLS_PSK_WITH_AES_256_CCM_8                   = 0xC0A9; (*RFC6655*)
   TLS_PSK_DHE_WITH_AES_128_CCM_8               = 0xC0AA; (*RFC6655*)
   TLS_PSK_DHE_WITH_AES_256_CCM_8               = 0xC0AB; (*RFC6655*)
-} as uint16_t
+} as uint16_t (sexp)
 
 let get_kex_enc_hash
     : ciphersuite ->
@@ -786,16 +786,3 @@ let null_cipher c =
   | _, NULL, _ -> true
   | _, _, NULL -> true
   | _          -> false
-
-
-
-(*
- * Stubs, waiting either on https://github.com/mirage/ocaml-cstruct/issues/20 or
- * manual boilerplate.
- *)
-
-let not_yet _ = failwith "not implemented"
-and not_really _ = Sexplib.Sexp.Atom "-NO-INFO-YET-"
-
-let ciphersuite_of_sexp = not_yet
-and sexp_of_ciphersuite = not_really
