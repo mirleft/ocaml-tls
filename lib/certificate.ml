@@ -348,16 +348,16 @@ let is_server_cert_valid ?host now cert =
   | (_, _, _, false)         -> fail InvalidServerExtensions
 
 
-let ext_authority_matches_subject trusted cert =
+let ext_authority_matches_subject { asn = trusted } { asn = cert } =
   let open Extension in
   match
-    extn_authority_key_id cert.asn, extn_subject_key_id trusted.asn
+    extn_authority_key_id cert, extn_subject_key_id trusted
   with
+  | (_, None) | (None, _)                      -> true (* not mandatory *)
   | Some (_, Authority_key_id (Some auth, _, _)),
     Some (_, Subject_key_id au)                -> Cs.equal auth au
   (* TODO: check exact rules in RFC5280 *)
   | Some (_, Authority_key_id (None, _, _)), _ -> true (* not mandatory *)
-  | None, _                                    -> true (* not mandatory *)
   | _, _                                       -> false
 
 let signs pathlen trusted cert =
