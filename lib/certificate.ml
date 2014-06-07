@@ -194,6 +194,13 @@ let validate_time now cert =
 (* TODO:  from < now && now < till *)
   true
 
+let version_matches_extensions { asn = cert } =
+  let tbs = cert.tbs_cert in
+  match tbs.version, tbs.extensions with
+  | (`V1 | `V2), [] -> true
+  | (`V1 | `V2), _  -> false
+  | `V3        , _  -> true
+
 let validate_path_len pathlen { asn = cert } =
   (* X509 V1/V2 certificates do not contain X509v3 extensions! *)
   (* thus, we cannot check the path length. this will only ever happen for trust anchors: *)
@@ -201,13 +208,11 @@ let validate_path_len pathlen { asn = cert } =
   (* whereas trust anchor are ok with getting V1/2 certificates *)
   (* TODO: make it configurable whether to accept V1/2 certificates at all *)
   let open Extension in
-  let tbs = cert.tbs_cert in
-  match tbs.version, extn_basic_constr cert with
-  | `V1, _                                           -> List.length tbs.extensions = 0
-  | `V2, _                                           -> List.length tbs.extensions = 0
+  match cert.tbs_cert.version, extn_basic_constr cert with
+  | (`V1 | `V2), _                                   -> true
   | `V3, Some (_ , Basic_constraints (true, None))   -> true
   | `V3, Some (_ , Basic_constraints (true, Some n)) -> n >= pathlen
-  | `V3, _                                           -> false
+  | _                                                -> false
 
 let validate_ca_extensions { asn = cert } =
   let open Extension in
@@ -259,31 +264,33 @@ let is_cert_valid now cert =
                   (common_name_to_string cert);
     match
       validate_time now cert,
+      version_matches_extensions cert,
       validate_ca_extensions cert
     with
-    | (true, true) -> success
-    | (false, _)   -> fail CertificateExpired
-    | (_, false)   -> fail InvalidExtensions
+    | (true, true, true) -> success
+    | (false, _, _)      -> fail CertificateExpired
+    | (_, false, _)      -> fail InvalidExtensions
+    | (_, _, false)      -> fail InvalidExtensions
 
-let has_valid_extensions cert =
-  let tbs = cert.asn.tbs_cert in
-  match tbs.version, validate_ca_extensions cert with
-  | `V1, _ -> List.length tbs.extensions = 0
-  | `V2, _ -> List.length tbs.extensions = 0
-  | `V3, x -> x
+let valid_trust_anchor_extensions cert =
+  match cert.asn.tbs_cert.version with
+  | `V1 | `V2 -> true
+  | `V3       -> validate_ca_extensions cert
 
 let is_ca_cert_valid now cert =
   match
     is_self_signed cert,
+    version_matches_extensions cert,
     validate_signature cert cert,
     validate_time now cert,
-    has_valid_extensions cert
+    valid_trust_anchor_extensions cert
   with
-  | (true, true, true, true) -> success
-  | (false, _, _, _)         -> fail InvalidCA
-  | (_, false, _, _)         -> fail InvalidSignature
-  | (_, _, false, _)         -> fail CertificateExpired
-  | (_, _, _, false)         -> fail InvalidExtensions
+  | (true, true, true, true, true) -> success
+  | (false, _, _, _, _)            -> fail InvalidCA
+  | (_, false, _, _, _)            -> fail InvalidExtensions
+  | (_, _, false, _, _)            -> fail InvalidSignature
+  | (_, _, _, false, _)            -> fail CertificateExpired
+  | (_, _, _, _, false)            -> fail InvalidExtensions
 
 let validate_public_key_type { asn = cert } = function
   | None   -> true
@@ -318,12 +325,14 @@ let is_server_cert_valid ?host now cert =
   match
     validate_time now cert,
     validate_hostname cert host,
+    version_matches_extensions cert,
     validate_server_extensions cert
   with
-  | (true, true, true) -> success
-  | (false, _, _)      -> fail CertificateExpired
-  | (_, false, _)      -> fail InvalidServerName
-  | (_, _, false)      -> fail InvalidServerExtensions
+  | (true, true, true, true) -> success
+  | (false, _, _, _)         -> fail CertificateExpired
+  | (_, false, _, _)         -> fail InvalidServerName
+  | (_, _, false, _)         -> fail InvalidServerExtensions
+  | (_, _, _, false)         -> fail InvalidServerExtensions
 
 
 let ext_authority_matches_subject trusted cert =
