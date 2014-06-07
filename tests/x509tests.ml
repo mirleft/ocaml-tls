@@ -169,8 +169,12 @@ let first_wildcard_cert_ca_test (ca, x) =
     first_wildcard_certs)
 
 let intermediate_cas = [
-  (true, "cacert") ; (true, "cacert-any-ext") ; (false, "cacert-ba-false") ;
-  (false, "cacert-no-keyusage") ; (false, "cacert-timestamp") ; (false, "cacert-unknown")
+  (true, "cacert") ;
+  (true, "cacert-any-ext") ;
+  (false, "cacert-ba-false") ;
+  (false, "cacert-no-keyusage") ;
+  (true, "cacert-timestamp") ; (* if we require CAs to have ext_key_usage any, github.com doesn't talk to us *)
+  (false, "cacert-unknown")
 ]
 
 let im_cert name =
