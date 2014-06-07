@@ -174,6 +174,7 @@ let intermediate_cas = [
   (false, "cacert-ba-false") ;
   (false, "cacert-no-bc") ;
   (false, "cacert-no-keyusage") ;
+  (true, "cacert-ku-critical") ;
   (true, "cacert-timestamp") ; (* if we require CAs to have ext_key_usage any, github.com doesn't talk to us *)
   (false, "cacert-unknown")
 ]
@@ -201,6 +202,8 @@ let second_certs = [
   ("second-unknown", [ "second.foobar.com" ], false,
    [ `DigitalSignature ; `ContentCommitment ; `KeyEncipherment ], None ) ;
   ("second-no-cn", [ ], false,
+   [ `DigitalSignature ; `ContentCommitment ; `KeyEncipherment ], None ) ;
+  ("second-subjaltemail", [ "second.foobar.com" ], true,
    [ `DigitalSignature ; `ContentCommitment ; `KeyEncipherment ], None ) ;
 ]
 

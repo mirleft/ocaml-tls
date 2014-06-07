@@ -205,6 +205,13 @@ subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid,issuer
 subjectAltName=DNS:foobar.com,DNS:foo.foobar.com
 
+[ usr_subj_xx ]
+basicConstraints=critical,CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+subjectAltName=email:foobar.com
+
 [ usr_subj_wild ]
 basicConstraints=critical,CA:FALSE
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
@@ -254,6 +261,12 @@ authorityKeyIdentifier=keyid:always,issuer
 basicConstraints = critical,CA:true
 keyUsage = cRLSign, keyCertSign
 extendedKeyUsage = 2.5.29.37.0
+
+[ v3_int_ca_ku_crit ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer
+basicConstraints = critical,CA:true
+keyUsage = critical, cRLSign, keyCertSign
 
 [ v3_int_ca_unknown ]
 subjectKeyIdentifier=hash
