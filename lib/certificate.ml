@@ -316,7 +316,8 @@ let validate_hostname cert host =
        try
          let idx = String.index name '.' + 1 in (* might throw *)
          let rt = String.sub name idx (String.length name - idx) in
-         List.exists (hostname_matches_wildcard rt) names
+         List.exists (hostname_matches_wildcard rt) names ||
+           List.exists (hostname_matches_wildcard name) names
        with _ -> false
 
 let is_server_cert_valid ?host now cert =
