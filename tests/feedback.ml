@@ -64,12 +64,9 @@ let loop_chatter ~certificate ~loops ~size =
     else failwith @@ "the message got corrupted :("
 
 
-let cs_mmap file =
-  Unix_cstruct.of_fd Unix.(openfile file [O_RDONLY] 0)
-
 let load_priv () =
-  let cs1 = cs_mmap "./certificates/server.pem"
-  and cs2 = cs_mmap "./certificates/server.key" in
+  let cs1 = Testlib.cs_mmap "./certificates/server.pem"
+  and cs2 = Testlib.cs_mmap "./certificates/server.key" in
   Tls.X509.(Cert.of_pem_cstruct cs1, PK.of_pem_cstruct1 cs2)
 
 let _ =
