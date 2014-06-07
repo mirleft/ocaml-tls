@@ -233,8 +233,8 @@ let validate_ca_extensions { asn = cert } =
   ( match extn_key_usage cert with
     (* When present, conforming CAs SHOULD mark this extension as critical *)
     (* yeah, you wish... *)
-    | Some (crit, Key_usage usage) -> List.mem Key_cert_sign usage
-    | _                            -> false ) &&
+    | Some (_, Key_usage usage) -> List.mem Key_cert_sign usage
+    | _                         -> false ) &&
 
   (* 4.2.1.12.  Extended Key Usage
    If a certificate contains both a key usage extension and an extended
