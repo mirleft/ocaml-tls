@@ -113,4 +113,5 @@ type state = {
   decryptor : crypto_state ;
   encryptor : crypto_state ;
   fragment  : Cstruct_s.t ;
+  id        : Tracing.id ;
 } with sexp

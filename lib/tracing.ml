@@ -15,7 +15,7 @@ let form_trace id sexp =
   Sexp.(List [ Atom id ; sexp ])
 
 (* Sort-of dynamic variable for a single thread. *)
-let tracing_with ~id f =
+let with_id ~id f =
   match !is_tracing with
   | false -> f ()
   | true  ->
@@ -52,7 +52,7 @@ module Monadic (M : Control.Monad) = struct
 
   let create = create
 
-  let tracing_with = tracing_with
+  let with_id = with_id
 
   let sexp ~tag lz = sexp ~tag lz ; M.return ()
 

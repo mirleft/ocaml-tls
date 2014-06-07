@@ -33,7 +33,8 @@ let new_state config role =
     handshake = handshake ;
     decryptor = None ;
     encryptor = None ;
-    fragment  = Cstruct.create 0
+    fragment  = Cstruct.create 0 ;
+    id        = Trace.create () ;
   }
 
 let (<+>) = Utils.Cs.(<+>)
@@ -309,8 +310,7 @@ let maybe_app a b = match a, b with
 let assemble_records (version : tls_version) : record list -> Cstruct.t =
   o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
 
-(* main entry point *)
-let handle_tls state buf =
+let handle_tls_internal state buf =
 
   let rec handle_records st = function
     | []    -> return (st, None, [], `No_err)
@@ -321,14 +321,19 @@ let handle_tls state buf =
                 (st', maybe_app data data', raw_rs @ raw_rs', err')
           | res -> return res
   in
+
+  separate_records (state.fragment <+> buf)
+  >>= fun (in_records, fragment) -> handle_records state in_records
+  >|= fun (state', data, out_records, err) ->
+    let version = state'.handshake.version in
+    let buf'    = assemble_records version out_records in
+    ({ state' with fragment }, buf', data, err)
+
+(* main entry point *)
+let handle_tls state buf =
   match
-    separate_records (state.fragment <+> buf)
-    >>= fun (in_records, fragment) ->
-      handle_records state in_records
-    >|= fun (state', data, out_records, err) ->
-      let version = state'.handshake.version in
-      let buf'    = assemble_records version out_records in
-      ({ state' with fragment }, buf', data, err)
+    Trace.with_id ~id:state.id @@ fun () ->
+      handle_tls_internal state buf
   with
   | Ok (state, data, resp, err) ->
       let res = match err with
