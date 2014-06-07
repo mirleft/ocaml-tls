@@ -200,9 +200,10 @@ let validate_path_len pathlen { asn = cert } =
   (* whereas trust anchor are ok with getting V1/2 certificates *)
   (* TODO: make it configurable whether to accept V1/2 certificates at all *)
   let open Extension in
-  match cert.tbs_cert.version, extn_basic_constr cert with
-  | `V1, _                                           -> true
-  | `V2, _                                           -> true
+  let tbs = cert.tbs_cert in
+  match tbs.version, extn_basic_constr cert with
+  | `V1, _                                           -> List.length tbs.extensions = 0
+  | `V2, _                                           -> List.length tbs.extensions = 0
   | `V3, Some (_ , Basic_constraints (true, None))   -> true
   | `V3, Some (_ , Basic_constraints (true, Some n)) -> n >= pathlen
   | `V3, _                                           -> false
@@ -264,9 +265,10 @@ let is_cert_valid now cert =
     | (_, false)   -> fail InvalidExtensions
 
 let has_valid_extensions cert =
-  match cert.asn.tbs_cert.version, validate_ca_extensions cert with
-  | `V1, _ -> true
-  | `V2, _ -> true
+  let tbs = cert.asn.tbs_cert in
+  match tbs.version, validate_ca_extensions cert with
+  | `V1, _ -> List.length tbs.extensions = 0
+  | `V2, _ -> List.length tbs.extensions = 0
   | `V3, x -> x
 
 let is_ca_cert_valid now cert =
