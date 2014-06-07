@@ -172,6 +172,7 @@ let intermediate_cas = [
   (true, "cacert") ;
   (true, "cacert-any-ext") ;
   (false, "cacert-ba-false") ;
+  (false, "cacert-no-bc") ;
   (false, "cacert-no-keyusage") ;
   (true, "cacert-timestamp") ; (* if we require CAs to have ext_key_usage any, github.com doesn't talk to us *)
   (false, "cacert-unknown")
@@ -198,6 +199,8 @@ let second_certs = [
   ("second-bc-true", [ "second.foobar.com" ], false,
    [ `DigitalSignature ; `ContentCommitment ; `KeyEncipherment ], None ) ;
   ("second-unknown", [ "second.foobar.com" ], false,
+   [ `DigitalSignature ; `ContentCommitment ; `KeyEncipherment ], None ) ;
+  ("second-no-cn", [ ], false,
    [ `DigitalSignature ; `ContentCommitment ; `KeyEncipherment ], None ) ;
 ]
 
@@ -258,8 +261,27 @@ let second_wildcard_cert_ca_test (cavalid, ca, x) =
                   [ "a.b.foobar.com" ; "f.foobar.com.com" ; "f.f.f." ; "foobar.com.uk" ; "foooo.bar.com" ])
        intermediate_cas)
 
+let second_no_cn_cert_ca_test (cavalid, ca, x) =
+  List.flatten
+    (List.map
+       (fun (imvalid, im) ->
+        let chain = [im_cert im] in
+        let c = second_cert "second-no-cn" in
+        ("verification CA " ^ x ^ " cn blablbalbala" >:: strict_test_valid_ca_cert c chain false "blablabalbal" ca) ::
+        ("verification CA " ^ x ^ " cn blablbalbala" >:: wildcard_test_valid_ca_cert c chain false "blablabalbal" ca) ::
+        List.mapi (fun i cn ->
+                   "certificate verification CA " ^ x ^ " and CN " ^ cn ^ " " ^ string_of_int i
+                   >:: strict_test_valid_ca_cert c chain false cn ca)
+                  [ "a.foobar.com" ; "foo.foobar.com" ; "foobar.foobar.com" ; "foobar.com" ; "www.foobar.com" ] @
+        List.mapi (fun i cn ->
+                   "certificate verification CA " ^ x ^ " and CN " ^ cn ^ " " ^ string_of_int i
+                   >:: wildcard_test_valid_ca_cert c chain false cn ca)
+                  [ "a.b.foobar.com" ; "f.foobar.com.com" ; "f.f.f." ; "foobar.com.uk" ; "foooo.bar.com" ])
+       intermediate_cas)
+
 let x509_tests =
   invalid_ca_tests @ valid_ca_tests @
   first_cert_tests @ (ca_tests first_cert_ca_test) @
   first_wildcard_cert_tests @ (ca_tests first_wildcard_cert_ca_test) @
-  second_cert_tests @ (im_ca_tests second_cert_ca_test) @ (im_ca_tests second_wildcard_cert_ca_test)
+  second_cert_tests @ (im_ca_tests second_cert_ca_test) @ (im_ca_tests second_wildcard_cert_ca_test) @
+  (im_ca_tests second_no_cn_cert_ca_test)

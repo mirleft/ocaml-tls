@@ -225,6 +225,11 @@ authorityKeyIdentifier=keyid:always,issuer
 basicConstraints = critical,CA:true
 keyUsage = cRLSign, keyCertSign
 
+[ v3_ca_int_ca_no_bc ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer
+keyUsage = cRLSign, keyCertSign
+
 [ v3_int_ca_ba_false ]
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer
