@@ -130,8 +130,6 @@ let issuer_matches_subject { asn = parent } { asn = cert } =
   Name.equal parent.tbs_cert.subject cert.tbs_cert.issuer
 
 let is_self_signed cert = issuer_matches_subject cert cert
-(* let is_self_signed { tbs_cert = { subject } } =
-  Name.equal subject subject *)
 
 let subject cert =
   map_find cert.tbs_cert.subject
