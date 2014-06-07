@@ -140,15 +140,18 @@ let common_name_to_string { asn = cert } =
   | None   -> "NO commonName:" ^ Utils.hexdump_to_str cert.signature_val
   | Some x -> x
 
-let cert_hostnames { asn = cert } =
+let cert_alt_names cert : string list =
   let open Extension in
   match extn_subject_alt_name cert with
-  | Some (_, Subject_alt_name names) ->
-     filter_map names ~f:(function General_name.DNS x -> Some x | _ -> None)
-  | _ ->
-     match subject cert with
-     | None   -> []
-     | Some x -> [x]
+    | Some (_, Subject_alt_name names) ->
+       filter_map names ~f:(function General_name.DNS x -> Some x | _ -> None)
+    | _                                -> []
+
+let cert_hostnames { asn = cert } : string list =
+  let alt_names = cert_alt_names cert in
+  match subject_common_name cert with
+    | None   -> alt_names
+    | Some x -> x :: alt_names
 
 (* XXX should return the tbs_cert blob from the parser, this is insane *)
 let raw_cert_hack { asn ; raw } =
