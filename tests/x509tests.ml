@@ -290,6 +290,9 @@ let invalid_tests =
     "invalid chain" >:: strict_test_valid_ca_cert c [] false h [cacert] ;
     "broken chain" >:: strict_test_valid_ca_cert c [cacert] false h [cacert] ;
     "no trust anchor" >:: strict_test_valid_ca_cert c [im_cert "cacert"] false h [] ;
+    "2chain" >:: strict_test_valid_ca_cert c [im_cert "cacert" ; cacert] true h [cacert] ;
+    "3chain" >:: strict_test_valid_ca_cert c [im_cert "cacert" ; cacert ; cacert] true h [cacert] ;
+    "no-chain" >:: strict_test_valid_ca_cert c [im_cert "cacert" ; im_cert "cacert" ; cacert] false h [cacert] ;
     "not a CA" >:: (fun _ -> assert_equal (List.length (valid_cas ~time:0 [im_cert "cacert"])) 0) ;
     "not a CA" >:: (fun _ -> assert_equal (List.length (valid_cas ~time:0 [c])) 0) ;
   ]
