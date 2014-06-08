@@ -23,8 +23,9 @@ Flag "mirage"
 
 Library "tls"
   Path            : lib/
-  Modules         : Ciphersuite, Utils, Tracing, Packet, Core, Certificate,
-                    Sexp_ext, Printer, Reader, Writer, Crypto, Config,
+  Modules         : Utils, Sexp_ext, Tracing,
+                    Ciphersuite, Packet, Core, Certificate,
+                    Printer, Reader, Writer, Crypto, Config,
                     State, Handshake_common, Handshake_crypto,
                     Handshake_server, Handshake_client,
                     X509, Engine
