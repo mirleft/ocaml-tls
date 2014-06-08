@@ -6,10 +6,7 @@ open Ciphersuite
 module Cstruct_s = Sexp_ext.Cstruct_s
 
 (* Monadic control-flow core. *)
-module Error_monad = Control.Or_error_make (struct type err = Packet.alert_type end)
-include Error_monad
-
-module Trace = Tracing.Monadic (Error_monad)
+include Control.Or_error_make (struct type err = Packet.alert_type end)
 
 
 type tls_version =
