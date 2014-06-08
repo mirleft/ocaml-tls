@@ -20,6 +20,7 @@ type key_exchange_algorithm =
   | SRP_SHA
   | SRP_SHA_RSA
   | SRP_SHA_DSS
+  with sexp
 
 let needs_certificate = function
   | DH_anon | PSK -> false
@@ -67,6 +68,7 @@ type encryption_algorithm =
   | ARIA_256_GCM
   | ARIA_128_CBC
   | ARIA_256_CBC
+  with sexp
 
 (* encryption_algorithm ->
    (key_material          : int -- bytes from key_block to generate write keys
@@ -101,6 +103,7 @@ type hash_algorithm =
   | SHA256
   | SHA384
   | SHA512
+  with sexp
 
 let asn_to_hash_algorithm a =
   let module A = Asn_grammars.Algorithm in
@@ -446,7 +449,7 @@ cenum ciphersuite {
   TLS_PSK_WITH_AES_256_CCM_8                   = 0xC0A9; (*RFC6655*)
   TLS_PSK_DHE_WITH_AES_128_CCM_8               = 0xC0AA; (*RFC6655*)
   TLS_PSK_DHE_WITH_AES_256_CCM_8               = 0xC0AB; (*RFC6655*)
-} as uint16_t
+} as uint16_t (sexp)
 
 let get_kex_enc_hash
     : ciphersuite ->

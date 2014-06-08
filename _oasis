@@ -23,14 +23,17 @@ Flag "mirage"
 
 Library "tls"
   Path            : lib/
-  Modules         : Ciphersuite, Utils, Packet, Core, Certificate,
+  Modules         : Utils, Sexp_ext, Tracing,
+                    Ciphersuite, Packet, Core, Certificate,
                     Printer, Reader, Writer, Crypto, Config,
                     State, Handshake_common, Handshake_crypto,
                     Handshake_server, Handshake_client,
                     X509, Engine
   InternalModules : Registry, Asn_grammars, Control
   Pack            : true
-  BuildDepends    : cstruct, cstruct.syntax, nocrypto, asn1-combinators
+  BuildDepends    : cstruct, cstruct.syntax,
+                    sexplib, sexplib.syntax,
+                    nocrypto, asn1-combinators
 #, bisect
 
 Library "tests"

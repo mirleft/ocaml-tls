@@ -49,3 +49,6 @@ val server_exn :
   ?certificate : own_cert ->
   unit -> server
 
+open Sexplib
+val sexp_of_config : config -> Sexp.t
+val config_of_sexp : Sexp.t -> config

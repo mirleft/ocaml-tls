@@ -14,6 +14,7 @@ end
 module type Monad_ext = sig
   type 'a t
   val return : 'a -> 'a t
+  val bind   : 'a t -> ('a -> 'b t) -> 'b t
   val (>>=)  : 'a t -> ('a -> 'b t) -> 'b t
   val (>|=)  : 'a t -> ('a -> 'b) -> 'b t
   val map    : ('a -> 'b) -> 'a t -> 'b t
@@ -29,6 +30,7 @@ module Monad_ext_make ( M : Monad ) :
 struct
   type 'a t = 'a M.t
   let return = M.return
+  let bind   = M.bind
   let (>>=)  = M.bind
   let map f a = a >>= fun x -> return (f x)
   let (>|=) a f = map f a

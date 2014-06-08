@@ -5,6 +5,9 @@ open Utils
 open Core
 open State
 
+
+let (<+>) = Utils.Cs.(<+>)
+
 (* user API *)
 
 type state = State.state
@@ -13,8 +16,6 @@ type ret = [
   | `Ok   of [ `Ok of state | `Eof | `Alert of Packet.alert_type ] * Cstruct.t * Cstruct.t option
   | `Fail of Packet.alert_type * Cstruct.t
 ]
-
-type role = [ `Server | `Client ]
 
 let new_state config role =
   let handshake_state = match role with
@@ -26,17 +27,21 @@ let new_state config role =
     rekeying     = None ;
     machina      = handshake_state ;
     config       = config ;
-    hs_fragment  = Cstruct.create 0
+    hs_fragment  = Cstruct.create 0 ;
   }
   in
   {
     handshake = handshake ;
     decryptor = None ;
     encryptor = None ;
-    fragment  = Cstruct.create 0
+    fragment  = Cstruct.create 0 ;
   }
 
-let (<+>) = Utils.Cs.(<+>)
+type raw_record = tls_hdr * Cstruct_s.t with sexp
+
+(* Tracing converters. *)
+
+let sexp_of_records = Sexplib.Conv.sexp_of_list sexp_of_record
 
 (* well-behaved pure encryptor *)
 let encrypt (version : tls_version) (st : crypto_state) ty buf =
@@ -273,7 +278,11 @@ let handle_packet hs buf = function
 
 
 (* the main thingy *)
-let handle_raw_record state ((hdr : tls_hdr), buf) =
+let handle_raw_record state (hdr, buf as record : raw_record) =
+
+  Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ;
+  Tracing.sexpf ~tag:"record-in" ~f:sexp_of_raw_record record ;
+
   let hs = state.handshake in
   let version = hs.version in
   ( match hs.machina, hdr.version = version with
@@ -298,7 +307,12 @@ let handle_raw_record state ((hdr : tls_hdr), buf) =
   let decryptor = match dec_cmd with
     | `Change_dec dec -> dec
     | `Pass           -> dec_st in
-  ({ state with handshake ; encryptor ; decryptor }, data, encs, err)
+  let state' = { state with handshake ; encryptor ; decryptor } in
+
+  Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
+  Tracing.sexpf ~tag:"record-out" ~f:sexp_of_records encs ;
+
+  (state', data, encs, err)
 
 let maybe_app a b = match a, b with
   | Some x, Some y -> Some (x <+> y)

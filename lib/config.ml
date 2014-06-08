@@ -133,3 +133,9 @@ let server_exn
         own_certificate   = certificate;
     } in
   ( validate_common config ; validate_server config ; config )
+
+
+
+(* Kinda stubby - rethink. *)
+let config_of_sexp _ = failwith "can't parse config from sexp"
+and sexp_of_config c = Sexplib.Sexp.Atom "-CONFIG-"
