@@ -162,10 +162,12 @@ module General_name = struct
   (* GeneralName is also pretty pervasive. *)
 
   (* OID x ANY. Hunt down the alternatives.... *)
+  (* XXX
+   * Cross-check. NSS seems to accept *all* oids here and just assumes UTF8.
+   * *)
   let another_name =
-    let open Registry.Name_extn in
     let f = function
-      | (oid, `C1 n) when oid = venezuela_1 || oid = venezuela_2 -> n
+      | (oid, `C1 n) when Registry.Name_extn.is_utf8_id oid -> n
       | (oid, _    ) -> parse_error_oid "AnotherName: unrecognized oid" oid
     and g = fun _ ->
       invalid_arg "can't encode AnotherName extensions, yet."

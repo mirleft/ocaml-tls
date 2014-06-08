@@ -8,6 +8,8 @@
 
 open Asn.OID
 
+let pkix   = base 1 3 <| 6 <| 1 <| 5 <| 5 <| 7
+
 let usa    = base 1 2 <| 840
 let rsadsi = usa <| 113549
 let pkcs   = rsadsi <| 1
@@ -221,8 +223,6 @@ module Cert_extn = struct
   and freshest_crl                  = ce <| 46
   and inhibit_any_policy            = ce <| 54
 
-  let pkix = base 1 3 <| 6 <| 1 <| 5 <| 5 <| 7
-
   module Extended_usage = struct
     let any              = extended_key_usage <| 0
     let key_purpose      = pkix <| 3
@@ -248,11 +248,17 @@ end
 
 module Name_extn = struct
 
-  (* For the rarely-used feature of GeneralName: AnotherName.
-   * (Thank you, Venezuela's certificate authority.)
-   *)
+  (* For the rarely-used feature of GeneralName: AnotherName. *)
+
+  let id_other_name = pkix <| 8
+
+  (* rfc6120 *)
+  let xmpp_addr = id_other_name <| 5
 
   let venezuela   = base 2 16 <| 862
   let venezuela_1 = venezuela <| 2 <| 1
   and venezuela_2 = venezuela <| 2 <| 2
+
+  let is_utf8_id oid =
+    List.mem oid [ xmpp_addr ; venezuela_1 ; venezuela_2 ]
 end
