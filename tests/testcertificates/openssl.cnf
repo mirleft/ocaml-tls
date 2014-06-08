@@ -274,3 +274,5 @@ authorityKeyIdentifier=keyid:always,issuer
 basicConstraints = critical,CA:true
 keyUsage = cRLSign, keyCertSign
 1.2.3.4 = critical,ASN1:UTF8String:Some random data
+
+[ none ]
