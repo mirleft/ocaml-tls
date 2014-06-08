@@ -20,9 +20,7 @@ let sexp ~tag lz =
   | None      -> ()
   | Some hook -> hook @@ form_trace tag (Lazy.force lz)
 
-let sexpf ~tag ~sexpf x =
-  sexp ~tag @@ lazy (sexpf x)
+let sexpf ~tag ~f x = sexp ~tag @@ lazy (f x)
 
-let cs ~tag =
-  sexpf ~tag ~sexpf:Sexp_ext.Cstruct_s.sexp_of_t
+let cs ~tag = sexpf ~tag ~f:Sexp_ext.Cstruct_s.sexp_of_t
 

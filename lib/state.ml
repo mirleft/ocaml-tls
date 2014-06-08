@@ -97,8 +97,7 @@ type crypto_state = crypto_context option
   with sexp
 
 (* return type of handlers *)
-type record = Packet.content_type * Cstruct_s.t
-  with sexp
+type record = Packet.content_type * Cstruct_s.t with sexp
 type rec_resp = [
   | `Change_enc of crypto_state
   | `Record     of record
