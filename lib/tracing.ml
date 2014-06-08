@@ -3,7 +3,7 @@
 
 let current = ref None
 
-let the_function ~hook f =
+let active ~hook f =
   let prev = !current in
   current := Some hook ;
   try

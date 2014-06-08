@@ -66,12 +66,20 @@ module Unix = struct
     | _ -> return_unit
 
 
+  let trace_hook sexp =
+    output_string stderr Sexplib.Sexp.(to_string_hum sexp) ;
+    output_string stderr "\n\n" ;
+    flush stderr
+
   let recv_buf = Cstruct.create 4096
 
   let rec read_react t =
 
     let handle tls buf =
-      match Tls.Engine.handle_tls tls buf with
+      match
+        Tls.Tracing.active ~hook:trace_hook @@ fun () ->
+          Tls.Engine.handle_tls tls buf
+      with
       | `Ok (`Ok tls, answer, appdata) ->
           t.state <- `Active tls ;
           write_t t answer >> return (`Ok appdata)
