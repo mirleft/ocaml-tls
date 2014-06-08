@@ -55,3 +55,6 @@ let assert_extension_equal a b =
         | SignatureAlgorithms a, SignatureAlgorithms b ->
            assert_lists_eq (fun (h, s) (h', s') -> assert_equal h h' ; assert_equal s s') a b
         | _ -> assert_failure "extensions did not match")
+
+let cs_mmap file =
+  Unix_cstruct.of_fd Unix.(openfile file [O_RDONLY] 0)

@@ -130,27 +130,28 @@ let issuer_matches_subject { asn = parent } { asn = cert } =
   Name.equal parent.tbs_cert.subject cert.tbs_cert.issuer
 
 let is_self_signed cert = issuer_matches_subject cert cert
-(* let is_self_signed { tbs_cert = { subject } } =
-  Name.equal subject subject *)
 
-let subject cert =
+let subject_common_name cert =
   map_find cert.tbs_cert.subject
            ~f:(function Name.CN n -> Some n | _ -> None)
 
 let common_name_to_string { asn = cert } =
-  match subject cert with
+  match subject_common_name cert with
   | None   -> "NO commonName:" ^ Utils.hexdump_to_str cert.signature_val
   | Some x -> x
 
-let cert_hostnames { asn = cert } =
+let cert_alt_names cert : string list =
   let open Extension in
   match extn_subject_alt_name cert with
-  | Some (_, Subject_alt_name names) ->
-     filter_map names ~f:(function General_name.DNS x -> Some x | _ -> None)
-  | _ ->
-     match subject cert with
-     | None   -> []
-     | Some x -> [x]
+    | Some (_, Subject_alt_name names) ->
+       filter_map names ~f:(function General_name.DNS x -> Some x | _ -> None)
+    | _                                -> []
+
+let cert_hostnames { asn = cert } : string list =
+  let alt_names = cert_alt_names cert in
+  match subject_common_name cert with
+    | None   -> alt_names
+    | Some x -> x :: alt_names
 
 (* XXX should return the tbs_cert blob from the parser, this is insane *)
 let raw_cert_hack { asn ; raw } =
@@ -193,6 +194,13 @@ let validate_time now cert =
 (* TODO:  from < now && now < till *)
   true
 
+let version_matches_extensions { asn = cert } =
+  let tbs = cert.tbs_cert in
+  match tbs.version, tbs.extensions with
+  | (`V1 | `V2), [] -> true
+  | (`V1 | `V2), _  -> false
+  | `V3        , _  -> true
+
 let validate_path_len pathlen { asn = cert } =
   (* X509 V1/V2 certificates do not contain X509v3 extensions! *)
   (* thus, we cannot check the path length. this will only ever happen for trust anchors: *)
@@ -201,11 +209,10 @@ let validate_path_len pathlen { asn = cert } =
   (* TODO: make it configurable whether to accept V1/2 certificates at all *)
   let open Extension in
   match cert.tbs_cert.version, extn_basic_constr cert with
-  | `V1, _                                           -> true
-  | `V2, _                                           -> true
+  | (`V1 | `V2), _                                   -> true
   | `V3, Some (_ , Basic_constraints (true, None))   -> true
   | `V3, Some (_ , Basic_constraints (true, Some n)) -> n >= pathlen
-  | `V3, _                                           -> false
+  | _                                                -> false
 
 let validate_ca_extensions { asn = cert } =
   let open Extension in
@@ -226,8 +233,21 @@ let validate_ca_extensions { asn = cert } =
   ( match extn_key_usage cert with
     (* When present, conforming CAs SHOULD mark this extension as critical *)
     (* yeah, you wish... *)
-    | Some (crit, Key_usage usage) -> List.mem Key_cert_sign usage
-    | _                            -> false ) &&
+    | Some (_, Key_usage usage) -> List.mem Key_cert_sign usage
+    | _                         -> false ) &&
+
+  (* if we require this, we cannot talk to github.com
+  (* 4.2.1.12.  Extended Key Usage
+   If a certificate contains both a key usage extension and an extended
+   key usage extension, then both extensions MUST be processed
+   independently and the certificate MUST only be used for a purpose
+   consistent with both extensions.  If there is no purpose consistent
+   with both extensions, then the certificate MUST NOT be used for any
+   purpose. *)
+  ( match extn_ext_key_usage cert with
+    | Some (_, Ext_key_usage usages) -> List.mem Any usages
+    | _                              -> true ) &&
+  *)
 
   (* Name Constraints - name constraints should match servername *)
 
@@ -257,30 +277,33 @@ let is_cert_valid now cert =
                   (common_name_to_string cert);
     match
       validate_time now cert,
+      version_matches_extensions cert,
       validate_ca_extensions cert
     with
-    | (true, true) -> success
-    | (false, _)   -> fail CertificateExpired
-    | (_, false)   -> fail InvalidExtensions
+    | (true, true, true) -> success
+    | (false, _, _)      -> fail CertificateExpired
+    | (_, false, _)      -> fail InvalidExtensions
+    | (_, _, false)      -> fail InvalidExtensions
 
-let has_valid_extensions cert =
-  match cert.asn.tbs_cert.version, validate_ca_extensions cert with
-  | `V1, _ -> true
-  | `V2, _ -> true
-  | `V3, x -> x
+let valid_trust_anchor_extensions cert =
+  match cert.asn.tbs_cert.version with
+  | `V1 | `V2 -> true
+  | `V3       -> validate_ca_extensions cert
 
 let is_ca_cert_valid now cert =
   match
     is_self_signed cert,
+    version_matches_extensions cert,
     validate_signature cert cert,
     validate_time now cert,
-    has_valid_extensions cert
+    valid_trust_anchor_extensions cert
   with
-  | (true, true, true, true) -> success
-  | (false, _, _, _)         -> fail InvalidCA
-  | (_, false, _, _)         -> fail InvalidSignature
-  | (_, _, false, _)         -> fail CertificateExpired
-  | (_, _, _, false)         -> fail InvalidExtensions
+  | (true, true, true, true, true) -> success
+  | (false, _, _, _, _)            -> fail InvalidCA
+  | (_, false, _, _, _)            -> fail InvalidExtensions
+  | (_, _, false, _, _)            -> fail InvalidSignature
+  | (_, _, _, false, _)            -> fail CertificateExpired
+  | (_, _, _, _, false)            -> fail InvalidExtensions
 
 let validate_public_key_type { asn = cert } = function
   | None   -> true
@@ -306,7 +329,8 @@ let validate_hostname cert host =
        try
          let idx = String.index name '.' + 1 in (* might throw *)
          let rt = String.sub name idx (String.length name - idx) in
-         List.exists (hostname_matches_wildcard rt) names
+         List.exists (hostname_matches_wildcard rt) names ||
+           List.exists (hostname_matches_wildcard name) names
        with _ -> false
 
 let is_server_cert_valid ?host now cert =
@@ -315,24 +339,26 @@ let is_server_cert_valid ?host now cert =
   match
     validate_time now cert,
     validate_hostname cert host,
+    version_matches_extensions cert,
     validate_server_extensions cert
   with
-  | (true, true, true) -> success
-  | (false, _, _)      -> fail CertificateExpired
-  | (_, false, _)      -> fail InvalidServerName
-  | (_, _, false)      -> fail InvalidServerExtensions
+  | (true, true, true, true) -> success
+  | (false, _, _, _)         -> fail CertificateExpired
+  | (_, false, _, _)         -> fail InvalidServerName
+  | (_, _, false, _)         -> fail InvalidServerExtensions
+  | (_, _, _, false)         -> fail InvalidServerExtensions
 
 
-let ext_authority_matches_subject trusted cert =
+let ext_authority_matches_subject { asn = trusted } { asn = cert } =
   let open Extension in
   match
-    extn_authority_key_id cert.asn, extn_subject_key_id trusted.asn
+    extn_authority_key_id cert, extn_subject_key_id trusted
   with
+  | (_, None) | (None, _)                      -> true (* not mandatory *)
   | Some (_, Authority_key_id (Some auth, _, _)),
     Some (_, Subject_key_id au)                -> Cs.equal auth au
   (* TODO: check exact rules in RFC5280 *)
   | Some (_, Authority_key_id (None, _, _)), _ -> true (* not mandatory *)
-  | None, _                                    -> true (* not mandatory *)
   | _, _                                       -> false
 
 let signs pathlen trusted cert =
