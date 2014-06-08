@@ -12,7 +12,7 @@ let decode_strict codec cs =
   | Some (a, cs') when Cstruct.len cs' = 0 -> Some a
   | _                                      -> None
 
-let projections encoding asn =
+let projections_of encoding asn =
   let c = codec encoding asn in (decode_strict c, encode c)
 
 let compare_unordered_lists cmp l1 l2 =
@@ -679,9 +679,9 @@ module PK = struct
 
   (* For outside uses. *)
   let (rsa_private_of_cstruct, rsa_private_to_cstruct) =
-    projections der rsa_private_key
+    projections_of der rsa_private_key
   and (rsa_public_of_cstruct, rsa_public_to_cstruct) =
-    projections der rsa_public_key
+    projections_of der rsa_public_key
 
   (* ECs go here *)
   (* ... *)
@@ -791,7 +791,7 @@ let tBSCertificate =
    -@ (optional ~label:"extensions"    @@ explicit 3 Extension.extensions_der)
 
 let (tbs_certificate_of_cstruct, tbs_certificate_to_cstruct) =
-  projections der tBSCertificate
+  projections_of der tBSCertificate
 
 let certificate =
 
@@ -810,7 +810,7 @@ let certificate =
     (required ~label:"signatureValue"     bit_string')
 
 let (certificate_of_cstruct, certificate_to_cstruct) =
-  projections der certificate
+  projections_of der certificate
 
 
 let pkcs1_digest_info =
@@ -819,7 +819,7 @@ let pkcs1_digest_info =
     (required ~label:"digest"          octet_string)
 
 let (pkcs1_digest_info_of_cstruct, pkcs1_digest_info_to_cstruct) =
-  projections der pkcs1_digest_info
+  projections_of der pkcs1_digest_info
 
 (* A bit of accessors for tree-diving. *)
 (*
