@@ -5,6 +5,9 @@ open Utils
 open Core
 open State
 
+
+let (<+>) = Utils.Cs.(<+>)
+
 (* user API *)
 
 type state = State.state
@@ -13,8 +16,6 @@ type ret = [
   | `Ok   of [ `Ok of state | `Eof | `Alert of Packet.alert_type ] * Cstruct.t * Cstruct.t option
   | `Fail of Packet.alert_type * Cstruct.t
 ]
-
-type role = [ `Server | `Client ]
 
 let new_state config role =
   let handshake_state = match role with
