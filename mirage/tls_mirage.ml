@@ -27,16 +27,17 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 
   let list_of_option = function None -> [] | Some x -> [x]
 
-  let handle_tls tracer tls buf =
-    let open Tls in
-    match tracer with
-    | None      -> Engine.handle_tls tls buf
-    | Some hook -> Tracing.active ~hook (fun () -> Engine.handle_tls tls buf)
+  let tracing flow f =
+    match flow.tracer with
+    | None      -> f ()
+    | Some hook -> Tracing.active ~hook f
 
   let read_react flow =
 
     let handle tls buf =
-      match handle_tls flow.tracer tls buf with
+      match
+        tracing flow @@ fun () -> Tls.Engine.handle_tls tls buf
+      with
       | `Ok (res, answer, appdata) ->
           flow.state <- ( match res with
             | `Ok tls      -> `Active tls
@@ -75,7 +76,9 @@ module Make (TCP: V1_LWT.TCPV4) = struct
     | `Eof     -> fail @@ Invalid_argument "tls: write: flow is closed"
     | `Error e -> fail @@ Invalid_argument "tls: write: flow is broken"
     | `Active tls ->
-        match Tls.Engine.send_application_data tls bufs with
+        match
+          tracing flow @@ fun () -> Tls.Engine.send_application_data tls bufs
+        with
         | Some (tls, answer) ->
             flow.state <- `Active tls ; TCP.write flow.tcp answer
         | None ->
@@ -88,7 +91,9 @@ module Make (TCP: V1_LWT.TCPV4) = struct
     match flow.state with
     | `Active tls ->
       flow.state <- `Eof ;
-      let (_, buf) = Tls.Engine.send_close_notify tls in
+      let (_, buf) =
+        tracing flow @@ fun () -> Tls.Engine.send_close_notify tls
+      in
       TCP.(write flow.tcp buf >> close flow.tcp)
     | _           -> return_unit
 

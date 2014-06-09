@@ -60,27 +60,30 @@ module Unix = struct
   let send_and_close_no_exn fd buf =
     safely (Lwt_cs.write_full fd buf >> Lwt_unix.close fd)
 
+  let tracing t f =
+    match t.tracer with
+    | None      -> f ()
+    | Some hook -> Tls.Tracing.active ~hook f
+
   let close t =
     match t.state with
     | `Active tls ->
-        let (_, buf) = Tls.Engine.send_close_notify tls in
+        let (_, buf) =
+          tracing t @@ fun () -> Tls.Engine.send_close_notify tls
+        in
         t.state <- `Eof ;
         send_and_close_no_exn t.fd buf
     | _ -> return_unit
 
-
-  let handle_tls tracer tls buf =
-    let open Tls in
-    match tracer with
-    | None      -> Engine.handle_tls tls buf
-    | Some hook -> Tracing.active ~hook (fun () -> Engine.handle_tls tls buf)
 
   let recv_buf = Cstruct.create 4096
 
   let rec read_react t =
 
     let handle tls buf =
-      match handle_tls t.tracer tls buf with
+      match
+        tracing t @@ fun () -> Tls.Engine.handle_tls tls buf
+      with
       | `Ok (`Ok tls, answer, appdata) ->
           t.state <- `Active tls ;
           write_t t answer >> return (`Ok appdata)
@@ -130,7 +133,9 @@ module Unix = struct
     | `Error err  -> fail err
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
-        match Tls.Engine.send_application_data tls css with
+        match
+          tracing t @@ fun () -> Tls.Engine.send_application_data tls css
+        with
         | Some (tls, tlsdata) ->
             ( t.state <- `Active tls ; write_t t tlsdata )
         | None -> fail @@ Invalid_argument "tls: write: socket not ready"
