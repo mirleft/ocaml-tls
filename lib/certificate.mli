@@ -48,6 +48,7 @@ type extended_key_usage = [
   | `IPSecUser
   | `TimeStamping
   | `OCSPSigning
+  | `Other
 ]
 
 val cert_type           : certificate -> key_type
