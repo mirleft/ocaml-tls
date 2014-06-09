@@ -37,6 +37,16 @@ module Log (C: CONSOLE) = struct
 
 end
 
+let make_tracer dump =
+  let traces = ref [] in
+  let trace sexp =
+    traces := Sexplib.Sexp.to_string_hum sexp :: !traces
+  and flush () =
+    let msgs = List.rev !traces in
+    traces := [] ;
+    Lwt_list.iter_s dump msgs in
+  (trace, flush)
+
 module Server (C  : CONSOLE)
               (S  : STACKV4)
               (KV : KV_RO) =
@@ -46,14 +56,19 @@ struct
   module X509 = Tls_mirage.X509 (KV)
   module L    = Log (C)
 
-  let rec handle c tls =
-    TLS.read tls >>== fun buf ->
-      L.log_data c "recv" buf >> TLS.write tls buf >> handle c tls
+  let rec handle c flush tls =
+    lwt res = TLS.read tls in
+    flush () >> match res with
+      | `Ok buf ->
+          L.log_data c "recv" buf
+          >> TLS.write tls buf >> handle c flush tls
+      | err     -> return err
 
   let accept c conf k flow =
+    let (trace, flush_trace) = make_tracer (C.log_s c) in
     L.log_trace c "accepted." >>
-    TLS.server_of_tcp_flow conf flow
-    >>== (fun tls -> L.log_trace c "shook hands" >> k c tls)
+    TLS.server_of_tcp_flow ~trace conf flow
+    >>== (fun tls -> L.log_trace c "shook hands" >> k c flush_trace tls)
     >>= function
       | `Ok _    -> assert false
       | `Error e -> L.log_error c e
