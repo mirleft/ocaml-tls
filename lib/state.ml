@@ -23,9 +23,16 @@ type crypto_context = {
 
 (* Sexplib stubs -- rethink how to play with crypto. *)
 
+let sexp_of_cipher_st = function
+  | Stream _        -> Sexp.(Atom "<stream-state>")
+  | CBC (_, _, ivm) -> Sexp.(List [Atom "<cbc-state>"; sexp_of_iv_mode ivm])
+
 let crypto_context_of_sexp _ = failwith "can't parse crypto context from sexp"
 and sexp_of_crypto_context cc =
-  Sexp.(List [Atom "sequence"; sexp_of_int64 cc.sequence])
+  let open Sexp in
+  List [ List [ Atom "sequence" ; sexp_of_int64 cc.sequence ] ;
+         List [ Atom "cipher_st" ; sexp_of_cipher_st cc.cipher_st ] ;
+         List [ Atom "mac" ; Cstruct_s.sexp_of_t (snd cc.mac) ] ]
 
 module DH = struct
   include DH
@@ -38,15 +45,11 @@ end
 (* *** *)
 
 
-type hs_log = Cstruct_s.t list
-  with sexp
-type master_secret = Cstruct_s.t
-  with sexp
+type hs_log = Cstruct_s.t list with sexp
+type master_secret = Cstruct_s.t with sexp
 
-type dh_received = DH.group * Cstruct_s.t
-  with sexp
-type dh_sent = DH.group * DH.secret
-  with sexp
+type dh_received = DH.group * Cstruct_s.t with sexp
+type dh_sent = DH.group * DH.secret with sexp
 
 
 type handshake_params = {

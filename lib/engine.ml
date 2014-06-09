@@ -310,7 +310,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   let state' = { state with handshake ; encryptor ; decryptor } in
 
   Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
-  Tracing.sexpf ~tag:"record-out" ~f:sexp_of_records encs ;
+  Tracing.sexpf ~tag:"records-out" ~f:sexp_of_records encs ;
 
   (state', data, encs, err)
 
