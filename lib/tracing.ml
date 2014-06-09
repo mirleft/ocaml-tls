@@ -15,12 +15,19 @@ let form_trace id sexp =
   let open Sexplib in
   Sexp.(List [ Atom id ; sexp ])
 
+let is_tracing = !current <> None
+
 let sexp ~tag lz =
   match !current with
   | None      -> ()
   | Some hook -> hook @@ form_trace tag (Lazy.force lz)
 
+let sexps ~tag lzs = if is_tracing then List.iter (sexp ~tag) lzs
+
 let sexpf ~tag ~f x = sexp ~tag @@ lazy (f x)
+
+let sexpfs ~tag ~f xs = if is_tracing then List.iter (sexpf ~tag ~f) xs
 
 let cs ~tag = sexpf ~tag ~f:Sexp_ext.Cstruct_s.sexp_of_t
 
+let css ~tag css = if is_tracing then List.iter (cs ~tag) css
