@@ -6,6 +6,8 @@ exception Tls_failure of Tls.Packet.alert_type
 
 let o f g x = f (g x)
 
+type tracer = Sexplib.Sexp.t -> unit
+
 (* This really belongs just about anywhere else: generic unix name resolution. *)
 let resolve host service =
   let open Lwt_unix in
@@ -37,6 +39,7 @@ module Unix = struct
 
   type t = {
     fd             : Lwt_unix.file_descr ;
+    tracer         : tracer option ;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
                      | `Error of exn ] ;
@@ -66,20 +69,18 @@ module Unix = struct
     | _ -> return_unit
 
 
-  let trace_hook sexp =
-    output_string stderr Sexplib.Sexp.(to_string_hum sexp) ;
-    output_string stderr "\n\n" ;
-    flush stderr
+  let handle_tls tracer tls buf =
+    let open Tls in
+    match tracer with
+    | None      -> Engine.handle_tls tls buf
+    | Some hook -> Tracing.active ~hook (fun () -> Engine.handle_tls tls buf)
 
   let recv_buf = Cstruct.create 4096
 
   let rec read_react t =
 
     let handle tls buf =
-      match
-        Tls.Tracing.active ~hook:trace_hook @@ fun () ->
-          Tls.Engine.handle_tls tls buf
-      with
+      match handle_tls t.tracer tls buf with
       | `Ok (`Ok tls, answer, appdata) ->
           t.state <- `Active tls ;
           write_t t answer >> return (`Ok appdata)
@@ -152,33 +153,35 @@ module Unix = struct
           | `Eof     -> fail End_of_file
           | `Ok cs   -> push_linger t cs ; drain_handshake t
 
-  let server_of_fd config fd =
+  let server_of_fd ?trace config fd =
     drain_handshake {
       state  = `Active (Tls.Engine.server config) ;
       fd     = fd ;
       linger = None ;
+      tracer = trace ;
     }
 
-  let client_of_fd config ~host fd =
+  let client_of_fd ?trace config ~host fd =
     let config'     = Tls.Config.peer config host in
     let (tls, init) = Tls.Engine.client config' in
     let t = {
       state  = `Active tls ;
       fd     = fd ;
       linger = None ;
+      tracer = trace ;
     } in
     Lwt_cs.write_full fd init >> drain_handshake t
 
 
-  let accept conf fd =
+  let accept ?trace conf fd =
     lwt (fd', addr) = Lwt_unix.accept fd in
-    lwt t = server_of_fd conf fd' in
+    lwt t = server_of_fd conf ?trace fd' in
     return (t, addr)
 
-  let connect conf (host, port) =
+  let connect ?trace conf (host, port) =
     lwt addr = resolve host (string_of_int port) in
     let fd   = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
-    Lwt_unix.connect fd addr >> client_of_fd conf ~host fd
+    Lwt_unix.connect fd addr >> client_of_fd ?trace conf ~host fd
 
 
   let read_bytes t bs off len =
@@ -200,19 +203,19 @@ let of_t t =
   (make ~close ~mode:Output @@
     fun a b c -> Unix.write_bytes t a b c >> return c)
 
-let accept_ext conf fd =
-  Unix.accept conf fd >|= fun (t, peer) -> (of_t t, peer)
+let accept_ext ?trace conf fd =
+  Unix.accept ?trace conf fd >|= fun (t, peer) -> (of_t t, peer)
 
-and connect_ext conf addr =
-  Unix.connect conf addr >|= of_t
+and connect_ext ?trace conf addr =
+  Unix.connect ?trace conf addr >|= of_t
 
-let accept certificate =
+let accept ?trace certificate =
   let config = Tls.Config.server_exn ~certificate ()
-  in accept_ext config
+  in accept_ext ?trace config
 
-and connect validator addr =
+and connect ?trace validator addr =
   let config = Tls.Config.client_exn ~validator ()
-  in connect_ext config addr
+  in connect_ext ?trace config addr
 
 (*
  * XXX
@@ -235,4 +238,3 @@ let rng_init ?(rng_file = "/dev/urandom") () =
   in
   read random.Cstruct.off random.Cstruct.len >>
   ( Nocrypto.Rng.reseed random ; return_unit )
-
