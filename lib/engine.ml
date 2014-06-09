@@ -364,9 +364,7 @@ let can_handle_appdata s = hs_can_handle_appdata s.handshake
 let send_application_data st css =
   match can_handle_appdata st with
   | true ->
-     List.iter
-       (Tracing.cs ~tag:"application-data-out")
-       css ;
+     Tracing.css ~tag:"application-data-out" css ;
      let datas = match st.encryptor with
        (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
        | Some { cipher_st = CBC (_, _, Iv _) } -> Cstruct.create 0 :: css
@@ -416,10 +414,12 @@ let client config =
   in
 
   let ch = ClientHello client_hello in
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
   let raw = Writer.assemble_handshake ch in
   let machina = ClientHelloSent (client_hello, params, [raw]) in
-  let handshake = { state.handshake with machina = Client machina } in
+  let handshake = { state.handshake with machina = Client machina }
+  in
+  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
+
   send_records
       { state with handshake }
       [(Packet.HANDSHAKE, raw)]
