@@ -39,10 +39,6 @@ let new_state config role =
 
 type raw_record = tls_hdr * Cstruct_s.t with sexp
 
-(* Tracing converters. *)
-
-let sexp_of_records = Sexplib.Conv.sexp_of_list sexp_of_record
-
 (* well-behaved pure encryptor *)
 let encrypt (version : tls_version) (st : crypto_state) ty buf =
   match st with
@@ -306,7 +302,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   let state' = { state with handshake ; encryptor ; decryptor } in
 
   Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state' ;
-  Tracing.sexpf ~tag:"records-out" ~f:sexp_of_records encs ;
+  Tracing.sexpfs ~tag:"record-out" ~f:sexp_of_record encs ;
 
   (state', data, encs, err)
 
