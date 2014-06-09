@@ -173,13 +173,7 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
 
 
 let encrypt_records encryptor version records =
-  let open Packet in
-  let rec merge = function
-    | []                                     -> []
-    | (HANDSHAKE, a) :: (HANDSHAKE, b) :: xs -> merge ((HANDSHAKE, a <+> b) :: xs)
-    | x::xs                                  -> x :: merge xs
-
-  and split = function
+  let rec split = function
     | [] -> []
     | (t1, a) :: xs when Cstruct.len a >= 1 lsl 14 ->
       let fst, snd = Cstruct.split a (1 lsl 14) in
@@ -193,7 +187,7 @@ let encrypt_records encryptor version records =
         let (st, encs) = crypt st rs in
         (st, (ty, enc) :: encs)
   in
-  crypt encryptor (split @@ merge records)
+  crypt encryptor (split records)
 
 module Alert = struct
 
