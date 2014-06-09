@@ -13,6 +13,7 @@ let http_client ?ca host port =
   in
   lwt (ic, oc) =
     Tls_lwt.connect_ext
+      ~trace:eprint_sexp
       (Tls.Config.client_exn ~validator ~require_secure_rekeying:false ())
       (host, port) in
   let req = String.concat "\r\n" [

@@ -15,3 +15,7 @@ let lines ic =
       | None -> Lwt_io.close ic >> return_none
       | line -> return line
 
+let eprint_sexp sexp =
+  output_string stderr Sexplib.Sexp.(to_string_hum sexp) ;
+  output_string stderr "\n\n" ;
+  flush stderr
