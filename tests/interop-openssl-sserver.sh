@@ -11,7 +11,7 @@ testit () {
 
     sleep 0.3
 
-    ../http_client.native 127.0.0.1 4433 NONE > /dev/null
+    ../test_client.native > /dev/null
 
     if [ $? == 0 ]; then
         echo "success with $extra_args"
