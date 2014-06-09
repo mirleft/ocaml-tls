@@ -415,7 +415,9 @@ let client config =
         extensions   = extensions @ dch.extensions }
   in
 
-  let raw = Writer.assemble_handshake (ClientHello client_hello) in
+  let ch = ClientHello client_hello in
+  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
+  let raw = Writer.assemble_handshake ch in
   let machina = ClientHelloSent (client_hello, params, [raw]) in
   let handshake = { state.handshake with machina = Client machina } in
   send_records
