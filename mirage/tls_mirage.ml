@@ -87,6 +87,15 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 
   let write flow buf = writev flow [buf]
 
+  let rekey flow =
+    match flow.state with
+    | `Active tls ->
+       let to_send = tracing flow @@ fun () -> Tls.Engine.rekey tls in
+       ( match to_send with
+         | Some (tls', buf) -> flow.state <- `Active tls' ; TCP.write flow.tcp buf
+         | None             -> return_unit )
+    | e           -> return_unit
+
   let close flow =
     match flow.state with
     | `Active tls ->

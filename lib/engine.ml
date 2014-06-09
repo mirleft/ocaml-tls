@@ -379,6 +379,20 @@ let send_application_data st css =
 
 let send_close_notify st = send_records st [Alert.close_notify]
 
+let rekey st =
+  let hs = st.handshake in
+  match hs.machina with
+  | Server ServerEstablished ->
+     if hs.config.use_rekeying then
+       Some (send_records st [(Packet.HANDSHAKE, Writer.assemble_handshake HelloRequest)])
+     else
+       None
+  | Client ClientEstablished ->
+     ( match Handshake_client.answer_hello_request hs with
+       | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
+       | _                            -> None )
+  | _                        -> None
+
 let client config =
   let config = Config.of_client config in
 
@@ -425,4 +439,3 @@ let client config =
       [(Packet.HANDSHAKE, raw)]
 
 let server config = new_state Config.(of_server config) `Server
-
