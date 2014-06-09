@@ -87,6 +87,7 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 
   let write flow buf = writev flow [buf]
 
+  (* XXX Error semantics - what if we already error'd out? *)
   let rekey flow =
     match flow.state with
     | `Active tls ->

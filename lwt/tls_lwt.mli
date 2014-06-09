@@ -9,6 +9,7 @@ module Unix : sig
   type t
 
   val close : t -> unit Lwt.t
+  val rekey : t -> unit Lwt.t
 
   val server_of_fd : ?trace:tracer -> Tls.Config.server -> Lwt_unix.file_descr -> t Lwt.t
   val client_of_fd : ?trace:tracer -> Tls.Config.client -> host:string -> Lwt_unix.file_descr -> t Lwt.t
