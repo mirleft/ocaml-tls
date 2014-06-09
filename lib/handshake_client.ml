@@ -194,19 +194,21 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
 let answer_server_hello_done_common state kex premaster params raw log =
   let kex = ClientKeyExchange kex in
   let ckex = Writer.assemble_handshake kex in
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex;
   let (ccst, ccs) = change_cipher_spec in
-  Tracing.cs ~tag:"change-cipher-spec-out" ccs ;
   let client_ctx, server_ctx, master_secret =
     Handshake_crypto.initialise_crypto_ctx state.version params premaster in
-  Tracing.cs ~tag:"master-secret" master_secret;
   let to_fin = log @ [raw; ckex] in
   let checksum = Handshake_crypto.finished state.version master_secret "client finished" to_fin in
   let fin = Finished checksum in
   let raw_fin = Writer.assemble_handshake fin in
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin;
   let ps = to_fin @ [raw_fin] in
-  let machina = ClientFinishedSent (server_ctx, checksum, master_secret, ps) in
+  let machina = ClientFinishedSent (server_ctx, checksum, master_secret, ps)
+  in
+  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex;
+  Tracing.cs ~tag:"change-cipher-spec-out" ccs ;
+  Tracing.cs ~tag:"master-secret" master_secret;
+  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin;
+
   ({ state with machina = Client machina },
    [`Record (Packet.HANDSHAKE, ckex);
     `Record (ccst, ccs);
@@ -244,8 +246,8 @@ let answer_hello_request state =
      let ch = { dch with
                   extensions = exts @ dch.extensions } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
-     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ;
      let machina = ClientHelloSent (ch, params, [raw]) in
+     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ;
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
 
   in
@@ -261,8 +263,8 @@ let handle_change_cipher_spec cs state packet =
   match parse_change_cipher_spec packet, cs with
   | Or_error.Ok (), ClientFinishedSent (server_ctx, client_verify, ms, log) ->
      assure (Cs.null state.hs_fragment) >>= fun () ->
-     Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      let machina = ServerChangeCipherSpecReceived (client_verify, ms, log) in
+     Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      return ({ state with machina = Client machina }, [], `Change_dec (Some server_ctx))
   | _ ->
      fail Packet.UNEXPECTED_MESSAGE
