@@ -13,7 +13,7 @@ module Cstruct_s = struct
 
   let hex_of_byte =
     Array.(get @@ init 256 (Printf.sprintf "%02x"))
-    
+
   let sexp_of_t cs =
     let open Buffer in
     let n   = Cstruct.len cs - 1 in

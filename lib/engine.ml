@@ -173,13 +173,7 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
 
 
 let encrypt_records encryptor version records =
-  let open Packet in
-  let rec merge = function
-    | []                                     -> []
-    | (HANDSHAKE, a) :: (HANDSHAKE, b) :: xs -> merge ((HANDSHAKE, a <+> b) :: xs)
-    | x::xs                                  -> x :: merge xs
-
-  and split = function
+  let rec split = function
     | [] -> []
     | (t1, a) :: xs when Cstruct.len a >= 1 lsl 14 ->
       let fst, snd = Cstruct.split a (1 lsl 14) in
@@ -193,7 +187,7 @@ let encrypt_records encryptor version records =
         let (st, encs) = crypt st rs in
         (st, (ty, enc) :: encs)
   in
-  crypt encryptor (split @@ merge records)
+  crypt encryptor (split records)
 
 module Alert = struct
 
@@ -259,7 +253,9 @@ let handle_packet hs buf = function
 
   | Packet.APPLICATION_DATA ->
     ( match hs_can_handle_appdata hs with
-      | true  -> return (hs, non_empty buf, [], `Pass, `No_err)
+      | true  ->
+         Tracing.cs ~tag:"application-data-in" buf;
+         return (hs, non_empty buf, [], `Pass, `No_err)
       | false -> fail Packet.UNEXPECTED_MESSAGE )
 
   | Packet.CHANGE_CIPHER_SPEC ->
@@ -309,7 +305,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
     | `Pass           -> dec_st in
   let state' = { state with handshake ; encryptor ; decryptor } in
 
-  Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
+  Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state' ;
   Tracing.sexpf ~tag:"records-out" ~f:sexp_of_records encs ;
 
   (state', data, encs, err)
@@ -368,6 +364,9 @@ let can_handle_appdata s = hs_can_handle_appdata s.handshake
 let send_application_data st css =
   match can_handle_appdata st with
   | true ->
+     List.iter
+       (Tracing.cs ~tag:"application-data-out")
+       css ;
      let datas = match st.encryptor with
        (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
        | Some { cipher_st = CBC (_, _, Iv _) } -> Cstruct.create 0 :: css
@@ -416,7 +415,9 @@ let client config =
         extensions   = extensions @ dch.extensions }
   in
 
-  let raw = Writer.assemble_handshake (ClientHello client_hello) in
+  let ch = ClientHello client_hello in
+  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
+  let raw = Writer.assemble_handshake ch in
   let machina = ClientHelloSent (client_hello, params, [raw]) in
   let handshake = { state.handshake with machina = Client machina } in
   send_records
