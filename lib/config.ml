@@ -137,5 +137,29 @@ let server_exn
 
 
 (* Kinda stubby - rethink. *)
+
 let config_of_sexp _ = failwith "can't parse config from sexp"
-and sexp_of_config c = Sexplib.Sexp.Atom "-CONFIG-"
+
+open Sexplib
+
+let sexp_of_version =
+  Conv.sexp_of_pair sexp_of_tls_version sexp_of_tls_version
+
+let sexp_of_validator_o =
+  Conv.sexp_of_option (fun _ -> Sexp.Atom "<VALIDATOR>")
+
+let sexp_of_certificate_o =
+  Conv.sexp_of_option (fun _ -> Sexp.Atom "<CERTIFICATE>")
+
+let sexp_of_config c =
+  let open Ciphersuite in
+  Sexp_ext.record [
+    "ciphers"        , Conv.sexp_of_list sexp_of_ciphersuite c.ciphers ;
+    "version"        , sexp_of_version c.protocol_versions ;
+    "hashes"         , Conv.sexp_of_list sexp_of_hash_algorithm c.hashes ;
+    "use_rekeying"   , Conv.sexp_of_bool c.use_rekeying ;
+    "requre_sec_rek" , Conv.sexp_of_bool c.require_secure_rekeying ;
+    "validator"      , sexp_of_validator_o c.validator ;
+    "peer_name"      , Conv.(sexp_of_option sexp_of_string) c.peer_name ;
+    "certificate"    , sexp_of_certificate_o c.own_certificate ;
+  ]

@@ -29,10 +29,11 @@ let sexp_of_cipher_st = function
 
 let crypto_context_of_sexp _ = failwith "can't parse crypto context from sexp"
 and sexp_of_crypto_context cc =
-  let open Sexp in
-  List [ List [ Atom "sequence" ; sexp_of_int64 cc.sequence ] ;
-         List [ Atom "cipher_st" ; sexp_of_cipher_st cc.cipher_st ] ;
-         List [ Atom "mac" ; Cstruct_s.sexp_of_t (snd cc.mac) ] ]
+  Sexp_ext.record [
+    "sequence" , sexp_of_int64 cc.sequence ;
+    "cipher_st", sexp_of_cipher_st cc.cipher_st ;
+    "mac"      , Cstruct_s.sexp_of_t (snd cc.mac)
+  ]
 
 module DH = struct
   include DH

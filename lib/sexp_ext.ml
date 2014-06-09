@@ -32,3 +32,6 @@ module Cstruct_s = struct
 (*     Conv.sexp_of_string (Cstruct.to_string cs) *)
 
 end
+
+let record kvs =
+  Sexp.List List.(map (fun (k, v) -> Sexp.(List [Atom k; v])) kvs)
