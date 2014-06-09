@@ -11,8 +11,12 @@ module type TLS_core = sig
   val writev : flow -> Cstruct.t list -> unit Lwt.t
   val close  : flow -> unit Lwt.t
 
-  val client_of_tcp_flow : Tls.Config.client -> string -> TCP.flow ->
+  type tracer = Sexplib.Sexp.t -> unit
+
+  val client_of_tcp_flow :
+    ?trace:tracer -> Tls.Config.client -> string -> TCP.flow ->
     [> `Ok of flow | `Error of error ] Lwt.t
-  val server_of_tcp_flow : Tls.Config.server -> TCP.flow ->
+  val server_of_tcp_flow :
+    ?trace:tracer -> Tls.Config.server -> TCP.flow ->
     [> `Ok of flow | `Error of error ] Lwt.t
 end

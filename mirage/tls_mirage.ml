@@ -10,9 +10,12 @@ module Make (TCP: V1_LWT.TCPV4) = struct
   module TCP = TCP
   type error = TCP.error
 
+  type tracer = Sexplib.Sexp.t -> unit
+
   type flow = {
     role           : [ `Server | `Client ] ;
     tcp            : TCP.flow ;
+    tracer         : tracer option ;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
                      | `Error of error ] ;
@@ -24,10 +27,16 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 
   let list_of_option = function None -> [] | Some x -> [x]
 
+  let handle_tls tracer tls buf =
+    let open Tls in
+    match tracer with
+    | None      -> Engine.handle_tls tls buf
+    | Some hook -> Tracing.active ~hook (fun () -> Engine.handle_tls tls buf)
+
   let read_react flow =
 
     let handle tls buf =
-      match Tls.Engine.handle_tls tls buf with
+      match handle_tls flow.tracer tls buf with
       | `Ok (res, answer, appdata) ->
           flow.state <- ( match res with
             | `Ok tls      -> `Active tls
@@ -94,22 +103,24 @@ module Make (TCP: V1_LWT.TCPV4) = struct
         | `Error e -> return (`Error e)
         | `Eof     -> return (`Error (`Unknown "tls: end_of_file in handshake"))
 
-  let client_of_tcp_flow conf host flow =
+  let client_of_tcp_flow ?trace conf host flow =
     let (tls, init) = Tls.Engine.client conf in
     let tls_flow = {
       role   = `Client ;
       tcp    = flow ;
       state  = `Active tls ;
-      linger = []
+      linger = [] ;
+      tracer = trace ;
     } in
     TCP.write flow init >> drain_handshake tls_flow
 
-  let server_of_tcp_flow conf flow =
+  let server_of_tcp_flow ?trace conf flow =
     let tls_flow = {
       role   = `Server ;
       tcp    = flow ;
       state  = `Active (Tls.Engine.server conf) ;
-      linger = []
+      linger = [] ;
+      tracer = trace ;
     } in
     drain_handshake tls_flow
 
