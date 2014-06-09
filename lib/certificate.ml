@@ -80,6 +80,7 @@ type extended_key_usage = [
   | `IPSecUser
   | `TimeStamping
   | `OCSPSigning
+  | `Other
 ]
 
 (* partial: does not deal with other public key types *)
@@ -114,7 +115,8 @@ let extended_usage_export = Extension.(function
   | Ipsec_tunnel     -> `IPSecTunnel
   | Ipsec_user       -> `IPSecUser
   | Time_stamping    -> `TimeStamping
-  | Ocsp_signing     -> `OCSPSigning )
+  | Ocsp_signing     -> `OCSPSigning
+  | Other _          -> `Other )
 
 let cert_extended_usage { asn = cert } =
   match extn_ext_key_usage cert with

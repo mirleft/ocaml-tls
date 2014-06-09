@@ -30,7 +30,7 @@ module Make (TCP: V1_LWT.TCPV4) = struct
   let tracing flow f =
     match flow.tracer with
     | None      -> f ()
-    | Some hook -> Tracing.active ~hook f
+    | Some hook -> Tls.Tracing.active ~hook f
 
   let read_react flow =
 
