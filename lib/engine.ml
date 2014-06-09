@@ -253,7 +253,9 @@ let handle_packet hs buf = function
 
   | Packet.APPLICATION_DATA ->
     ( match hs_can_handle_appdata hs with
-      | true  -> return (hs, non_empty buf, [], `Pass, `No_err)
+      | true  ->
+         Tracing.cs ~tag:"application-data-in" buf;
+         return (hs, non_empty buf, [], `Pass, `No_err)
       | false -> fail Packet.UNEXPECTED_MESSAGE )
 
   | Packet.CHANGE_CIPHER_SPEC ->
@@ -362,6 +364,9 @@ let can_handle_appdata s = hs_can_handle_appdata s.handshake
 let send_application_data st css =
   match can_handle_appdata st with
   | true ->
+     List.iter
+       (Tracing.cs ~tag:"application-data-out")
+       css ;
      let datas = match st.encryptor with
        (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
        | Some { cipher_st = CBC (_, _, Iv _) } -> Cstruct.create 0 :: css
