@@ -6,6 +6,8 @@ exception Tls_failure of Tls.Packet.alert_type
 
 let o f g x = f (g x)
 
+type tracer = Sexplib.Sexp.t -> unit
+
 (* This really belongs just about anywhere else: generic unix name resolution. *)
 let resolve host service =
   let open Lwt_unix in
@@ -37,6 +39,7 @@ module Unix = struct
 
   type t = {
     fd             : Lwt_unix.file_descr ;
+    tracer         : tracer option ;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
                      | `Error of exn ] ;
@@ -57,19 +60,21 @@ module Unix = struct
   let send_and_close_no_exn fd buf =
     safely (Lwt_cs.write_full fd buf >> Lwt_unix.close fd)
 
+  let tracing t f =
+    match t.tracer with
+    | None      -> f ()
+    | Some hook -> Tls.Tracing.active ~hook f
+
   let close t =
     match t.state with
     | `Active tls ->
-        let (_, buf) = Tls.Engine.send_close_notify tls in
+        let (_, buf) =
+          tracing t @@ fun () -> Tls.Engine.send_close_notify tls
+        in
         t.state <- `Eof ;
         send_and_close_no_exn t.fd buf
     | _ -> return_unit
 
-
-  let trace_hook sexp =
-    output_string stderr Sexplib.Sexp.(to_string_hum sexp) ;
-    output_string stderr "\n\n" ;
-    flush stderr
 
   let recv_buf = Cstruct.create 4096
 
@@ -77,8 +82,7 @@ module Unix = struct
 
     let handle tls buf =
       match
-        Tls.Tracing.active ~hook:trace_hook @@ fun () ->
-          Tls.Engine.handle_tls tls buf
+        tracing t @@ fun () -> Tls.Engine.handle_tls tls buf
       with
       | `Ok (`Ok tls, answer, appdata) ->
           t.state <- `Active tls ;
@@ -129,7 +133,9 @@ module Unix = struct
     | `Error err  -> fail err
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
-        match Tls.Engine.send_application_data tls css with
+        match
+          tracing t @@ fun () -> Tls.Engine.send_application_data tls css
+        with
         | Some (tls, tlsdata) ->
             ( t.state <- `Active tls ; write_t t tlsdata )
         | None -> fail @@ Invalid_argument "tls: write: socket not ready"
@@ -152,33 +158,35 @@ module Unix = struct
           | `Eof     -> fail End_of_file
           | `Ok cs   -> push_linger t cs ; drain_handshake t
 
-  let server_of_fd config fd =
+  let server_of_fd ?trace config fd =
     drain_handshake {
       state  = `Active (Tls.Engine.server config) ;
       fd     = fd ;
       linger = None ;
+      tracer = trace ;
     }
 
-  let client_of_fd config ~host fd =
+  let client_of_fd ?trace config ~host fd =
     let config'     = Tls.Config.peer config host in
     let (tls, init) = Tls.Engine.client config' in
     let t = {
       state  = `Active tls ;
       fd     = fd ;
       linger = None ;
+      tracer = trace ;
     } in
     Lwt_cs.write_full fd init >> drain_handshake t
 
 
-  let accept conf fd =
+  let accept ?trace conf fd =
     lwt (fd', addr) = Lwt_unix.accept fd in
-    lwt t = server_of_fd conf fd' in
+    lwt t = server_of_fd conf ?trace fd' in
     return (t, addr)
 
-  let connect conf (host, port) =
+  let connect ?trace conf (host, port) =
     lwt addr = resolve host (string_of_int port) in
     let fd   = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
-    Lwt_unix.connect fd addr >> client_of_fd conf ~host fd
+    Lwt_unix.connect fd addr >> client_of_fd ?trace conf ~host fd
 
 
   let read_bytes t bs off len =
@@ -200,19 +208,19 @@ let of_t t =
   (make ~close ~mode:Output @@
     fun a b c -> Unix.write_bytes t a b c >> return c)
 
-let accept_ext conf fd =
-  Unix.accept conf fd >|= fun (t, peer) -> (of_t t, peer)
+let accept_ext ?trace conf fd =
+  Unix.accept ?trace conf fd >|= fun (t, peer) -> (of_t t, peer)
 
-and connect_ext conf addr =
-  Unix.connect conf addr >|= of_t
+and connect_ext ?trace conf addr =
+  Unix.connect ?trace conf addr >|= of_t
 
-let accept certificate =
+let accept ?trace certificate =
   let config = Tls.Config.server_exn ~certificate ()
-  in accept_ext config
+  in accept_ext ?trace config
 
-and connect validator addr =
+and connect ?trace validator addr =
   let config = Tls.Config.client_exn ~validator ()
-  in connect_ext config addr
+  in connect_ext ?trace config addr
 
 (*
  * XXX
@@ -235,4 +243,3 @@ let rng_init ?(rng_file = "/dev/urandom") () =
   in
   read random.Cstruct.off random.Cstruct.len >>
   ( Nocrypto.Rng.reseed random ; return_unit )
-

@@ -31,7 +31,8 @@ let serve_ssl port callback =
   yap ~tag ("-> start @ " ^ string_of_int port)
   >>
   let rec loop () =
-    lwt (channels, addr) = Tls_lwt.accept cert server_s in
+    lwt (channels, addr) =
+      Tls_lwt.accept ~trace:eprint_sexp cert server_s in
     yap ~tag "-> connect"
     >>
     ( handle channels addr ; loop () )

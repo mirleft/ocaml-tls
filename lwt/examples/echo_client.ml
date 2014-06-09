@@ -13,7 +13,8 @@ let echo_client ?ca host port =
      | Some "NONE" -> `No_validation_I'M_STUPID
      | Some f      -> `Ca_file f)
   in
-  lwt (ic, oc) = Tls_lwt.connect validator (host, port) in
+  lwt (ic, oc) =
+    Tls_lwt.connect ~trace:eprint_sexp validator (host, port) in
   Lwt.join [
     lines ic    |> Lwt_stream.iter_s (printf "+ %s\n%!") ;
     lines stdin |> Lwt_stream.iter_s (write_line oc)

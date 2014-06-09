@@ -10,9 +10,12 @@ module Make (TCP: V1_LWT.TCPV4) = struct
   module TCP = TCP
   type error = TCP.error
 
+  type tracer = Sexplib.Sexp.t -> unit
+
   type flow = {
     role           : [ `Server | `Client ] ;
     tcp            : TCP.flow ;
+    tracer         : tracer option ;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
                      | `Error of error ] ;
@@ -24,10 +27,17 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 
   let list_of_option = function None -> [] | Some x -> [x]
 
+  let tracing flow f =
+    match flow.tracer with
+    | None      -> f ()
+    | Some hook -> Tracing.active ~hook f
+
   let read_react flow =
 
     let handle tls buf =
-      match Tls.Engine.handle_tls tls buf with
+      match
+        tracing flow @@ fun () -> Tls.Engine.handle_tls tls buf
+      with
       | `Ok (res, answer, appdata) ->
           flow.state <- ( match res with
             | `Ok tls      -> `Active tls
@@ -66,7 +76,9 @@ module Make (TCP: V1_LWT.TCPV4) = struct
     | `Eof     -> fail @@ Invalid_argument "tls: write: flow is closed"
     | `Error e -> fail @@ Invalid_argument "tls: write: flow is broken"
     | `Active tls ->
-        match Tls.Engine.send_application_data tls bufs with
+        match
+          tracing flow @@ fun () -> Tls.Engine.send_application_data tls bufs
+        with
         | Some (tls, answer) ->
             flow.state <- `Active tls ; TCP.write flow.tcp answer
         | None ->
@@ -79,7 +91,9 @@ module Make (TCP: V1_LWT.TCPV4) = struct
     match flow.state with
     | `Active tls ->
       flow.state <- `Eof ;
-      let (_, buf) = Tls.Engine.send_close_notify tls in
+      let (_, buf) =
+        tracing flow @@ fun () -> Tls.Engine.send_close_notify tls
+      in
       TCP.(write flow.tcp buf >> close flow.tcp)
     | _           -> return_unit
 
@@ -94,22 +108,24 @@ module Make (TCP: V1_LWT.TCPV4) = struct
         | `Error e -> return (`Error e)
         | `Eof     -> return (`Error (`Unknown "tls: end_of_file in handshake"))
 
-  let client_of_tcp_flow conf host flow =
+  let client_of_tcp_flow ?trace conf host flow =
     let (tls, init) = Tls.Engine.client conf in
     let tls_flow = {
       role   = `Client ;
       tcp    = flow ;
       state  = `Active tls ;
-      linger = []
+      linger = [] ;
+      tracer = trace ;
     } in
     TCP.write flow init >> drain_handshake tls_flow
 
-  let server_of_tcp_flow conf flow =
+  let server_of_tcp_flow ?trace conf flow =
     let tls_flow = {
       role   = `Server ;
       tcp    = flow ;
       state  = `Active (Tls.Engine.server conf) ;
-      linger = []
+      linger = [] ;
+      tracer = trace ;
     } in
     drain_handshake tls_flow
 
