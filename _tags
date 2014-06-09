@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 96032f3097054613ba8b3e3cd36a9935)
+# DO NOT EDIT (digest: f1312fc5e09c73219b57fd807a8a0add)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -111,17 +111,6 @@
 "lwt/examples/echo_server.native": pkg_sexplib.syntax
 "lwt/examples/echo_server.native": use_tls
 "lwt/examples/echo_server.native": use_tls-lwt
-# Executable test_server
-"lwt/examples/test_server.native": pkg_asn1-combinators
-"lwt/examples/test_server.native": pkg_cstruct
-"lwt/examples/test_server.native": pkg_cstruct.syntax
-"lwt/examples/test_server.native": pkg_lwt.syntax
-"lwt/examples/test_server.native": pkg_lwt.unix
-"lwt/examples/test_server.native": pkg_nocrypto
-"lwt/examples/test_server.native": pkg_sexplib
-"lwt/examples/test_server.native": pkg_sexplib.syntax
-"lwt/examples/test_server.native": use_tls
-"lwt/examples/test_server.native": use_tls-lwt
 # Executable echo_client
 "lwt/examples/echo_client.native": pkg_asn1-combinators
 "lwt/examples/echo_client.native": pkg_cstruct
@@ -144,6 +133,28 @@
 "lwt/examples/http_client.native": pkg_sexplib.syntax
 "lwt/examples/http_client.native": use_tls
 "lwt/examples/http_client.native": use_tls-lwt
+# Executable test_server
+"lwt/examples/test_server.native": pkg_asn1-combinators
+"lwt/examples/test_server.native": pkg_cstruct
+"lwt/examples/test_server.native": pkg_cstruct.syntax
+"lwt/examples/test_server.native": pkg_lwt.syntax
+"lwt/examples/test_server.native": pkg_lwt.unix
+"lwt/examples/test_server.native": pkg_nocrypto
+"lwt/examples/test_server.native": pkg_sexplib
+"lwt/examples/test_server.native": pkg_sexplib.syntax
+"lwt/examples/test_server.native": use_tls
+"lwt/examples/test_server.native": use_tls-lwt
+# Executable test_client
+"lwt/examples/test_client.native": pkg_asn1-combinators
+"lwt/examples/test_client.native": pkg_cstruct
+"lwt/examples/test_client.native": pkg_cstruct.syntax
+"lwt/examples/test_client.native": pkg_lwt.syntax
+"lwt/examples/test_client.native": pkg_lwt.unix
+"lwt/examples/test_client.native": pkg_nocrypto
+"lwt/examples/test_client.native": pkg_sexplib
+"lwt/examples/test_client.native": pkg_sexplib.syntax
+"lwt/examples/test_client.native": use_tls
+"lwt/examples/test_client.native": use_tls-lwt
 <lwt/examples/*.ml{,i}>: pkg_asn1-combinators
 <lwt/examples/*.ml{,i}>: pkg_cstruct
 <lwt/examples/*.ml{,i}>: pkg_cstruct.syntax

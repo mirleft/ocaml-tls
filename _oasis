@@ -90,14 +90,6 @@ Executable "echo_server"
   MainIs          : echo_server.ml
   BuildDepends    : tls.lwt
 
-Executable "test_server"
-  Build          $: flag(lwt) && flag(tests)
-  Path            : lwt/examples/
-  Install         : false
-  CompiledObject  : native
-  MainIs          : test_server.ml
-  BuildDepends    : tls.lwt
-
 Executable "echo_client"
   Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
@@ -112,5 +104,21 @@ Executable "http_client"
   Install         : false
   CompiledObject  : native
   MainIs          : http_client.ml
+  BuildDepends    : tls.lwt
+
+Executable "test_server"
+  Build          $: flag(lwt) && flag(tests)
+  Path            : lwt/examples/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : test_server.ml
+  BuildDepends    : tls.lwt
+
+Executable "test_client"
+  Build          $: flag(lwt) && flag(tests)
+  Path            : lwt/examples/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : test_client.ml
   BuildDepends    : tls.lwt
 
