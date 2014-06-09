@@ -25,12 +25,11 @@ testit () {
 
 testit
 
-#currently broken.. if server speaks only 1.0/1.1
-#extra_args="-tls1"
-#testit
+extra_args="-tls1"
+testit
 
-#extra_args="-tls1_1"
-#testit
+extra_args="-tls1_1"
+testit
 
 extra_args="-tls1_2"
 testit
