@@ -179,7 +179,7 @@ let validate_signature { asn = trusted } cert =
 
   | PK.RSA issuing_key ->
 
-     ( match Crypto.verifyRSA_and_unpadPKCS1 issuing_key cert.asn.signature_val with
+     ( match RSA.PKCS1.verify issuing_key cert.asn.signature_val with
        | Some signature ->
           ( match Crypto.pkcs1_digest_info_of_cstruct signature with
             | None              -> false
