@@ -73,7 +73,7 @@ Library "tls-mirage"
   FindlibParent   : tls
   Path            : mirage
   Modules         : Tls_mirage
-  BuildDepends    : tls, mirage, lwt, lwt.syntax
+  BuildDepends    : x509, tls, mirage, lwt, lwt.syntax
 
 Executable "test_runner"
   Build          $: flag(tests)

@@ -12,7 +12,7 @@ end with module TCP := TCP
 
 (* XXX CLOCK *)
 module X509 (KV : V1_LWT.KV_RO) : sig
-  open Tls.X509
-  val validator   : KV.t -> [< `Noop | `CAs ] -> Validator.t Lwt.t
-  val certificate : KV.t -> [< `Default | `Name of string ] -> (Cert.t list * PK.t) Lwt.t
+  val validator   : KV.t -> [< `Noop | `CAs ] -> X509.Validator.t Lwt.t
+  val certificate : KV.t -> [< `Default | `Name of string ]
+                         -> (X509.Cert.t list * X509.PK.t) Lwt.t
 end
