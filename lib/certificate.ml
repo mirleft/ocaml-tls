@@ -1,13 +1,25 @@
-open Sexplib
 open Sexplib.Conv
-
 open Nocrypto
 
 open Registry
 open Asn_grammars
-open Asn
-open Utils
 
+
+let rec filter_map ~f = function
+  | []    -> []
+  | x::xs ->
+      match f x with
+      | None    ->       filter_map ~f xs
+      | Some x' -> x' :: filter_map ~f xs
+
+let rec map_find ~f = function
+  | []    -> None
+  | x::xs ->
+      match f x with
+      | None         -> map_find ~f xs
+      | Some _ as x' -> x'
+
+module Cs = Nocrypto.Common.Cs
 
 (*
  * There are two reasons to carry Cstruct.t around:
