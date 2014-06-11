@@ -73,7 +73,7 @@ module Cs = struct
   let (<+>) = append
 
   let equal cs1 cs2 =
-    (len cs1 = len cs2) && (to_bigarray cs1 = to_bigarray cs2)
+    Cstruct.((len cs1 = len cs2) && (to_bigarray cs1 = to_bigarray cs2))
 
   let empty = Cstruct.create 0
 
