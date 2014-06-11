@@ -1,21 +1,26 @@
 open Nocrypto
 
 open Utils
-
 open Core
 open State
 
 
-let (<+>) = Utils.Cs.(<+>)
-
-(* user API *)
-
 type state = State.state
 
+(* Alerts are a *wonderful* candidate for polyvars. *)
+type alert = Packet.alert_type
+
 type ret = [
-  | `Ok   of [ `Ok of state | `Eof | `Alert of Packet.alert_type ] * Cstruct.t * Cstruct.t option
-  | `Fail of Packet.alert_type * Cstruct.t
+
+  | `Ok of [ `Ok of state | `Eof | `Alert of alert ]
+         * [ `Response of Cstruct.t ]
+         * [ `Data of Cstruct.t option ]
+
+  | `Fail of alert * [ `Response of Cstruct.t ]
 ]
+
+
+let (<+>) = Utils.Cs.(<+>)
 
 let new_state config role =
   let handshake_state = match role with
@@ -336,15 +341,15 @@ let handle_tls state buf =
       let buf'    = assemble_records version out_records in
       ({ state' with fragment }, buf', data, err)
   with
-  | Ok (state, data, resp, err) ->
+  | Ok (state, resp, data, err) ->
       let res = match err with
         | `Eof | `Alert _ as err -> err
         | `No_err                -> `Ok state in
-      `Ok (res, data, resp)
+      `Ok (res, `Response resp, `Data data)
   | Error x ->
-      let version    = state.handshake.version in
-      let alert_resp = assemble_records version [Alert.make x] in
-      `Fail (x, alert_resp)
+      let version = state.handshake.version in
+      let resp    = assemble_records version [Alert.make x] in
+      `Fail (x, `Response resp)
 
 let send_records (st : state) records =
   let version = st.handshake.version in
