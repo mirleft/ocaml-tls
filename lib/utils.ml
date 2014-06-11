@@ -72,20 +72,8 @@ module Cs = struct
 
   let (<+>) = append
 
-  (* let canonicalize cs =
-    if cs.Cstruct.off = 0 then cs else
-      Cstruct.(of_bigarray @@
-                  Bigarray.Array1.sub cs.buffer cs.off cs.len) *)
-
-  (* let equal cs1 cs2 = canonicalize cs1 = canonicalize cs2 *)
-
   let equal cs1 cs2 =
-    let (len1, len2) = Cstruct.(len cs1, len cs2) in
-    let rec cmp = function
-      | -1 -> true
-      |  i -> Cstruct.(get_uint8 cs1 i = get_uint8 cs2 i) && cmp (pred i)
-    in
-    (len1 = len2) && cmp (pred len1)
+    (len cs1 = len cs2) && (to_bigarray cs1 = to_bigarray cs2)
 
   let empty = Cstruct.create 0
 
