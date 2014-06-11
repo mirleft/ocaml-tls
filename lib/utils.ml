@@ -107,10 +107,3 @@ let rec first_match l1 = function
   | []                       -> None
   | x::xs when List.mem x l1 -> Some x
   | _::xs                    -> first_match l1 xs
-
-
-let hexdump_to_str cs =
-  let b = Buffer.create 16 in
-  Cstruct.hexdump_to_buffer b cs ;
-  Buffer.contents b
-
