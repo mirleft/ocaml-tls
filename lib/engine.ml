@@ -196,15 +196,11 @@ module Alert = struct
   let handle buf =
     match Reader.parse_alert buf with
     | Reader.Or_error.Ok (_, a_type as alert) ->
-      Printf.printf "ALERT: %s\n%!" (Printer.alert_to_string alert);
-      let err = match a_type with
-        | CLOSE_NOTIFY -> `Eof
-        | _            -> `Alert a_type in
-      return (err, [`Record close_notify])
-    | Reader.Or_error.Error _ ->
-      Printf.printf "unknown alert";
-      Cstruct.hexdump buf;
-      fail Packet.UNEXPECTED_MESSAGE
+        let err = match a_type with
+          | CLOSE_NOTIFY -> `Eof
+          | _            -> `Alert a_type in
+        return (err, [`Record close_notify])
+    | Reader.Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
 end
 
 let hs_can_handle_appdata s =
