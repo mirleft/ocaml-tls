@@ -35,7 +35,7 @@ module List_set = struct
       match (xs, ys) with
       | ([], _)          -> true
       | (_, [])          -> false
-      | (x::xss, y::yss) -> 
+      | (x::xss, y::yss) ->
           match compare x y with
           | -1 -> false
           |  1 -> loop xs yss
