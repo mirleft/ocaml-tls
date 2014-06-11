@@ -1,7 +1,7 @@
 open Core
 open State
 
-type state = State.state
+type state
 
 type ret = [
   | `Ok   of [ `Ok of state | `Eof | `Alert of Packet.alert_type ] * Cstruct.t * Cstruct.t option

@@ -22,34 +22,20 @@ Flag "mirage"
 
 Library "x509"
   Path            : libx509/
-  Modules         : List_ext, Registry, Asn_grammars, Certificate, X509
+  Modules         : Asn_grammars, Certificate, X509
+  InternalModules : List_ext, Registry
   BuildDepends    : cstruct, sexplib.syntax, nocrypto, asn1-combinators
 
 Library "tls"
   Path            : lib/
-  Modules         : Utils, Sexp_ext, Tracing,
-                    Ciphersuite, Packet, Core,
-                    Printer, Reader, Writer, Crypto, Config,
-                    State, Handshake_common, Handshake_crypto,
-                    Handshake_server, Handshake_client,
+  Modules         : Tracing, Ciphersuite, Packet, Core,
+                    Printer, Reader, Writer, Config,
                     Engine
-  InternalModules : Control
+  InternalModules : Control, Sexp_ext, Crypto, Utils,
+                    State, Handshake_common, Handshake_crypto,
+                    Handshake_server, Handshake_client
   Pack            : true
   BuildDepends    : cstruct.syntax, sexplib.syntax, nocrypto, x509
-
-# Library "tls"
-#   Path            : lib/
-#   Modules         : Utils, Sexp_ext, Tracing,
-#                     Ciphersuite, Packet, Core, Certificate,
-#                     Printer, Reader, Writer, Crypto, Config,
-#                     State, Handshake_common, Handshake_crypto,
-#                     Handshake_server, Handshake_client,
-#                     X509, Engine
-#   InternalModules : Registry, Asn_grammars, Control
-#   Pack            : true
-#   BuildDepends    : cstruct, cstruct.syntax,
-#                     sexplib, sexplib.syntax,
-#                     nocrypto, asn1-combinators
 #, bisect
 
 Library "tests"

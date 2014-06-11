@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f728c01296f36151e70d32e91362eaab)
+# DO NOT EDIT (digest: 0af77e19a70b85e80bd358962e12d18a)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -21,8 +21,6 @@
 <libx509/*.ml{,i}>: pkg_sexplib.syntax
 # Library tls
 "lib/tls.cmxs": use_tls
-"lib/utils.cmx": for-pack(Tls)
-"lib/sexp_ext.cmx": for-pack(Tls)
 "lib/tracing.cmx": for-pack(Tls)
 "lib/ciphersuite.cmx": for-pack(Tls)
 "lib/packet.cmx": for-pack(Tls)
@@ -30,15 +28,17 @@
 "lib/printer.cmx": for-pack(Tls)
 "lib/reader.cmx": for-pack(Tls)
 "lib/writer.cmx": for-pack(Tls)
-"lib/crypto.cmx": for-pack(Tls)
 "lib/config.cmx": for-pack(Tls)
+"lib/engine.cmx": for-pack(Tls)
+"lib/control.cmx": for-pack(Tls)
+"lib/sexp_ext.cmx": for-pack(Tls)
+"lib/crypto.cmx": for-pack(Tls)
+"lib/utils.cmx": for-pack(Tls)
 "lib/state.cmx": for-pack(Tls)
 "lib/handshake_common.cmx": for-pack(Tls)
 "lib/handshake_crypto.cmx": for-pack(Tls)
 "lib/handshake_server.cmx": for-pack(Tls)
 "lib/handshake_client.cmx": for-pack(Tls)
-"lib/engine.cmx": for-pack(Tls)
-"lib/control.cmx": for-pack(Tls)
 <lib/*.ml{,i}>: pkg_asn1-combinators
 <lib/*.ml{,i}>: pkg_cstruct
 <lib/*.ml{,i}>: pkg_cstruct.syntax
