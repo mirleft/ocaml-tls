@@ -37,7 +37,7 @@ type stack = certificate * certificate list
 type host = [ `Strict of string | `Wildcard of string ]
 
 let parse cs =
-  match Asn_grammars.certificate_of_cstruct cs with
+  match certificate_of_cstruct cs with
   | None     -> None
   | Some asn -> Some { asn ; raw = cs }
 
@@ -171,33 +171,27 @@ let raw_cert_hack { asn ; raw } =
   Cstruct.(sub raw 4 (len raw - (siglen + 4 + 19 + off)))
 
 let validate_signature { asn = trusted } cert =
-  let module A  = Algorithm in
-  let module Cs = Ciphersuite in
 
   let tbs_raw = raw_cert_hack cert in
   match trusted.tbs_cert.pk_info with
 
   | PK.RSA issuing_key ->
 
-     ( match RSA.PKCS1.verify issuing_key cert.asn.signature_val with
-       | Some signature ->
-          ( match Crypto.pkcs1_digest_info_of_cstruct signature with
-            | None              -> false
-            | Some (algo, hash) ->
-                let matches =
-                  Crypto.hash_eq algo ~target:hash tbs_raw in
-                (* XXX make something that extracts just the hash part of an asn
-                 * algorithm as a ciphersuite hash, then simply check equality
-                 * instead of this. *)
-                match (cert.asn.signature_algo, algo) with
-                | (A.MD5_RSA   , Cs.MD5)    -> matches
-                | (A.SHA1_RSA  , Cs.SHA)    -> matches
-                | (A.SHA256_RSA, Cs.SHA256) -> matches
-                | (A.SHA384_RSA, Cs.SHA384) -> matches
-                | (A.SHA512_RSA, Cs.SHA512) -> matches
-                | _                         -> false )
-       | None -> false )
-
+    ( match RSA.PKCS1.verify issuing_key cert.asn.signature_val with
+      | None           -> false
+      | Some signature ->
+          match pkcs1_digest_info_of_cstruct signature with
+          | None              -> false
+          | Some (algo, hash) ->
+              let res = Cs.equal hash (Hash.digest algo tbs_raw) in
+              match (cert.asn.signature_algo, algo) with
+              | (MD5_RSA   , `MD5   ) -> res
+              | (SHA1_RSA  , `SHA1  ) -> res
+              | (SHA224_RSA, `SHA224) -> res
+              | (SHA256_RSA, `SHA256) -> res
+              | (SHA384_RSA, `SHA384) -> res
+              | (SHA512_RSA, `SHA512) -> res
+              | _                     -> false )
   | _ -> false
 
 let validate_time now cert =
