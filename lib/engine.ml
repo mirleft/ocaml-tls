@@ -250,18 +250,18 @@ let handle_packet hs buf = function
 
   | Packet.ALERT ->
       Alert.handle buf >|= fun (err, out) ->
-        (hs, None, out, `Pass, err)
+        (hs, out, None, `Pass, err)
 
   | Packet.APPLICATION_DATA ->
     ( match hs_can_handle_appdata hs with
       | true  ->
          Tracing.cs ~tag:"application-data-in" buf;
-         return (hs, non_empty buf, [], `Pass, `No_err)
+         return (hs, [], non_empty buf, `Pass, `No_err)
       | false -> fail Packet.UNEXPECTED_MESSAGE )
 
   | Packet.CHANGE_CIPHER_SPEC ->
       handle_change_cipher_spec hs.machina hs buf
-      >|= fun (hs, items, dec_cmd) -> (hs, None, items, dec_cmd, `No_err)
+      >|= fun (hs, items, dec_cmd) -> (hs, items, None, dec_cmd, `No_err)
 
   | Packet.HANDSHAKE ->
      separate_handshakes (hs.hs_fragment <+> buf)
@@ -271,7 +271,7 @@ let handle_packet hs buf = function
          >|= fun (hs', items') -> (hs', items @ items'))
        (hs, []) hss
      >|= fun (hs, items) ->
-       ({ hs with hs_fragment }, None, items, `Pass, `No_err)
+       ({ hs with hs_fragment }, items, None, `Pass, `No_err)
 
 
 (* the main thingy *)
@@ -291,7 +291,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->
   handle_packet state.handshake dec hdr.content_type
-  >|= fun (handshake, data, items, dec_cmd, err) ->
+  >|= fun (handshake, items, data, dec_cmd, err) ->
   let (encryptor, encs) =
     List.fold_left (fun (st, es) -> function
       | `Change_enc st' -> (st', es)
@@ -309,7 +309,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state' ;
   Tracing.sexpfs ~tag:"record-out" ~f:sexp_of_record encs ;
 
-  (state', data, encs, err)
+  (state', encs, data, err)
 
 let maybe_app a b = match a, b with
   | Some x, Some y -> Some (x <+> y)
@@ -324,19 +324,19 @@ let assemble_records (version : tls_version) : record list -> Cstruct.t =
 let handle_tls state buf =
 
   let rec handle_records st = function
-    | []    -> return (st, None, [], `No_err)
+    | []    -> return (st, [], None, `No_err)
     | r::rs ->
         handle_raw_record st r >>= function
-          | (st, data, raw_rs, `No_err) ->
-              handle_records st rs >|= fun (st', data', raw_rs', err') ->
-                (st', maybe_app data data', raw_rs @ raw_rs', err')
+          | (st, raw_rs, data, `No_err) ->
+              handle_records st rs >|= fun (st', raw_rs', data', err') ->
+                (st', raw_rs @ raw_rs', maybe_app data data', err')
           | res -> return res
   in
   match
     separate_records (state.fragment <+> buf)
     >>= fun (in_records, fragment) ->
       handle_records state in_records
-    >|= fun (state', data, out_records, err) ->
+    >|= fun (state', out_records, data, err) ->
       let version = state'.handshake.version in
       let buf'    = assemble_records version out_records in
       ({ state' with fragment }, buf', data, err)
