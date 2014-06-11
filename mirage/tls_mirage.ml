@@ -201,22 +201,20 @@ module X509 (KV : V1_LWT.KV_RO) = struct
     KV.size kv name   >|== Int64.to_int >>=
     KV.read kv name 0 >|== Tls.Utils.Cs.appends
 
-  open Tls.X509
-
   let validator kv = function
-    | `Noop -> return Validator.null
+    | `Noop -> return X509.Validator.null
     | `CAs  ->
         let time = -666 in (* get a `CLOCK` instance *)
         read_full kv ca_roots_file
-        >|= Cert.of_pem_cstruct
-        >|= Validator.chain_of_trust ~time
+        >|= X509.Cert.of_pem_cstruct
+        >|= X509.Validator.chain_of_trust ~time
 
   let certificate kv =
     let read name =
       lwt certs =
-        read_full kv (path </> name ^ ".pem") >|= Cert.of_pem_cstruct
+        read_full kv (path </> name ^ ".pem") >|= X509.Cert.of_pem_cstruct
       and pk =
-        read_full kv (path </> name ^ ".key") >|= PK.of_pem_cstruct1 in
+        read_full kv (path </> name ^ ".key") >|= X509.PK.of_pem_cstruct1 in
       return (certs, pk)
     in function | `Default   -> read default_cert
                 | `Name name -> read name

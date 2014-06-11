@@ -87,16 +87,6 @@ module Cs = struct
     in
     (len1 = len2) && cmp (pred len1)
 
-  let begins_with cs target =
-    let open Cstruct in
-    let l1 = len cs and l2 = len target in
-    l1 >= l2 && equal (sub cs 0 l2) target
-
-  let ends_with cs target =
-    let open Cstruct in
-    let l1 = len cs and l2 = len target in
-    l1 >= l2 && equal (sub cs (l1 - l2) l2) target
-
   let empty = Cstruct.create 0
 
   let null cs = Cstruct.len cs = 0

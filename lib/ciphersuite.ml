@@ -105,26 +105,22 @@ type hash_algorithm =
   | SHA512
   with sexp
 
-let asn_to_hash_algorithm a =
-  let module A = Asn_grammars.Algorithm in
-  match a with
-  | A.MD5    -> Some MD5
-  | A.SHA1   -> Some SHA
-  | A.SHA224 -> Some SHA224
-  | A.SHA256 -> Some SHA256
-  | A.SHA384 -> Some SHA384
-  | A.SHA512 -> Some SHA512
-  | _        -> None
+let hash_algorithm_of_tag = function
+  | `MD5    -> Some MD5
+  | `SHA1   -> Some SHA
+  | `SHA224 -> Some SHA224
+  | `SHA256 -> Some SHA256
+  | `SHA384 -> Some SHA384
+  | `SHA512 -> Some SHA512
+  | _       -> None
 
-let hash_algorithm_to_asn h =
-  let module A = Asn_grammars.Algorithm in
-  match h with
-  | MD5    -> Some A.MD5
-  | SHA    -> Some A.SHA1
-  | SHA224 -> Some A.SHA224
-  | SHA256 -> Some A.SHA256
-  | SHA384 -> Some A.SHA384
-  | SHA512 -> Some A.SHA512
+let tag_of_hash_algorithm = function
+  | MD5    -> Some `MD5
+  | SHA    -> Some `SHA1
+  | SHA224 -> Some `SHA224
+  | SHA256 -> Some `SHA256
+  | SHA384 -> Some `SHA384
+  | SHA512 -> Some `SHA512
   | _      -> None
 
 (* TLS ciphersuites *)

@@ -20,20 +20,22 @@ Flag "mirage"
   Description : Mirage backend
   Default     : true
 
+Library "x509"
+  Path            : libx509/
+  Modules         : Asn_grammars, Certificate, X509
+  InternalModules : List_ext, Registry
+  BuildDepends    : cstruct, sexplib.syntax, nocrypto, asn1-combinators
 
 Library "tls"
   Path            : lib/
-  Modules         : Utils, Sexp_ext, Tracing,
-                    Ciphersuite, Packet, Core, Certificate,
-                    Printer, Reader, Writer, Crypto, Config,
+  Modules         : Tracing, Ciphersuite, Packet, Core,
+                    Printer, Reader, Writer, Config,
+                    Engine
+  InternalModules : Control, Sexp_ext, Crypto, Utils,
                     State, Handshake_common, Handshake_crypto,
-                    Handshake_server, Handshake_client,
-                    X509, Engine
-  InternalModules : Registry, Asn_grammars, Control
+                    Handshake_server, Handshake_client
   Pack            : true
-  BuildDepends    : cstruct, cstruct.syntax,
-                    sexplib, sexplib.syntax,
-                    nocrypto, asn1-combinators
+  BuildDepends    : cstruct.syntax, sexplib.syntax, nocrypto, x509
 #, bisect
 
 Library "tests"
@@ -49,7 +51,7 @@ Library "tls-lwt"
   FindlibParent   : tls
   Path            : lwt
   Modules         : Tls_lwt, X509_lwt
-  BuildDepends    : tls, lwt.syntax, lwt.unix
+  BuildDepends    : x509, tls, lwt.syntax, lwt.unix
 
 Library "tls-mirage"
   Build          $: flag(mirage)
@@ -57,7 +59,7 @@ Library "tls-mirage"
   FindlibParent   : tls
   Path            : mirage
   Modules         : Tls_mirage
-  BuildDepends    : tls, mirage, lwt, lwt.syntax
+  BuildDepends    : x509, tls, mirage, lwt, lwt.syntax
 
 Executable "test_runner"
   Build          $: flag(tests)

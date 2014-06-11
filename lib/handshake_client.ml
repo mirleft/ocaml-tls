@@ -174,7 +174,7 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
          | Or_error.Error _ -> fail_handshake )
 
   and signature pubkey raw_signature =
-    match Crypto.verifyRSA_and_unpadPKCS1 pubkey raw_signature with
+    match RSA.PKCS1.verify pubkey raw_signature with
     | Some signature -> return signature
     | None -> fail_handshake
 
@@ -219,7 +219,7 @@ let answer_server_hello_done_RSA state params cert raw log =
   let ver = Writer.assemble_protocol_version params.client_version in
   let premaster = ver <+> Rng.generate 46 in
   peer_rsa_key cert >>= fun pubkey ->
-  let kex = Crypto.padPKCS1_and_encryptRSA pubkey premaster in
+  let kex = RSA.PKCS1.encrypt pubkey premaster in
   return (answer_server_hello_done_common state kex premaster params raw log)
 
 let answer_server_hello_done_DHE_RSA state params (group, s_secret) raw log =

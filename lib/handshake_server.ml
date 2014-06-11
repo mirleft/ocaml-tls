@@ -57,7 +57,7 @@ let answer_client_key_exchange_RSA state params kex raw log =
   in
 
   private_key state.config >>= fun priv ->
-  ( match Crypto.decryptRSA_unpadPKCS1 priv kex with
+  ( match RSA.PKCS1.decrypt priv kex with
     | None   -> validate_premastersecret other
     | Some k -> validate_premastersecret k ) >>= fun pms ->
   establish_master_secret state params pms raw log
@@ -121,7 +121,7 @@ let answer_client_hello_params state params ch raw =
     let signature pk =
 
       let sign x =
-        match Crypto.padPKCS1_and_signRSA pk x with
+        match RSA.PKCS1.sign pk x with
         | None        -> fail_handshake
         | Some signed -> return signed
       in

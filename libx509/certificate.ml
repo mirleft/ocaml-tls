@@ -1,13 +1,41 @@
-open Sexplib
 open Sexplib.Conv
-
 open Nocrypto
 
 open Registry
 open Asn_grammars
-open Asn
-open Utils
 
+(* Utils stuff. Could be made internal. *)
+module Cs = Nocrypto.Common.Cs
+(* *** *)
+
+(* Control flow stuff. Should be imported from a single place. *)
+module Control = struct
+
+  type ('a, 'e) or_error =
+    | Ok of 'a
+    | Error of 'e
+
+  let (>>=) m f = match m with
+    | Ok a      -> f a
+    | Error err -> Error err
+
+  let success  = Ok ()
+  let fail err = Error err
+
+  let lower = function
+    | Ok _      -> `Ok
+    | Error err -> `Fail err
+
+  let is_success = function Ok _ -> true | _ -> false
+
+  let rec iter_m f = function
+    | []    -> Ok ()
+    | x::xs -> f x >>= fun _ -> iter_m f xs
+
+end
+
+include Control
+(* *** *)
 
 (*
  * There are two reasons to carry Cstruct.t around:
@@ -37,7 +65,7 @@ type stack = certificate * certificate list
 type host = [ `Strict of string | `Wildcard of string ]
 
 let parse cs =
-  match Asn_grammars.certificate_of_cstruct cs with
+  match certificate_of_cstruct cs with
   | None     -> None
   | Some asn -> Some { asn ; raw = cs }
 
@@ -123,16 +151,6 @@ let cert_extended_usage { asn = cert } =
   | Some (_, Extension.Ext_key_usage usages) -> Some (List.map extended_usage_export usages)
   | _                                        -> None
 
-module Or_error =
-  Control.Or_error_make ( struct type err = certificate_failure end )
-
-open Or_error
-
-let success = return ()
-
-let lower = function
-  | Ok _      -> `Ok
-  | Error err -> `Fail err
 
 (* TODO RFC 5280: A certificate MUST NOT include more than
                   one instance of a particular extension. *)
@@ -143,19 +161,22 @@ let issuer_matches_subject { asn = parent } { asn = cert } =
 let is_self_signed cert = issuer_matches_subject cert cert
 
 let subject_common_name cert =
-  map_find cert.tbs_cert.subject
-           ~f:(function Name.CN n -> Some n | _ -> None)
+  List_ext.map_find cert.tbs_cert.subject
+    ~f:(function Name.CN n -> Some n | _ -> None)
 
 let common_name_to_string { asn = cert } =
   match subject_common_name cert with
-  | None   -> "NO commonName:" ^ Utils.hexdump_to_str cert.signature_val
+  (* XXX *)
+(*   | None   -> "NO commonName:" ^ Utils.hexdump_to_str cert.signature_val *)
+  | None   -> "NO commonName"
   | Some x -> x
 
 let cert_alt_names cert : string list =
   let open Extension in
   match extn_subject_alt_name cert with
     | Some (_, Subject_alt_name names) ->
-       filter_map names ~f:(function General_name.DNS x -> Some x | _ -> None)
+        List_ext.filter_map names
+          ~f:(function General_name.DNS x -> Some x | _ -> None)
     | _                                -> []
 
 let cert_hostnames { asn = cert } : string list =
@@ -171,33 +192,27 @@ let raw_cert_hack { asn ; raw } =
   Cstruct.(sub raw 4 (len raw - (siglen + 4 + 19 + off)))
 
 let validate_signature { asn = trusted } cert =
-  let module A  = Algorithm in
-  let module Cs = Ciphersuite in
 
   let tbs_raw = raw_cert_hack cert in
   match trusted.tbs_cert.pk_info with
 
   | PK.RSA issuing_key ->
 
-     ( match Crypto.verifyRSA_and_unpadPKCS1 issuing_key cert.asn.signature_val with
-       | Some signature ->
-          ( match Crypto.pkcs1_digest_info_of_cstruct signature with
-            | None              -> false
-            | Some (algo, hash) ->
-                let matches =
-                  Crypto.hash_eq algo ~target:hash tbs_raw in
-                (* XXX make something that extracts just the hash part of an asn
-                 * algorithm as a ciphersuite hash, then simply check equality
-                 * instead of this. *)
-                match (cert.asn.signature_algo, algo) with
-                | (A.MD5_RSA   , Cs.MD5)    -> matches
-                | (A.SHA1_RSA  , Cs.SHA)    -> matches
-                | (A.SHA256_RSA, Cs.SHA256) -> matches
-                | (A.SHA384_RSA, Cs.SHA384) -> matches
-                | (A.SHA512_RSA, Cs.SHA512) -> matches
-                | _                         -> false )
-       | None -> false )
-
+    ( match RSA.PKCS1.verify issuing_key cert.asn.signature_val with
+      | None           -> false
+      | Some signature ->
+          match pkcs1_digest_info_of_cstruct signature with
+          | None              -> false
+          | Some (algo, hash) ->
+              let res = Cs.equal hash (Hash.digest algo tbs_raw) in
+              match (cert.asn.signature_algo, algo) with
+              | (MD5_RSA   , `MD5   ) -> res
+              | (SHA1_RSA  , `SHA1  ) -> res
+              | (SHA224_RSA, `SHA224) -> res
+              | (SHA256_RSA, `SHA256) -> res
+              | (SHA384_RSA, `SHA384) -> res
+              | (SHA512_RSA, `SHA512) -> res
+              | _                     -> false )
   | _ -> false
 
 let validate_time now cert =
@@ -429,7 +444,7 @@ let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
              validate_anchors pathlen cert anchors
     in
     is_server_cert_valid ?host time server >>= fun () ->
-    mapM_ (is_cert_valid time) certs       >>= fun () ->
+    iter_m (is_cert_valid time) certs      >>= fun () ->
     climb 0 server certs
   in
   lower res

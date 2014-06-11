@@ -1,9 +1,9 @@
 
 open Lwt
 
-type priv = Tls.X509.Cert.t list * Tls.X509.PK.t
+type priv = X509.Cert.t list * X509.PK.t
 
-type validator = Tls.X509.Validator.t
+type validator = X509.Validator.t
 
 
 let failure msg = fail @@ Failure msg
@@ -49,17 +49,17 @@ let extension str =
 let private_of_pems ~cert ~priv_key =
   lwt certs =
     catch_invalid_arg
-      (read_file cert >|= Tls.X509.Cert.of_pem_cstruct)
+      (read_file cert >|= X509.Cert.of_pem_cstruct)
       (o failure @@ Printf.sprintf "Private certificates (%s): %s" cert)
   and pk =
     catch_invalid_arg
-      (read_file priv_key >|= Tls.X509.PK.of_pem_cstruct1)
+      (read_file priv_key >|= X509.PK.of_pem_cstruct1)
       (o failure @@ Printf.sprintf "Private key (%s): %s" priv_key)
   in return (certs, pk)
 
 let certs_of_pem path =
   catch_invalid_arg
-    (read_file path >|= Tls.X509.Cert.of_pem_cstruct)
+    (read_file path >|= X509.Cert.of_pem_cstruct)
     (o failure @@ Printf.sprintf "Certificates in %s: %s" path)
 
 let certs_of_pem_dir path =
@@ -72,9 +72,9 @@ let certs_of_pem_dir path =
 let validator = function
   | `Ca_file path ->
       certs_of_pem path >|= fun cas ->
-        Tls.X509.Validator.chain_of_trust ~time:0 cas
+        X509.Validator.chain_of_trust ~time:0 cas
   | `Ca_dir path ->
       certs_of_pem_dir path >|= fun cas ->
-        Tls.X509.Validator.chain_of_trust ~time:0 cas
-  | `No_validation_I'M_STUPID -> return Tls.X509.Validator.null
+        X509.Validator.chain_of_trust ~time:0 cas
+  | `No_validation_I'M_STUPID -> return X509.Validator.null
 

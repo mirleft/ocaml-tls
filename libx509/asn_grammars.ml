@@ -285,6 +285,23 @@ module Algorithm = struct
     | SHA512_224
     | SHA512_256
 
+  let to_hash = function
+    | MD5    -> Some `MD5
+    | SHA1   -> Some `SHA1
+    | SHA224 -> Some `SHA224
+    | SHA256 -> Some `SHA256
+    | SHA384 -> Some `SHA384
+    | SHA512 -> Some `SHA512
+    | _      -> None
+
+  and of_hash = function
+    | `MD5    -> MD5
+    | `SHA1   -> SHA1
+    | `SHA224 -> SHA224
+    | `SHA256 -> SHA256
+    | `SHA384 -> SHA384
+    | `SHA512 -> SHA512
+
   (* XXX
    *
    * PKCS1/RFC5280 allows params to be `ANY', depending on the algorithm.  I don't
@@ -814,6 +831,14 @@ let (certificate_of_cstruct, certificate_to_cstruct) =
 
 
 let pkcs1_digest_info =
+  let open Algorithm in
+  let f (algo, cs) =
+    match to_hash algo with
+    | Some h -> (h, cs)
+    | None   -> parse_error "pkcs1 digest info: unknown hash"
+  and g (h, cs) = (of_hash h, cs)
+  in
+  map f g @@
   sequence2
     (required ~label:"digestAlgorithm" Algorithm.identifier)
     (required ~label:"digest"          octet_string)
@@ -839,7 +864,7 @@ let  extn_subject_alt_name
    , extn_policies
 =
   let f pred cert =
-    Utils.map_find cert.tbs_cert.extensions
+    List_ext.map_find cert.tbs_cert.extensions
       ~f:(fun (crit, ext) ->
             match pred ext with None -> None | Some x -> Some (crit, x))
   in

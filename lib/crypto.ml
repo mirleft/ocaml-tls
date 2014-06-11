@@ -8,106 +8,6 @@ open Ciphersuite
 
 let (<+>) = Utils.Cs.(<+>)
 
-let padPKCS1_and_signRSA key msg =
-
-  (* XXX XXX temp *)
-  let len = RSA.priv_bits key / 8 in
-
-  (* inspiration from RFC3447 EMSA-PKCS1-v1_5 and rsa_sign.c from OpenSSL *)
-  (* also ocaml-ssh kex.ml *)
-  (* msg.length must be 36 (16 MD5 + 20 SHA1) in TLS-1.0/1.1! *)
-  let mlen = Cstruct.len msg in
-  let padlen = len - mlen in
-  if padlen > 3 then
-    let out = Cstruct.create len in
-    Cstruct.set_uint8 out 0 0;
-    Cstruct.set_uint8 out 1 1;
-    for i = 2 to (padlen - 2) do
-      Cstruct.set_uint8 out i 0xff;
-    done;
-    Cstruct.set_uint8 out (pred padlen) 0;
-    Cstruct.blit msg 0 out padlen mlen;
-    Some (RSA.decrypt ~key out)
-  else
-    None
-
-let verifyRSA_and_unpadPKCS1 pubkey data =
-  let dat = RSA.encrypt ~key:pubkey data in
-  if (Cstruct.get_uint8 dat 0 = 0) && (Cstruct.get_uint8 dat 1 = 1) then
-    let rec ff idx =
-      match Cstruct.get_uint8 dat idx with
-      | 0    -> Some (succ idx)
-      | 0xff -> ff (succ idx)
-      | _    -> None
-    in
-    match ff 2 with
-    | Some start -> Some (Cstruct.shift dat start)
-    | None       -> None
-  else
-    None
-
-let padPKCS1_and_encryptRSA pubkey data =
-  (* we're supposed to do the following:
-     0x00 0x02 <random_not_zero> 0x00 data *)
-
-  (* XXX XXX this is temp. *)
-  let msglen = RSA.pub_bits pubkey / 8 in
-
-  let open Cstruct in
-  let padlen = msglen - (len data) in
-  let msg = create msglen in
-
-  (* the header 0x00 0x02 *)
-  set_uint8 msg 0 0;
-  set_uint8 msg 1 2;
-
-  let produce_random () = Rng.generate (2 * padlen) in
-
-  (* the non-zero random *)
-  let rec copybyte random = function
-    | x when x = pred padlen -> ()
-    | n                      ->
-       if len random = 0 then
-         copybyte (produce_random ()) n
-       else
-         let rest = shift random 1 in
-         match get_uint8 random 0 with
-         | 0 -> copybyte rest n
-         | r -> set_uint8 msg n r;
-                copybyte rest (succ n)
-  in
-  copybyte (produce_random ()) 2;
-
-  (* footer 0x00 *)
-  set_uint8 msg (pred padlen) 0;
-
-  (* merging all together *)
-  blit data 0 msg padlen (len data);
-  RSA.encrypt ~key:pubkey msg
-
-let decryptRSA_unpadPKCS1 key msg =
-  (* XXX XXX temp *)
-  let msglen = RSA.priv_bits key / 8 in
-
-  let open Cstruct in
-  if msglen == len msg then
-    let dec = RSA.decrypt ~key msg in
-    let rec check_padding cur start = function
-      | 0                  -> let res = get_uint8 dec 0 = 0 in
-                              check_padding (res && cur) 1 1
-      | 1                  -> let res = get_uint8 dec 1 = 2 in
-                              check_padding (res && cur) 2 2
-      | n when n >= msglen -> start
-      | n                  -> let res = get_uint8 dec n = 0 in
-                              let nxt = succ n in
-                              match cur, res with
-                              | true, true -> check_padding false nxt nxt
-                              | x   , _    -> check_padding x start nxt
-    in
-    let start = check_padding true 0 0 in
-    Some (Cstruct.shift dec start)
-  else
-    None
 
 (* on-the-wire dh_params <-> (group, pub_message) *)
 let dh_params_pack group message =
@@ -187,18 +87,20 @@ let mac (hash, secret) seq ty (v_major, v_minor) data =
   let module H = (val hash : Hash.T_MAC) in
   H.hmac ~key:secret (prefix <+> data)
 
-(* Decoder + project asn algos into hashes we understand. *)
+(* XXX Make these two go away by controling the number of ways to represent the
+ * hash algorithm... *)
+
 let pkcs1_digest_info_of_cstruct cs =
   match Asn_grammars.pkcs1_digest_info_of_cstruct cs with
   | None -> None
   | Some (asn_algo, digest) ->
-      match Ciphersuite.asn_to_hash_algorithm asn_algo with
+      match Ciphersuite.hash_algorithm_of_tag asn_algo with
       | Some hash -> Some (hash, digest)
       | None      -> None
 
-let pkcs1_digest_info_to_cstruct hashalgo data =
+and pkcs1_digest_info_to_cstruct hashalgo data =
   let signature = hash hashalgo data in
-  match Ciphersuite.hash_algorithm_to_asn hashalgo with
+  match Ciphersuite.tag_of_hash_algorithm hashalgo with
   | Some x -> Some (Asn_grammars.pkcs1_digest_info_to_cstruct (x, signature))
   | None   -> None
 
