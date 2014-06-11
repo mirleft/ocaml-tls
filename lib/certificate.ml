@@ -4,6 +4,7 @@ open Nocrypto
 open Registry
 open Asn_grammars
 
+(* Utils stuff. Could be broken out. *)
 
 let rec filter_map ~f = function
   | []    -> []
@@ -20,6 +21,39 @@ let rec map_find ~f = function
       | Some _ as x' -> x'
 
 module Cs = Nocrypto.Common.Cs
+
+(* *** *)
+
+(* Control flow stuff. Should be imported from a single place. *)
+
+module Control = struct
+
+  type ('a, 'e) or_error =
+    | Ok of 'a
+    | Error of 'e
+
+  let (>>=) m f = match m with
+    | Ok a      -> f a
+    | Error err -> Error err
+
+  let success  = Ok ()
+  let fail err = Error err
+
+  let lower = function
+    | Ok _      -> `Ok
+    | Error err -> `Fail err
+
+  let is_success = function Ok _ -> true | _ -> false
+
+  let rec iter_m f = function
+    | []    -> Ok ()
+    | x::xs -> f x >>= fun _ -> iter_m f xs
+
+end
+
+include Control
+
+(* *** *)
 
 (*
  * There are two reasons to carry Cstruct.t around:
@@ -135,16 +169,6 @@ let cert_extended_usage { asn = cert } =
   | Some (_, Extension.Ext_key_usage usages) -> Some (List.map extended_usage_export usages)
   | _                                        -> None
 
-module Or_error =
-  Control.Or_error_make ( struct type err = certificate_failure end )
-
-open Or_error
-
-let success = return ()
-
-let lower = function
-  | Ok _      -> `Ok
-  | Error err -> `Fail err
 
 (* TODO RFC 5280: A certificate MUST NOT include more than
                   one instance of a particular extension. *)
@@ -435,7 +459,7 @@ let verify_chain_of_trust ?host ~time ~anchors (server, certs) =
              validate_anchors pathlen cert anchors
     in
     is_server_cert_valid ?host time server >>= fun () ->
-    mapM_ (is_cert_valid time) certs       >>= fun () ->
+    iter_m (is_cert_valid time) certs      >>= fun () ->
     climb 0 server certs
   in
   lower res
