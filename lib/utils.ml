@@ -7,11 +7,6 @@ let o f g x = f (g x)
 
 module List_set = struct
 
-  let rec first_match l1 = function
-    | []                       -> None
-    | x::xs when List.mem x l1 -> Some x
-    | _::xs                    -> first_match l1 xs
-
   let inter ?(compare = compare) l1 l2 =
     let rec loop xs ys =
       match (xs, ys) with
@@ -129,6 +124,11 @@ let rec last = function
   | []    -> invalid_arg "empty list"
   | [x]   -> x
   | _::xs -> last xs
+
+let rec first_match l1 = function
+  | []                       -> None
+  | x::xs when List.mem x l1 -> Some x
+  | _::xs                    -> first_match l1 xs
 
 
 let hexdump_to_str cs =

@@ -142,7 +142,7 @@ let answer_client_hello_params state params ch raw =
               let client_hashes =
                 List.(map fst @@ filter (fun (_, x) -> x = RSA) client_algos)
               in
-              match List_set.first_match client_hashes supported_hashes with
+              match first_match client_hashes supported_hashes with
               | None      -> fail_handshake
               | Some hash -> return hash )
           >>= fun hash ->
@@ -188,7 +188,7 @@ let answer_client_hello state (ch : client_hello) raw =
     | None   -> fail Packet.PROTOCOL_VERSION
 
   and find_ciphersuite server_supported requested =
-    match List_set.first_match requested server_supported with
+    match first_match requested server_supported with
     | None   -> fail_handshake
     | Some c -> return c
 
