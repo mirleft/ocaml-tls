@@ -22,7 +22,7 @@ Flag "mirage"
 
 Library "x509"
   Path            : libx509/
-  Modules         : Registry, Asn_grammars, Certificate, X509
+  Modules         : List_ext, Registry, Asn_grammars, Certificate, X509
   BuildDepends    : cstruct, sexplib.syntax, nocrypto, asn1-combinators
 
 Library "tls"
@@ -35,7 +35,7 @@ Library "tls"
                     Engine
   InternalModules : Control
   Pack            : true
-  BuildDepends    : cstruct.syntax, sexplib.syntax, nocrypto
+  BuildDepends    : cstruct.syntax, sexplib.syntax, nocrypto, x509
 
 # Library "tls"
 #   Path            : lib/

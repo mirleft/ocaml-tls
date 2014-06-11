@@ -864,7 +864,7 @@ let  extn_subject_alt_name
    , extn_policies
 =
   let f pred cert =
-    Utils.map_find cert.tbs_cert.extensions
+    List_ext.map_find cert.tbs_cert.extensions
       ~f:(fun (crit, ext) ->
             match pred ext with None -> None | Some x -> Some (crit, x))
   in
