@@ -378,7 +378,9 @@ let rekey st =
   match hs.machina with
   | Server ServerEstablished ->
      if hs.config.use_rekeying then
-       Some (send_records st [(Packet.HANDSHAKE, Writer.assemble_handshake HelloRequest)])
+       let hr = HelloRequest in
+       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ;
+       Some (send_records st [(Packet.HANDSHAKE, Writer.assemble_handshake hr)])
      else
        None
   | Client ClientEstablished ->

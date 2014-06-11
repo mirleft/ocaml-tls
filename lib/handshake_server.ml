@@ -142,9 +142,9 @@ let answer_client_hello_params state params ch raw =
               let client_hashes =
                 List.(map fst @@ filter (fun (_, x) -> x = RSA) client_algos)
               in
-              match List_set.inter client_hashes supported_hashes with
-              | []        -> fail_handshake
-              | hash :: _ -> return hash )
+              match first_match client_hashes supported_hashes with
+              | None      -> fail_handshake
+              | Some hash -> return hash )
           >>= fun hash ->
             match Crypto.pkcs1_digest_info_to_cstruct hash data with
             | None         -> fail_handshake
@@ -188,9 +188,9 @@ let answer_client_hello state (ch : client_hello) raw =
     | None   -> fail Packet.PROTOCOL_VERSION
 
   and find_ciphersuite server_supported requested =
-    match List_set.inter server_supported requested with
-    | []   -> fail_handshake
-    | c::_ -> return c
+    match first_match requested server_supported with
+    | None   -> fail_handshake
+    | Some c -> return c
 
   and ensure_reneg require our_data ciphers their_data  =
     let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in

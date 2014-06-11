@@ -35,7 +35,7 @@ module List_set = struct
       match (xs, ys) with
       | ([], _)          -> true
       | (_, [])          -> false
-      | (x::xss, y::yss) -> 
+      | (x::xss, y::yss) ->
           match compare x y with
           | -1 -> false
           |  1 -> loop xs yss
@@ -124,6 +124,11 @@ let rec last = function
   | []    -> invalid_arg "empty list"
   | [x]   -> x
   | _::xs -> last xs
+
+let rec first_match l1 = function
+  | []                       -> None
+  | x::xs when List.mem x l1 -> Some x
+  | _::xs                    -> first_match l1 xs
 
 
 let hexdump_to_str cs =
