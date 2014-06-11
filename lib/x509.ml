@@ -1,9 +1,25 @@
 
-open Utils
+let o f g x = f (g x)
+
+module Cs = struct
+
+  open Cstruct
+  include Nocrypto.Common.Cs
+
+  let begins_with cs target =
+    let l1 = len cs and l2 = len target in
+    l1 >= l2 && equal (sub cs 0 l2) target
+
+  let ends_with cs target =
+    let l1 = len cs and l2 = len target in
+    l1 >= l2 && equal (sub cs (l1 - l2) l2) target
+end
 
 module Pem = struct
 
   open Cstruct
+
+  let null cs = Cstruct.len cs = 0
 
   let open_begin = of_string "-----BEGIN "
   and open_end   = of_string "-----END "
@@ -14,7 +30,7 @@ module Pem = struct
 
   let tok_of_line cs =
     try
-      if ( Cs.equal cs Cs.empty ) then
+      if ( null cs ) then
         `Empty else
       if ( get_char cs 0 = '#' ) then
         `Empty else
@@ -45,7 +61,7 @@ module Pem = struct
     let rec accumulate t acc = parser
       | [< ' `Empty ; lines >] -> accumulate t acc lines
       | [< ' `Data cs ; lines >] -> accumulate t (cs :: acc) lines
-      | [< ' `End t' when t = t' >] -> Cs.appends (List.rev acc)
+      | [< ' `End t' when t = t' >] -> Cs.concat (List.rev acc)
 
     and block = parser
       | [< ' `Begin t ; body = accumulate t [] ; tail >] ->
