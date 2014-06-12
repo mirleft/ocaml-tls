@@ -20,12 +20,6 @@ Flag "mirage"
   Description : Mirage backend
   Default     : true
 
-Library "x509"
-  Path            : libx509/
-  Modules         : Asn_grammars, Certificate, X509
-  InternalModules : List_ext, Registry
-  BuildDepends    : cstruct, sexplib.syntax, nocrypto, asn1-combinators
-
 Library "tls"
   Path            : lib/
   Modules         : Tracing, Ciphersuite, Packet, Core,
@@ -40,7 +34,7 @@ Library "tls"
 
 Library "tests"
   Path            : tests/
-  Modules         : Testlib, Readertests, Writertests, Readerwritertests, Handshakes, X509tests, Unittests
+  Modules         : Testlib, Readertests, Writertests, Readerwritertests, Handshakes, Unittests
   Install         : false
   Build          $: flag(tests)
   BuildDepends    : tls, oUnit, cstruct.unix
