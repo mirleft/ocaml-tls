@@ -123,7 +123,7 @@ let answer_certificate state params cs raw log =
                         validate validator host >>= fun cert ->
                         guard (validate_keytype cert keytype &&
                                  validate_usage cert usage &&
-                                   validate_ext_usage cert `ServerAuth)
+                                   validate_ext_usage cert `Server_auth)
                               Packet.BAD_CERTIFICATE >>= fun () ->
                         return cert ) >>= fun peer_cert ->
 
