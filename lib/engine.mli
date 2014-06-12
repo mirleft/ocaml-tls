@@ -1,11 +1,15 @@
-open Core
-open State
 
 type state
 
+type alert = Packet.alert_type
+
 type ret = [
-  | `Ok   of [ `Ok of state | `Eof | `Alert of Packet.alert_type ] * Cstruct.t * Cstruct.t option
-  | `Fail of Packet.alert_type * Cstruct.t
+
+  | `Ok of [ `Ok of state | `Eof | `Alert of alert ]
+         * [ `Response of Cstruct.t ]
+         * [ `Data of Cstruct.t option ]
+
+  | `Fail of alert * [ `Response of Cstruct.t ]
 ]
 
 val can_handle_appdata    : state -> bool

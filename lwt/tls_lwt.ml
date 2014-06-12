@@ -73,20 +73,20 @@ module Unix = struct
       match
         tracing t @@ fun () -> Tls.Engine.handle_tls tls buf
       with
-      | `Ok (`Ok tls, answer, appdata) ->
+      | `Ok (`Ok tls, `Response resp, `Data data) ->
           t.state <- `Active tls ;
-          write_t t answer >> return (`Ok appdata)
+          write_t t resp >> return (`Ok data)
 
-      | `Ok ((`Eof | `Alert _ as err), answer, appdata) ->
+      | `Ok ((`Eof | `Alert _ as err), `Response resp, `Data data) ->
           let e_res = match err with
             | `Eof     -> `Eof
             | `Alert a -> `Error (Tls_alert a) in
           t.state <- e_res ;
-          send_and_close_no_exn t.fd answer >> return (`Ok appdata)
+          send_and_close_no_exn t.fd resp >> return (`Ok data)
 
-      | `Fail (alert, answer) ->
+      | `Fail (alert, `Response resp) ->
           t.state <- `Error (Tls_failure alert) ;
-          send_and_close_no_exn t.fd answer >> read_react t
+          send_and_close_no_exn t.fd resp >> read_react t
     in
 
     match t.state with

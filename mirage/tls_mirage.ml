@@ -38,20 +38,20 @@ module Make (TCP: V1_LWT.TCPV4) = struct
       match
         tracing flow @@ fun () -> Tls.Engine.handle_tls tls buf
       with
-      | `Ok (res, answer, appdata) ->
+      | `Ok (res, `Response resp, `Data data) ->
           flow.state <- ( match res with
             | `Ok tls      -> `Active tls
             | `Eof         -> `Eof
             | `Alert alert -> `Error (error_of_alert alert) );
-          TCP.write flow.tcp answer >>
+          TCP.write flow.tcp resp >>
           ( match res with
             | `Ok _ -> return_unit
             | _     -> TCP.close flow.tcp ) >>
-          return (`Ok appdata)
-      | `Fail (alert, answer)      ->
+          return (`Ok data)
+      | `Fail (alert, `Response resp) ->
           let reason = `Error (error_of_alert alert) in
           flow.state <- reason ;
-          TCP.(write flow.tcp answer >> close flow.tcp) >> return reason
+          TCP.(write flow.tcp resp >> close flow.tcp) >> return reason
     in
     match flow.state with
     | `Eof | `Error _ as e -> return e
