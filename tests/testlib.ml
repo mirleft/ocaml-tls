@@ -23,10 +23,15 @@ let uint16_to_cstruct i =
   BE.set_uint16 buf 0 i;
   buf
 
+let hexdump_to_str cs =
+  let b = Buffer.create 16 in
+  Cstruct.hexdump_to_buffer b cs ;
+  Buffer.contents b
+
 let assert_cs_eq ?msg cs1 cs2 =
   assert_equal
     ~cmp:Tls.Utils.Cs.equal
-    ~printer:Tls.Utils.hexdump_to_str
+    ~printer:hexdump_to_str
     ?msg
     cs1 cs2
 

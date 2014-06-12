@@ -201,6 +201,7 @@ module Alert = struct
   let handle buf =
     match Reader.parse_alert buf with
     | Reader.Or_error.Ok (_, a_type as alert) ->
+        Tracing.sexpf ~tag:"alert-in" ~f:sexp_of_tls_alert alert ;
         let err = match a_type with
           | CLOSE_NOTIFY -> `Eof
           | _            -> `Alert a_type in
@@ -345,6 +346,7 @@ let handle_tls state buf =
   | Error x ->
       let version = state.handshake.version in
       let resp    = assemble_records version [Alert.make x] in
+      Tracing.sexpf ~tag:"alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, x) ;
       `Fail (x, `Response resp)
 
 let send_records (st : state) records =
