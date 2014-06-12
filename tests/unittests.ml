@@ -7,6 +7,4 @@ let suite =
     "ReaderWriter" >::: Readerwritertests.readerwriter_tests ;
 
     "Handshake" >::: Handshakes.handshake_tests ;
-
-    "X509" >::: X509tests.x509_tests ;
   ]
