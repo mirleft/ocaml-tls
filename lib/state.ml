@@ -35,14 +35,6 @@ and sexp_of_crypto_context cc =
     "mac"      , Cstruct_s.sexp_of_t (snd cc.mac)
   ]
 
-module DH = struct
-  include DH
-  let group_of_sexp _ = failwith "can't parse dh_group from sexp"
-  and sexp_of_group _ = Sexp.Atom "-SOME-DH-GROUP-"
-  let secret_of_sexp _ = failwith "can't parse dh_secret from sexp"
-  and sexp_of_secret _ = Sexp.Atom "-A-DH-SECRET-"
-end
-
 (* *** *)
 
 
