@@ -185,10 +185,11 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   peer_rsa_key cert >>= fun pubkey ->
   signature pubkey raw_signature >>= fun signature ->
   let sigdata = params.client_random <+> params.server_random <+> raw_dh_params in
-  verifier signature sigdata >|= fun () ->
-
-  let dh_received = Crypto.dh_params_unpack dh_params in
-  let machina = ServerKeyExchangeReceived_DHE_RSA (params, dh_received, log @ [raw]) in
+  verifier signature sigdata >>= fun () ->
+  let (group, _ as dh) = Crypto.dh_params_unpack dh_params in
+  guard (DH.apparent_bit_size group > Config.min_dh_size) Packet.INSUFFICIENT_SECURITY
+  >|= fun () ->
+  let machina = ServerKeyExchangeReceived_DHE_RSA (params, dh, log @ [raw]) in
   ({ state with machina = Client machina }, [])
 
 let answer_server_hello_done_common state kex premaster params raw log =

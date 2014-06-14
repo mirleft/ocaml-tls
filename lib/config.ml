@@ -32,6 +32,8 @@ let supported_ciphers = Ciphersuite.([
     TLS_RSA_WITH_RC4_128_MD5
   ])
 
+let min_dh_size = 512
+
 
 let default_config = {
   ciphers                 = supported_ciphers ;

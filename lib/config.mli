@@ -24,6 +24,8 @@ type config = private {
 val supported_ciphers : ciphersuite list
 val supported_hashes  : hash_algorithm list
 
+val min_dh_size : int
+
 type client
 type server
 
