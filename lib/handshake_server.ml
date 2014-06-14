@@ -63,8 +63,9 @@ let answer_client_key_exchange_RSA state params kex raw log =
   establish_master_secret state params pms raw log
 
 let answer_client_key_exchange_DHE_RSA state params (group, secret) kex raw log =
-  let pms = DH.shared group secret kex in
-  establish_master_secret state params pms raw log
+  match Crypto.dh_shared group secret kex with
+  | None     -> fail Packet.INSUFFICIENT_SECURITY
+  | Some pms -> establish_master_secret state params pms raw log
 
 let answer_client_hello_params state params ch raw =
   let open Packet in

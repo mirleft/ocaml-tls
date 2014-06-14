@@ -185,10 +185,11 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   peer_rsa_key cert >>= fun pubkey ->
   signature pubkey raw_signature >>= fun signature ->
   let sigdata = params.client_random <+> params.server_random <+> raw_dh_params in
-  verifier signature sigdata >|= fun () ->
-
-  let dh_received = Crypto.dh_params_unpack dh_params in
-  let machina = ServerKeyExchangeReceived_DHE_RSA (params, dh_received, log @ [raw]) in
+  verifier signature sigdata >>= fun () ->
+  let (group, _ as dh) = Crypto.dh_params_unpack dh_params in
+  guard (DH.apparent_bit_size group > Config.min_dh_size) Packet.INSUFFICIENT_SECURITY
+  >|= fun () ->
+  let machina = ServerKeyExchangeReceived_DHE_RSA (params, dh, log @ [raw]) in
   ({ state with machina = Client machina }, [])
 
 let answer_server_hello_done_common state kex premaster params raw log =
@@ -224,8 +225,10 @@ let answer_server_hello_done_RSA state params cert raw log =
 
 let answer_server_hello_done_DHE_RSA state params (group, s_secret) raw log =
   let secret, kex = DH.gen_secret group in
-  let premaster = DH.shared group secret s_secret in
-  return (answer_server_hello_done_common state kex premaster params raw log)
+  match Crypto.dh_shared group secret s_secret with
+  | None     -> fail Packet.INSUFFICIENT_SECURITY
+  | Some pms ->
+      return (answer_server_hello_done_common state kex pms params raw log)
 
 let answer_server_finished state client_verify master_secret fin log =
   let computed = Handshake_crypto.finished state.version master_secret "server finished" log in
