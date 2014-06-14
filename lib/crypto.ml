@@ -17,6 +17,10 @@ let dh_params_pack group message =
 and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
   ( DH.group ~p:dh_p ~gg:dh_g (), dh_Ys )
 
+let dh_shared group secret public =
+  try Some (DH.shared group secret public)
+  with DH.Invalid_public_key -> None
+
 
 type 'k stream_cipher = (module Stream.T    with type key = 'k)
 type 'k cbc_cipher    = (module Block.T_CBC with type key = 'k)

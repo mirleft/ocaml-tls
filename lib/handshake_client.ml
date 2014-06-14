@@ -225,8 +225,10 @@ let answer_server_hello_done_RSA state params cert raw log =
 
 let answer_server_hello_done_DHE_RSA state params (group, s_secret) raw log =
   let secret, kex = DH.gen_secret group in
-  let premaster = DH.shared group secret s_secret in
-  return (answer_server_hello_done_common state kex premaster params raw log)
+  match Crypto.dh_shared group secret s_secret with
+  | None     -> fail Packet.INSUFFICIENT_SECURITY
+  | Some pms ->
+      return (answer_server_hello_done_common state kex pms params raw log)
 
 let answer_server_finished state client_verify master_secret fin log =
   let computed = Handshake_crypto.finished state.version master_secret "server finished" log in
