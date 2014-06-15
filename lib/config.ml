@@ -92,11 +92,16 @@ let validate_server config =
          | _                           -> invalid "public / private key combination" )
     | None -> () ) ;
   ( match config.own_certificate with
-    | Some (s::cs as xs, _) ->
-       let ta = last xs in
-       match Certificate.verify_chain_of_trust ~time:0 ~anchors:[ta] (s, cs) with
-       | `Ok -> ()
-       | `Fail x -> invalid ("certificate chain does not validate: " ^
+    | None         -> ()
+    | Some (xs, _) ->
+        match init_and_last xs with
+        | None | Some ([], _) -> ()
+        | Some (s::cs, ta)    ->
+            match
+              Certificate.verify_chain_of_trust ~time:0 ~anchors:[ta] (s, cs)
+            with
+            | `Ok     -> ()
+            | `Fail x -> invalid ("certificate chain does not validate: " ^
                                (Certificate.certificate_failure_to_string x)) )
    (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
 
