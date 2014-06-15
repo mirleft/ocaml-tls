@@ -73,8 +73,8 @@ let validate_server config =
     List.filter needs_certificate |>
     List.iter (fun kex ->
       let ctype, cusage = match config.own_certificate with
-        | None           -> invalid "no certificate provided"
-        | Some (c::_, _) -> (Certificate.cert_type c, Certificate.cert_usage c)
+        | None | Some ([], _) -> invalid "no certificate provided"
+        | Some (c::_, _)      -> Certificate.(cert_type c, cert_usage c)
       in
       let ktype, usage = required_keytype_and_usage kex in
       if ktype != ctype then invalid "need a certificate of different keytype for selected ciphers" ;
@@ -92,11 +92,16 @@ let validate_server config =
          | _                           -> invalid "public / private key combination" )
     | None -> () ) ;
   ( match config.own_certificate with
-    | Some (s::cs as xs, _) ->
-       let ta = last xs in
-       match Certificate.verify_chain_of_trust ~time:0 ~anchors:[ta] (s, cs) with
-       | `Ok -> ()
-       | `Fail x -> invalid ("certificate chain does not validate: " ^
+    | None         -> ()
+    | Some (xs, _) ->
+        match init_and_last xs with
+        | None | Some ([], _) -> ()
+        | Some (s::cs, ta)    ->
+            match
+              Certificate.verify_chain_of_trust ~time:0 ~anchors:[ta] (s, cs)
+            with
+            | `Ok     -> ()
+            | `Fail x -> invalid ("certificate chain does not validate: " ^
                                (Certificate.certificate_failure_to_string x)) )
    (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
 
