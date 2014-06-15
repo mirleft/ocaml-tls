@@ -215,7 +215,7 @@ module X509 (KV : V1_LWT.KV_RO) = struct
         read_full kv (path </> name ^ ".pem") >|= X509.Cert.of_pem_cstruct
       and pk =
         read_full kv (path </> name ^ ".key") >|= X509.PK.of_pem_cstruct1 in
-      return (certs, pk)
+      return (List.rev certs, pk)
     in function | `Default   -> read default_cert
                 | `Name name -> read name
 end
