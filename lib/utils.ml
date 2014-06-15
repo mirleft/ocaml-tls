@@ -98,10 +98,11 @@ let option none some = function
   | None   -> none
   | Some x -> some x
 
-let rec last = function
-  | []    -> invalid_arg "empty list"
-  | [x]   -> x
-  | _::xs -> last xs
+let init_and_last list =
+  List.fold_right (fun x -> function
+    | None         -> Some ([], x)
+    | Some (xs, y) -> Some (x::xs, y))
+  list None
 
 let rec first_match l1 = function
   | []                       -> None
