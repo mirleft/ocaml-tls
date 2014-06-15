@@ -73,8 +73,8 @@ let validate_server config =
     List.filter needs_certificate |>
     List.iter (fun kex ->
       let ctype, cusage = match config.own_certificate with
-        | None           -> invalid "no certificate provided"
-        | Some (c::_, _) -> (Certificate.cert_type c, Certificate.cert_usage c)
+        | None | Some ([], _) -> invalid "no certificate provided"
+        | Some (c::_, _)      -> Certificate.(cert_type c, cert_usage c)
       in
       let ktype, usage = required_keytype_and_usage kex in
       if ktype != ctype then invalid "need a certificate of different keytype for selected ciphers" ;
