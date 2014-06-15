@@ -55,7 +55,7 @@ let private_of_pems ~cert ~priv_key =
     catch_invalid_arg
       (read_file priv_key >|= X509.PK.of_pem_cstruct1)
       (o failure @@ Printf.sprintf "Private key (%s): %s" priv_key)
-  in return (List.rev certs, pk)
+  in return (certs, pk)
 
 let certs_of_pem path =
   catch_invalid_arg
