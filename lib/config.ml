@@ -90,7 +90,7 @@ let validate_server config =
        ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
          | PK.RSA pub' when pub = pub' -> ()
          | _                           -> invalid "public / private key combination" )
-    | None -> () ) ;
+    | None | Some ([], _) -> () ) ;
   ( match config.own_certificate with
     | None         -> ()
     | Some (xs, _) ->
