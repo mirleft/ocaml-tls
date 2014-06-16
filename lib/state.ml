@@ -53,12 +53,12 @@ type handshake_params = {
 } with sexp
 
 type server_handshake_state =
-  | ServerInitial
-  | ServerHelloDoneSent_RSA of handshake_params * hs_log
-  | ServerHelloDoneSent_DHE_RSA of handshake_params * dh_sent * hs_log
-  | ClientKeyExchangeReceived of crypto_context * crypto_context * master_secret * hs_log
-  | ClientChangeCipherSpecReceived of master_secret * hs_log
-  | ServerEstablished
+  | AwaitClientHello
+  | AwaitClientKeyExchange_RSA of handshake_params * hs_log
+  | AwaitClientKeyExchange_DHE_RSA of handshake_params * dh_sent * hs_log
+  | AwaitChangeCipherSpec of crypto_context * crypto_context * master_secret * hs_log
+  | AwaitFinished of master_secret * hs_log
+  | Established
   with sexp
 
 type client_handshake_state =

@@ -21,7 +21,7 @@ let answer_client_finished state master_secret fin raw log =
   assure (Cs.null state.hs_fragment)
   >|= fun () ->
   let rekeying = Some (client_computed, server_checksum) in
-  let machina = Server ServerEstablished
+  let machina = Server Established
   in
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
   ({ state with machina ; rekeying }, [`Record (Packet.HANDSHAKE, fin_raw)])
@@ -29,7 +29,7 @@ let answer_client_finished state master_secret fin raw log =
 let establish_master_secret state params premastersecret raw log =
   let client_ctx, server_ctx, master_secret =
     Handshake_crypto.initialise_crypto_ctx state.version params premastersecret in
-  let machina = ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log @ [raw])
+  let machina = AwaitChangeCipherSpec (server_ctx, client_ctx, master_secret, log @ [raw])
   in
   Tracing.cs ~tag:"master-secret" master_secret ;
   return ({ state with machina = Server machina }, [])
@@ -168,12 +168,12 @@ let answer_client_hello_params state params ch raw =
     | Ciphersuite.DHE_RSA ->
         kex_dhe_rsa state.config params state.version ch >>= fun (kex, dh) ->
         let outs = sh :: certificates @ [ kex ; hello_done] in
-        let machina = ServerHelloDoneSent_DHE_RSA (params, dh, raw :: outs) in
+        let machina = AwaitClientKeyExchange_DHE_RSA (params, dh, raw :: outs) in
         Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
         return (outs, machina)
     | Ciphersuite.RSA ->
         let outs = sh :: certificates @ [ hello_done] in
-        let machina = ServerHelloDoneSent_RSA (params, raw :: outs) in
+        let machina = AwaitClientKeyExchange_RSA (params, raw :: outs) in
         Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
         return (outs, machina)
     ) >|= fun (out_recs, machina) ->
@@ -233,11 +233,11 @@ let answer_client_hello state (ch : client_hello) raw =
 let handle_change_cipher_spec ss state packet =
   let open Reader in
   match parse_change_cipher_spec packet, ss with
-  | Or_error.Ok (), ClientKeyExchangeReceived (server_ctx, client_ctx, master_secret, log) ->
+  | Or_error.Ok (), AwaitChangeCipherSpec (server_ctx, client_ctx, master_secret, log) ->
      assure (Cs.null state.hs_fragment)
      >>= fun () ->
      let ccs = change_cipher_spec in
-     let machina = ClientChangeCipherSpecReceived (master_secret, log)
+     let machina = AwaitFinished (master_secret, log)
      in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      Tracing.cs ~tag:"change-cipher-spec-out" packet ;
@@ -254,15 +254,15 @@ let handle_handshake ss hs buf =
   | Or_error.Ok handshake ->
      Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake;
      ( match ss, handshake with
-       | ServerInitial, ClientHello ch ->
+       | AwaitClientHello, ClientHello ch ->
           answer_client_hello hs ch buf
-       | ServerHelloDoneSent_RSA (params, log), ClientKeyExchange kex ->
+       | AwaitClientKeyExchange_RSA (params, log), ClientKeyExchange kex ->
           answer_client_key_exchange_RSA hs params kex buf log
-       | ServerHelloDoneSent_DHE_RSA (params, dh_sent, log), ClientKeyExchange kex ->
+       | AwaitClientKeyExchange_DHE_RSA (params, dh_sent, log), ClientKeyExchange kex ->
           answer_client_key_exchange_DHE_RSA hs params dh_sent kex buf log
-       | ClientChangeCipherSpecReceived (master_secret, log), Finished fin ->
+       | AwaitFinished (master_secret, log), Finished fin ->
           answer_client_finished hs master_secret fin buf log
-       | ServerEstablished, ClientHello ch -> (* rekeying *)
+       | Established, ClientHello ch -> (* rekeying *)
           answer_client_hello hs ch buf
        | _, _-> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE

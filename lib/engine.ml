@@ -25,7 +25,7 @@ let (<+>) = Utils.Cs.(<+>)
 let new_state config role =
   let handshake_state = match role with
     | `Client -> Client ClientInitial
-    | `Server -> Server ServerInitial (* we should check that a own_cert is Some _ in config! *)
+    | `Server -> Server AwaitClientHello
   in
   let handshake = {
     version      = max_protocol_version Config.(config.protocol_versions) ;
@@ -281,7 +281,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   let version = hs.version in
   ( match hs.machina, hdr.version = version with
     | Client (ClientHelloSent _), _     -> return ()
-    | Server (ServerInitial)    , _     -> return ()
+    | Server (AwaitClientHello) , _     -> return ()
     | _                         , true  -> return ()
     | _                         , false -> fail Packet.PROTOCOL_VERSION )
   >>= fun () ->
@@ -379,7 +379,7 @@ let send_close_notify st = send_records st [Alert.close_notify]
 let rekey st =
   let hs = st.handshake in
   match hs.machina with
-  | Server ServerEstablished ->
+  | Server Established ->
      if hs.config.use_rekeying then
        let hr = HelloRequest in
        Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ;
