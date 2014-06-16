@@ -34,7 +34,7 @@ let supported_ciphers = Ciphersuite.([
 
 let min_dh_size = 512
 
-let min_rsa_key_size = 2048
+let min_rsa_key_size = 1024
 
 let default_config = {
   ciphers                 = supported_ciphers ;
