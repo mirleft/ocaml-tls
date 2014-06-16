@@ -67,12 +67,53 @@ let answer_client_key_exchange_DHE_RSA state params (group, secret) kex raw log 
   | None     -> fail Packet.INSUFFICIENT_SECURITY
   | Some pms -> establish_master_secret state params pms raw log
 
-let answer_client_hello_params state params ch raw =
-  let open Packet in
 
-  let cipher = params.cipher in
+let answer_client_hello state (ch : client_hello) raw =
+  let find_version supported requested =
+    match supported_protocol_version supported requested with
+    | Some x -> return x
+    | None   -> fail Packet.PROTOCOL_VERSION
 
-  let server_hello client_hello rekeying version random =
+  and find_ciphersuite server_supported requested =
+    match first_match requested server_supported with
+    | None   -> fail_handshake
+    | Some c -> return c
+
+  and ensure_reneg require our_data ciphers their_data  =
+    let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
+    match require, reneg_cs, our_data, their_data with
+    | _    , _    , None         , Some x -> assure (Cs.null x)
+    | _    , _    , Some (cvd, _), Some x -> assure (Cs.equal cvd x)
+    | _    , true , None         , _      -> return ()
+    | false, _    , _            , _      -> return ()
+    | true , _    , _            , _      -> fail_handshake
+
+  (* only renegotiate if the config allows us to *)
+  and renegotiate use_rk rekeying =
+    match use_rk, rekeying with
+    | false, Some _ -> fail_handshake
+    | _    , _      -> return ()
+  in
+
+  let process_client_hello config ch =
+    let cciphers = ch.ciphersuites in
+    let theirs = get_secure_renegotiation ch.extensions in
+    assure (client_hello_valid ch) >>= fun () ->
+    find_version config.protocol_versions ch.version >>= fun version ->
+    find_ciphersuite config.ciphers cciphers >>= fun cipher ->
+    renegotiate config.use_rekeying state.rekeying >>= fun () ->
+    ensure_reneg config.require_secure_rekeying state.rekeying cciphers theirs >|= fun () ->
+
+    Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
+    Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
+
+    ({ server_random = Rng.generate 32 ;
+       client_random = ch.random ;
+       client_version = ch.version ;
+       cipher = cipher },
+     version)
+
+  and server_hello client_hello cipher rekeying version random =
     (* we could provide a certificate with any of the given hostnames *)
     (* TODO: preserve this hostname somewhere maybe? *)
     let server_name = hostname client_hello in
@@ -94,9 +135,8 @@ let answer_client_hello_params state params ch raw =
     let sh = ServerHello server_hello in
     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ;
     Writer.assemble_handshake sh
-  in
 
-  let server_cert config params =
+  and server_cert config cipher params =
     let cert_needed =
       Ciphersuite.(needs_certificate @@ ciphersuite_kex cipher) in
     match config.own_certificate, cert_needed with
@@ -105,11 +145,11 @@ let answer_client_hello_params state params ch raw =
        Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ;
        return [ Writer.assemble_handshake cert ]
     | _, false -> return []
-    | _        -> fail_handshake in
+    | _        -> fail_handshake
     (* ^^^ Rig ciphersuite selection never to end up with one than needs a cert
      * if we haven't got one. *)
 
-  let kex_dhe_rsa config params version client_hello =
+  and kex_dhe_rsa config params version client_hello =
     let group         = DH.Group.oakley_2 in (* rfc2409 1024-bit group *)
     let (secret, msg) = DH.gen_secret group in
     let dh_state      = group, secret in
@@ -141,7 +181,7 @@ let answer_client_hello_params state params ch raw =
           | None    -> return Ciphersuite.SHA
           | Some client_algos ->
               let client_hashes =
-                List.(map fst @@ filter (fun (_, x) -> x = RSA) client_algos)
+                List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) client_algos)
               in
               match first_match client_hashes supported_hashes with
               | None      -> fail_handshake
@@ -159,14 +199,16 @@ let answer_client_hello_params state params ch raw =
       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ;
       (hs, dh_state) in
 
-  let sh = server_hello ch state.rekeying state.version params.server_random in
-  server_cert state.config params >>= fun certificates ->
+  process_client_hello state.config ch >>= fun (params, version) ->
+  let cipher = params.cipher in
+  let sh = server_hello ch cipher state.rekeying version params.server_random in
+  server_cert state.config cipher params >>= fun certificates ->
 
   let hello_done = Writer.assemble_handshake ServerHelloDone in
 
   ( match Ciphersuite.ciphersuite_kex cipher with
     | Ciphersuite.DHE_RSA ->
-        kex_dhe_rsa state.config params state.version ch >>= fun (kex, dh) ->
+        kex_dhe_rsa state.config params version ch >>= fun (kex, dh) ->
         let outs = sh :: certificates @ [ kex ; hello_done] in
         let machina = AwaitClientKeyExchange_DHE_RSA (params, dh, raw :: outs) in
         Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
@@ -178,57 +220,8 @@ let answer_client_hello_params state params ch raw =
         return (outs, machina)
     ) >|= fun (out_recs, machina) ->
 
-  ({ state with machina = Server machina },
-   List.map (fun e -> `Record (HANDSHAKE, e)) out_recs)
-
-
-let answer_client_hello state (ch : client_hello) raw =
-  let find_version supported requested =
-    match supported_protocol_version supported requested with
-    | Some x -> return x
-    | None   -> fail Packet.PROTOCOL_VERSION
-
-  and find_ciphersuite server_supported requested =
-    match first_match requested server_supported with
-    | None   -> fail_handshake
-    | Some c -> return c
-
-  and ensure_reneg require our_data ciphers their_data  =
-    let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
-    match require, reneg_cs, our_data, their_data with
-    | _    , _    , None         , Some x -> assure (Cs.null x)
-    | _    , _    , Some (cvd, _), Some x -> assure (Cs.equal cvd x)
-    | _    , true , None         , _      -> return ()
-    | false, _    , _            , _      -> return ()
-    | true , _    , _            , _      -> fail_handshake
-
-  (* only renegotiate if the config allows us to *)
-  and renegotiate use_rk rekeying =
-    match use_rk, rekeying with
-    | false, Some _ -> fail_handshake
-    | _    , _      -> return ()
-  in
-
-  let cfg = state.config in
-  let cciphers = ch.ciphersuites in
-  let theirs = get_secure_renegotiation ch.extensions in
-  assure (client_hello_valid ch) >>= fun () ->
-  find_version cfg.protocol_versions ch.version >>= fun version ->
-  find_ciphersuite cfg.ciphers cciphers >>= fun cipher ->
-  renegotiate cfg.use_rekeying state.rekeying >>= fun () ->
-  ensure_reneg cfg.require_secure_rekeying state.rekeying cciphers theirs >>= fun () ->
-
-  let params =
-    { server_random = Rng.generate 32 ;
-      client_random = ch.random ;
-      client_version = ch.version ;
-      cipher = cipher }
-  in
-  Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
-  Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
-
-  let hs = { state with version } in
-  answer_client_hello_params hs params ch raw
+  ({ state with machina = Server machina ; version },
+   List.map (fun e -> `Record (Packet.HANDSHAKE, e)) out_recs)
 
 let handle_change_cipher_spec ss state packet =
   let open Reader in
