@@ -280,10 +280,10 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   let hs = state.handshake in
   let version = hs.version in
   ( match hs.machina, hdr.version = version with
-    | Client (ClientHelloSent _), _     -> return ()
-    | Server (AwaitClientHello) , _     -> return ()
-    | _                         , true  -> return ()
-    | _                         , false -> fail Packet.PROTOCOL_VERSION )
+    | Client (AwaitServerHello _), _     -> return ()
+    | Server (AwaitClientHello)  , _     -> return ()
+    | _                          , true  -> return ()
+    | _                          , false -> fail Packet.PROTOCOL_VERSION )
   >>= fun () ->
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->
@@ -386,7 +386,7 @@ let rekey st =
        Some (send_records st [(Packet.HANDSHAKE, Writer.assemble_handshake hr)])
      else
        None
-  | Client ClientEstablished ->
+  | Client Established ->
      ( match Handshake_client.answer_hello_request hs with
        | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
        | _                            -> None )
@@ -430,7 +430,7 @@ let client config =
 
   let ch = ClientHello client_hello in
   let raw = Writer.assemble_handshake ch in
-  let machina = ClientHelloSent (client_hello, params, [raw]) in
+  let machina = AwaitServerHello (client_hello, params, [raw]) in
   let handshake = { state.handshake with machina = Client machina }
   in
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;

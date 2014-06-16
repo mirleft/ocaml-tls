@@ -29,7 +29,7 @@ let answer_client_finished state master_secret fin raw log =
 let establish_master_secret state params premastersecret raw log =
   let client_ctx, server_ctx, master_secret =
     Handshake_crypto.initialise_crypto_ctx state.version params premastersecret in
-  let machina = AwaitChangeCipherSpec (server_ctx, client_ctx, master_secret, log @ [raw])
+  let machina = AwaitClientChangeCipherSpec (server_ctx, client_ctx, master_secret, log @ [raw])
   in
   Tracing.cs ~tag:"master-secret" master_secret ;
   return ({ state with machina = Server machina }, [])
@@ -233,11 +233,11 @@ let answer_client_hello state (ch : client_hello) raw =
 let handle_change_cipher_spec ss state packet =
   let open Reader in
   match parse_change_cipher_spec packet, ss with
-  | Or_error.Ok (), AwaitChangeCipherSpec (server_ctx, client_ctx, master_secret, log) ->
+  | Or_error.Ok (), AwaitClientChangeCipherSpec (server_ctx, client_ctx, master_secret, log) ->
      assure (Cs.null state.hs_fragment)
      >>= fun () ->
      let ccs = change_cipher_spec in
-     let machina = AwaitFinished (master_secret, log)
+     let machina = AwaitClientFinished (master_secret, log)
      in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      Tracing.cs ~tag:"change-cipher-spec-out" packet ;
@@ -260,7 +260,7 @@ let handle_handshake ss hs buf =
           answer_client_key_exchange_RSA hs params kex buf log
        | AwaitClientKeyExchange_DHE_RSA (params, dh_sent, log), ClientKeyExchange kex ->
           answer_client_key_exchange_DHE_RSA hs params dh_sent kex buf log
-       | AwaitFinished (master_secret, log), Finished fin ->
+       | AwaitClientFinished (master_secret, log), Finished fin ->
           answer_client_finished hs master_secret fin buf log
        | Established, ClientHello ch -> (* rekeying *)
           answer_client_hello hs ch buf
