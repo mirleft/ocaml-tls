@@ -104,7 +104,16 @@ let validate_chain config cipher certificates =
     match cert_extended_usage cert with
     | None            -> true
     | Some ext_usages -> List.mem ext_use ext_usages || List.mem `Any ext_usages
+  in
 
+  let key_size min cs =
+    let check c =
+      let open Asn_grammars in
+      ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
+        | PK.RSA key when RSA.pub_bits key >= min -> true
+        | _                                       -> false )
+    in
+    guard (List.for_all check cs) Packet.INSUFFICIENT_SECURITY
   in
 
   let host = match config.peer_name with
@@ -118,8 +127,9 @@ let validate_chain config cipher certificates =
   match config.validator with
   | None -> parse certificates >|= fun (server, _) ->
             server
-  | Some validator -> parse certificates >>=
-                      validate validator host >>= fun cert ->
+  | Some validator -> parse certificates >>= fun (s, xs) ->
+                      key_size Config.min_rsa_key_size (s :: xs) >>= fun () ->
+                      validate validator host (s, xs) >>= fun cert ->
                       let keytype, usage =
                         Ciphersuite.(o required_keytype_and_usage ciphersuite_kex cipher)
                       in
