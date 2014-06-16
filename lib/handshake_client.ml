@@ -201,7 +201,7 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   let sigdata = params.client_random <+> params.server_random <+> raw_dh_params in
   verifier signature sigdata >>= fun () ->
   let group, shared = Crypto.dh_params_unpack dh_params in
-  guard (DH.apparent_bit_size group > Config.min_dh_size) Packet.INSUFFICIENT_SECURITY
+  guard (DH.apparent_bit_size group >= Config.min_dh_size) Packet.INSUFFICIENT_SECURITY
   >>= fun () ->
 
   let secret, kex = DH.gen_secret group in
