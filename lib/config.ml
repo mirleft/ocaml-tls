@@ -34,6 +34,7 @@ let supported_ciphers = Ciphersuite.([
 
 let min_dh_size = 512
 
+let min_rsa_key_size = 1024
 
 let default_config = {
   ciphers                 = supported_ciphers ;
@@ -90,7 +91,7 @@ let validate_server config =
        ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
          | PK.RSA pub' when pub = pub' -> ()
          | _                           -> invalid "public / private key combination" )
-    | None -> () ) ;
+    | None | Some ([], _) -> () ) ;
   ( match config.own_certificate with
     | None         -> ()
     | Some (xs, _) ->

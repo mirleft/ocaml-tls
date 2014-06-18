@@ -20,12 +20,12 @@ type ret = [
 ]
 
 
-let (<+>) = Utils.Cs.(<+>)
+let (<+>) = Cs.(<+>)
 
 let new_state config role =
   let handshake_state = match role with
     | `Client -> Client ClientInitial
-    | `Server -> Server ServerInitial (* we should check that a own_cert is Some _ in config! *)
+    | `Server -> Server AwaitClientHello
   in
   let handshake = {
     version      = max_protocol_version Config.(config.protocol_versions) ;
@@ -280,10 +280,10 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   let hs = state.handshake in
   let version = hs.version in
   ( match hs.machina, hdr.version = version with
-    | Client (ClientHelloSent _), _     -> return ()
-    | Server (ServerInitial)    , _     -> return ()
-    | _                         , true  -> return ()
-    | _                         , false -> fail Packet.PROTOCOL_VERSION )
+    | Client (AwaitServerHello _), _     -> return ()
+    | Server (AwaitClientHello)  , _     -> return ()
+    | _                          , true  -> return ()
+    | _                          , false -> fail Packet.PROTOCOL_VERSION )
   >>= fun () ->
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->
@@ -315,7 +315,7 @@ let maybe_app a b = match a, b with
   | None  , None   -> None
 
 let assemble_records (version : tls_version) : record list -> Cstruct.t =
-  o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
+  o Cs.appends @@ List.map @@ Writer.assemble_hdr version
 
 (* main entry point *)
 let handle_tls state buf =
@@ -379,14 +379,14 @@ let send_close_notify st = send_records st [Alert.close_notify]
 let rekey st =
   let hs = st.handshake in
   match hs.machina with
-  | Server ServerEstablished ->
-     if hs.config.use_rekeying then
+  | Server Established ->
+     if Config.(hs.config.use_rekeying) then
        let hr = HelloRequest in
        Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ;
        Some (send_records st [(Packet.HANDSHAKE, Writer.assemble_handshake hr)])
      else
        None
-  | Client ClientEstablished ->
+  | Client Established ->
      ( match Handshake_client.answer_hello_request hs with
        | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
        | _                            -> None )
@@ -430,7 +430,7 @@ let client config =
 
   let ch = ClientHello client_hello in
   let raw = Writer.assemble_handshake ch in
-  let machina = ClientHelloSent (client_hello, params, [raw]) in
+  let machina = AwaitServerHello (client_hello, params, [raw]) in
   let handshake = { state.handshake with machina = Client machina }
   in
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;

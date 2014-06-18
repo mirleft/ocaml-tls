@@ -41,7 +41,6 @@ and sexp_of_crypto_context cc =
 type hs_log = Cstruct_s.t list with sexp
 type master_secret = Cstruct_s.t with sexp
 
-type dh_received = DH.group * Cstruct_s.t with sexp
 type dh_sent = DH.group * DH.secret with sexp
 
 
@@ -53,24 +52,24 @@ type handshake_params = {
 } with sexp
 
 type server_handshake_state =
-  | ServerInitial
-  | ServerHelloDoneSent_RSA of handshake_params * hs_log
-  | ServerHelloDoneSent_DHE_RSA of handshake_params * dh_sent * hs_log
-  | ClientKeyExchangeReceived of crypto_context * crypto_context * master_secret * hs_log
-  | ClientChangeCipherSpecReceived of master_secret * hs_log
-  | ServerEstablished
+  | AwaitClientHello
+  | AwaitClientKeyExchange_RSA of handshake_params * hs_log
+  | AwaitClientKeyExchange_DHE_RSA of handshake_params * dh_sent * hs_log
+  | AwaitClientChangeCipherSpec of crypto_context * crypto_context * master_secret * hs_log
+  | AwaitClientFinished of master_secret * hs_log
+  | Established
   with sexp
 
 type client_handshake_state =
   | ClientInitial
-  | ClientHelloSent of client_hello * handshake_params * hs_log
-  | ServerHelloReceived of handshake_params * hs_log
-  | ServerCertificateReceived_RSA of handshake_params * Certificate.certificate * hs_log
-  | ServerCertificateReceived_DHE_RSA of handshake_params * Certificate.certificate * hs_log
-  | ServerKeyExchangeReceived_DHE_RSA of handshake_params * dh_received * hs_log
-  | ClientFinishedSent of crypto_context * Cstruct_s.t * master_secret * hs_log
-  | ServerChangeCipherSpecReceived of Cstruct_s.t * master_secret * hs_log
-  | ClientEstablished
+  | AwaitServerHello of client_hello * handshake_params * hs_log
+  | AwaitCertificate_RSA of handshake_params * hs_log
+  | AwaitCertificate_DHE_RSA of handshake_params * hs_log
+  | AwaitServerKeyExchange_DHE_RSA of handshake_params * Certificate.certificate * hs_log
+  | AwaitServerHelloDone of handshake_params * Cstruct_s.t * Cstruct_s.t * hs_log
+  | AwaitServerChangeCipherSpec of crypto_context * Cstruct_s.t * master_secret * hs_log
+  | AwaitServerFinished of Cstruct_s.t * master_secret * hs_log
+  | Established
   with sexp
 
 type handshake_machina_state =

@@ -53,11 +53,6 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
     | _    , Some (cvd, svd), Some x -> assure (Cs.equal (cvd <+> svd) x)
     | false, _              , _      -> return ()
     | true , _              , _      -> fail_handshake
-
-  and adjust_params params sh =
-    { params with
-        server_random = sh.random ;
-        cipher = sh.ciphersuites }
   in
 
   let cfg = state.config in
@@ -69,11 +64,16 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
   let rekeying_data = get_secure_renegotiation sh.extensions in
   validate_rekeying cfg.require_secure_rekeying state.rekeying rekeying_data >|= fun () ->
 
-  let machina = ServerHelloReceived (adjust_params params sh, log @ [raw]) in
-  let state = { state with version = sh.version ; machina = Client machina } in
-  (state, [])
+  let machina =
+    let cipher = sh.ciphersuites in
+    let params = { params with server_random = sh.random ; cipher } in
+    Ciphersuite.(match ciphersuite_kex params.cipher with
+                 | RSA     -> AwaitCertificate_RSA (params, log @ [raw])
+                 | DHE_RSA -> AwaitCertificate_DHE_RSA (params, log @ [raw]))
+  in
+  ({ state with version = sh.version ; machina = Client machina }, [])
 
-let answer_certificate state params cs raw log =
+let validate_chain config cipher certificates =
   let open Certificate in
 
   let parse css =
@@ -103,43 +103,63 @@ let answer_certificate state params cs raw log =
     match cert_extended_usage cert with
     | None            -> true
     | Some ext_usages -> List.mem ext_use ext_usages || List.mem `Any ext_usages
-
   in
-  let kex = Ciphersuite.ciphersuite_kex params.cipher in
-  let keytype, usage = Ciphersuite.required_keytype_and_usage kex in
+
+  let key_size min cs =
+    let check c =
+      let open Asn_grammars in
+      ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
+        | PK.RSA key when RSA.pub_bits key >= min -> true
+        | _                                       -> false )
+    in
+    guard (List.for_all check cs) Packet.INSUFFICIENT_SECURITY
+  in
+
+  let host = match config.peer_name with
+    | None   -> None
+    | Some x -> Some (`Wildcard x)
+  in
 
   (* RFC5246: must be x509v3, take signaturealgorithms into account! *)
   (* RFC2246/4346: is generally x509v3, signing algorithm for certificate _must_ be same as algorithm for certificate key *)
 
-  let host = match state.config.peer_name with
-    | None -> None
-    | Some x -> Some (`Wildcard x)
-  in
-
-  ( match state.config.validator with
-    | None -> parse cs >>= fun (server, _) ->
-              return server
-    | Some validator -> parse cs >>=
-                        validate validator host >>= fun cert ->
-                        guard (validate_keytype cert keytype &&
-                                 validate_usage cert usage &&
-                                   validate_ext_usage cert `Server_auth)
-                              Packet.BAD_CERTIFICATE >>= fun () ->
-                        return cert ) >>= fun peer_cert ->
-
-  let machina =
-    let data = log @ [raw] in
-    Ciphersuite.(match kex with
-                 | RSA     -> ServerCertificateReceived_RSA (params, peer_cert, data)
-                 | DHE_RSA -> ServerCertificateReceived_DHE_RSA (params, peer_cert, data))
-  in
-  return ({ state with machina = Client machina }, [])
+  match config.validator with
+  | None -> parse certificates >|= fun (server, _) ->
+            server
+  | Some validator -> parse certificates >>= fun (s, xs) ->
+                      key_size Config.min_rsa_key_size (s :: xs) >>= fun () ->
+                      validate validator host (s, xs) >>= fun cert ->
+                      let keytype, usage =
+                        Ciphersuite.(o required_keytype_and_usage ciphersuite_kex cipher)
+                      in
+                      guard (validate_keytype cert keytype &&
+                               validate_usage cert usage &&
+                                 validate_ext_usage cert `Server_auth)
+                            Packet.BAD_CERTIFICATE >|= fun () ->
+                      cert
 
 let peer_rsa_key cert =
   let open Asn_grammars in
   ( match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
     | PK.RSA key -> return key
     | _          -> fail_handshake )
+
+let answer_certificate_RSA state params cs raw log =
+  validate_chain state.config params.cipher cs >>= fun cert ->
+
+  let ver = Writer.assemble_protocol_version params.client_version in
+  let premaster = ver <+> Rng.generate 46 in
+  peer_rsa_key cert >|= fun pubkey ->
+  let kex = RSA.PKCS1.encrypt pubkey premaster in
+
+  let machina = AwaitServerHelloDone (params, kex, premaster, log @ [raw]) in
+  ({ state with machina = Client machina }, [])
+
+let answer_certificate_DHE_RSA state params cs raw log =
+  validate_chain state.config params.cipher cs >|= fun cert ->
+  let machina = AwaitServerKeyExchange_DHE_RSA (params, cert, log @ [raw]) in
+  ({ state with machina = Client machina }, [])
+
 
 let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   let open Reader in
@@ -186,13 +206,17 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
   signature pubkey raw_signature >>= fun signature ->
   let sigdata = params.client_random <+> params.server_random <+> raw_dh_params in
   verifier signature sigdata >>= fun () ->
-  let (group, _ as dh) = Crypto.dh_params_unpack dh_params in
-  guard (DH.apparent_bit_size group > Config.min_dh_size) Packet.INSUFFICIENT_SECURITY
-  >|= fun () ->
-  let machina = ServerKeyExchangeReceived_DHE_RSA (params, dh, log @ [raw]) in
-  ({ state with machina = Client machina }, [])
+  let group, shared = Crypto.dh_params_unpack dh_params in
+  guard (DH.apparent_bit_size group >= Config.min_dh_size) Packet.INSUFFICIENT_SECURITY
+  >>= fun () ->
 
-let answer_server_hello_done_common state kex premaster params raw log =
+  let secret, kex = DH.gen_secret group in
+  match Crypto.dh_shared group secret shared with
+  | None     -> fail Packet.INSUFFICIENT_SECURITY
+  | Some pms -> let machina = AwaitServerHelloDone (params, kex, pms, log @ [raw]) in
+                return ({ state with machina = Client machina }, [])
+
+let answer_server_hello_done state params kex premaster raw log =
   let kex = ClientKeyExchange kex in
   let ckex = Writer.assemble_handshake kex in
   let (ccst, ccs) = change_cipher_spec in
@@ -203,38 +227,24 @@ let answer_server_hello_done_common state kex premaster params raw log =
   let fin = Finished checksum in
   let raw_fin = Writer.assemble_handshake fin in
   let ps = to_fin @ [raw_fin] in
-  let machina = ClientFinishedSent (server_ctx, checksum, master_secret, ps)
+  let machina = AwaitServerChangeCipherSpec (server_ctx, checksum, master_secret, ps)
   in
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex;
   Tracing.cs ~tag:"change-cipher-spec-out" ccs ;
   Tracing.cs ~tag:"master-secret" master_secret;
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin;
 
-  ({ state with machina = Client machina },
-   [`Record (Packet.HANDSHAKE, ckex);
-    `Record (ccst, ccs);
-    `Change_enc (Some client_ctx);
-    `Record (Packet.HANDSHAKE, raw_fin)])
-
-let answer_server_hello_done_RSA state params cert raw log =
-  let ver = Writer.assemble_protocol_version params.client_version in
-  let premaster = ver <+> Rng.generate 46 in
-  peer_rsa_key cert >>= fun pubkey ->
-  let kex = RSA.PKCS1.encrypt pubkey premaster in
-  return (answer_server_hello_done_common state kex premaster params raw log)
-
-let answer_server_hello_done_DHE_RSA state params (group, s_secret) raw log =
-  let secret, kex = DH.gen_secret group in
-  match Crypto.dh_shared group secret s_secret with
-  | None     -> fail Packet.INSUFFICIENT_SECURITY
-  | Some pms ->
-      return (answer_server_hello_done_common state kex pms params raw log)
+  return ({ state with machina = Client machina },
+          [`Record (Packet.HANDSHAKE, ckex);
+           `Record (ccst, ccs);
+           `Change_enc (Some client_ctx);
+           `Record (Packet.HANDSHAKE, raw_fin)])
 
 let answer_server_finished state client_verify master_secret fin log =
   let computed = Handshake_crypto.finished state.version master_secret "server finished" log in
   assure (Cs.equal computed fin && Cs.null state.hs_fragment)
   >|= fun () ->
-  let machina = ClientEstablished in
+  let machina = Established in
   let rekeying = Some (client_verify, computed) in
   ({ state with machina = Client machina ; rekeying = rekeying }, [])
 
@@ -249,7 +259,7 @@ let answer_hello_request state =
      let ch = { dch with
                   extensions = exts @ dch.extensions } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
-     let machina = ClientHelloSent (ch, params, [raw]) in
+     let machina = AwaitServerHello (ch, params, [raw]) in
      Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ;
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
 
@@ -264,9 +274,9 @@ let answer_hello_request state =
 let handle_change_cipher_spec cs state packet =
   let open Reader in
   match parse_change_cipher_spec packet, cs with
-  | Or_error.Ok (), ClientFinishedSent (server_ctx, client_verify, ms, log) ->
+  | Or_error.Ok (), AwaitServerChangeCipherSpec (server_ctx, client_verify, ms, log) ->
      assure (Cs.null state.hs_fragment) >>= fun () ->
-     let machina = ServerChangeCipherSpecReceived (client_verify, ms, log) in
+     let machina = AwaitServerFinished (client_verify, ms, log) in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      return ({ state with machina = Client machina }, [], `Change_dec (Some server_ctx))
   | _ ->
@@ -278,19 +288,19 @@ let handle_handshake cs hs buf =
   | Or_error.Ok handshake ->
      Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake ;
      ( match cs, handshake with
-       | ClientHelloSent (ch, params, log), ServerHello sh ->
+       | AwaitServerHello (ch, params, log), ServerHello sh ->
           answer_server_hello hs params ch sh buf log
-       | ServerHelloReceived (params, log), Certificate cs ->
-          answer_certificate hs params cs buf log
-       | ServerCertificateReceived_RSA (params, cert, log), ServerHelloDone ->
-          answer_server_hello_done_RSA hs params cert buf log
-       | ServerCertificateReceived_DHE_RSA (params, cert, log), ServerKeyExchange kex ->
+       | AwaitCertificate_RSA (params, log), Certificate cs ->
+          answer_certificate_RSA hs params cs buf log
+       | AwaitCertificate_DHE_RSA (params, log), Certificate cs ->
+          answer_certificate_DHE_RSA hs params cs buf log
+       | AwaitServerKeyExchange_DHE_RSA (params, cert, log), ServerKeyExchange kex ->
           answer_server_key_exchange_DHE_RSA hs params cert kex buf log
-       | ServerKeyExchangeReceived_DHE_RSA (params, dh, log), ServerHelloDone ->
-          answer_server_hello_done_DHE_RSA hs params dh buf log
-       | ServerChangeCipherSpecReceived (client_verify, master, log), Finished fin ->
+       | AwaitServerHelloDone (params, kex, pms, log), ServerHelloDone ->
+          answer_server_hello_done hs params kex pms buf log
+       | AwaitServerFinished (client_verify, master, log), Finished fin ->
           answer_server_finished hs client_verify master fin log
-       | ClientEstablished, HelloRequest ->
+       | Established, HelloRequest ->
           answer_hello_request hs
        | _, _ -> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
