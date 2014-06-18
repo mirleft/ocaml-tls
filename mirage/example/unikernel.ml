@@ -96,6 +96,7 @@ struct
   let peer = ((V4.of_string_exn "127.0.0.1", 4433), "localhost")
   let peer = ((V4.of_string_exn "2.19.157.15", 443), "www.apple.com")
   let peer = ((V4.of_string_exn "173.194.70.147", 443), "www.google.com")
+  let peer = ((V4.of_string_exn "10.0.0.1", 4433), "localhost")
 
   let initial = Cstruct.of_string @@
     "GET / HTTP/1.1\r\nConnection: Close\r\nHost: " ^ snd peer ^ "\r\n\r\n"
@@ -113,7 +114,7 @@ struct
     TLS.client_of_tcp_flow conf (snd peer) >>==
     chat c >>= function
     | `Error e -> L.log_error c e
-    | `Eof     -> L.log_trace c "eof." 
+    | `Eof     -> L.log_trace c "eof."
     | `Ok _    -> assert false
 
 end
