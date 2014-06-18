@@ -90,14 +90,13 @@ module Unix = struct
     in
 
     match t.state with
-    | `Error e    -> fail e
-    | `Eof        -> return `Eof
-    | `Active tls ->
+    | `Error e  -> fail e
+    | `Eof      -> return `Eof
+    | `Active _ ->
         lwt n = read_t t recv_buf in
-        if n = 0 then
-          (t.state <- `Eof ; return `Eof)
-        else
-          handle tls (Cstruct.sub recv_buf 0 n)
+        match (t.state, n) with
+        | (`Active _  , 0) -> t.state <- `Eof ; return `Eof
+        | (`Active tls, n) -> handle tls (Cstruct.sub recv_buf 0 n)
 
   let rec read t buf =
 
