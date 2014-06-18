@@ -41,7 +41,6 @@ and sexp_of_crypto_context cc =
 type hs_log = Cstruct_s.t list with sexp
 type master_secret = Cstruct_s.t with sexp
 
-type dh_received = DH.group * Cstruct_s.t with sexp
 type dh_sent = DH.group * DH.secret with sexp
 
 
