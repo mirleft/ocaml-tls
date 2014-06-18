@@ -20,7 +20,7 @@ type ret = [
 ]
 
 
-let (<+>) = Utils.Cs.(<+>)
+let (<+>) = Cs.(<+>)
 
 let new_state config role =
   let handshake_state = match role with
@@ -315,7 +315,7 @@ let maybe_app a b = match a, b with
   | None  , None   -> None
 
 let assemble_records (version : tls_version) : record list -> Cstruct.t =
-  o Utils.Cs.appends @@ List.map @@ Writer.assemble_hdr version
+  o Cs.appends @@ List.map @@ Writer.assemble_hdr version
 
 (* main entry point *)
 let handle_tls state buf =
