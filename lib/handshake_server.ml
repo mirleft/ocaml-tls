@@ -221,7 +221,7 @@ let answer_client_hello state (ch : client_hello) raw =
     ) >|= fun (out_recs, machina) ->
 
   ({ state with machina = Server machina ; version },
-   List.map (fun e -> `Record (Packet.HANDSHAKE, e)) out_recs)
+   [`Record (Packet.HANDSHAKE, Cs.appends out_recs)])
 
 let handle_change_cipher_spec ss state packet =
   let open Reader in
