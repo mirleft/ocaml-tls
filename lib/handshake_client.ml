@@ -71,8 +71,7 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
                  | RSA     -> AwaitCertificate_RSA (params, log @ [raw])
                  | DHE_RSA -> AwaitCertificate_DHE_RSA (params, log @ [raw]))
   in
-  let state = { state with version = sh.version ; machina = Client machina } in
-  (state, [])
+  ({ state with version = sh.version ; machina = Client machina }, [])
 
 let validate_chain config cipher certificates =
   let open Certificate in
@@ -153,10 +152,7 @@ let answer_certificate_RSA state params cs raw log =
   peer_rsa_key cert >|= fun pubkey ->
   let kex = RSA.PKCS1.encrypt pubkey premaster in
 
-  let machina =
-    let data = log @ [raw] in
-    AwaitServerHelloDone (params, kex, premaster, data)
-  in
+  let machina = AwaitServerHelloDone (params, kex, premaster, log @ [raw]) in
   ({ state with machina = Client machina }, [])
 
 let answer_certificate_DHE_RSA state params cs raw log =
