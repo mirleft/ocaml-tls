@@ -204,10 +204,10 @@ module X509 (KV : V1_LWT.KV_RO) = struct
   let validator kv = function
     | `Noop -> return X509.Validator.null
     | `CAs  ->
-        let time = -666 in (* get a `CLOCK` instance *)
         read_full kv ca_roots_file
         >|= X509.Cert.of_pem_cstruct
-        >|= X509.Validator.chain_of_trust ~time
+        (* Get a `CLOCK` instance! *)
+        >|= X509.Validator.chain_of_trust
 
   let certificate kv =
     let read name =
