@@ -32,7 +32,7 @@ let establish_master_secret state params premastersecret raw log =
   let machina = AwaitClientChangeCipherSpec (server_ctx, client_ctx, master_secret, log @ [raw])
   in
   Tracing.cs ~tag:"master-secret" master_secret ;
-  return ({ state with machina = Server machina }, [])
+  ({ state with machina = Server machina }, [])
 
 let private_key config =
   match config.own_certificate with
@@ -51,21 +51,24 @@ let answer_client_key_exchange_RSA state params kex raw log =
        implementations SHOULD check the version number, but MAY have a
        configuration option to disable the check.  Note that if the check
        fails, the PreMasterSecret SHOULD be randomized as described below *)
+    (* we do not provide an option to disable the version checking (yet!) *)
     match Cstruct.len k == 48, Reader.parse_version k with
-    | true, Reader.Or_error.Ok c_ver when c_ver = params.client_version -> return k
-    | _ -> return other
+    | true, Reader.Or_error.Ok c_ver when c_ver = params.client_version -> k
+    | _                                                                 -> other
   in
 
-  private_key state.config >>= fun priv ->
-  ( match RSA.PKCS1.decrypt priv kex with
+  private_key state.config >|= fun priv ->
+
+  let pms = match RSA.PKCS1.decrypt priv kex with
     | None   -> validate_premastersecret other
-    | Some k -> validate_premastersecret k ) >>= fun pms ->
+    | Some k -> validate_premastersecret k
+  in
   establish_master_secret state params pms raw log
 
 let answer_client_key_exchange_DHE_RSA state params (group, secret) kex raw log =
   match Crypto.dh_shared group secret kex with
   | None     -> fail Packet.INSUFFICIENT_SECURITY
-  | Some pms -> establish_master_secret state params pms raw log
+  | Some pms -> return (establish_master_secret state params pms raw log)
 
 
 let answer_client_hello state (ch : client_hello) raw =
