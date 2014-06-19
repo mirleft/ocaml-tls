@@ -99,7 +99,7 @@ let validate_server config =
         | None | Some ([], _) -> ()
         | Some (s::cs, ta)    ->
             match
-              Certificate.verify_chain_of_trust ~time:0 ~anchors:[ta] (s, cs)
+              Certificate.verify_chain_of_trust ~anchors:[ta] (s, cs)
             with
             | `Ok     -> ()
             | `Fail x -> invalid ("certificate chain does not validate: " ^

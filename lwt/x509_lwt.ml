@@ -68,13 +68,11 @@ let certs_of_pem_dir path =
   >>= Lwt_list.map_p (fun file -> certs_of_pem (path </> file))
   >|= List.concat
 
-
-let validator = function
-  | `Ca_file path ->
-      certs_of_pem path >|= fun cas ->
-        X509.Validator.chain_of_trust ~time:0 cas
-  | `Ca_dir path ->
-      certs_of_pem_dir path >|= fun cas ->
-        X509.Validator.chain_of_trust ~time:0 cas
+let validator param =
+  let of_cas cas =
+    let now = Unix.gettimeofday () in
+    X509.Validator.chain_of_trust ~time:now cas in
+  match param with
+  | `Ca_file path -> certs_of_pem path >|= of_cas
+  | `Ca_dir path  -> certs_of_pem_dir path >|= of_cas
   | `No_validation_I'M_STUPID -> return X509.Validator.null
-
