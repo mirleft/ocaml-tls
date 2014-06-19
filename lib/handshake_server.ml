@@ -70,17 +70,28 @@ let answer_client_key_exchange_DHE_RSA state params (group, secret) kex raw log 
   | None     -> fail Packet.INSUFFICIENT_SECURITY
   | Some pms -> return (establish_master_secret state params pms raw log)
 
+let versions = [ TLS_1_0 ; TLS_1_1 ; TLS_1_2 ]
 
 let answer_client_hello state (ch : client_hello) raw =
   let find_version supported requested =
-    match supported_protocol_version supported requested with
-    | Some x -> return x
-    | None   -> fail Packet.PROTOCOL_VERSION
+    let r =
+      let c = Rng.generate 1 in
+      Cstruct.get_uint8 c 0
+    in
+    match requested with
+    | SSL_3   -> fail Packet.PROTOCOL_VERSION
+    | TLS_1_0 -> return TLS_1_0
+    | TLS_1_1 -> return (List.nth versions (r mod 2))
+    | _       -> return (List.nth versions (r mod 3))
 
   and find_ciphersuite server_supported requested =
-    match first_match requested server_supported with
-    | None   -> fail_handshake
-    | Some c -> return c
+    let r =
+      let c = Rng.generate 1 in
+      Cstruct.get_uint8 c 0
+    in
+    match List_set.inter requested server_supported with
+    | []   -> fail_handshake
+    | xs   -> return (List.nth xs (r mod (List.length xs)))
 
   and ensure_reneg require our_data ciphers their_data  =
     let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
