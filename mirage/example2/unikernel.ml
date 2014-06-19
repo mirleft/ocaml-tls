@@ -8,7 +8,7 @@ module Main (C  : CONSOLE)
 struct
 
   module TLS  = Tls_mirage.Make_flow (S.TCPV4)
-  module X509 = Tls_mirage.X509 (KV)
+  module X509 = Tls_mirage.X509 (KV) (Clock)
   module Chan = Channel.Make (TLS)
   module Http = HTTP.Make (Chan)
 
