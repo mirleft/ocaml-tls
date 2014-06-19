@@ -53,7 +53,7 @@ module Server (C  : CONSOLE)
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
-  module X509 = Tls_mirage.X509 (KV)
+  module X509 = Tls_mirage.X509 (KV) (Clock)
   module L    = Log (C)
 
   let rec handle c flush tls =
@@ -88,7 +88,7 @@ module Client (C  : CONSOLE)
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
-  module X509 = Tls_mirage.X509 (KV)
+  module X509 = Tls_mirage.X509 (KV) (Clock)
   module L    = Log (C)
 
   open Ipaddr

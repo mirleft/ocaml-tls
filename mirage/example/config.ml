@@ -17,9 +17,8 @@ let disk =
 let net =
   try match Sys.getenv "NET" with
     | "direct" -> `Direct
-    | "socket" -> `Socket
-    | _        -> `Direct
-  with Not_found -> `Direct
+    | _        -> `Socket
+  with Not_found -> `Socket
 
 let dhcp =
   try match Sys.getenv "ADDR" with
@@ -40,7 +39,9 @@ let client =
   foreign "Unikernel.Client" @@ console @-> stackv4 @-> kv_ro @-> job
 
 let () =
-  add_to_ocamlfind_libraries ["tls"; "tls.mirage"] ;
+  (* Regrettably, CLOCK can't be dep-injected for now. *)
+  add_to_opam_packages [ "mirage-clock-unix" ] ;
+  add_to_ocamlfind_libraries [ "mirage-clock-unix"; "tls"; "tls.mirage" ] ;
   match build with
   | `Server ->
       register "tls-server" [ server $ default_console $ stack default_console $ disk ]
