@@ -182,7 +182,7 @@ module Make_flow (TCP: V1_LWT.TCPV4) = struct
   and id _ = assert false
 end
 
-module X509 (KV : V1_LWT.KV_RO) = struct
+module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) = struct
 
   let (</>) p1 p2 = p1 ^ "/" ^ p2
 
@@ -204,10 +204,10 @@ module X509 (KV : V1_LWT.KV_RO) = struct
   let validator kv = function
     | `Noop -> return X509.Validator.null
     | `CAs  ->
+        let time = C.time () in
         read_full kv ca_roots_file
         >|= X509.Cert.of_pem_cstruct
-        (* Get a `CLOCK` instance! *)
-        >|= X509.Validator.chain_of_trust
+        >|= X509.Validator.chain_of_trust ~time
 
   let certificate kv =
     let read name =

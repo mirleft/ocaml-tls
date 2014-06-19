@@ -10,8 +10,7 @@ module Make_flow (TCP : V1_LWT.TCPV4) : sig
      and type error := error
 end with module TCP := TCP
 
-(* XXX CLOCK *)
-module X509 (KV : V1_LWT.KV_RO) : sig
+module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) : sig
   val validator   : KV.t -> [< `Noop | `CAs ] -> X509.Validator.t Lwt.t
   val certificate : KV.t -> [< `Default | `Name of string ]
                          -> (X509.Cert.t list * X509.PK.t) Lwt.t
