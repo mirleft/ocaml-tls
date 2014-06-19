@@ -191,7 +191,7 @@ let answer_server_key_exchange_DHE_RSA state params cert kex raw log =
               | _ -> fail_handshake
             in
             return (signature, compare_hashes)
-         | Or_error.Error _ -> fail_handshake )
+         | _ -> fail_handshake )
 
   and signature pubkey raw_signature =
     match RSA.PKCS1.verify pubkey raw_signature with
