@@ -193,7 +193,7 @@ let answer_client_hello state (ch : client_hello) raw =
             match Crypto.pkcs1_digest_info_to_cstruct hash data with
             | None         -> fail_handshake
             | Some to_sign ->
-                sign to_sign >|= Writer.assemble_digitally_signed_1_2 hash RSA
+                sign to_sign >|= Writer.assemble_digitally_signed_1_2 hash Packet.RSA
     in
 
     private_key state.config >>= signature >|= fun sgn ->
