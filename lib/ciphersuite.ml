@@ -1,4 +1,6 @@
+(** Ciphersuite helper functions and definitions. Including mapping to reserved numbers and dissecting into key exchange, encryption, and hash algorithm. *)
 
+(** sum type of all possible key exchange methods *)
 type key_exchange_algorithm =
   | NULL
   | RSA
@@ -22,10 +24,12 @@ type key_exchange_algorithm =
   | SRP_SHA_DSS
   with sexp
 
+(** [needs_certificate kex] is a predicate which is true if the [kex] requires a server certificate *)
 let needs_certificate = function
   | DH_anon | PSK -> false
   | _ -> true
 
+(** [needs_server_kex kex] is a predicate which is true if the [kex] requires a server key exchange messag *)
 let needs_server_kex = function
   | DHE_DSS | DHE_RSA
   | DH_anon
@@ -34,6 +38,7 @@ let needs_server_kex = function
 
   | RSA | DH_DSS | DH_RSA -> false
 
+(** [required_keytype_and_usage kex] is [(keytype, usage)] which a certificate must have if it is used in the given [kex] method *)
 let required_keytype_and_usage = function
   | RSA | RSA_PSK          -> (`RSA, `Key_encipherment)
   | DHE_RSA | ECDHE_RSA    -> (`RSA, `Digital_signature) (* signing with the signature scheme and hash algorithm that will be employed in the server key exchange message. *)
@@ -42,6 +47,7 @@ let required_keytype_and_usage = function
 (* | ECDH_ECDSA | ECDH_RSA -> (`ECDH,  the public key MUST use a curve and point format supported by the client, as described in [TLSECC]. *)
 (* | ECDHE_ECDSA           -> (`ECDSA, the certificate MUST allow the key to be used for signing with the hash algorithm that will be employed in the server key exchange message.  The public key MUST use a curve and point format supported by the client, as described in  [TLSECC]. *)
 
+(** sum type of all possible encryption algorithms *)
 type encryption_algorithm =
   | NULL
   | RC4_40
@@ -70,9 +76,7 @@ type encryption_algorithm =
   | ARIA_256_CBC
   with sexp
 
-(* encryption_algorithm ->
-   (key_material          : int -- bytes from key_block to generate write keys
-    iv_size               : int -- length of IV, 0 for stream ciphers *)
+(** [key_length encryption_algorithm] is [(key size, IV size)] where key and IV size are the required bytes for the given [encryption_algorithm] *)
 let key_lengths = function
   | IDEA_CBC -> (16, 8)
   | RC4_128 -> (16, 0)
@@ -95,6 +99,7 @@ let key_lengths = function
   | ARIA_128_CBC
   | ARIA_256_CBC *)
 
+(** sum type of hash algorithms *)
 type hash_algorithm =
   | NULL
   | MD5
@@ -105,6 +110,7 @@ type hash_algorithm =
   | SHA512
   with sexp
 
+(** [hash_algorithm_of_tag tag] is [hash_algorithm] for the given [tag] *)
 let hash_algorithm_of_tag = function
   | `MD5    -> Some MD5
   | `SHA1   -> Some SHA
@@ -114,6 +120,7 @@ let hash_algorithm_of_tag = function
   | `SHA512 -> Some SHA512
   | _       -> None
 
+(** [tag_of_hash_algorithm hash_algorithm] is [tag] for the given [hash_algorithm] *)
 let tag_of_hash_algorithm = function
   | MD5    -> Some `MD5
   | SHA    -> Some `SHA1
@@ -123,7 +130,7 @@ let tag_of_hash_algorithm = function
   | SHA512 -> Some `SHA512
   | _      -> None
 
-(* TLS ciphersuites *)
+(** enum of all TLS ciphersuites *)
 cenum ciphersuite {
   TLS_NULL_WITH_NULL_NULL                = 0x0000;
   TLS_RSA_WITH_NULL_MD5                  = 0x0001;
@@ -447,6 +454,7 @@ cenum ciphersuite {
   TLS_PSK_DHE_WITH_AES_256_CCM_8               = 0xC0AB; (*RFC6655*)
 } as uint16_t (sexp)
 
+(** [get_kex_enc_hash ciphersuite] is [(kex, enc, hash)] where it dissects the [ciphersuite] into a tuple containing the key exchange method [kex], encryption algorithm [enc], and hash algorithm [hash] *)
 let get_kex_enc_hash
     : ciphersuite ->
       (key_exchange_algorithm * encryption_algorithm * hash_algorithm)
@@ -768,14 +776,21 @@ let get_kex_enc_hash
   | TLS_PSK_DHE_WITH_AES_128_CCM_8               -> (DHE_PSK, AES_128_CCM_8, NULL)
   | TLS_PSK_DHE_WITH_AES_256_CCM_8               -> (DHE_PSK, AES_256_CCM_8, NULL)
 
+(** [ciphersuite_kex ciphersuite] is [kex], first projection of [get_kex_enc_hash] *)
 let ciphersuite_kex c = let (k, _, _) = get_kex_enc_hash c in k
+
+(** [ciphersuite_cipher ciphersuite] is [enc], second projection of [get_kex_enc_hash] *)
 let ciphersuite_cipher c = let (_, k, _) = get_kex_enc_hash c in k
+
+(** [ciphersuite_mac ciphersuite] is [hash], third projection of [get_kex_enc_hash] *)
 let ciphersuite_mac c = let (_, _, k) = get_kex_enc_hash c in k
 
+(** [ciphersuite_cipher_mac_length ciphersuite] is [(key size, IV size)] of the given [ciphersuite], using [key_lengths] *)
 let ciphersuite_cipher_mac_length c =
   let cipher = ciphersuite_cipher c in
   key_lengths cipher
 
+(** [null_cipher ciphersuite] is a predicate returning true if any of the elements (kex, enc, hash) is [NULL] *)
 let null_cipher c =
   match get_kex_enc_hash c with
   | NULL, _, _ -> true

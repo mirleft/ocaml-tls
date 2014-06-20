@@ -1,24 +1,29 @@
+(* Defines all high-level datatypes for the TLS library. It is opaque to clients
+ of this library, and only used from within the library. *)
+
 open Sexplib
 open Sexplib.Conv
 
 open Core
 open Nocrypto
 
-
-type iv_mode =         (* IV style *)
-  | Iv of Cstruct_s.t  (* traditional CBC *)
-  | Random_iv          (* tls 1.1 style *)
+(* initialisation vector style, depending on TLS version *)
+type iv_mode =
+  | Iv of Cstruct_s.t  (* traditional CBC (reusing last cipherblock) *)
+  | Random_iv          (* TLS 1.1 and higher explicit IV (we use random) *)
   with sexp
 
+(* state of a symmetric cipher *)
 type cipher_st =
-  | Stream : 'k Crypto.stream_cipher * 'k -> cipher_st
-  | CBC    : 'k Crypto.cbc_cipher * 'k * iv_mode -> cipher_st
+  | Stream : 'k Crypto.stream_cipher * 'k -> cipher_st (* stream cipher state *)
+  | CBC    : 'k Crypto.cbc_cipher * 'k * iv_mode -> cipher_st (* block cipher state *)
 (*   | GCM : ... *)
 
+(* context of a TLS connection (both in and out has each one of these) *)
 type crypto_context = {
-  sequence  : int64 ;
-  cipher_st : cipher_st ;
-  mac       : Crypto.hash_fn * Cstruct.t
+  sequence  : int64 ; (* sequence number *)
+  cipher_st : cipher_st ; (* cipher state *)
+  mac       : Crypto.hash_fn * Cstruct.t (* hmac state *)
 }
 
 (* Sexplib stubs -- rethink how to play with crypto. *)
@@ -37,39 +42,42 @@ and sexp_of_crypto_context cc =
 
 (* *** *)
 
-
+(* the raw handshake log we need to carry around *)
 type hs_log = Cstruct_s.t list with sexp
+(* the master secret of a TLS connection *)
 type master_secret = Cstruct_s.t with sexp
-
+(* diffie hellman group and secret *)
 type dh_sent = DH.group * DH.secret with sexp
 
-
+(* persistent information during a handshake *)
 type handshake_params = {
-  server_random  : Cstruct_s.t ;
-  client_random  : Cstruct_s.t ;
-  client_version : tls_version ;
-  cipher         : Ciphersuite.ciphersuite
+  server_random  : Cstruct_s.t ; (* 32 bytes random from the server hello *)
+  client_random  : Cstruct_s.t ; (* 32 bytes random from the client hello *)
+  client_version : tls_version ; (* version in client hello (needed in RSA client key exchange) *)
+  cipher         : Ciphersuite.ciphersuite (* selected ciphersuite by the server *)
 } with sexp
 
+(* state machine of the server *)
 type server_handshake_state =
-  | AwaitClientHello
-  | AwaitClientKeyExchange_RSA of handshake_params * hs_log
-  | AwaitClientKeyExchange_DHE_RSA of handshake_params * dh_sent * hs_log
-  | AwaitClientChangeCipherSpec of crypto_context * crypto_context * master_secret * hs_log
-  | AwaitClientFinished of master_secret * hs_log
-  | Established
+  | AwaitClientHello (* initial state *)
+  | AwaitClientKeyExchange_RSA of handshake_params * hs_log (* server hello done is sent, and RSA key exchange used, waiting for a client key exchange message *)
+  | AwaitClientKeyExchange_DHE_RSA of handshake_params * dh_sent * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
+  | AwaitClientChangeCipherSpec of crypto_context * crypto_context * master_secret * hs_log (* client key exchange received, next should be change cipher spec *)
+  | AwaitClientFinished of master_secret * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
+  | Established (* handshake successfully completed *)
   with sexp
 
+(* state machine of the client *)
 type client_handshake_state =
-  | ClientInitial
-  | AwaitServerHello of client_hello * handshake_params * hs_log
-  | AwaitCertificate_RSA of handshake_params * hs_log
-  | AwaitCertificate_DHE_RSA of handshake_params * hs_log
-  | AwaitServerKeyExchange_DHE_RSA of handshake_params * Certificate.certificate * hs_log
-  | AwaitServerHelloDone of handshake_params * Cstruct_s.t * Cstruct_s.t * hs_log
-  | AwaitServerChangeCipherSpec of crypto_context * Cstruct_s.t * master_secret * hs_log
-  | AwaitServerFinished of Cstruct_s.t * master_secret * hs_log
-  | Established
+  | ClientInitial (* initial state *)
+  | AwaitServerHello of client_hello * handshake_params * hs_log (* client hello is sent, handshake_params are half-filled *)
+  | AwaitCertificate_RSA of handshake_params * hs_log (* certificate expected with RSA key exchange *)
+  | AwaitCertificate_DHE_RSA of handshake_params * hs_log (* certificate expected with DHE_RSA key exchange *)
+  | AwaitServerKeyExchange_DHE_RSA of handshake_params * Certificate.certificate * hs_log (* server key exchange expected with DHE_RSA *)
+  | AwaitServerHelloDone of handshake_params * Cstruct_s.t * Cstruct_s.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
+  | AwaitServerChangeCipherSpec of crypto_context * Cstruct_s.t * master_secret * hs_log (* change cipher spec expected *)
+  | AwaitServerFinished of Cstruct_s.t * master_secret * hs_log (* finished expected with a hmac over all handshake packets *)
+  | Established (* handshake successfully completed *)
   with sexp
 
 type handshake_machina_state =
@@ -77,34 +85,48 @@ type handshake_machina_state =
   | Server of server_handshake_state
   with sexp
 
+(* a collection of client and server verify bytes for rekeying *)
 type rekeying_params = Cstruct_s.t * Cstruct_s.t
   with sexp
 
+(* state during a handshake, used in the handlers *)
 type handshake_state = {
-  version      : tls_version ;
-  machina      : handshake_machina_state ;
-  config       : Config.config ;
-  rekeying     : rekeying_params option ;
-  hs_fragment  : Cstruct_s.t
+  version      : tls_version ; (* negotiated version *)
+  machina      : handshake_machina_state ; (* state machine state *)
+  config       : Config.config ; (* given config *)
+  rekeying     : rekeying_params option ; (* rekeying data *)
+  hs_fragment  : Cstruct_s.t (* handshake messages can be fragmented, leftover from before *)
 } with sexp
 
+(* connection state: initially None, after handshake a crypto context *)
 type crypto_state = crypto_context option
   with sexp
 
-(* return type of handlers *)
+(* record consisting of a content type and a byte vector *)
 type record = Packet.content_type * Cstruct_s.t with sexp
+
+(* response returned by a handler *)
 type rec_resp = [
-  | `Change_enc of crypto_state
-  | `Record     of record
+  | `Change_enc of crypto_state (* either instruction to change the encryptor to the given one *)
+  | `Record     of record (* or a record which should be sent out *)
 ]
-type dec_resp = [ `Change_dec of crypto_state | `Pass ]
+
+(* response for the decryption part *)
+type dec_resp = [
+  | `Change_dec of crypto_state (* either change the decryptor to the given one *)
+  | `Pass (* do not change anything *)
+]
+
+(* return type of handshake handlers *)
 type handshake_return = handshake_state * rec_resp list
+
+(* return type of change cipher spec handlers *)
 type ccs_return = handshake_state * rec_resp list * dec_resp
 
 (* Top level state, encapsulating the entire session. *)
 type state = {
-  handshake : handshake_state ;
-  decryptor : crypto_state ;
-  encryptor : crypto_state ;
-  fragment  : Cstruct_s.t ;
+  handshake : handshake_state ; (* the current handshake state *)
+  decryptor : crypto_state ; (* the current decryption state *)
+  encryptor : crypto_state ; (* the current encryption state *)
+  fragment  : Cstruct_s.t ; (* the leftover fragment from TCP fragmentation *)
 } with sexp
