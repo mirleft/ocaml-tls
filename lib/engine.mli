@@ -20,9 +20,10 @@ type ret = [
 (** [handle_tls tls in] is [ret], depending on incoming [tls] state and cstruct, return appropriate [ret] *)
 val handle_tls : state -> Cstruct.t -> ret
 
-(** [can_handle_appdata tls] is true when the connection has already completed a handshake *)
+(** [can_handle_appdata tls] is a predicate which indicates when the connection has already completed a handshake *)
 val can_handle_appdata    : state -> bool
 
+(** [handshake_in_progress tls] is a predicate which indicates whether a handshake is in progress *)
 val handshake_in_progress : state -> bool
 
 (** [send_application_data tls outs] is [(tls' * out) option] where [tls'] is the new tls state, and [out] the cstruct to send over the wire (encrypted and wrapped [outs]) *)
