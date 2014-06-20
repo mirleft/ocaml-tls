@@ -87,15 +87,31 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 
   let write flow buf = writev flow [buf]
 
-  (* XXX Error semantics - what if we already error'd out? *)
+
+  let rec drain_handshake flow =
+    match flow.state with
+    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
+        return (`Ok flow)
+    | _ ->
+      (* read_react re-throws *)
+        read_react flow >>= function
+        | `Ok mbuf ->
+            flow.linger <- list_of_option mbuf @ flow.linger ;
+            drain_handshake flow
+        | `Error e -> return (`Error e)
+        | `Eof     -> return (`Error (`Unknown "tls: end_of_file in handshake"))
+
   let rekey flow =
     match flow.state with
+    | `Eof | `Error _ as e -> return e
     | `Active tls ->
-       let to_send = tracing flow @@ fun () -> Tls.Engine.rekey tls in
-       ( match to_send with
-         | Some (tls', buf) -> flow.state <- `Active tls' ; TCP.write flow.tcp buf
-         | None             -> return_unit )
-    | e           -> return_unit
+        match tracing flow @@ fun () -> Tls.Engine.rekey tls with
+        | None             -> return (`Error (`Unknown "rekey in progress"))
+        | Some (tls', buf) ->
+            flow.state <- `Active tls' ;
+            match_lwt TCP.write flow.tcp buf >> drain_handshake flow with
+            | `Ok _         -> return `Ok
+            | `Error _ as e -> return e
 
   let close flow =
     match flow.state with
@@ -106,17 +122,6 @@ module Make (TCP: V1_LWT.TCPV4) = struct
       in
       TCP.(write flow.tcp buf >> close flow.tcp)
     | _           -> return_unit
-
-  let rec drain_handshake flow =
-    match flow.state with
-    | `Active tls when Tls.Engine.can_handle_appdata tls -> return (`Ok flow)
-    | _ ->
-      read_react flow >>= function
-        | `Ok mbuf ->
-            flow.linger <- list_of_option mbuf @ flow.linger ;
-            drain_handshake flow
-        | `Error e -> return (`Error e)
-        | `Eof     -> return (`Error (`Unknown "tls: end_of_file in handshake"))
 
   let client_of_tcp_flow ?trace conf host flow =
     let (tls, init) = Tls.Engine.client conf in

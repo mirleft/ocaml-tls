@@ -13,6 +13,7 @@ type ret = [
 ]
 
 val can_handle_appdata    : state -> bool
+val handshake_in_progress : state -> bool
 val send_application_data : state -> Cstruct.t list -> (state * Cstruct.t) option
 val send_close_notify     : state -> state * Cstruct.t
 val rekey                 : state -> (state * Cstruct.t) option
