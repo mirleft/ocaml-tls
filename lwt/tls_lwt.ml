@@ -130,6 +130,13 @@ module Unix = struct
 
   let write t cs = writev t [cs]
 
+  (*
+   * XXX bad XXX
+   * This is a point that should particularly be protected from concurrent r/w.
+   * Doing this before a `t` is returned is safe; redoing it during rekeying is
+   * not, as the API client already sees the `t` and can mistakenly interleave
+   * writes while this is in progress.
+   * *)
   let rec drain_handshake t =
     let push_linger t mcs =
       let open Tls.Utils.Cs in
