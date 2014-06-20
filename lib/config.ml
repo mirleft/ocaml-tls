@@ -131,7 +131,7 @@ let client_exn
   ( validate_common config ; validate_client config ; config )
 
 let server_exn
-  ?ciphers ?version ?hashes ?rekeying ?certificate () =
+  ?ciphers ?version ?hashes ?rekeying ?certificate ?require_secure_rekeying () =
   let config =
     { default_config with
         ciphers           = ciphers  <?> default_config.ciphers ;
@@ -139,6 +139,8 @@ let server_exn
         hashes            = hashes   <?> default_config.hashes ;
         use_rekeying      = rekeying <?> default_config.use_rekeying ;
         own_certificate   = certificate;
+        require_secure_rekeying =
+          require_secure_rekeying    <?> default_config.require_secure_rekeying ;
     } in
   ( validate_common config ; validate_server config ; config )
 
