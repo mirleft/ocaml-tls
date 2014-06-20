@@ -118,3 +118,17 @@ Executable "test_client"
   MainIs          : test_client.ml
   BuildDepends    : tls.lwt
 
+Document api
+  Title: Documentation and API reference
+  Abstract: OCaml-TLS implements transport layer security in OCaml. It consists
+            of a pure core (Engine), and several effectful frontends (tls-lwt,
+            tls-mirage). Application developers who want to use TLS in OCaml
+            should read the frontend documentation, frontend developers the
+            core documentation.
+  Type: ocamlbuild (0.3)
+  BuildTools+: ocamldoc
+  XOcamlbuildPath: doc
+  XOcamlbuildModules: lib/Engine, lib/Config, lib/Core,
+                      lib/Ciphersuite, lib/Packet,
+                      lib/Printer, lib/Reader, lib/Writer
+  Install: false
