@@ -1,4 +1,3 @@
-
 open Lwt
 
 exception Tls_alert   of Tls.Packet.alert_type
@@ -131,42 +130,41 @@ module Unix = struct
 
   let write t cs = writev t [cs]
 
+  let rec drain_handshake t =
+    let push_linger t mcs =
+      let open Tls.Utils.Cs in
+      match (mcs, t.linger) with
+      | (None, _)         -> ()
+      | (scs, None)       -> t.linger <- scs
+      | (Some cs, Some l) -> t.linger <- Some (l <+> cs)
+    in
+    match t.state with
+    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
+        return t
+    | _ ->
+        read_react t >>= function
+          | `Eof     -> fail End_of_file
+          | `Ok cs   -> push_linger t cs ; drain_handshake t
+
   let rekey t =
     match t.state with
     | `Error err  -> fail err
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
         match tracing t @@ fun () -> Tls.Engine.rekey tls with
-        | None -> fail @@ Invalid_argument "tls: rekey: socket not ready"
-        | Some (tls', resp) ->
-            ( t.state <- `Active tls' ; write_t t resp )
+        | None -> fail @@ Invalid_argument "tls: can't rekey: handshake in progress"
+        | Some (tls', buf) ->
+            t.state <- `Active tls' ;
+            write_t t buf >> drain_handshake t >> return_unit
 
   let close t =
     match t.state with
     | `Active tls ->
-        let (_, buf) =
-          tracing t @@ fun () -> Tls.Engine.send_close_notify tls
-        in
+        let (_, buf) = tracing t @@ fun () ->
+          Tls.Engine.send_close_notify tls in
         t.state <- `Eof ;
         send_and_close_no_exn t.fd buf
     | _ -> return_unit
-
-
-  let push_linger t mcs =
-    let open Tls.Utils.Cs in
-    match (mcs, t.linger) with
-    | (None, _)         -> ()
-    | (scs, None)       -> t.linger <- scs
-    | (Some cs, Some l) -> t.linger <- Some (l <+> cs)
-
-  let rec drain_handshake t =
-    match t.state with
-    | `Active tls when Tls.Engine.can_handle_appdata tls ->
-        return t
-    | _ ->
-        read_react t >>= function
-          | `Eof     -> fail End_of_file
-          | `Ok cs   -> push_linger t cs ; drain_handshake t
 
   let server_of_fd ?trace config fd =
     drain_handshake {

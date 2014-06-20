@@ -117,9 +117,8 @@ module Make (TCP: V1_LWT.TCPV4) = struct
     match flow.state with
     | `Active tls ->
       flow.state <- `Eof ;
-      let (_, buf) =
-        tracing flow @@ fun () -> Tls.Engine.send_close_notify tls
-      in
+      let (_, buf) = tracing flow @@ fun () ->
+        Tls.Engine.send_close_notify tls in
       TCP.(write flow.tcp buf >> close flow.tcp)
     | _           -> return_unit
 
