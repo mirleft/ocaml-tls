@@ -21,16 +21,16 @@ type config = private {
   own_certificate         : own_cert option ; (** optional certificate chain *)
 }
 
-(** @return list of support ciphers by this library *)
+(** [supported_ciphers] is a list of support ciphers by this library *)
 val supported_ciphers : ciphersuite list
 
-(** @return list of supported hash algorithms by this library *)
+(** [supported_hashes] is a list of supported hash algorithms by this library *)
 val supported_hashes  : hash_algorithm list
 
-(** @return minimal diffie hellman group size in bits *)
+(** [min_dh_size] is minimal diffie hellman group size in bits (currently 512) *)
 val min_dh_size : int
 
-(** @return minimal RSA modulus key size in bits *)
+(** [min_rsa_key_size] is minimal RSA modulus key size in bits (currently 1024) *)
 val min_rsa_key_size : int
 
 (** opaque type of a client configuration *)
@@ -39,20 +39,16 @@ type client
 (** opaque type of a server configuration *)
 type server
 
-(** given a client and a name *)
-(** @return a new client whose peer_name is name *)
+(** [peer client name] is [client] with [name] as [peer_name] *)
 val peer : client -> string -> client
 
-(** given a client configuration *)
-(** @return config *)
+(** [of_client client] is a client configuration for [client] *)
 val of_client : client -> config
 
-(** given a server configuration *)
-(** @return config *)
+(** [of_server server] is a server configuration for [server] *)
 val of_server : server -> config
 
-(** given some optional configuration arguments *)
-(** @return a client *)
+(** [client_exn ?ciphers ?version ?hashes ?rekeying ?validator ?require_secure_rekeying] is [client] configuration with the given parameters *)
 (** @raise Invalid_configuration when the configuration is not valid *)
 val client_exn :
   ?ciphers   : ciphersuite list ->
@@ -63,8 +59,7 @@ val client_exn :
   ?require_secure_rekeying : bool ->
   unit -> client
 
-(** given some optional configuration arguments *)
-(** @return a server *)
+(** [server_exn ?ciphers ?version ?hashes ?rekeying ?certificate ?require_secure_rekeying] is [server] configuration with the given parameters *)
 (** @raise Invalid_configuration when the configuration is not valid *)
 val server_exn :
   ?ciphers     : ciphersuite list ->
@@ -72,6 +67,7 @@ val server_exn :
   ?hashes      : hash_algorithm list ->
   ?rekeying    : bool ->
   ?certificate : own_cert ->
+  ?require_secure_rekeying : bool ->
   unit -> server
 
 open Sexplib
