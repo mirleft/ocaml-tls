@@ -24,12 +24,14 @@ type key_exchange_algorithm =
   | SRP_SHA_DSS
   with sexp
 
-(** predicate returning the need for a certificate on the server side *)
+(** predicate which receives a key exchange algorithm *)
+(** @return the need for a certificate on the server side *)
 let needs_certificate = function
   | DH_anon | PSK -> false
   | _ -> true
 
-(** predicate returning the need for a server key exchange message *)
+(** predicate which receives a key exchange algorithm *)
+(** @return need for a server key exchange message *)
 let needs_server_kex = function
   | DHE_DSS | DHE_RSA
   | DH_anon
