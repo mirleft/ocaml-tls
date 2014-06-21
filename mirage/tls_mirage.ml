@@ -87,7 +87,13 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 
   let write flow buf = writev flow [buf]
 
-
+  (*
+   * XXX bad XXX
+   * This is a point that should particularly be protected from concurrent r/w.
+   * Doing this before a `t` is returned is safe; redoing it during rekeying is
+   * not, as the API client already sees the `t` and can mistakenly interleave
+   * writes while this is in progress.
+   * *)
   let rec drain_handshake flow =
     match flow.state with
     | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
@@ -117,9 +123,8 @@ module Make (TCP: V1_LWT.TCPV4) = struct
     match flow.state with
     | `Active tls ->
       flow.state <- `Eof ;
-      let (_, buf) =
-        tracing flow @@ fun () -> Tls.Engine.send_close_notify tls
-      in
+      let (_, buf) = tracing flow @@ fun () ->
+        Tls.Engine.send_close_notify tls in
       TCP.(write flow.tcp buf >> close flow.tcp)
     | _           -> return_unit
 
