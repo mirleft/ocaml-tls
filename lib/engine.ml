@@ -362,8 +362,9 @@ let can_handle_appdata s = hs_can_handle_appdata s.handshake
 let handshake_in_progress s =
   match s.handshake.machina with
   | Server Established
-  | Client Established -> true
-  | _                  -> false
+  | Client ClientInitial
+  | Client Established -> false
+  | _                  -> true
 
 (* another entry for user data *)
 let send_application_data st css =
