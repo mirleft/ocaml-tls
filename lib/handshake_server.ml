@@ -273,3 +273,10 @@ let handle_handshake ss hs buf =
           answer_client_hello hs ch buf
        | _, _-> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
+
+let hello_request hs =
+  if Config.(hs.config.use_rekeying) then
+    let hr = Writer.assemble_handshake HelloRequest in
+    return ({ hs with machina = Server AwaitClientHello }, [`Record (Packet.HANDSHAKE, hr)])
+  else
+    fail_handshake
