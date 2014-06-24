@@ -74,7 +74,10 @@ let versions = [ TLS_1_0 ; TLS_1_1 ; TLS_1_2 ]
 
 let answer_client_hello state (ch : client_hello) raw =
   let find_version supported requested =
-    let r =
+    match supported_protocol_version supported requested with
+    | Some x -> return x
+    | None   -> fail Packet.PROTOCOL_VERSION
+(*    let r =
       let c = Rng.generate 1 in
       Cstruct.get_uint8 c 0
     in
@@ -82,7 +85,7 @@ let answer_client_hello state (ch : client_hello) raw =
     | SSL_3   -> fail Packet.PROTOCOL_VERSION
     | TLS_1_0 -> return TLS_1_0
     | TLS_1_1 -> return (List.nth versions (r mod 2))
-    | _       -> return (List.nth versions (r mod 3))
+    | _       -> return (List.nth versions (r mod 3)) *)
 
   and find_ciphersuite server_supported requested =
     let r =
