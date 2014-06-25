@@ -20,11 +20,11 @@ let answer_client_finished state master_secret fin raw log =
   let fin_raw = Writer.assemble_handshake fin in
   assure (Cs.null state.hs_fragment)
   >|= fun () ->
-  let rekeying = Some (client_computed, server_checksum) in
+  let reneg = Some (client_computed, server_checksum) in
   let machina = Server Established
   in
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
-  ({ state with machina ; rekeying }, [`Record (Packet.HANDSHAKE, fin_raw)])
+  ({ state with machina ; reneg }, [`Record (Packet.HANDSHAKE, fin_raw)])
 
 let establish_master_secret state params premastersecret raw log =
   let client_ctx, server_ctx, master_secret =
@@ -92,8 +92,8 @@ let answer_client_hello state (ch : client_hello) raw =
     | true , _    , _            , _      -> fail_handshake
 
   (* only renegotiate if the config allows us to *)
-  and renegotiate use_rk rekeying =
-    match use_rk, rekeying with
+  and renegotiate use_reneg reneg =
+    match use_reneg, reneg with
     | false, Some _ -> fail_handshake
     | _    , _      -> return ()
   in
@@ -104,8 +104,8 @@ let answer_client_hello state (ch : client_hello) raw =
     assure (client_hello_valid ch) >>= fun () ->
     find_version config.protocol_versions ch.version >>= fun version ->
     find_ciphersuite config.ciphers cciphers >>= fun cipher ->
-    renegotiate config.use_rekeying state.rekeying >>= fun () ->
-    ensure_reneg config.require_secure_rekeying state.rekeying cciphers theirs >|= fun () ->
+    renegotiate config.use_reneg state.reneg >>= fun () ->
+    ensure_reneg config.secure_reneg state.reneg cciphers theirs >|= fun () ->
 
     Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
     Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
@@ -116,7 +116,7 @@ let answer_client_hello state (ch : client_hello) raw =
        cipher = cipher },
      version)
 
-  and server_hello client_hello cipher rekeying version random =
+  and server_hello client_hello cipher reneg version random =
     (* we could provide a certificate with any of the given hostnames *)
     (* TODO: preserve this hostname somewhere maybe? *)
     let server_name = hostname client_hello in
@@ -125,7 +125,7 @@ let answer_client_hello state (ch : client_hello) raw =
       (* RFC 4366: server shall reply with an empty hostname extension *)
       let host = option [] (fun _ -> [Hostname None]) server_name
       and secren =
-        match rekeying with
+        match reneg with
         | None            -> SecureRenegotiation (Cstruct.create 0)
         | Some (cvd, svd) -> SecureRenegotiation (cvd <+> svd)
       in
@@ -204,7 +204,7 @@ let answer_client_hello state (ch : client_hello) raw =
 
   process_client_hello state.config ch >>= fun (params, version) ->
   let cipher = params.cipher in
-  let sh = server_hello ch cipher state.rekeying version params.server_random in
+  let sh = server_hello ch cipher state.reneg version params.server_random in
   server_cert state.config cipher params >>= fun certificates ->
 
   let hello_done = Writer.assemble_handshake ServerHelloDone in
@@ -258,7 +258,7 @@ let handle_handshake ss hs buf =
           answer_client_key_exchange_DHE_RSA hs params dh_sent kex buf log
        | AwaitClientFinished (master_secret, log), Finished fin ->
           answer_client_finished hs master_secret fin buf log
-       | Established, ClientHello ch -> (* rekeying *)
+       | Established, ClientHello ch -> (* renegotiation *)
           answer_client_hello hs ch buf
        | _, _-> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE

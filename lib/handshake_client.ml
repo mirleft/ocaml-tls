@@ -47,8 +47,8 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
     | true  -> return ()
     | false -> fail_handshake
 
-  and validate_rekeying required rekeying data =
-    match required, rekeying, data with
+  and validate_reneg required reneg data =
+    match required, reneg, data with
     | _    , None           , Some x -> assure (Cs.null x)
     | _    , Some (cvd, svd), Some x -> assure (Cs.equal (cvd <+> svd) x)
     | false, _              , _      -> return ()
@@ -61,8 +61,8 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
   >>= fun () ->
   validate_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
-  let rekeying_data = get_secure_renegotiation sh.extensions in
-  validate_rekeying cfg.require_secure_rekeying state.rekeying rekeying_data >|= fun () ->
+  let reneg_data = get_secure_renegotiation sh.extensions in
+  validate_reneg cfg.secure_reneg state.reneg reneg_data >|= fun () ->
 
   let machina =
     let cipher = sh.ciphersuites in
@@ -245,11 +245,11 @@ let answer_server_finished state client_verify master_secret fin log =
   assure (Cs.equal computed fin && Cs.null state.hs_fragment)
   >|= fun () ->
   let machina = Established in
-  let rekeying = Some (client_verify, computed) in
-  ({ state with machina = Client machina ; rekeying = rekeying }, [])
+  let reneg = Some (client_verify, computed) in
+  ({ state with machina = Client machina ; reneg }, [])
 
 let answer_hello_request state =
-  let get_rekeying_data optdata =
+  let get_reneg_data optdata =
     match optdata with
     | None          -> fail_handshake
     | Some (cvd, _) -> return (SecureRenegotiation cvd)
@@ -264,8 +264,8 @@ let answer_hello_request state =
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
 
   in
-  if state.config.use_rekeying then
-    get_rekeying_data state.rekeying >|= fun ext ->
+  if state.config.use_reneg then
+    get_reneg_data state.reneg >|= fun ext ->
     produce_client_hello state.config [ext]
   else
     let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in

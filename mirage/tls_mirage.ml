@@ -107,12 +107,12 @@ module Make (TCP: V1_LWT.TCPV4) = struct
         | `Error e -> return (`Error e)
         | `Eof     -> return (`Error (`Unknown "tls: end_of_file in handshake"))
 
-  let rekey flow =
+  let reneg flow =
     match flow.state with
     | `Eof | `Error _ as e -> return e
     | `Active tls ->
-        match tracing flow @@ fun () -> Tls.Engine.rekey tls with
-        | None             -> return (`Error (`Unknown "rekey in progress"))
+        match tracing flow @@ fun () -> Tls.Engine.reneg tls with
+        | None             -> return (`Error (`Unknown "renegotiation in progress"))
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
             match_lwt TCP.write flow.tcp buf >> drain_handshake flow with
