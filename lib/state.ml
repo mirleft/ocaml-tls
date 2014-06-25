@@ -85,17 +85,17 @@ type handshake_machina_state =
   | Server of server_handshake_state
   with sexp
 
-(* a collection of client and server verify bytes for rekeying *)
-type rekeying_params = Cstruct_s.t * Cstruct_s.t
+(* a collection of client and server verify bytes for renegotiation *)
+type reneg_params = Cstruct_s.t * Cstruct_s.t
   with sexp
 
 (* state during a handshake, used in the handlers *)
 type handshake_state = {
-  version      : tls_version ; (* negotiated version *)
-  machina      : handshake_machina_state ; (* state machine state *)
-  config       : Config.config ; (* given config *)
-  rekeying     : rekeying_params option ; (* rekeying data *)
-  hs_fragment  : Cstruct_s.t (* handshake messages can be fragmented, leftover from before *)
+  version     : tls_version ; (* negotiated version *)
+  machina     : handshake_machina_state ; (* state machine state *)
+  config      : Config.config ; (* given config *)
+  reneg       : reneg_params option ; (* renegotiation data *)
+  hs_fragment : Cstruct_s.t (* handshake messages can be fragmented, leftover from before *)
 } with sexp
 
 (* connection state: initially None, after handshake a crypto context *)

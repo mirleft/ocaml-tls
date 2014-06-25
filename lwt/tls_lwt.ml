@@ -153,12 +153,12 @@ module Unix = struct
           | `Eof     -> fail End_of_file
           | `Ok cs   -> push_linger t cs ; drain_handshake t
 
-  let rekey t =
+  let reneg t =
     match t.state with
     | `Error err  -> fail err
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
-        match tracing t @@ fun () -> Tls.Engine.rekey tls with
+        match tracing t @@ fun () -> Tls.Engine.reneg tls with
         | None -> fail @@ Invalid_argument "tls: can't rekey: handshake in progress"
         | Some (tls', buf) ->
             t.state <- `Active tls' ;

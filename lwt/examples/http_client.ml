@@ -14,7 +14,7 @@ let http_client ?ca host port =
   lwt (ic, oc) =
     Tls_lwt.connect_ext
       ~trace:eprint_sexp
-      (Tls.Config.client_exn ~validator ~require_secure_rekeying:false ())
+      (Tls.Config.client_exn ~validator ~secure_reneg:false ())
       (host, port) in
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ host ; "Connection: close" ; "" ; ""

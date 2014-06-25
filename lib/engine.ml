@@ -28,11 +28,11 @@ let new_state config role =
     | `Server -> Server AwaitClientHello
   in
   let handshake = {
-    version      = max_protocol_version Config.(config.protocol_versions) ;
-    rekeying     = None ;
-    machina      = handshake_state ;
-    config       = config ;
-    hs_fragment  = Cstruct.create 0 ;
+    version     = max_protocol_version Config.(config.protocol_versions) ;
+    reneg       = None ;
+    machina     = handshake_state ;
+    config      = config ;
+    hs_fragment = Cstruct.create 0 ;
   }
   in
   {
@@ -210,7 +210,7 @@ module Alert = struct
 end
 
 let hs_can_handle_appdata s =
-  match s.rekeying with
+  match s.reneg with
   | Some _ -> true
   | None   -> false
 
@@ -383,11 +383,11 @@ let send_application_data st css =
 
 let send_close_notify st = send_records st [Alert.close_notify]
 
-let rekey st =
+let reneg st =
   let hs = st.handshake in
   match hs.machina with
   | Server Established ->
-     if Config.(hs.config.use_rekeying) then
+     if Config.(hs.config.use_reneg) then
        let hr = HelloRequest in
        Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ;
        Some (send_records st [(Packet.HANDSHAKE, Writer.assemble_handshake hr)])
@@ -406,7 +406,7 @@ let client config =
 
   let dch, params = Handshake_client.default_client_hello config in
 
-  let secure_rekeying = SecureRenegotiation (Cstruct.create 0) in
+  let secure_reneg = SecureRenegotiation (Cstruct.create 0) in
 
   let ciphers, extensions = match dch.version with
       (* from RFC 5746 section 3.3:
@@ -426,7 +426,7 @@ let client config =
    implementations reliably ignore unknown cipher suites, the SCSV may
    be safely sent to any server. *)
     | TLS_1_0 -> ([Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
-    | TLS_1_1 | TLS_1_2 -> ([], [secure_rekeying])
+    | TLS_1_1 | TLS_1_2 -> ([], [secure_reneg])
   in
 
   let client_hello =

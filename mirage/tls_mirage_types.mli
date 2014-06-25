@@ -10,7 +10,7 @@ module type TLS_core = sig
   val write  : flow -> Cstruct.t -> unit Lwt.t
   val writev : flow -> Cstruct.t list -> unit Lwt.t
   val close  : flow -> unit Lwt.t
-  val rekey  : flow -> [> `Ok | `Eof | `Error of error ] Lwt.t
+  val reneg  : flow -> [> `Ok | `Eof | `Error of error ] Lwt.t
 
   type tracer = Sexplib.Sexp.t -> unit
 
