@@ -32,7 +32,7 @@ val send_application_data : state -> Cstruct.t list -> (state * Cstruct.t) optio
 (** [send_close_notify tls] is [tls' * out] where [tls'] is the new tls state, and out the (possible encrypted) close notify alert *)
 val send_close_notify     : state -> state * Cstruct.t
 
-(** [renegotiate tls] is [(tls' * out) option] where [tls'] is the new tls state, and out either a client hello or hello request (depending on the communication endpoint we are) *)
+(** [reneg tls] is [(tls' * out) option] where [tls'] is the new tls state, and out either a client hello or hello request (depending on the communication endpoint we are) *)
 val reneg                 : state -> (state * Cstruct.t) option
 
 (** [client client] is [tls * out] where [tls] is the initial state, and [out] the initial client hello *)
