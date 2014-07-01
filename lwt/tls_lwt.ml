@@ -160,9 +160,7 @@ module Unix = struct
     | `Active tls ->
         match tracing t @@ fun () -> Tls.Engine.reneg tls with
         | None -> fail @@ Invalid_argument "tls: can't rekey: handshake in progress"
-        | Some (tls', buf) ->
-            t.state <- `Active tls' ;
-            write_t t buf >> drain_handshake t >> return_unit
+        | Some (tls', buf) -> t.state <- `Active tls' ; write_t t buf
 
   let close t =
     match t.state with

@@ -115,9 +115,8 @@ module Make (TCP: V1_LWT.TCPV4) = struct
         | None             -> return (`Error (`Unknown "renegotiation in progress"))
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
-            match_lwt TCP.write flow.tcp buf >> drain_handshake flow with
-            | `Ok _         -> return `Ok
-            | `Error _ as e -> return e
+            TCP.write flow.tcp buf >|= fun () ->
+            `Ok
 
   let close flow =
     match flow.state with
