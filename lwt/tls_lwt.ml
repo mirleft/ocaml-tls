@@ -146,7 +146,7 @@ module Unix = struct
       | (Some cs, Some l) -> t.linger <- Some (l <+> cs)
     in
     match t.state with
-    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
+    | `Active tls when Tls.Engine.can_handle_appdata tls ->
         return t
     | _ ->
         read_react t >>= function

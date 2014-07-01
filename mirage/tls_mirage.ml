@@ -96,7 +96,7 @@ module Make (TCP: V1_LWT.TCPV4) = struct
    * *)
   let rec drain_handshake flow =
     match flow.state with
-    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
+    | `Active tls when Tls.Engine.can_handle_appdata tls ->
         return (`Ok flow)
     | _ ->
       (* read_react re-throws *)
