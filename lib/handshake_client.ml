@@ -35,7 +35,7 @@ let default_client_hello config =
            cipher = List.hd ch.ciphersuites })
 
 let answer_server_hello state params ch (sh : server_hello) raw log =
-  let validate_version requested (_, lo) server_version =
+  let validate_version requested (lo, _) server_version =
     match
       requested >= server_version, server_version >= lo
     with

@@ -26,7 +26,7 @@ let get_secure_renegotiation exts =
     exts
     ~f:(function SecureRenegotiation data -> Some data | _ -> None)
 
-let supported_protocol_version (max, min) v =
+let supported_protocol_version (min, max) v =
   match v >= max, v >= min with
     | true, _    -> Some max
     | _   , true -> Some v
