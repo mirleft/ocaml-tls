@@ -35,8 +35,6 @@ let test_server port =
     yap "handler" ("+ " ^ line)
     >>
     Lwt_io.write_line oc line
-    >>
-    Lwt_io.close oc
 
 let () =
   let port =
