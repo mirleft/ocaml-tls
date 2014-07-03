@@ -122,7 +122,13 @@ let answer_client_hello state (ch : client_hello) raw =
     ensure_reneg config.secure_reneg state.reneg cciphers theirs >|= fun () ->
 
     Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
-    Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
+    let kex, enc, hash = Ciphersuite.get_kex_enc_hash cipher in
+    let data = lazy (Sexplib.Sexp.(List Ciphersuite.(
+                                      [ sexp_of_key_exchange_algorithm kex ;
+                                        sexp_of_encryption_algorithm enc ;
+                                        sexp_of_hash_algorithm hash ] )))
+    in
+    Tracing.sexp ~tag:"cipher" data ;
 
     ({ server_random = Rng.generate 32 ;
        client_random = ch.random ;
