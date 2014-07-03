@@ -73,19 +73,20 @@ let answer_client_key_exchange_DHE_RSA state params (group, secret) kex raw log 
 let versions = [ TLS_1_0 ; TLS_1_1 ; TLS_1_2 ]
 
 let answer_client_hello state (ch : client_hello) raw =
-  let find_version supported requested =
-    match supported_protocol_version supported requested with
-    | Some x -> return x
-    | None   -> fail Packet.PROTOCOL_VERSION
-(*    let r =
-      let c = Rng.generate 1 in
-      Cstruct.get_uint8 c 0
-    in
-    match requested with
-    | SSL_3   -> fail Packet.PROTOCOL_VERSION
-    | TLS_1_0 -> return TLS_1_0
-    | TLS_1_1 -> return (List.nth versions (r mod 2))
-    | _       -> return (List.nth versions (r mod 3)) *)
+  let find_version reneg old_version supported requested =
+    match reneg with
+    | Some _ -> (* better not change protocol version right now *)
+       return old_version
+    | None   -> (* flip a coin and use some random protocol version *)
+       let r =
+         let c = Rng.generate 1 in
+         Cstruct.get_uint8 c 0
+       in
+       match requested with
+       | SSL_3   -> fail Packet.PROTOCOL_VERSION
+       | TLS_1_0 -> return TLS_1_0
+       | TLS_1_1 -> return (List.nth versions (r mod 2))
+       | _       -> return (List.nth versions (r mod 3))
 
   and find_ciphersuite server_supported requested =
     let r =
@@ -116,7 +117,7 @@ let answer_client_hello state (ch : client_hello) raw =
     let cciphers = ch.ciphersuites in
     let theirs = get_secure_renegotiation ch.extensions in
     assure (client_hello_valid ch) >>= fun () ->
-    find_version config.protocol_versions ch.version >>= fun version ->
+    find_version state.reneg state.version config.protocol_versions ch.version >>= fun version ->
     find_ciphersuite config.ciphers cciphers >>= fun cipher ->
     renegotiate config.use_reneg state.reneg >>= fun () ->
     ensure_reneg config.secure_reneg state.reneg cciphers theirs >|= fun () ->
