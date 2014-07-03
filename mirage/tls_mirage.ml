@@ -100,7 +100,7 @@ module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
    * *)
   let rec drain_handshake flow =
     match flow.state with
-    | `Active tls when Tls.Engine.can_handle_appdata tls ->
+    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
         return (`Ok flow)
     | _ ->
       (* read_react re-throws *)
@@ -119,8 +119,9 @@ module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
         | None             -> return (`Error (`Unknown "renegotiation in progress"))
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
-            TCP.write flow.tcp buf >|= fun () ->
-            `Ok
+            match_lwt TCP.write flow.tcp buf >> drain_handshake flow with
+            | `Ok _         -> return `Ok
+            | `Error _ as e -> return e
 
   let close flow =
     match flow.state with
