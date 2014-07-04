@@ -6,10 +6,10 @@ let test_client _ =
   lwt () = Tls_lwt.rng_init () in
   let port = 4433 in
   let host = "127.0.0.1" in
-  lwt validator = X509_lwt.validator `No_validation_I'M_STUPID in
+  lwt authenticator = X509_lwt.authenticator `No_authentication_I'M_STUPID in
   lwt (ic, oc) =
     Tls_lwt.connect_ext
-      (Tls.Config.client_exn ~validator ~secure_reneg:false ())
+      (Tls.Config.client_exn ~authenticator ~secure_reneg:false ())
       (host, port) in
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ host ; "Connection: close" ; "" ; ""
