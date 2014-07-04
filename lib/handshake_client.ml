@@ -126,17 +126,17 @@ let validate_chain config cipher certificates =
   match config.authenticator with
   | None -> parse certificates >|= fun (server, _) ->
             server
-  | Some authenticator -> parse certificates >>= fun (s, xs) ->
-                          key_size Config.min_rsa_key_size (s :: xs) >>= fun () ->
-                          authenticate authenticator host (s, xs) >>= fun cert ->
-                          let keytype, usage =
-                            Ciphersuite.(o required_keytype_and_usage ciphersuite_kex cipher)
-                          in
-                          guard (validate_keytype cert keytype &&
-                                   validate_usage cert usage &&
-                                     validate_ext_usage cert `Server_auth)
-                                Packet.BAD_CERTIFICATE >|= fun () ->
-                          cert
+  | Some authenticator ->
+      parse certificates >>= fun (s, xs) ->
+      key_size Config.min_rsa_key_size (s :: xs) >>= fun () ->
+      authenticate authenticator host (s, xs) >>= fun cert ->
+      let keytype, usage =
+        Ciphersuite.(o required_keytype_and_usage ciphersuite_kex cipher)
+      in
+      guard (validate_keytype cert keytype &&
+             validate_usage cert usage &&
+             validate_ext_usage cert `Server_auth)
+            Packet.BAD_CERTIFICATE >|= fun () -> cert
 
 let peer_rsa_key cert =
   let open Asn_grammars in
