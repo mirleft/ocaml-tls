@@ -108,8 +108,8 @@ struct
     TLS.write tls initial >> dump ()
 
   let start c stack kv =
-    lwt validator = X509.validator kv `CAs in
-    let conf      = Tls.Config.client_exn ~validator () in
+    lwt authenticator = X509.authenticator kv `CAs in
+    let conf          = Tls.Config.client_exn ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer) >>==
     TLS.client_of_tcp_flow conf (snd peer) >>==
     chat c >>= function
