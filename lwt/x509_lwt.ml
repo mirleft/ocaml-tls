@@ -3,7 +3,7 @@ open Lwt
 
 type priv = X509.Cert.t list * X509.PK.t
 
-type validator = X509.Validator.t
+type authenticator = X509.Authenticator.t
 
 
 let failure msg = fail @@ Failure msg
@@ -68,11 +68,11 @@ let certs_of_pem_dir path =
   >>= Lwt_list.map_p (fun file -> certs_of_pem (path </> file))
   >|= List.concat
 
-let validator param =
+let authenticator param =
   let of_cas cas =
     let now = Unix.gettimeofday () in
-    X509.Validator.chain_of_trust ~time:now cas in
+    X509.Authenticator.chain_of_trust ~time:now cas in
   match param with
   | `Ca_file path -> certs_of_pem path >|= of_cas
   | `Ca_dir path  -> certs_of_pem_dir path >|= of_cas
-  | `No_validation_I'M_STUPID -> return X509.Validator.null
+  | `No_authentication_I'M_STUPID -> return X509.Authenticator.null

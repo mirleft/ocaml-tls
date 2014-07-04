@@ -4,17 +4,17 @@ open Ex_common
 
 let http_client ?ca host port =
   lwt () = Tls_lwt.rng_init () in
-  let port      = int_of_string port in
-  lwt validator = X509_lwt.validator
+  let port          = int_of_string port in
+  lwt authenticator = X509_lwt.authenticator
     ( match ca with
       | None        -> `Ca_dir ca_cert_dir
-      | Some "NONE" -> `No_validation_I'M_STUPID
+      | Some "NONE" -> `No_authentication_I'M_STUPID
       | Some f      -> `Ca_file f )
   in
   lwt (ic, oc) =
     Tls_lwt.connect_ext
       ~trace:eprint_sexp
-      (Tls.Config.client_exn ~validator ~secure_reneg:false ())
+      (Tls.Config.client_exn ~authenticator ~secure_reneg:false ())
       (host, port) in
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ host ; "Connection: close" ; "" ; ""

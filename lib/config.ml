@@ -13,7 +13,7 @@ type config = {
   (* signatures        : Packet.signature_algorithm_type list ; *)
   use_reneg         : bool ;
   secure_reneg      : bool ;
-  validator         : X509.Validator.t option ;
+  authenticator     : X509.Authenticator.t option ;
   peer_name         : string option ;
   own_certificate   : own_cert option ;
 }
@@ -42,7 +42,7 @@ let default_config = {
   hashes            = supported_hashes ;
   use_reneg         = true ;
   secure_reneg      = true ;
-  validator         = None ;
+  authenticator     = None ;
   peer_name         = None ;
   own_certificate   = None ;
 }
@@ -117,14 +117,14 @@ let peer conf name = { conf with peer_name = Some name }
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
 let client_exn
-  ?ciphers ?version ?hashes ?reneg ?validator ?secure_reneg () =
+  ?ciphers ?version ?hashes ?reneg ?authenticator ?secure_reneg () =
   let config =
     { default_config with
         ciphers           = ciphers      <?> default_config.ciphers ;
         protocol_versions = version      <?> default_config.protocol_versions ;
         hashes            = hashes       <?> default_config.hashes ;
         use_reneg         = reneg        <?> default_config.use_reneg ;
-        validator         = validator ;
+        authenticator     = authenticator ;
         secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
     } in
   ( validate_common config ; validate_client config ; config )
@@ -153,8 +153,8 @@ open Sexplib
 let sexp_of_version =
   Conv.sexp_of_pair sexp_of_tls_version sexp_of_tls_version
 
-let sexp_of_validator_o =
-  Conv.sexp_of_option (fun _ -> Sexp.Atom "<VALIDATOR>")
+let sexp_of_authenticator_o =
+  Conv.sexp_of_option (fun _ -> Sexp.Atom "<AUTHENTICATOR>")
 
 let sexp_of_certificate_o =
   Conv.sexp_of_option (fun _ -> Sexp.Atom "<CERTIFICATE>")
@@ -167,7 +167,7 @@ let sexp_of_config c =
     "hashes"         , Conv.sexp_of_list sexp_of_hash_algorithm c.hashes ;
     "use_reneg"      , Conv.sexp_of_bool c.use_reneg ;
     "secure_reneg"   , Conv.sexp_of_bool c.secure_reneg ;
-    "validator"      , sexp_of_validator_o c.validator ;
+    "authenticator"  , sexp_of_authenticator_o c.authenticator ;
     "peer_name"      , Conv.(sexp_of_option sexp_of_string) c.peer_name ;
     "certificate"    , sexp_of_certificate_o c.own_certificate ;
   ]

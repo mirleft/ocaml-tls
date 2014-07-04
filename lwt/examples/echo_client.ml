@@ -6,15 +6,15 @@ let echo_client ?ca host port =
   let open Lwt_io in
   lwt () = Tls_lwt.rng_init () in
 
-  let port = int_of_string port in
-  lwt validator = X509_lwt.validator
+  let port          = int_of_string port in
+  lwt authenticator = X509_lwt.authenticator
     (match ca with
      | None        -> `Ca_dir ca_cert_dir
-     | Some "NONE" -> `No_validation_I'M_STUPID
+     | Some "NONE" -> `No_authentication_I'M_STUPID
      | Some f      -> `Ca_file f)
   in
   lwt (ic, oc) =
-    Tls_lwt.connect ~trace:eprint_sexp validator (host, port) in
+    Tls_lwt.connect ~trace:eprint_sexp authenticator (host, port) in
   Lwt.join [
     lines ic    |> Lwt_stream.iter_s (printf "+ %s\n%!") ;
     lines stdin |> Lwt_stream.iter_s (write_line oc)

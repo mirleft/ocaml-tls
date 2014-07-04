@@ -81,9 +81,9 @@ let validate_chain config cipher certificates =
     | None       -> fail Packet.BAD_CERTIFICATE
     | Some stack -> return stack
 
-  and validate validator server_name ((server_cert, _) as stack) =
+  and authenticate authenticator server_name ((server_cert, _) as stack) =
     match
-      X509.Validator.validate ?host:server_name validator stack
+      X509.Authenticator.authenticate ?host:server_name authenticator stack
     with
     | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
     | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
@@ -123,20 +123,20 @@ let validate_chain config cipher certificates =
   (* RFC5246: must be x509v3, take signaturealgorithms into account! *)
   (* RFC2246/4346: is generally x509v3, signing algorithm for certificate _must_ be same as algorithm for certificate key *)
 
-  match config.validator with
+  match config.authenticator with
   | None -> parse certificates >|= fun (server, _) ->
             server
-  | Some validator -> parse certificates >>= fun (s, xs) ->
-                      key_size Config.min_rsa_key_size (s :: xs) >>= fun () ->
-                      validate validator host (s, xs) >>= fun cert ->
-                      let keytype, usage =
-                        Ciphersuite.(o required_keytype_and_usage ciphersuite_kex cipher)
-                      in
-                      guard (validate_keytype cert keytype &&
-                               validate_usage cert usage &&
-                                 validate_ext_usage cert `Server_auth)
-                            Packet.BAD_CERTIFICATE >|= fun () ->
-                      cert
+  | Some authenticator -> parse certificates >>= fun (s, xs) ->
+                          key_size Config.min_rsa_key_size (s :: xs) >>= fun () ->
+                          authenticate authenticator host (s, xs) >>= fun cert ->
+                          let keytype, usage =
+                            Ciphersuite.(o required_keytype_and_usage ciphersuite_kex cipher)
+                          in
+                          guard (validate_keytype cert keytype &&
+                                   validate_usage cert usage &&
+                                     validate_ext_usage cert `Server_auth)
+                                Packet.BAD_CERTIFICATE >|= fun () ->
+                          cert
 
 let peer_rsa_key cert =
   let open Asn_grammars in

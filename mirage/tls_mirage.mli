@@ -11,7 +11,7 @@ module Make_flow (TCP : V1_LWT.TCPV4) : sig
 end with module TCP := TCP
 
 module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) : sig
-  val validator   : KV.t -> [< `Noop | `CAs ] -> X509.Validator.t Lwt.t
-  val certificate : KV.t -> [< `Default | `Name of string ]
+  val authenticator : KV.t -> [< `Noop | `CAs ] -> X509.Authenticator.t Lwt.t
+  val certificate   : KV.t -> [< `Default | `Name of string ]
                          -> (X509.Cert.t list * X509.PK.t) Lwt.t
 end
