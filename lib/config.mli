@@ -16,7 +16,7 @@ type config = private {
   hashes            : hash_algorithm list ; (** ordered list of supported hash algorithms (regarding preference) *)
   use_reneg         : bool ; (** endpoint should accept renegotiation requests *)
   secure_reneg      : bool ; (** other end must use secure renegotiation (RFC 5746) *)
-  validator         : X509.Validator.t option ; (** optional X509 validator *)
+  authenticator     : X509.Authenticator.t option ; (** optional X509 authenticator *)
   peer_name         : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
   own_certificate   : own_cert option ; (** optional certificate chain *)
 }
@@ -51,12 +51,12 @@ val of_server : server -> config
 (** [client_exn ?ciphers ?version ?hashes ?reneg ?validator ?secure_reneg] is [client] configuration with the given parameters *)
 (** @raise Invalid_configuration when the configuration is not valid *)
 val client_exn :
-  ?ciphers      : ciphersuite list ->
-  ?version      : tls_version * tls_version ->
-  ?hashes       : hash_algorithm list ->
-  ?reneg        : bool ->
-  ?validator    : X509.Validator.t ->
-  ?secure_reneg : bool ->
+  ?ciphers       : ciphersuite list ->
+  ?version       : tls_version * tls_version ->
+  ?hashes        : hash_algorithm list ->
+  ?reneg         : bool ->
+  ?authenticator : X509.Authenticator.t ->
+  ?secure_reneg  : bool ->
   unit -> client
 
 (** [server_exn ?ciphers ?version ?hashes ?reneg ?certificate ?secure_reneg] is [server] configuration with the given parameters *)
