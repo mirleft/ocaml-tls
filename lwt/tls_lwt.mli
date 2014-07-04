@@ -41,7 +41,7 @@ val connect_ext :
   ?trace:tracer -> Tls.Config.client -> string * int -> (ic * oc) Lwt.t
 
 val connect :
-  ?trace:tracer -> X509_lwt.validator -> string * int -> (ic * oc) Lwt.t
+  ?trace:tracer -> X509_lwt.authenticator -> string * int -> (ic * oc) Lwt.t
 
 val of_t : Unix.t -> ic * oc
 

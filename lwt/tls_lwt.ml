@@ -231,8 +231,8 @@ let accept ?trace certificate =
   let config = Tls.Config.server_exn ~certificate ()
   in accept_ext ?trace config
 
-and connect ?trace validator addr =
-  let config = Tls.Config.client_exn ~validator ()
+and connect ?trace authenticator addr =
+  let config = Tls.Config.client_exn ~authenticator ()
   in connect_ext ?trace config addr
 
 (*
