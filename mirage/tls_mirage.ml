@@ -210,13 +210,13 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) = struct
     KV.size kv name   >|== Int64.to_int >>=
     KV.read kv name 0 >|== Tls.Utils.Cs.appends
 
-  let validator kv = function
-    | `Noop -> return X509.Validator.null
+  let authenticator kv = function
+    | `Noop -> return X509.Authenticator.null
     | `CAs  ->
         let time = C.time () in
         read_full kv ca_roots_file
         >|= X509.Cert.of_pem_cstruct
-        >|= X509.Validator.chain_of_trust ~time
+        >|= X509.Authenticator.chain_of_trust ~time
 
   let certificate kv =
     let read name =
