@@ -49,6 +49,7 @@ let make_tracer dump =
 
 module Server (C  : CONSOLE)
               (S  : STACKV4)
+              (E  : ENTROPY)
               (KV : KV_RO) =
 struct
 
@@ -74,7 +75,11 @@ struct
       | `Error e -> L.log_error c e
       | `Eof     -> L.log_trace c "eof."
 
-  let start c stack kv =
+  let start c stack e kv =
+    ( match_lwt E.entropy e 16 with
+      | `Ok seed -> Nocrypto.Rng.reseed seed ; return_unit
+      | `Error _ -> fail (Invalid_argument "entropy broken") ) >>= fun () ->
+
     lwt certificate = X509.certificate kv `Default in
     let conf        = Tls.Config.server_exn ~certificate () in
     S.listen_tcpv4 stack 4433 (accept c conf handle) ;
@@ -84,6 +89,7 @@ end
 
 module Client (C  : CONSOLE)
               (S  : STACKV4)
+              (E  : ENTROPY)
               (KV : KV_RO) =
 struct
 
@@ -107,7 +113,10 @@ struct
         L.log_data c "recv" buf >> dump () in
     TLS.write tls initial >> dump ()
 
-  let start c stack kv =
+  let start c stack e kv =
+    ( match_lwt E.entropy e 16 with
+      | `Ok seed -> Nocrypto.Rng.reseed seed ; return_unit
+      | `Error _ -> fail (Invalid_argument "entropy broken") ) >>= fun () ->
     lwt authenticator = X509.authenticator kv `CAs in
     let conf          = Tls.Config.client_exn ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer) >>==

@@ -33,10 +33,10 @@ let stack console =
   | `Socket, _       -> socket_stackv4 console [Ipaddr.V4.any]
 
 let server =
-  foreign "Unikernel.Server" @@ console @-> stackv4 @-> kv_ro @-> job
+  foreign "Unikernel.Server" @@ console @-> stackv4 @-> entropy @-> kv_ro @-> job
 
 let client =
-  foreign "Unikernel.Client" @@ console @-> stackv4 @-> kv_ro @-> job
+  foreign "Unikernel.Client" @@ console @-> stackv4 @-> entropy @-> kv_ro @-> job
 
 let () =
   (* Regrettably, CLOCK can't be dep-injected for now. *)
@@ -44,6 +44,6 @@ let () =
   add_to_ocamlfind_libraries [ "mirage-clock-unix"; "tls"; "tls.mirage" ] ;
   match build with
   | `Server ->
-      register "tls-server" [ server $ default_console $ stack default_console $ disk ]
+      register "tls-server" [ server $ default_console $ stack default_console $ default_entropy $ disk ]
   | `Client ->
-      register "tls-client" [ client $ default_console $ stack default_console $ disk ]
+      register "tls-client" [ client $ default_console $ stack default_console $ default_entropy $ disk ]
