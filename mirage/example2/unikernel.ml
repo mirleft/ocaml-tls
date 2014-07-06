@@ -4,6 +4,7 @@ open V1_LWT
 
 module Main (C  : CONSOLE)
             (S  : STACKV4)
+            (E  : ENTROPY)
             (KV : KV_RO) =
 struct
 
@@ -37,7 +38,11 @@ struct
           let open Http.Server in
           listen { callback = handle c ; conn_closed = fun _ () -> () } tls
 
-  let start c stack kv =
+  let start c stack e kv =
+    ( match_lwt E.entropy e 16 with
+      | `Ok seed -> Nocrypto.Rng.reseed seed ; return_unit
+      | `Error _ -> fail (Invalid_argument "entropy broken") ) >>= fun () ->
+
     lwt cert = X509.certificate kv `Default in
     let conf = Tls.Config.server_exn ~certificate:cert () in
     S.listen_tcpv4 stack 4433 (upgrade c conf) ;
