@@ -1,10 +1,18 @@
 
 open Lwt
 
-module Make (TCP: V1_LWT.TCPV4) = struct
+module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
 
   module TCP = TCP
   type error = TCP.error
+
+  module ENTROPY = E
+  (*
+   * XXX 1: Would be nice if this happened behind the scenes.
+   * XXX 2: Would be even nicer if nocrypto did this on its own.
+   *)
+  let attach_entropy e =
+    ENTROPY.handler e Nocrypto.Rng.Accumulator.add_rr
 
   type tracer = Sexplib.Sexp.t -> unit
 
@@ -158,9 +166,9 @@ module Make (TCP: V1_LWT.TCPV4) = struct
 end
 
 (* Mock-`FLOW` module, for constructing a `Channel` on top of. *)
-module Make_flow (TCP: V1_LWT.TCPV4) = struct
+module Make_flow (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
 
-  include Make (TCP)
+  include Make (TCP) (E)
 
   type t = unit
 
