@@ -1,10 +1,13 @@
 
 module type TLS_core = sig
 
-  module TCP : V1_LWT.TCPV4
+  module TCP     : V1_LWT.TCPV4
+  module ENTROPY : V1_LWT.ENTROPY
 
   type error = TCP.error
   type flow
+
+  val attach_entropy : ENTROPY.t -> unit Lwt.t
 
   val read   : flow -> [> `Ok of Cstruct.t | `Eof | `Error of error ] Lwt.t
   val write  : flow -> Cstruct.t -> unit Lwt.t
