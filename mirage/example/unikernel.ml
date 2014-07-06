@@ -53,7 +53,7 @@ module Server (C  : CONSOLE)
               (KV : KV_RO) =
 struct
 
-  module TLS  = Tls_mirage.Make (S.TCPV4)
+  module TLS  = Tls_mirage.Make (S.TCPV4) (E)
   module X509 = Tls_mirage.X509 (KV) (Clock)
   module L    = Log (C)
 
@@ -76,10 +76,7 @@ struct
       | `Eof     -> L.log_trace c "eof."
 
   let start c stack e kv =
-    ( match_lwt E.entropy e 16 with
-      | `Ok seed -> Nocrypto.Rng.reseed seed ; return_unit
-      | `Error _ -> fail (Invalid_argument "entropy broken") ) >>= fun () ->
-
+    TLS.attach_entropy e >>
     lwt certificate = X509.certificate kv `Default in
     let conf        = Tls.Config.server_exn ~certificate () in
     S.listen_tcpv4 stack 4433 (accept c conf handle) ;
@@ -93,7 +90,7 @@ module Client (C  : CONSOLE)
               (KV : KV_RO) =
 struct
 
-  module TLS  = Tls_mirage.Make (S.TCPV4)
+  module TLS  = Tls_mirage.Make (S.TCPV4) (E)
   module X509 = Tls_mirage.X509 (KV) (Clock)
   module L    = Log (C)
 
@@ -114,9 +111,7 @@ struct
     TLS.write tls initial >> dump ()
 
   let start c stack e kv =
-    ( match_lwt E.entropy e 16 with
-      | `Ok seed -> Nocrypto.Rng.reseed seed ; return_unit
-      | `Error _ -> fail (Invalid_argument "entropy broken") ) >>= fun () ->
+    TLS.attach_entropy e >>
     lwt authenticator = X509.authenticator kv `CAs in
     let conf          = Tls.Config.client_exn ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer) >>==

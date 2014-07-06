@@ -8,7 +8,7 @@ module Main (C  : CONSOLE)
             (KV : KV_RO) =
 struct
 
-  module TLS  = Tls_mirage.Make_flow (S.TCPV4)
+  module TLS  = Tls_mirage.Make_flow (S.TCPV4) (E)
   module X509 = Tls_mirage.X509 (KV) (Clock)
   module Chan = Channel.Make (TLS)
   module Http = HTTP.Make (Chan)
@@ -39,10 +39,7 @@ struct
           listen { callback = handle c ; conn_closed = fun _ () -> () } tls
 
   let start c stack e kv =
-    ( match_lwt E.entropy e 16 with
-      | `Ok seed -> Nocrypto.Rng.reseed seed ; return_unit
-      | `Error _ -> fail (Invalid_argument "entropy broken") ) >>= fun () ->
-
+    TLS.attach_entropy e >>
     lwt cert = X509.certificate kv `Default in
     let conf = Tls.Config.server_exn ~certificate:cert () in
     S.listen_tcpv4 stack 4433 (upgrade c conf) ;
