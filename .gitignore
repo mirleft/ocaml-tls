@@ -9,5 +9,6 @@ log
 main.ml
 *.native
 *.byte
+*.docdir
 mir-*-*
 *-*.xl
