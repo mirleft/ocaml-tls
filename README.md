@@ -159,3 +159,34 @@ Posts in the TLS series:
 - draft-agl-tls-padding-03 - A TLS padding extension
 - draft-mathewson-no-gmtunixtime - No UNIX time in client and server hello
 
+### Acknowledgements
+
+Since this is the final post in our series, we would like to thank all
+people who reported issues so far: [Anil Madhavapeddy][anil], [Török
+Edwin][edwin], [Daniel Bünzli][daniel], [Andreas Bogk][andreas], [Gregor Kopf][greg], [Graham
+Steel][graham], [Jerome Vouillon][vouillon], [Amir Chaudhry][amir],
+[Ashish Agarwal][ashish]. Additionally, we want to thank the
+[miTLS][mitls] team (especially Cedric and Karthikeyan) for fruitful
+discussions, as well as the [OCaml Labs][ocamllabs] and
+[Mirage][mirage] teams. And thanks to [Peter Sewell][peter] and
+[Richard Mortier][mort] for funding within the [REMS][rems], [UCN][ucn], and [Horizon][horizon]
+projects. The software was started in [Aftas beach house][aftas] in
+Mirleft, Morocco.
+
+[horizon]: http://www.horizon.ac.uk
+[mirage]: http://www.openmirage.org
+[ocamllabs]: http://www.cl.cam.ac.uk/projects/ocamllabs/
+[aftas]: http://www.aftasmirleft.com/
+[ucn]: http://usercentricnetworking.eu/
+[rems]: http://rems.io
+[mort]: http://www.cs.nott.ac.uk/~rmm/
+[peter]: http://www.cl.cam.ac.uk/~pes20/
+[ashish]: http://ashishagarwal.org
+[amir]: http://amirchaudhry.com/
+[daniel]: http://erratique.ch/
+[vouillon]: https://github.com/vouillon
+[graham]: https://twitter.com/graham_steel
+[greg]: http://gregorkopf.de/blog/
+[andreas]: http://blog.andreas.org/
+[edwin]: https://github.com/edwintorok
+[anil]: http://anil.recoil.org/
