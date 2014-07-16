@@ -401,13 +401,9 @@ let reneg st =
 
 let client config =
   let config = Config.of_client config in
-
   let state = new_state config `Client in
-
   let dch, params = Handshake_client.default_client_hello config in
-
   let secure_reneg = SecureRenegotiation (Cstruct.create 0) in
-
   let ciphers, extensions = match dch.version with
       (* from RFC 5746 section 3.3:
    Both the SSLv3 and TLS 1.0/TLS 1.1 specifications require
