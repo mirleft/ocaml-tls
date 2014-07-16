@@ -437,6 +437,14 @@ let client config =
   let handshake = {
     state.handshake with
       machina = Client machina ;
+      (* from RFC5246, appendix E.1
+   TLS clients that wish to negotiate with older servers MAY send any
+   value {03,XX} as the record layer version number.  Typical values
+   would be {03,00}, the lowest version number supported by the client,
+   and the value of ClientHello.client_version.  No single value will
+   guarantee interoperability with all old servers, but this is a
+   complex topic beyond the scope of this document.
+       *)
       version = min_protocol_version Config.(config.protocol_versions)
   } in
 
