@@ -438,8 +438,12 @@ let client config =
   let ch = ClientHello client_hello in
   let raw = Writer.assemble_handshake ch in
   let machina = AwaitServerHello (client_hello, params, [raw]) in
-  let handshake = { state.handshake with machina = Client machina }
-  in
+  let handshake = {
+    state.handshake with
+      machina = Client machina ;
+      version = min_protocol_version Config.(config.protocol_versions)
+  } in
+
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
 
   send_records
