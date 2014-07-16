@@ -290,3 +290,5 @@ It is not yet intended for use in any security critical applications.**
 [CVE-2014-1266]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-1266
 [CVE-2014-3466]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-3466
 [CVE-2014-0224]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-0224
+
+[nocrypto-intro]: http://openmirage.org/blog/introducing-nocrypto
