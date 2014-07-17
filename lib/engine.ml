@@ -401,13 +401,9 @@ let reneg st =
 
 let client config =
   let config = Config.of_client config in
-
   let state = new_state config `Client in
-
   let dch, params = Handshake_client.default_client_hello config in
-
   let secure_reneg = SecureRenegotiation (Cstruct.create 0) in
-
   let ciphers, extensions = match dch.version with
       (* from RFC 5746 section 3.3:
    Both the SSLv3 and TLS 1.0/TLS 1.1 specifications require
@@ -438,8 +434,20 @@ let client config =
   let ch = ClientHello client_hello in
   let raw = Writer.assemble_handshake ch in
   let machina = AwaitServerHello (client_hello, params, [raw]) in
-  let handshake = { state.handshake with machina = Client machina }
-  in
+  let handshake = {
+    state.handshake with
+      machina = Client machina ;
+      (* from RFC5246, appendix E.1
+   TLS clients that wish to negotiate with older servers MAY send any
+   value {03,XX} as the record layer version number.  Typical values
+   would be {03,00}, the lowest version number supported by the client,
+   and the value of ClientHello.client_version.  No single value will
+   guarantee interoperability with all old servers, but this is a
+   complex topic beyond the scope of this document.
+       *)
+      version = min_protocol_version Config.(config.protocol_versions)
+  } in
+
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
 
   send_records
