@@ -1,4 +1,8 @@
 (trunk):
+* support > TLS-1.2 client hellos (as reported by ssllabs.com)
+* support iOS 6 devices (who propose NULL ciphers - reported in #160)
+* send minimal protocol version in record layer of client hello
+  (maximum version is in the client hello itself) (RFC5246, E.1)
 
 0.1.0 (2014-07-08):
 * initial beta release
