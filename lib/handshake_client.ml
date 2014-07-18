@@ -31,13 +31,13 @@ let default_client_hello config =
   in
   ( ch , { server_random = Cstruct.create 0 ;
            client_random = ch.random ;
-           client_version = ch.version ;
+           client_version = Good ch.version ;
            cipher = List.hd ch.ciphersuites })
 
 let answer_server_hello state params ch (sh : server_hello) raw log =
   let validate_version requested (lo, _) server_version =
     match
-      requested >= server_version, server_version >= lo
+      version_ge requested server_version, server_version >= lo
     with
     | true, true -> return ()
     | _   , _    -> fail Packet.PROTOCOL_VERSION
@@ -140,14 +140,16 @@ let validate_chain config cipher certificates =
 
 let peer_rsa_key cert =
   let open Asn_grammars in
-  ( match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
-    | PK.RSA key -> return key
-    | _          -> fail_handshake )
+  match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
+  | PK.RSA key -> return key
+  | _          -> fail_handshake
 
 let answer_certificate_RSA state params cs raw log =
   validate_chain state.config params.cipher cs >>= fun cert ->
-
-  let ver = Writer.assemble_protocol_version params.client_version in
+  ( match params.client_version with
+    | Good v -> return v
+    | _      -> fail_handshake ) >>= fun v ->
+  let ver = Writer.assemble_protocol_version v in
   let premaster = ver <+> Rng.generate 46 in
   peer_rsa_key cert >|= fun pubkey ->
   let kex = RSA.PKCS1.encrypt pubkey premaster in
@@ -258,9 +260,9 @@ let answer_hello_request state =
      let dch, params = default_client_hello config in
      let ch = { dch with
                   extensions = exts @ dch.extensions } in
-     let raw = Writer.assemble_handshake (ClientHello ch) in
+     let raw = Writer.assemble_handshake (ClientHelloOut ch) in
      let machina = AwaitServerHello (ch, params, [raw]) in
-     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ;
+     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHelloOut ch) ;
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
 
   in
