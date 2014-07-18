@@ -10,34 +10,59 @@ include Control.Or_error_make (struct type err = Packet.alert_type end)
 
 
 type tls_version =
-  | SSL_3
   | TLS_1_0
   | TLS_1_1
   | TLS_1_2
-  | TLS_1_X of (int * int)
   with sexp
 
-(* this is partial. it is intentional that we have no case for SSL3 *)
 let pair_of_tls_version = function
   | TLS_1_0   -> (3, 1)
   | TLS_1_1   -> (3, 2)
   | TLS_1_2   -> (3, 3)
-  | TLS_1_X x -> x
 
 let tls_version_of_pair = function
-  | (3, 0) -> Some SSL_3
   | (3, 1) -> Some TLS_1_0
   | (3, 2) -> Some TLS_1_1
   | (3, 3) -> Some TLS_1_2
-  | (3, x) -> Some (TLS_1_X (3, x))
   | _      -> None
+
+type tls_any_version =
+  | SSL_3
+  | Good of tls_version
+  | TLS_1_X of (int * int)
+  with sexp
+
+let any_version_to_version = function
+  | Good v -> Some v
+  | _      -> None
+
+let version_eq a b =
+  match a with
+  | Good x -> x = b
+  | _      -> false
+
+let version_ge a b =
+  match a with
+  | Good x    -> x >= b
+  | SSL_3     -> false
+  | TLS_1_X _ -> true
+
+let tls_any_version_of_pair x =
+  match tls_version_of_pair x with
+  | Some v -> Some (Good v)
+  | None ->
+     match x with
+     | (3, 0) -> Some SSL_3
+     | (3, x) -> Some (TLS_1_X (3, x))
+     | _      -> None
+
 
 let max_protocol_version (_, hi) = hi
 let min_protocol_version (lo, _) = lo
 
 type tls_hdr = {
   content_type : content_type;
-  version      : tls_version;
+  version      : tls_any_version;
 } with sexp
 
 type extension =
@@ -51,18 +76,18 @@ type extension =
   | UnknownExtension of (int * Cstruct_s.t)
   with sexp
 
-type 'a hello = {
-  version      : tls_version;
+type ('a, 'b) hello = {
+  version      : 'b;
   random       : Cstruct_s.t;
   sessionid    : Cstruct_s.t option;
   ciphersuites : 'a;
   extensions   : extension list
 } with sexp
 
-type client_hello = ciphersuite list hello
+type 'a client_hello = (ciphersuite list, 'a) hello
   with sexp
 
-type server_hello = ciphersuite hello
+type server_hello = (ciphersuite, tls_version) hello
   with sexp
 
 type rsa_parameters = {
@@ -115,7 +140,8 @@ type certificate_request = {
 type tls_handshake =
   | HelloRequest
   | ServerHelloDone
-  | ClientHello of client_hello
+  | ClientHelloOut of tls_version client_hello
+  | ClientHelloIn of tls_any_version client_hello
   | ServerHello of server_hello
   | Certificate of Cstruct_s.t list
   | ServerKeyExchange of Cstruct_s.t
