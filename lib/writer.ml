@@ -142,7 +142,7 @@ let assemble_extension e =
 let assemble_extensions es =
   assemble_list Two assemble_extension es
 
-let assemble_client_hello (cl : client_hello) : Cstruct.t =
+let assemble_client_hello (cl : tls_version client_hello) : Cstruct.t =
   let v = assemble_protocol_version cl.version in
   let sid =
     let buf = create 1 in
@@ -233,7 +233,7 @@ let assemble_client_key_exchange kex =
 let assemble_handshake hs =
   let (payload, payload_type) =
     match hs with
-    | ClientHello ch -> (assemble_client_hello ch, CLIENT_HELLO)
+    | ClientHelloOut ch -> (assemble_client_hello ch, CLIENT_HELLO)
     | ServerHello sh -> (assemble_server_hello sh, SERVER_HELLO)
     | Certificate cs -> (assemble_certificates cs, CERTIFICATE)
     | ServerKeyExchange kex -> (kex, SERVER_KEY_EXCHANGE)
