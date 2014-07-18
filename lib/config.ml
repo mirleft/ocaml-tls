@@ -54,7 +54,7 @@ let validate_common config =
   if v_max < v_min then invalid "bad version range" ;
   ( match config.hashes with
     | [] when v_max >= TLS_1_2                          ->
-       invalid "TLS 1.2 allowed but not hashes"
+       invalid "TLS 1.2 configured but no hashes provided"
     | hs when not (List_set.subset hs supported_hashes) ->
        invalid "Some hash algorithms are not supported"
     | _                                                 ->
