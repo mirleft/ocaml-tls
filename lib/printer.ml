@@ -3,16 +3,19 @@ open Printf
 open Packet
 
 let tls_version_to_string = function
+  | TLS_1_0 -> "TLS version 1.0"
+  | TLS_1_1 -> "TLS version 1.1"
+  | TLS_1_2 -> "TLS version 1.2"
+
+let tls_any_version_to_string = function
+  | Good t         -> tls_version_to_string t
   | SSL_3          -> "SSL version 3"
-  | TLS_1_0        -> "TLS version 1.0"
-  | TLS_1_1        -> "TLS version 1.1"
-  | TLS_1_2        -> "TLS version 1.2"
   | TLS_1_X (h, l) ->
      "TLS version > 1.2 (" ^ string_of_int h ^ ", " ^ string_of_int l ^ ")"
 
 let header_to_string (header : tls_hdr) =
   sprintf "protocol %s: %s"
-          (tls_version_to_string header.version)
+          (tls_any_version_to_string header.version)
           (content_type_to_string header.content_type)
 
 let certificate_request_to_string cr =
@@ -34,9 +37,15 @@ let extension_to_string = function
   | SignatureAlgorithms xs -> "Signature algs: " ^ (String.concat ", " (List.map hash_sig_to_string xs))
   | UnknownExtension _ -> "Unhandled extension"
 
-let client_hello_to_string c_h =
+let out_client_hello_to_string c_h =
   sprintf "client hello: protocol %s\n  ciphers %s\n  extensions %s"
           (tls_version_to_string c_h.version)
+          (List.map Ciphersuite.ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
+          (List.map extension_to_string c_h.extensions |> String.concat ", ")
+
+let in_client_hello_to_string c_h =
+  sprintf "client hello: protocol %s\n  ciphers %s\n  extensions %s"
+          (tls_any_version_to_string c_h.version)
           (List.map Ciphersuite.ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
 
@@ -67,7 +76,8 @@ let ec_param_to_string = function
 let handshake_to_string = function
   | HelloRequest -> "Hello request"
   | ServerHelloDone -> "Server hello done"
-  | ClientHello x -> client_hello_to_string x
+  | ClientHelloIn x -> in_client_hello_to_string x
+  | ClientHelloOut x -> out_client_hello_to_string x
   | ServerHello x -> server_hello_to_string x
   | Certificate x -> sprintf "Certificate: %d" (List.length x)
   | ServerKeyExchange x -> sprintf "Server KEX: %d" (Cstruct.len x)
