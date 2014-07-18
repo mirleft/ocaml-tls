@@ -22,13 +22,13 @@ let version_tests =
 let readerwriter_header (v, ct, cs) _ =
   let buf = Writer.assemble_hdr v (ct, cs) in
   match Reader.parse_hdr buf with
-  | (Some ct', Some (Core.Good v'), l) ->
+  | (Some ct', Some (Core.Supported v'), l) ->
      assert_equal v v' ;
      assert_equal ct ct' ;
      assert_equal (Cstruct.len cs) l ;
      let buf' = Writer.assemble_hdr v' (ct', cs) in
      (match Reader.parse_hdr buf' with
-      | (Some ct'', Some (Core.Good v''), l') ->
+      | (Some ct'', Some (Core.Supported v''), l') ->
          assert_equal v v'' ;
          assert_equal ct ct'' ;
          assert_equal (Cstruct.len cs) l' ;

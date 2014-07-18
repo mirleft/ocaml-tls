@@ -8,10 +8,10 @@ let tls_version_to_string = function
   | TLS_1_2 -> "TLS version 1.2"
 
 let tls_any_version_to_string = function
-  | Good t         -> tls_version_to_string t
-  | SSL_3          -> "SSL version 3"
-  | TLS_1_X (h, l) ->
-     "TLS version > 1.2 (" ^ string_of_int h ^ ", " ^ string_of_int l ^ ")"
+  | Supported t -> tls_version_to_string t
+  | SSL_3       -> "SSL version 3"
+  | TLS_1_X l   ->
+     "TLS version > 1.2 (3, " ^ string_of_int l ^ ")"
 
 let header_to_string (header : tls_hdr) =
   sprintf "protocol %s: %s"

@@ -31,7 +31,7 @@ let default_client_hello config =
   in
   ( ch , { server_random = Cstruct.create 0 ;
            client_random = ch.random ;
-           client_version = Good ch.version ;
+           client_version = Supported ch.version ;
            cipher = List.hd ch.ciphersuites })
 
 let answer_server_hello state params ch (sh : server_hello) raw log =
@@ -147,8 +147,8 @@ let peer_rsa_key cert =
 let answer_certificate_RSA state params cs raw log =
   validate_chain state.config params.cipher cs >>= fun cert ->
   ( match params.client_version with
-    | Good v -> return v
-    | _      -> fail_handshake ) >>= fun v ->
+    | Supported v -> return v
+    | _           -> fail_handshake ) >>= fun v ->
   let ver = Writer.assemble_protocol_version v in
   let premaster = ver <+> Rng.generate 46 in
   peer_rsa_key cert >|= fun pubkey ->

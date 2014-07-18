@@ -28,32 +28,32 @@ let tls_version_of_pair = function
 
 type tls_any_version =
   | SSL_3
-  | Good of tls_version
-  | TLS_1_X of (int * int)
+  | Supported of tls_version
+  | TLS_1_X of int
   with sexp
 
 let any_version_to_version = function
-  | Good v -> Some v
-  | _      -> None
+  | Supported v -> Some v
+  | _           -> None
 
 let version_eq a b =
   match a with
-  | Good x -> x = b
-  | _      -> false
+  | Supported x -> x = b
+  | _           -> false
 
 let version_ge a b =
   match a with
-  | Good x    -> x >= b
-  | SSL_3     -> false
-  | TLS_1_X _ -> true
+  | Supported x -> x >= b
+  | SSL_3       -> false
+  | TLS_1_X _   -> true
 
 let tls_any_version_of_pair x =
   match tls_version_of_pair x with
-  | Some v -> Some (Good v)
+  | Some v -> Some (Supported v)
   | None ->
      match x with
      | (3, 0) -> Some SSL_3
-     | (3, x) -> Some (TLS_1_X (3, x))
+     | (3, x) -> Some (TLS_1_X x)
      | _      -> None
 
 
