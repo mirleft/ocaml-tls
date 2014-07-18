@@ -53,7 +53,7 @@ type dh_sent = DH.group * DH.secret with sexp
 type handshake_params = {
   server_random  : Cstruct_s.t ; (* 32 bytes random from the server hello *)
   client_random  : Cstruct_s.t ; (* 32 bytes random from the client hello *)
-  client_version : tls_version ; (* version in client hello (needed in RSA client key exchange) *)
+  client_version : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
   cipher         : Ciphersuite.ciphersuite (* selected ciphersuite by the server *)
 } with sexp
 
