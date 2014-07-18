@@ -52,7 +52,7 @@ let answer_client_key_exchange_RSA state params kex raw log =
        configuration option to disable the check.  Note that if the check
        fails, the PreMasterSecret SHOULD be randomized as described below *)
     (* we do not provide an option to disable the version checking (yet!) *)
-    match Cstruct.len k == 48, Reader.parse_version k with
+    match Cstruct.len k == 48, Reader.parse_any_version k with
     | true, Reader.Or_error.Ok c_ver when c_ver = params.client_version -> k
     | _                                                                 -> other
   in
@@ -71,7 +71,7 @@ let answer_client_key_exchange_DHE_RSA state params (group, secret) kex raw log 
   | Some pms -> return (establish_master_secret state params pms raw log)
 
 
-let answer_client_hello state (ch : client_hello) raw =
+let answer_client_hello state (ch : tls_any_version client_hello) raw =
   let find_version supported requested =
     match supported_protocol_version supported requested with
     | Some x -> return x
@@ -250,7 +250,7 @@ let handle_handshake ss hs buf =
   | Or_error.Ok handshake ->
      Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake;
      ( match ss, handshake with
-       | AwaitClientHello, ClientHello ch ->
+       | AwaitClientHello, ClientHelloIn ch ->
           answer_client_hello hs ch buf
        | AwaitClientKeyExchange_RSA (params, log), ClientKeyExchange kex ->
           answer_client_key_exchange_RSA hs params kex buf log
@@ -258,7 +258,7 @@ let handle_handshake ss hs buf =
           answer_client_key_exchange_DHE_RSA hs params dh_sent kex buf log
        | AwaitClientFinished (master_secret, log), Finished fin ->
           answer_client_finished hs master_secret fin buf log
-       | Established, ClientHello ch -> (* renegotiation *)
+       | Established, ClientHelloIn ch -> (* renegotiation *)
           answer_client_hello hs ch buf
        | _, _-> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
