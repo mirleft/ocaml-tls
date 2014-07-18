@@ -36,14 +36,24 @@ let parse_version_exn buf =
      let major, minor = version in
      raise_unknown @@ "version " ^ string_of_int major ^ "." ^ string_of_int minor
 
+let parse_any_version_exn buf =
+  let version = parse_version_int buf in
+  match tls_any_version_of_pair version with
+  | Some x -> x
+  | None   ->
+     let major, minor = version in
+     raise_unknown @@ "version " ^ string_of_int major ^ "." ^ string_of_int minor
+
 let parse_version = catch parse_version_exn
+
+let parse_any_version = catch parse_any_version_exn
 
 (* calling convention is that the buffer length is >= 5! *)
 let parse_hdr buf =
   let typ = get_uint8 buf 0 in
   let version = parse_version_int (shift buf 1) in
   let len = BE.get_uint16 buf 3 in
-  (int_to_content_type typ, tls_version_of_pair version, len)
+  (int_to_content_type typ, tls_any_version_of_pair version, len)
 
 let validate_alert (lvl, typ) =
   let open Packet in
@@ -267,8 +277,8 @@ let parse_extensions buf =
   else
     parse_list parse_extension (sub buf 2 length) []
 
-let parse_hello get_compression get_cipher buf =
-  let version = parse_version_exn buf in
+let parse_hello get_version get_compression get_cipher buf =
+  let version = get_version buf in
   let random = sub buf 2 32 in
   let slen = get_uint8 buf 34 in
   let sessionid = if slen = 0 then
@@ -286,8 +296,8 @@ let parse_hello get_compression get_cipher buf =
   { version ; random ; sessionid ; ciphersuites ; extensions }
 
 let parse_client_hello buf =
-  let ch = parse_hello parse_compression_methods parse_ciphersuites buf in
-  ClientHello ch
+  let ch = parse_hello parse_any_version_exn parse_compression_methods parse_ciphersuites buf in
+  ClientHelloIn ch
 
 let parse_server_hello buf =
   let p_c buf = match parse_compression_method buf with
@@ -298,7 +308,7 @@ let parse_server_hello buf =
     | Some x, buf' -> (x, buf')
     | None  , _    -> raise_unknown "ciphersuite"
   in
-  let sh = parse_hello p_c p_c_s buf in
+  let sh = parse_hello parse_version_exn p_c p_c_s buf in
   ServerHello sh
 
 let parse_certificates buf =
