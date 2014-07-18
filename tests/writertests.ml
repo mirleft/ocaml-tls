@@ -10,7 +10,6 @@ let version_assembler_tests = Core.([
  (TLS_1_0, list_to_cstruct [3; 1]) ;
  (TLS_1_1, list_to_cstruct [3; 2]) ;
  (TLS_1_2, list_to_cstruct [3; 3]) ;
- (TLS_1_X (3, 42), list_to_cstruct [3; 42])
 ])
 
 let version_tests =
@@ -274,35 +273,35 @@ let handshake_assembler_tests =
    ( Certificate [a_cs ; emp ; a_cs] , [ 11; 0; 0; 44; 0; 0; 41 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l ) ;
    ( Certificate [a_cs ; emp ; a_cs ; emp] , [ 11; 0; 0; 47; 0; 0; 44 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
 
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { version = TLS_1_1 ;
+   ( ClientHelloOut { version = TLS_1_1 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 2 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { version = TLS_1_0 ;
+   ( ClientHelloOut { version = TLS_1_0 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 1 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
                    extensions = [] },
      [ 1; 0; 0; 41; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
@@ -310,7 +309,7 @@ let handshake_assembler_tests =
      [ 1; 0; 0; 47; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ] ) ;
 
 
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = Ciphersuite.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
@@ -337,21 +336,21 @@ let handshake_assembler_tests =
               0x00; 0x1e; 0x06; 0x01; 0x06; 0x02; 0x06; 0x03; 0x05; 0x01; 0x05; 0x02; 0x05; 0x03; 0x04; 0x01; 0x04; 0x02; 0x04; 0x03; 0x03; 0x01; 0x03; 0x02; 0x03; 0x03; 0x02; 0x01; 0x02; 0x02; 0x02; 0x03 ] ) ;
 
 
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
                    extensions = [Hostname (Some "foo")] },
      [ 1; 0; 0; 55; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 3; 102; 111; 111 ] ) ;
 
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
                    extensions = [Hostname (Some "foofoofoofoofoofoofoofoofoofoo")] },
      [ 1; 0; 0; 82; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 39; 0; 0; 0; 35; 0; 33; 0; 0; 30; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111 ] ) ;
 
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
@@ -360,7 +359,7 @@ let handshake_assembler_tests =
 
    (* this one is the smallest which needs extra padding
      (due to its size being > 256 and < 511) *)
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
@@ -368,7 +367,7 @@ let handshake_assembler_tests =
      [ 1; 0; 1; 0xFC; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 1; 0xD3; 0; 0; 0; 0xD0; 0; 0xCE; 0; 0; 0xCB; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111; 0; 21; 0; 0xF9; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0  ] ) ;
 
    (* this one is the biggest which needs no extra padding *)
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL] ;
@@ -376,7 +375,7 @@ let handshake_assembler_tests =
      [ 1; 0; 0; 251; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 208; 0; 0; 0; 204; 0; 202; 0; 0; 199; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102 ] ) ;
 
    (* this one is the biggest which needs no extra padding, and no exts *)
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;
@@ -389,7 +388,7 @@ Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersu
   1; 0 ] ) ;
 
    (* add one more, and we get into padding no exts *)
-   ( ClientHello { version = TLS_1_2 ;
+   ( ClientHelloOut { version = TLS_1_2 ;
                    random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL; Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;Ciphersuite.TLS_NULL_WITH_NULL_NULL;

@@ -2,6 +2,44 @@ open OUnit2
 open Tls
 open Testlib
 
+let good_any_version_parser major minor result _ =
+  let ver = list_to_cstruct [ major ; minor ] in
+  Reader.(match parse_any_version ver with
+          | Or_error.Ok v    -> assert_equal v result
+          | Or_error.Error _ -> assert_failure "Version parser broken")
+
+let bad_any_version_parser major minor _ =
+  let ver = list_to_cstruct [ major ; minor ] in
+  Reader.(match parse_any_version ver with
+          | Or_error.Ok v    -> assert_failure "Version parser broken"
+          | Or_error.Error _ -> ())
+
+let parse_any_version_too_short _ =
+  let ver = list_to_cstruct [ 0 ] in
+  Reader.(match parse_any_version ver with
+          | Or_error.Ok v    -> assert_failure "Version parser broken"
+          | Or_error.Error _ -> ())
+
+let any_version_parser_tests = [
+  good_any_version_parser 3 0 Core.SSL_3 ;
+  good_any_version_parser 3 1 Core.(Good TLS_1_0) ;
+  good_any_version_parser 3 2 Core.(Good TLS_1_1) ;
+  good_any_version_parser 3 3 Core.(Good TLS_1_2) ;
+  good_any_version_parser 3 4 (Core.TLS_1_X (3, 4)) ;
+  good_any_version_parser 3 42 (Core.TLS_1_X (3, 42));
+
+  bad_any_version_parser 2 4 ;
+  bad_any_version_parser 4 4 ;
+  bad_any_version_parser 0 2 ;
+
+  parse_any_version_too_short
+]
+
+let any_version_tests =
+  List.mapi
+    (fun i f -> "Parse version " ^ string_of_int i >:: f)
+    any_version_parser_tests
+
 let good_version_parser major minor result _ =
   let ver = list_to_cstruct [ major ; minor ] in
   Reader.(match parse_version ver with
@@ -21,13 +59,13 @@ let parse_version_too_short _ =
           | Or_error.Error _ -> ())
 
 let version_parser_tests = [
-  good_version_parser 3 0 Core.SSL_3 ;
   good_version_parser 3 1 Core.TLS_1_0 ;
   good_version_parser 3 2 Core.TLS_1_1 ;
   good_version_parser 3 3 Core.TLS_1_2 ;
-  good_version_parser 3 4 (Core.TLS_1_X (3, 4)) ;
-  good_version_parser 3 42 (Core.TLS_1_X (3, 42));
 
+  bad_version_parser 3 0 ;
+  bad_version_parser 3 4 ;
+  bad_version_parser 3 42 ;
   bad_version_parser 2 4 ;
   bad_version_parser 4 4 ;
   bad_version_parser 0 2 ;
@@ -39,6 +77,7 @@ let version_tests =
   List.mapi
     (fun i f -> "Parse version " ^ string_of_int i >:: f)
     version_parser_tests
+
 
 let good_header_parser (ct, (major, minor), l, (resct, resv)) _ =
   let buf =
@@ -52,9 +91,9 @@ let good_header_parser (ct, (major, minor), l, (resct, resv)) _ =
   | _                    -> assert_failure "header parser broken"
 
 let good_headers = [
-  ( 20 , (3, 1), 100,  ( Packet.CHANGE_CIPHER_SPEC , Core.TLS_1_0) ) ;
-  ( 21 , (3, 2), 10,   ( Packet.ALERT , Core.TLS_1_1) ) ;
-  ( 22 , (3, 3), 1000, ( Packet.HANDSHAKE , Core.TLS_1_2) ) ;
+  ( 20 , (3, 1), 100,  ( Packet.CHANGE_CIPHER_SPEC , Core.(Good TLS_1_0)) ) ;
+  ( 21 , (3, 2), 10,   ( Packet.ALERT , Core.(Good TLS_1_1)) ) ;
+  ( 22 , (3, 3), 1000, ( Packet.HANDSHAKE , Core.(Good TLS_1_2)) ) ;
   ( 23 , (3, 0), 1,    ( Packet.APPLICATION_DATA , Core.SSL_3) ) ;
   ( 24 , (3, 4), 20,   ( Packet.HEARTBEAT , Core.TLS_1_X (3, 4)) ) ;
 ]
@@ -1104,8 +1143,8 @@ let good_client_hellos =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
   let random = list_to_cstruct rand in
-  Core.(let ch : client_hello =
-          { version = TLS_1_2 ;
+  Core.(let ch : Core.tls_any_version client_hello =
+          { version = Good TLS_1_2 ;
             random ;
             sessionid = None ;
             ciphersuites = [] ;
@@ -1115,8 +1154,8 @@ let good_client_hellos =
           (* versions *)
           ([1; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , ch ) ;
           ([1; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = SSL_3 } ) ;
-          ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_0 } ) ;
-          ([1; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_1 } ) ;
+          ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Good TLS_1_0 } ) ;
+          ([1; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Good TLS_1_1 } ) ;
           ([1; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_X (3, 4) } ) ;
           ([1; 0; 0; 38; 3; 5] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_X (3, 5) } ) ;
 
@@ -1217,7 +1256,7 @@ let good_client_hellos =
 (*           0x00; 0x23; 0x00; 0x00; (* sessionticket_tls *)
            0x00; 0x0f; 0x00; 0x01; 0x01 (* heartbeat *) *) ,
            { ch with
-             version = TLS_1_0 ;
+             version = Good TLS_1_0 ;
              random =  list_to_cstruct [0x7c; 0x53; 0x05; 0x72; 0x7a; 0x1b; 0x84; 0x70; 0x30; 0x89; 0xef; 0xad; 0xfb; 0x56; 0xc1; 0x3d; 0x73; 0x4b; 0xc7; 0xcb; 0x8c; 0xc8; 0x75; 0x43; 0x01; 0x12; 0x32; 0xd6; 0x74; 0x87; 0xcb; 0x18] ;
              ciphersuites = Ciphersuite.([TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_SEED_CBC_SHA; TLS_DHE_DSS_WITH_SEED_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_SEED_CBC_SHA; TLS_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_RSA_WITH_IDEA_CBC_SHA; TLS_ECDHE_RSA_WITH_RC4_128_SHA; TLS_ECDHE_ECDSA_WITH_RC4_128_SHA; TLS_ECDH_RSA_WITH_RC4_128_SHA; TLS_ECDH_ECDSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_MD5; TLS_DHE_RSA_WITH_DES_CBC_SHA; TLS_DHE_DSS_WITH_DES_CBC_SHA; TLS_RSA_WITH_DES_CBC_SHA; TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5; TLS_RSA_EXPORT_WITH_RC4_40_MD5; TLS_EMPTY_RENEGOTIATION_INFO_SCSV]);
              extensions = [ECPointFormats Packet.([UNCOMPRESSED; ANSIX962_COMPRESSED_PRIME; ANSIX962_COMPRESSED_CHAR2]) ;
@@ -1256,7 +1295,7 @@ let good_client_hellos =
               0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00;
               0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00 ],
             { ch with
-              version = TLS_1_2 ;
+              version = Good TLS_1_2 ;
               random = list_to_cstruct [0xb7; 0x36; 0xeb; 0x21; 0xec; 0x81; 0x4d; 0x01; 0xfc; 0xf4; 0xe2; 0x06; 0x9a; 0x34; 0xb7; 0x21; 0xe1; 0x23; 0x6f; 0xbe; 0x50; 0xbf; 0xfe; 0x33; 0x9b; 0xc9; 0x5b; 0x20; 0x0e; 0x15; 0x02; 0x27] ;
               ciphersuites = Ciphersuite.([TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384; TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384; TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384; TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_GCM_SHA384; TLS_DHE_RSA_WITH_AES_256_GCM_SHA384; TLS_DHE_RSA_WITH_AES_256_CBC_SHA256; TLS_DHE_DSS_WITH_AES_256_CBC_SHA256; TLS_DHE_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384; TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_AES_256_GCM_SHA384; TLS_RSA_WITH_AES_256_CBC_SHA256; TLS_RSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256; TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_GCM_SHA256; TLS_DHE_RSA_WITH_AES_128_GCM_SHA256; TLS_DHE_RSA_WITH_AES_128_CBC_SHA256; TLS_DHE_DSS_WITH_AES_128_CBC_SHA256; TLS_DHE_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_SEED_CBC_SHA; TLS_DHE_DSS_WITH_SEED_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA; TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256; TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_AES_128_GCM_SHA256; TLS_RSA_WITH_AES_128_CBC_SHA256; TLS_RSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_SEED_CBC_SHA; TLS_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_RSA_WITH_IDEA_CBC_SHA; TLS_ECDHE_RSA_WITH_RC4_128_SHA; TLS_ECDHE_ECDSA_WITH_RC4_128_SHA; TLS_ECDH_RSA_WITH_RC4_128_SHA; TLS_ECDH_ECDSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_MD5; TLS_DHE_RSA_WITH_DES_CBC_SHA; TLS_DHE_DSS_WITH_DES_CBC_SHA; TLS_RSA_WITH_DES_CBC_SHA; TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5; TLS_RSA_EXPORT_WITH_RC4_40_MD5; TLS_EMPTY_RENEGOTIATION_INFO_SCSV]) ;
               extensions = [ECPointFormats Packet.([UNCOMPRESSED; ANSIX962_COMPRESSED_PRIME; ANSIX962_COMPRESSED_CHAR2]);
@@ -1319,7 +1358,7 @@ let cmp_client_hellos ch ch' =
 let good_client_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok (Core.ClientHello ch) -> cmp_client_hellos ch res
+          | Or_error.Ok (Core.ClientHelloIn ch) -> cmp_client_hellos ch res
           | _ -> assert_failure "handshake client hello parser failed")
 
 let good_client_hellos_tests =
@@ -1425,10 +1464,8 @@ let good_server_hellos =
         [
           (* versions *)
           ([2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , sh ) ;
-          ([2; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = SSL_3 } ) ;
           ([2; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_0 } ) ;
           ([2; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_1 } ) ;
-          ([2; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_X (3, 4) } ) ;
 
           (* session id *)
           ([2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 3; 1; 2; 3; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { sh with sessionid = Some (list_to_cstruct [1; 2; 3]) } ) ;
@@ -1518,6 +1555,9 @@ let bad_server_hellos =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
   Core.([
+         [2; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+         [2; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+
          [2; 0; 0; 30; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
          [2; 0; 0; 38; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
          [2; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
@@ -1548,7 +1588,7 @@ let bad_server_hellos_tests =
     bad_server_hellos
 
 let reader_tests =
-  version_tests @
+  any_version_tests @ version_tests @
   good_headers_tests @ bad_headers_tests @
   good_alert_tests @ bad_alerts_tests @
   good_dh_params_tests @ bad_dh_params_tests @
