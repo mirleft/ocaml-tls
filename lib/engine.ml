@@ -279,7 +279,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
 
   let hs = state.handshake in
   let version = hs.version in
-  ( match hs.machina, hdr.version = version with
+  ( match hs.machina, version_eq hdr.version version with
     | Client (AwaitServerHello _), _     -> return ()
     | Server (AwaitClientHello)  , _     -> return ()
     | _                          , true  -> return ()
@@ -431,7 +431,7 @@ let client config =
         extensions   = extensions @ dch.extensions }
   in
 
-  let ch = ClientHello client_hello in
+  let ch = ClientHelloOut client_hello in
   let raw = Writer.assemble_handshake ch in
   let machina = AwaitServerHello (client_hello, params, [raw]) in
   let handshake = {
