@@ -297,7 +297,7 @@ let parse_hello get_version get_compression get_cipher buf =
 
 let parse_client_hello buf =
   let ch = parse_hello parse_any_version_exn parse_compression_methods parse_ciphersuites buf in
-  ClientHelloIn ch
+  ClientHello ch
 
 let parse_server_hello buf =
   let p_c buf = match parse_compression_method buf with

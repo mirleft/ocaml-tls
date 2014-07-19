@@ -37,13 +37,7 @@ let extension_to_string = function
   | SignatureAlgorithms xs -> "Signature algs: " ^ (String.concat ", " (List.map hash_sig_to_string xs))
   | UnknownExtension _ -> "Unhandled extension"
 
-let out_client_hello_to_string c_h =
-  sprintf "client hello: protocol %s\n  ciphers %s\n  extensions %s"
-          (tls_version_to_string c_h.version)
-          (List.map Ciphersuite.ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
-          (List.map extension_to_string c_h.extensions |> String.concat ", ")
-
-let in_client_hello_to_string c_h =
+let client_hello_to_string c_h =
   sprintf "client hello: protocol %s\n  ciphers %s\n  extensions %s"
           (tls_any_version_to_string c_h.version)
           (List.map Ciphersuite.ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
@@ -76,8 +70,7 @@ let ec_param_to_string = function
 let handshake_to_string = function
   | HelloRequest -> "Hello request"
   | ServerHelloDone -> "Server hello done"
-  | ClientHelloIn x -> in_client_hello_to_string x
-  | ClientHelloOut x -> out_client_hello_to_string x
+  | ClientHello x -> client_hello_to_string x
   | ServerHello x -> server_hello_to_string x
   | Certificate x -> sprintf "Certificate: %d" (List.length x)
   | ServerKeyExchange x -> sprintf "Server KEX: %d" (Cstruct.len x)

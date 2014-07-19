@@ -56,6 +56,10 @@ let tls_any_version_of_pair x =
      | (3, x) -> Some (TLS_1_X x)
      | _      -> None
 
+let pair_of_tls_any_version = function
+  | Supported x -> pair_of_tls_version x
+  | SSL_3       -> (3, 0)
+  | TLS_1_X m   -> (3, m)
 
 let max_protocol_version (_, hi) = hi
 let min_protocol_version (lo, _) = lo
@@ -84,7 +88,7 @@ type ('a, 'b) hello = {
   extensions   : extension list
 } with sexp
 
-type 'a client_hello = (ciphersuite list, 'a) hello
+type client_hello = (ciphersuite list, tls_any_version) hello
   with sexp
 
 type server_hello = (ciphersuite, tls_version) hello
@@ -140,8 +144,7 @@ type certificate_request = {
 type tls_handshake =
   | HelloRequest
   | ServerHelloDone
-  | ClientHelloOut of tls_version client_hello
-  | ClientHelloIn of tls_any_version client_hello
+  | ClientHello of client_hello
   | ServerHello of server_hello
   | Certificate of Cstruct_s.t list
   | ServerKeyExchange of Cstruct_s.t

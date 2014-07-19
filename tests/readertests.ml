@@ -1143,7 +1143,7 @@ let good_client_hellos =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
   let random = list_to_cstruct rand in
-  Core.(let ch : Core.tls_any_version client_hello =
+  Core.(let ch : client_hello =
           { version = Supported TLS_1_2 ;
             random ;
             sessionid = None ;
@@ -1358,7 +1358,7 @@ let cmp_client_hellos ch ch' =
 let good_client_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   Reader.(match parse_handshake buf with
-          | Or_error.Ok (Core.ClientHelloIn ch) -> cmp_client_hellos ch res
+          | Or_error.Ok (Core.ClientHello ch) -> cmp_client_hellos ch res
           | _ -> assert_failure "handshake client hello parser failed")
 
 let good_client_hellos_tests =

@@ -70,7 +70,7 @@ type server_handshake_state =
 (* state machine of the client *)
 type client_handshake_state =
   | ClientInitial (* initial state *)
-  | AwaitServerHello of tls_version client_hello * handshake_params * hs_log (* client hello is sent, handshake_params are half-filled *)
+  | AwaitServerHello of client_hello * handshake_params * hs_log (* client hello is sent, handshake_params are half-filled *)
   | AwaitCertificate_RSA of handshake_params * hs_log (* certificate expected with RSA key exchange *)
   | AwaitCertificate_DHE_RSA of handshake_params * hs_log (* certificate expected with DHE_RSA key exchange *)
   | AwaitServerKeyExchange_DHE_RSA of handshake_params * Certificate.certificate * hs_log (* server key exchange expected with DHE_RSA *)

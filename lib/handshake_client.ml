@@ -22,17 +22,19 @@ let default_client_hello config =
        [SignatureAlgorithms supported]
   in
   let ch = {
-    version      = version ;
+    version      = Supported version ;
     random       = Rng.generate 32 ;
     sessionid    = None ;
     ciphersuites = config.ciphers ;
     extensions   = host @ signature_algos
   }
   in
-  ( ch , { server_random = Cstruct.create 0 ;
-           client_random = ch.random ;
-           client_version = Supported ch.version ;
-           cipher = List.hd ch.ciphersuites })
+  ( ch ,
+    { server_random = Cstruct.create 0 ;
+      client_random = ch.random ;
+      client_version = ch.version ;
+      cipher = List.hd ch.ciphersuites } ,
+   version)
 
 let answer_server_hello state params ch (sh : server_hello) raw log =
   let validate_version requested (lo, _) server_version =
@@ -257,12 +259,12 @@ let answer_hello_request state =
     | Some (cvd, _) -> return (SecureRenegotiation cvd)
 
   and produce_client_hello config exts =
-     let dch, params = default_client_hello config in
+     let dch, params, _ = default_client_hello config in
      let ch = { dch with
                   extensions = exts @ dch.extensions } in
-     let raw = Writer.assemble_handshake (ClientHelloOut ch) in
+     let raw = Writer.assemble_handshake (ClientHello ch) in
      let machina = AwaitServerHello (ch, params, [raw]) in
-     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHelloOut ch) ;
+     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ;
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
 
   in

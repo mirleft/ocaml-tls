@@ -402,9 +402,9 @@ let reneg st =
 let client config =
   let config = Config.of_client config in
   let state = new_state config `Client in
-  let dch, params = Handshake_client.default_client_hello config in
+  let dch, params, version = Handshake_client.default_client_hello config in
   let secure_reneg = SecureRenegotiation (Cstruct.create 0) in
-  let ciphers, extensions = match dch.version with
+  let ciphers, extensions = match version with
       (* from RFC 5746 section 3.3:
    Both the SSLv3 and TLS 1.0/TLS 1.1 specifications require
    implementations to ignore data following the ClientHello (i.e.,
@@ -431,7 +431,7 @@ let client config =
         extensions   = extensions @ dch.extensions }
   in
 
-  let ch = ClientHelloOut client_hello in
+  let ch = ClientHello client_hello in
   let raw = Writer.assemble_handshake ch in
   let machina = AwaitServerHello (client_hello, params, [raw]) in
   let handshake = {
