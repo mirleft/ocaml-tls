@@ -16,7 +16,7 @@ let get_hostname_ext h =
     h.extensions
     ~f:(function Hostname s -> Some s | _ -> None)
 
-let hostname (h : 'a hello) : string option =
+let hostname h : string option =
   match get_hostname_ext h with
   | Some (Some name) -> Some name
   | _                -> None
@@ -27,9 +27,9 @@ let get_secure_renegotiation exts =
     ~f:(function SecureRenegotiation data -> Some data | _ -> None)
 
 let supported_protocol_version (min, max) v =
-  match v >= max, v >= min with
-    | true, _    -> Some max
-    | _   , true -> Some v
+  match version_ge v min, version_ge v max with
+    | _   , true -> Some max
+    | true, _    -> any_version_to_version v
     | _   , _    -> None
 
 let to_ext_type = function
@@ -111,8 +111,8 @@ let client_hello_valid ch =
   &&
 
   ( match ch.version with
-    | TLS_1_2 | TLS_1_X _        -> true
-    | SSL_3 | TLS_1_0 | TLS_1_1  ->
+    | Supported TLS_1_2 | TLS_1_X _                  -> true
+    | SSL_3 | Supported TLS_1_0 | Supported TLS_1_1  ->
         let has_sig_algo =
           List.exists (function SignatureAlgorithms _ -> true | _ -> false)
             ch.extensions in

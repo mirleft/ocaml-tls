@@ -22,13 +22,13 @@ let version_tests =
 let readerwriter_header (v, ct, cs) _ =
   let buf = Writer.assemble_hdr v (ct, cs) in
   match Reader.parse_hdr buf with
-  | (Some ct', Some v', l) ->
+  | (Some ct', Some (Core.Supported v'), l) ->
      assert_equal v v' ;
      assert_equal ct ct' ;
      assert_equal (Cstruct.len cs) l ;
      let buf' = Writer.assemble_hdr v' (ct', cs) in
      (match Reader.parse_hdr buf' with
-      | (Some ct'', Some v'', l') ->
+      | (Some ct'', Some (Core.Supported v''), l') ->
          assert_equal v v'' ;
          assert_equal ct ct'' ;
          assert_equal (Cstruct.len cs) l' ;
@@ -348,7 +348,7 @@ let rw_handshake_client_hello_vals =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let random = list_to_cstruct (rnd @ rnd) in
   Core.(let ch : client_hello =
-          { version = TLS_1_2 ;
+          { version = Supported TLS_1_2 ;
             random ;
             sessionid = None ;
             ciphersuites = [] ;
@@ -356,8 +356,8 @@ let rw_handshake_client_hello_vals =
         in
         [
           ClientHello ch ;
-          ClientHello { ch with version = TLS_1_0 } ;
-          ClientHello { ch with version = TLS_1_1 } ;
+          ClientHello { ch with version = Supported TLS_1_0 } ;
+          ClientHello { ch with version = Supported TLS_1_1 } ;
 
           ClientHello { ch with ciphersuites = [ Ciphersuite.TLS_NULL_WITH_NULL_NULL ] } ;
           ClientHello { ch with ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) } ;

@@ -14,6 +14,13 @@ let assemble_protocol_version version =
   assemble_protocol_version_int buf version;
   buf
 
+let assemble_any_protocol_version version =
+  let buf = create 2 in
+  let major, minor = pair_of_tls_any_version version in
+  set_uint8 buf 0 major ;
+  set_uint8 buf 1 minor ;
+  buf
+
 let assemble_hdr version (content_type, payload) =
   let buf = create 5 in
   set_uint8 buf 0 (content_type_to_int content_type);
@@ -143,7 +150,7 @@ let assemble_extensions es =
   assemble_list Two assemble_extension es
 
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
-  let v = assemble_protocol_version cl.version in
+  let v = assemble_any_protocol_version cl.version in
   let sid =
     let buf = create 1 in
     match cl.sessionid with

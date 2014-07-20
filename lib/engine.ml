@@ -279,7 +279,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
 
   let hs = state.handshake in
   let version = hs.version in
-  ( match hs.machina, hdr.version = version with
+  ( match hs.machina, version_eq hdr.version version with
     | Client (AwaitServerHello _), _     -> return ()
     | Server (AwaitClientHello)  , _     -> return ()
     | _                          , true  -> return ()
@@ -402,9 +402,9 @@ let reneg st =
 let client config =
   let config = Config.of_client config in
   let state = new_state config `Client in
-  let dch, params = Handshake_client.default_client_hello config in
+  let dch, params, version = Handshake_client.default_client_hello config in
   let secure_reneg = SecureRenegotiation (Cstruct.create 0) in
-  let ciphers, extensions = match dch.version with
+  let ciphers, extensions = match version with
       (* from RFC 5746 section 3.3:
    Both the SSLv3 and TLS 1.0/TLS 1.1 specifications require
    implementations to ignore data following the ClientHello (i.e.,

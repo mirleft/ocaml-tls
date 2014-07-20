@@ -41,10 +41,12 @@ let key_block version len master_secret seed =
 let finished version master_secret label ps =
   let data = Utils.Cs.appends ps in
   match version with
-  | TLS_1_0 | TLS_1_1 -> let seed = MD5.digest data <+> SHA1.digest data in
-                         pseudo_random_function version 12 master_secret label seed
-  | TLS_1_2 -> let seed = SHA256.digest data in
-               pseudo_random_function version 12 master_secret label seed
+  | TLS_1_0 | TLS_1_1 ->
+     let seed = MD5.digest data <+> SHA1.digest data in
+     pseudo_random_function version 12 master_secret label seed
+  | TLS_1_2 ->
+     let seed = SHA256.digest data in
+     pseudo_random_function version 12 master_secret label seed
 
 let divide_keyblock version key mac iv buf =
   let open Cstruct in

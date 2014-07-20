@@ -9,8 +9,9 @@ module Or_error :
   Control.Or_error with type err = error
 open Or_error
 
-val parse_version   : Cstruct.t -> Core.tls_version or_error
-val parse_hdr       : Cstruct.t -> Packet.content_type option * Core.tls_version option * int
+val parse_version     : Cstruct.t -> Core.tls_version or_error
+val parse_any_version : Cstruct.t -> Core.tls_any_version or_error
+val parse_hdr         : Cstruct.t -> Packet.content_type option * Core.tls_any_version option * int
 
 val parse_handshake_length : Cstruct.t -> int
 val parse_handshake : Cstruct.t -> Core.tls_handshake or_error

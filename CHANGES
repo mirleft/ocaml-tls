@@ -1,4 +1,7 @@
 (trunk):
+* distinguish between supported versions by the stack (type tls_version)
+  and readable versions (tls_any_version), which might occur in a tls
+  record or client_hello read from the network
 * support > TLS-1.2 client hellos (as reported by ssllabs.com)
 * support iOS 6 devices (who propose NULL ciphers - reported in #160)
 * send minimal protocol version in record layer of client hello
