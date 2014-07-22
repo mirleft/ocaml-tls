@@ -96,6 +96,12 @@ let answer_client_hello state (ch : client_hello) raw =
     match use_reneg, reneg with
     | false, Some _ -> fail_handshake
     | _    , _      -> return ()
+
+  and compatible_version reneg prev_version version =
+    match reneg with
+    | None                               -> return ()
+    | Some _ when prev_version = version -> return ()
+    | Some _                             -> fail Packet.PROTOCOL_VERSION
   in
 
   let process_client_hello config ch =
@@ -103,6 +109,7 @@ let answer_client_hello state (ch : client_hello) raw =
     let theirs = get_secure_renegotiation ch.extensions in
     assure (client_hello_valid ch) >>= fun () ->
     find_version config.protocol_versions ch.version >>= fun version ->
+    compatible_version state.reneg state.version version >>= fun () ->
     find_ciphersuite config.ciphers cciphers >>= fun cipher ->
     renegotiate config.use_reneg state.reneg >>= fun () ->
     ensure_reneg config.secure_reneg state.reneg cciphers theirs >|= fun () ->
