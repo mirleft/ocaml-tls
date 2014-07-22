@@ -44,6 +44,12 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
     | true, true -> return ()
     | _   , _    -> fail Packet.PROTOCOL_VERSION
 
+  and version_compatible reneg prev_version version =
+    match reneg with
+    | None                               -> return ()
+    | Some _ when prev_version = version -> return ()
+    | Some _                             -> fail Packet.PROTOCOL_VERSION
+
   and validate_cipher suites suite =
     match List.mem suite suites with
     | true  -> return ()
@@ -62,6 +68,7 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
           server_exts_subset_of_client sh.extensions ch.extensions)
   >>= fun () ->
   validate_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
+  version_compatible state.reneg state.version sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let reneg_data = get_secure_renegotiation sh.extensions in
   validate_reneg cfg.secure_reneg state.reneg reneg_data >|= fun () ->
