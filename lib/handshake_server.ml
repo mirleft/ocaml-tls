@@ -191,12 +191,12 @@ let answer_client_hello state (ch : client_hello) raw =
               | SignatureAlgorithms xs -> Some xs
               | _                      -> None
           with
-          | None    -> return Ciphersuite.SHA
+          | None              -> return Packet.SHA
           | Some client_algos ->
               let client_hashes =
                 List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) client_algos)
               in
-              match first_match client_hashes supported_hashes with
+              match first_match client_hashes config.hashes with
               | None      -> fail_handshake
               | Some hash -> return hash )
           >>= fun hash ->
