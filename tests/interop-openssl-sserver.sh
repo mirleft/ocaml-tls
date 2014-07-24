@@ -34,7 +34,7 @@ testit
 extra_args="-tls1_2"
 testit
 
-ciphers="DHE-RSA-AES256-SHA256 DHE-RSA-AES256-SHA AES256-SHA256 AES256-SHA DHE-RSA-AES128-SHA256 DHE-RSA-AES128-SHA AES128-SHA256 AES128-SHA EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA RC4-SHA RC4-MD5"
+ciphers="DHE-RSA-AES256-SHA AES256-SHA DHE-RSA-AES128-SHA AES128-SHA EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA RC4-SHA RC4-MD5"
 for i in $ciphers; do
     extra_args="-cipher $i"
     testit
@@ -43,6 +43,15 @@ for i in $ciphers; do
     testit
 
     extra_args="-tls1_1 -cipher $i"
+    testit
+
+    extra_args="-tls1_2 -cipher $i"
+    testit
+done
+
+tls12_ciphers="DHE-RSA-AES256-SHA256 AES256-SHA256 DHE-RSA-AES128-SHA256 AES128-SHA256"
+for i in $tls12_ciphers; do
+    extra_args="-cipher $i"
     testit
 
     extra_args="-tls1_2 -cipher $i"
