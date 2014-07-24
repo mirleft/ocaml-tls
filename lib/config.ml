@@ -9,7 +9,7 @@ type own_cert = Certificate.certificate list * Nocrypto.RSA.priv
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
   protocol_versions : tls_version * tls_version ;
-  hashes            : Ciphersuite.hash_algorithm list ;
+  hashes            : Packet.hash_algorithm list ;
   (* signatures        : Packet.signature_algorithm_type list ; *)
   use_reneg         : bool ;
   secure_reneg      : bool ;
@@ -18,23 +18,24 @@ type config = {
   own_certificate   : own_cert option ;
 }
 
-let supported_hashes =
-  Ciphersuite.([ SHA512 ; SHA384 ; SHA256 ; SHA ; MD5 ])
+let supported_ciphers = [
+  `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 ;
+  `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 ;
+  `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
+  `TLS_DHE_RSA_WITH_AES_128_CBC_SHA ;
+  `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+  `TLS_RSA_WITH_AES_256_CBC_SHA256 ;
+  `TLS_RSA_WITH_AES_128_CBC_SHA256 ;
+  `TLS_RSA_WITH_AES_256_CBC_SHA ;
+  `TLS_RSA_WITH_AES_128_CBC_SHA ;
+  `TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+  `TLS_RSA_WITH_RC4_128_SHA ;
+  `TLS_RSA_WITH_RC4_128_MD5
+  ]
 
-let supported_ciphers = Ciphersuite.([
-    TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 ;
-    TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 ;
-    TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
-    TLS_DHE_RSA_WITH_AES_128_CBC_SHA ;
-    TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-    TLS_RSA_WITH_AES_256_CBC_SHA256 ;
-    TLS_RSA_WITH_AES_128_CBC_SHA256 ;
-    TLS_RSA_WITH_AES_256_CBC_SHA ;
-    TLS_RSA_WITH_AES_128_CBC_SHA ;
-    TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
-    TLS_RSA_WITH_RC4_128_SHA ;
-    TLS_RSA_WITH_RC4_128_MD5
-  ])
+
+let supported_hashes =
+  Packet.([ SHA512 ; SHA384 ; SHA256 ; SHA ; MD5 ])
 
 let min_dh_size = 512
 
@@ -66,9 +67,7 @@ let validate_common config =
   if not (List_set.subset config.ciphers supported_ciphers) then
     invalid "given ciphers are not supported" ;
   if not (List_set.is_proper_set config.ciphers) then
-    invalid "set of ciphers is not a proper set" ;
-  if List.exists Ciphersuite.null_cipher config.ciphers then
-    invalid "some provided cipher offers a NULL method"
+    invalid "set of ciphers is not a proper set"
 
 let validate_client config = ()
 
@@ -168,7 +167,7 @@ let sexp_of_config c =
   Sexp_ext.record [
     "ciphers"        , Conv.sexp_of_list sexp_of_ciphersuite c.ciphers ;
     "version"        , sexp_of_version c.protocol_versions ;
-    "hashes"         , Conv.sexp_of_list sexp_of_hash_algorithm c.hashes ;
+    "hashes"         , Conv.sexp_of_list Packet.sexp_of_hash_algorithm c.hashes ;
     "use_reneg"      , Conv.sexp_of_bool c.use_reneg ;
     "secure_reneg"   , Conv.sexp_of_bool c.secure_reneg ;
     "authenticator"  , sexp_of_authenticator_o c.authenticator ;
