@@ -92,19 +92,6 @@ let client_hello_valid ch =
 
   (List_set.is_proper_set ch.ciphersuites)
   &&
-  (* iOS 6 (and certainly others) propose some NULL ciphers.
-     while this has improved in newer versions, we also might want to talk
-     with those old devices. Thus removing the null check.
-     Via config.ml:supported_ciphers and checks that the user-provided cipherlist
-     is a subset thereof, and furthermore that handshake_server.ml takes the first
-     match from the configured ciphersuites, we ensure that no null cipher can be
-     negotiated.
-  ( let has_null_cipher =
-      ch.ciphersuites
-      |> List.filter (fun c -> not (c = TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
-      |> List.exists Ciphersuite.null_cipher in
-    not has_null_cipher )
-  && *)
 
   (* TODO: if ecc ciphersuite, require ellipticcurves and ecpointformats extensions! *)
   not_multiple_same_extensions ch.extensions
@@ -124,10 +111,6 @@ let client_hello_valid ch =
 let server_hello_valid sh =
   let open Ciphersuite in
 
-  sh.ciphersuites <> TLS_EMPTY_RENEGOTIATION_INFO_SCSV
-  &&
-  not (Ciphersuite.null_cipher sh.ciphersuites)
-  &&
   not_multiple_same_extensions sh.extensions
   &&
   ( match get_hostname_ext sh with
