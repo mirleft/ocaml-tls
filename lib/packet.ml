@@ -143,40 +143,35 @@ cenum signature_algorithm_type {
   ECDSA     = 3;
 } as uint8_t (sexp)
 
-let int_to_hash_algorithm i =
-  let open Ciphersuite in
-  match i with
-  | 0 -> Some NULL
-  | 1 -> Some MD5
-  | 2 -> Some SHA
-  | 3 -> Some SHA224
-  | 4 -> Some SHA256
-  | 5 -> Some SHA384
-  | 6 -> Some SHA512
-  | _ -> None
+cenum hash_algorithm {
+  NULL      = 0;
+  MD5       = 1;
+  SHA       = 2;
+  SHA224    = 3;
+  SHA256    = 4;
+  SHA384    = 5;
+  SHA512    = 6;
+} as uint8_t (sexp)
 
-let hash_algorithm_to_int h =
-  let open Ciphersuite in
-  match h with
-  | NULL   -> 0
-  | MD5    -> 1
-  | SHA    -> 2
-  | SHA224 -> 3
-  | SHA256 -> 4
-  | SHA384 -> 5
-  | SHA512 -> 6
+(** [hash_algorithm_of_tag tag] is [hash_algorithm] for the given [tag] *)
+let hash_algorithm_of_tag = function
+  | `MD5    -> Some MD5
+  | `SHA1   -> Some SHA
+  | `SHA224 -> Some SHA224
+  | `SHA256 -> Some SHA256
+  | `SHA384 -> Some SHA384
+  | `SHA512 -> Some SHA512
+  | _       -> None
 
-let hash_algorithm_to_string h =
-  let open Ciphersuite in
-  match h with
-  | NULL   -> "NULL"
-  | MD5    -> "MD5"
-  | SHA    -> "SHA1"
-  | SHA224 -> "SHA224"
-  | SHA256 -> "SHA256"
-  | SHA384 -> "SHA384"
-  | SHA512 -> "SHA512"
-
+(** [tag_of_hash_algorithm hash_algorithm] is [tag] for the given [hash_algorithm] *)
+let tag_of_hash_algorithm = function
+  | MD5    -> Some `MD5
+  | SHA    -> Some `SHA1
+  | SHA224 -> Some `SHA224
+  | SHA256 -> Some `SHA256
+  | SHA384 -> Some `SHA384
+  | SHA512 -> Some `SHA512
+  | _      -> None
 
 (* EC RFC4492*)
 cenum ec_curve_type {

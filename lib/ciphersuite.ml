@@ -84,51 +84,6 @@ let key_lengths = function
   | SEED_CBC -> (16, 16)
   | AES_128_CBC -> (16, 16)
   | AES_256_CBC -> (32, 16)
-(*  | AES_128_GCM
-  | AES_256_GCM
-  | AES_128_CCM
-  | AES_256_CCM
-  | AES_128_CCM_8
-  | AES_256_CCM_8 *)
-  | CAMELLIA_128_CBC -> (16, 16)
-  | CAMELLIA_256_CBC -> (32, 16)
-(*  | CAMELLIA_128_GCM
-  | CAMELLIA_256_GCM
-  | ARIA_128_GCM
-  | ARIA_256_GCM
-  | ARIA_128_CBC
-  | ARIA_256_CBC *)
-
-(** sum type of hash algorithms *)
-type hash_algorithm =
-  | NULL
-  | MD5
-  | SHA
-  | SHA224
-  | SHA256
-  | SHA384
-  | SHA512
-  with sexp
-
-(** [hash_algorithm_of_tag tag] is [hash_algorithm] for the given [tag] *)
-let hash_algorithm_of_tag = function
-  | `MD5    -> Some MD5
-  | `SHA1   -> Some SHA
-  | `SHA224 -> Some SHA224
-  | `SHA256 -> Some SHA256
-  | `SHA384 -> Some SHA384
-  | `SHA512 -> Some SHA512
-  | _       -> None
-
-(** [tag_of_hash_algorithm hash_algorithm] is [tag] for the given [hash_algorithm] *)
-let tag_of_hash_algorithm = function
-  | MD5    -> Some `MD5
-  | SHA    -> Some `SHA1
-  | SHA224 -> Some `SHA224
-  | SHA256 -> Some `SHA256
-  | SHA384 -> Some `SHA384
-  | SHA512 -> Some `SHA512
-  | _      -> None
 
 (** enum of all TLS ciphersuites *)
 cenum ciphersuite {
