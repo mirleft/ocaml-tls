@@ -40,7 +40,7 @@ let extension_to_string = function
 let client_hello_to_string c_h =
   sprintf "client hello: protocol %s\n  ciphers %s\n  extensions %s"
           (tls_any_version_to_string c_h.version)
-          (List.map Ciphersuite.ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
+          (List.map any_ciphersuite_to_string c_h.ciphersuites |> String.concat ", ")
           (List.map extension_to_string c_h.extensions |> String.concat ", ")
 
 let server_hello_to_string (c_h : server_hello) =
