@@ -119,11 +119,17 @@ let peer conf name = { conf with peer_name = Some name }
 
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
+let maybe_filter p f xs =
+  match p with
+  | Some x when x = true -> List.filter f xs
+  | _                    -> xs
+
 let client_exn
-  ?ciphers ?version ?hashes ?reneg ?authenticator ?secure_reneg () =
+  ?ciphers ?pfs_only ?version ?hashes ?reneg ?authenticator ?secure_reneg () =
   let config =
     { default_config with
-        ciphers           = ciphers      <?> default_config.ciphers ;
+        ciphers           = ciphers      <?> default_config.ciphers
+                            |> maybe_filter pfs_only Ciphersuite.ciphersuite_pfs ;
         protocol_versions = version      <?> default_config.protocol_versions ;
         hashes            = hashes       <?> default_config.hashes ;
         use_reneg         = reneg        <?> default_config.use_reneg ;
@@ -133,10 +139,11 @@ let client_exn
   ( validate_common config ; validate_client config ; config )
 
 let server_exn
-  ?ciphers ?version ?hashes ?reneg ?certificate ?secure_reneg () =
+  ?ciphers ?pfs_only ?version ?hashes ?reneg ?certificate ?secure_reneg () =
   let config =
     { default_config with
-        ciphers           = ciphers      <?> default_config.ciphers ;
+        ciphers           = ciphers      <?> default_config.ciphers
+                            |> maybe_filter pfs_only Ciphersuite.ciphersuite_pfs ;
         protocol_versions = version      <?> default_config.protocol_versions ;
         hashes            = hashes       <?> default_config.hashes ;
         use_reneg         = reneg        <?> default_config.use_reneg ;

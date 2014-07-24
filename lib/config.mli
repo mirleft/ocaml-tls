@@ -50,7 +50,8 @@ val of_server : server -> config
 (** [client_exn ?ciphers ?version ?hashes ?reneg ?validator ?secure_reneg] is [client] configuration with the given parameters *)
 (** @raise Invalid_configuration when the configuration is not valid *)
 val client_exn :
-  ?ciphers       : ciphersuite list ->
+  ?ciphers       : Ciphersuite.ciphersuite list ->
+  ?pfs_only      : bool ->
   ?version       : tls_version * tls_version ->
   ?hashes        : Packet.hash_algorithm list ->
   ?reneg         : bool ->
@@ -61,7 +62,8 @@ val client_exn :
 (** [server_exn ?ciphers ?version ?hashes ?reneg ?certificate ?secure_reneg] is [server] configuration with the given parameters *)
 (** @raise Invalid_configuration when the configuration is not valid *)
 val server_exn :
-  ?ciphers      : ciphersuite list ->
+  ?ciphers      : Ciphersuite.ciphersuite list ->
+  ?pfs_only     : bool ->
   ?version      : tls_version * tls_version ->
   ?hashes       : Packet.hash_algorithm list ->
   ?reneg        : bool ->
