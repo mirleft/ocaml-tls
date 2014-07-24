@@ -110,13 +110,10 @@ let ciphersuite_cipher_mac_length c =
   let cipher = ciphersuite_cipher c in
   key_lengths cipher
 
-let ciphersuite_pfs = function
-  | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 -> true
-  | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 -> true
-  | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA    -> true
-  | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA    -> true
-  | `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA   -> true
-  | _                                    -> false
+let ciphersuite_pfs cs =
+  match ciphersuite_kex cs with
+  | DHE_RSA -> true
+  | RSA     -> false
 
 let ciphersuite_tls12_only = function
   | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 -> true
