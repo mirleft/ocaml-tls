@@ -4,7 +4,7 @@ open Nocrypto.Common
 open Nocrypto.Hash
 
 open Ciphersuite
-
+open Packet
 
 let (<+>) = Utils.Cs.(<+>)
 
@@ -98,13 +98,13 @@ let pkcs1_digest_info_of_cstruct cs =
   match Asn_grammars.pkcs1_digest_info_of_cstruct cs with
   | None -> None
   | Some (asn_algo, digest) ->
-      match Ciphersuite.hash_algorithm_of_tag asn_algo with
+      match hash_algorithm_of_tag asn_algo with
       | Some hash -> Some (hash, digest)
       | None      -> None
 
 and pkcs1_digest_info_to_cstruct hashalgo data =
   let signature = hash hashalgo data in
-  match Ciphersuite.tag_of_hash_algorithm hashalgo with
+  match tag_of_hash_algorithm hashalgo with
   | Some x -> Some (Asn_grammars.pkcs1_digest_info_to_cstruct (x, signature))
   | None   -> None
 
