@@ -421,7 +421,7 @@ let client config =
    described in the following sections.  Because SSLv3 and TLS
    implementations reliably ignore unknown cipher suites, the SCSV may
    be safely sent to any server. *)
-    | TLS_1_0 -> ([Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
+    | TLS_1_0 -> ([Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
     | TLS_1_1 | TLS_1_2 -> ([], [secure_reneg])
   in
 
