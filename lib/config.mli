@@ -54,7 +54,6 @@ val of_server : server -> config
 (** @raise Invalid_configuration when the configuration is not valid *)
 val client_exn :
   ?ciphers       : Ciphersuite.ciphersuite list ->
-  ?pfs_only      : bool ->
   ?version       : tls_version * tls_version ->
   ?hashes        : Packet.hash_algorithm list ->
   ?reneg         : bool ->
@@ -66,7 +65,6 @@ val client_exn :
 (** @raise Invalid_configuration when the configuration is not valid *)
 val server_exn :
   ?ciphers      : Ciphersuite.ciphersuite list ->
-  ?pfs_only     : bool ->
   ?version      : tls_version * tls_version ->
   ?hashes       : Packet.hash_algorithm list ->
   ?reneg        : bool ->
