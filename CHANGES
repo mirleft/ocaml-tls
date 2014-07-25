@@ -1,4 +1,8 @@
 (trunk):
+* by default only perfect-forward secrecy ciphersuites are used
+   (configuration can be altered by ~ciphers:Config.supported_ciphers)
+* distinguish between supported ciphersuites (type ciphersuite) and
+  known ciphersuites (type any_ciphersuite)
 * distinguish between supported versions by the stack (type tls_version)
   and readable versions (tls_any_version), which might occur in a tls
   record or client_hello read from the network
