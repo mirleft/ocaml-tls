@@ -33,6 +33,7 @@ let supported_ciphers = [
   `TLS_RSA_WITH_RC4_128_MD5
   ]
 
+let pfs_ciphers = List.filter Ciphersuite.ciphersuite_pfs supported_ciphers
 
 let supported_hashes =
   Packet.([ SHA512 ; SHA384 ; SHA256 ; SHA ; MD5 ])

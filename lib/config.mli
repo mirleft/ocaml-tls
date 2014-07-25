@@ -20,8 +20,11 @@ type config = private {
   own_certificate   : own_cert option ; (** optional certificate chain *)
 }
 
-(** [supported_ciphers] is a list of support ciphers by this library *)
+(** [supported_ciphers] is a list of supported ciphers by this library *)
 val supported_ciphers : Ciphersuite.ciphersuite list
+
+(** [pfs_ciphers] is a list of perfect forward secure ciphersuites *)
+val pfs_ciphers : Ciphersuite.ciphersuite list
 
 (** [supported_hashes] is a list of supported hash algorithms by this library *)
 val supported_hashes  : Packet.hash_algorithm list
