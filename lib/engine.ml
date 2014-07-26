@@ -36,6 +36,7 @@ let new_state config role =
   }
   in
   {
+    epoch     = `InitialEpoch ;
     handshake = handshake ;
     decryptor = None ;
     encryptor = None ;
@@ -336,7 +337,12 @@ let handle_tls state buf =
     >|= fun (state', out_records, data, err) ->
       let version = state'.handshake.version in
       let buf'    = assemble_records version out_records in
-      ({ state' with fragment }, buf', data, err)
+      let epoch   = match state'.handshake.machina with
+        | Server (Established epoch) -> `Epoch epoch
+        | Client (Established epoch) -> `Epoch epoch
+        | _                          -> state'.epoch
+      in
+      ({ state' with fragment ; epoch }, buf', data, err)
   with
   | Ok (state, resp, data, err) ->
       let res = match err with
@@ -361,9 +367,9 @@ let can_handle_appdata s = hs_can_handle_appdata s.handshake
 
 let handshake_in_progress s =
   match s.handshake.machina with
-  | Server Established
+  | Server (Established _)
   | Client ClientInitial
-  | Client Established -> false
+  | Client (Established _) -> false
   | _                  -> true
 
 (* another entry for user data *)
@@ -386,15 +392,15 @@ let send_close_notify st = send_records st [Alert.close_notify]
 let reneg st =
   let hs = st.handshake in
   match hs.machina with
-  | Server Established ->
+  | Server (Established _) ->
      if Config.(hs.config.use_reneg) then
        let hr = HelloRequest in
        Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ;
        Some (send_records st [(Packet.HANDSHAKE, Writer.assemble_handshake hr)])
      else
        None
-  | Client Established ->
-     ( match Handshake_client.answer_hello_request hs with
+  | Client (Established epoch) ->
+     ( match Handshake_client.answer_hello_request epoch hs with
        | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
        | _                            -> None )
   | _                        -> None
