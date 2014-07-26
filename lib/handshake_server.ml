@@ -9,27 +9,32 @@ open Config
 
 let (<+>) = Cs.(<+>)
 
-let answer_client_finished state master_secret fin raw log =
-  let client_computed =
-    Handshake_crypto.finished state.version master_secret "client finished" log in
-  assure (Cs.equal client_computed fin)
+let answer_client_finished state epoch client_fin raw log =
+  let client, server =
+    let ver, ms = (epoch.protocol_version, epoch.master_secret) in
+    (Handshake_crypto.finished ver ms "client finished" log,
+     Handshake_crypto.finished ver ms "server finished" (log @ [raw]))
+  in
+  assure (Cs.equal client client_fin)
   >>= fun () ->
-  let server_checksum
-    = Handshake_crypto.finished state.version master_secret "server finished" (log @ [raw]) in
-  let fin = Finished server_checksum in
+  let fin = Finished server in
   let fin_raw = Writer.assemble_handshake fin in
+  (* we really do not want to have any leftover handshake fragments *)
   assure (Cs.null state.hs_fragment)
   >|= fun () ->
-  let reneg = Some (client_computed, server_checksum) in
-  let machina = Server Established
+  let reneg = Some (client, server)
+  and machina = Server (Established epoch)
   in
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
   ({ state with machina ; reneg }, [`Record (Packet.HANDSHAKE, fin_raw)])
 
-let establish_master_secret state params premastersecret raw log =
+let establish_master_secret state epoch params premastersecret raw log =
   let client_ctx, server_ctx, master_secret =
-    Handshake_crypto.initialise_crypto_ctx state.version params premastersecret in
-  let machina = AwaitClientChangeCipherSpec (server_ctx, client_ctx, master_secret, log @ [raw])
+    Handshake_crypto.initialise_crypto_ctx epoch params premastersecret
+  in
+  let epoch = { epoch with master_secret = master_secret } in
+  let machina =
+    AwaitClientChangeCipherSpec (epoch, server_ctx, client_ctx, log @ [raw])
   in
   Tracing.cs ~tag:"master-secret" master_secret ;
   ({ state with machina = Server machina }, [])
@@ -39,10 +44,10 @@ let private_key config =
     | Some (_, priv) -> return priv
     | None           -> fail_handshake
 
-let answer_client_key_exchange_RSA state params kex raw log =
+let answer_client_key_exchange_RSA state epoch params kex raw log =
   (* due to bleichenbacher attach, we should use a random pms *)
   (* then we do not leak any decryption or padding errors! *)
-  let other = Writer.assemble_protocol_version state.version <+> Rng.generate 46 in
+  let other = Writer.assemble_protocol_version epoch.protocol_version <+> Rng.generate 46 in
   let validate_premastersecret k =
     (* Client implementations MUST always send the correct version number in
        PreMasterSecret.  If ClientHello.client_version is TLS 1.1 or higher,
@@ -63,106 +68,60 @@ let answer_client_key_exchange_RSA state params kex raw log =
     | None   -> validate_premastersecret other
     | Some k -> validate_premastersecret k
   in
-  establish_master_secret state params pms raw log
+  establish_master_secret state epoch params pms raw log
 
-let answer_client_key_exchange_DHE_RSA state params (group, secret) kex raw log =
+let answer_client_key_exchange_DHE_RSA state epoch params (group, secret) kex raw log =
   match Crypto.dh_shared group secret kex with
   | None     -> fail Packet.INSUFFICIENT_SECURITY
-  | Some pms -> return (establish_master_secret state params pms raw log)
+  | Some pms -> return (establish_master_secret state epoch params pms raw log)
 
+let sig_algs client_hello =
+  map_find client_hello.extensions ~f:function
+           | SignatureAlgorithms xs -> Some xs
+           | _                      -> None
 
-let answer_client_hello state (ch : client_hello) raw =
-  let find_version supported requested =
-    match supported_protocol_version supported requested with
-    | Some x -> return x
-    | None   -> fail Packet.PROTOCOL_VERSION
+let extract_params client_hello =
+  { server_random  = Cstruct.create 0 ;
+    client_random  = client_hello.random ;
+    client_version = client_hello.version }
 
-  and find_ciphersuite server_supported requested =
-    match first_match
-            (filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite requested)
-            server_supported
-    with
-    | None   -> fail_handshake
-    | Some c -> return c
-
-  and ensure_reneg require our_data ciphers their_data  =
-    let reneg_cs = List.mem Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
-    match require, reneg_cs, our_data, their_data with
-    | _    , _    , None         , Some x -> assure (Cs.null x)
-    | _    , _    , Some (cvd, _), Some x -> assure (Cs.equal cvd x)
-    | _    , true , None         , _      -> return ()
-    | false, _    , _            , _      -> return ()
-    | true , _    , _            , _      -> fail_handshake
-
-  (* only renegotiate if the config allows us to *)
-  and renegotiate use_reneg reneg =
-    match use_reneg, reneg with
-    | false, Some _ -> fail_handshake
-    | _    , _      -> return ()
-
-  and compatible_version reneg prev_version version =
-    match reneg with
-    | None                               -> return ()
-    | Some _ when prev_version = version -> return ()
-    | Some _                             -> fail Packet.PROTOCOL_VERSION
-  in
-
-  let process_client_hello config ch =
-    let cciphers = ch.ciphersuites in
-    let theirs = get_secure_renegotiation ch.extensions in
-    assure (client_hello_valid ch) >>= fun () ->
-    find_version config.protocol_versions ch.version >>= fun version ->
-    compatible_version state.reneg state.version version >>= fun () ->
-    find_ciphersuite config.ciphers cciphers >>= fun cipher ->
-    renegotiate config.use_reneg state.reneg >>= fun () ->
-    ensure_reneg config.secure_reneg state.reneg cciphers theirs >|= fun () ->
-
-    Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
-    Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
-
-    ({ server_random = Rng.generate 32 ;
-       client_random = ch.random ;
-       client_version = ch.version ;
-       cipher = cipher },
-     version)
-
-  and server_hello client_hello cipher reneg version random =
-    (* we could provide a certificate with any of the given hostnames *)
-    (* TODO: preserve this hostname somewhere maybe? *)
-    let server_name = hostname client_hello in
-
+let answer_client_hello_common state epoch ch raw =
+  let server_hello epoch params reneg =
     let server_hello =
       (* RFC 4366: server shall reply with an empty hostname extension *)
-      let host = option [] (fun _ -> [Hostname None]) server_name
+      let host = option [] (fun _ -> [Hostname None]) epoch.server_name
+      and random = Rng.generate 32
       and secren =
         match reneg with
         | None            -> SecureRenegotiation (Cstruct.create 0)
         | Some (cvd, svd) -> SecureRenegotiation (cvd <+> svd)
       in
-      { version      = version ;
+      { version      = epoch.protocol_version ;
         random       = random ;
         sessionid    = None ;
-        ciphersuites = cipher ;
+        ciphersuites = epoch.ciphersuite ;
         extensions   = secren :: host }
     in
     let sh = ServerHello server_hello in
     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ;
-    Writer.assemble_handshake sh
+    (Writer.assemble_handshake sh, { params with server_random = server_hello.random })
 
-  and server_cert config cipher params =
+  and server_cert epoch params config =
     let cert_needed =
-      Ciphersuite.(needs_certificate @@ ciphersuite_kex cipher) in
-    match config.own_certificate, cert_needed with
-    | Some (certs, _), true ->
-       let cert = Certificate (List.map Certificate.cs_of_cert certs) in
-       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ;
-       return [ Writer.assemble_handshake cert ]
-    | _, false -> return []
-    | _        -> fail_handshake
-    (* ^^^ Rig ciphersuite selection never to end up with one than needs a cert
-     * if we haven't got one. *)
+      Ciphersuite.(needs_certificate @@ ciphersuite_kex epoch.ciphersuite) in
+    ( match config.own_certificate, cert_needed with
+      (* XXX: select based on epoch.server_name *)
+      | Some (certs, _), true -> return certs
+      | _, false              -> return []
+      | _                     -> fail_handshake
+      (* ^^^ Rig ciphersuite selection never to end up with one than needs a cert
+       * if we haven't got one. *)
+    ) >|= fun certs ->
+    let cert = Certificate (List.map Certificate.cs_of_cert certs) in
+    Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ;
+    ([ Writer.assemble_handshake cert ], { epoch with own_certificate = certs })
 
-  and kex_dhe_rsa config params version client_hello =
+  and kex_dhe_rsa config params version sig_algs =
     let group         = DH.Group.oakley_2 in (* rfc2409 1024-bit group *)
     let (secret, msg) = DH.gen_secret group in
     let dh_state      = group, secret in
@@ -186,12 +145,8 @@ let answer_client_hello state (ch : client_hello) raw =
       | TLS_1_2 ->
           (* if no signature_algorithms extension is sent by the client,
              support for md5 and sha1 can be safely assumed! *)
-        ( match
-            map_find client_hello.extensions ~f:function
-              | SignatureAlgorithms xs -> Some xs
-              | _                      -> None
-          with
-          | None              -> return Packet.SHA
+        ( match sig_algs with
+          | None    -> return Packet.SHA
           | Some client_algos ->
               let client_hashes =
                 List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) client_algos)
@@ -212,38 +167,113 @@ let answer_client_hello state (ch : client_hello) raw =
       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ;
       (hs, dh_state) in
 
-  process_client_hello state.config ch >>= fun (params, version) ->
-  let cipher = params.cipher in
-  let sh = server_hello ch cipher state.reneg version params.server_random in
-  server_cert state.config cipher params >>= fun certificates ->
-
+  let sh, params = server_hello epoch (extract_params ch) state.reneg in
+  server_cert epoch params state.config >>= fun (certificates, epoch) ->
   let hello_done = Writer.assemble_handshake ServerHelloDone in
 
-  ( match Ciphersuite.ciphersuite_kex cipher with
+  ( match Ciphersuite.ciphersuite_kex epoch.ciphersuite with
     | Ciphersuite.DHE_RSA ->
-        kex_dhe_rsa state.config params version ch >>= fun (kex, dh) ->
+        kex_dhe_rsa state.config params epoch.protocol_version (sig_algs ch) >>= fun (kex, dh) ->
         let outs = sh :: certificates @ [ kex ; hello_done] in
-        let machina = AwaitClientKeyExchange_DHE_RSA (params, dh, raw :: outs) in
+        let machina = AwaitClientKeyExchange_DHE_RSA (epoch, params, dh, raw :: outs) in
         Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
         return (outs, machina)
     | Ciphersuite.RSA ->
         let outs = sh :: certificates @ [ hello_done] in
-        let machina = AwaitClientKeyExchange_RSA (params, raw :: outs) in
+        let machina = AwaitClientKeyExchange_RSA (epoch, params, raw :: outs) in
         Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
         return (outs, machina)
     ) >|= fun (out_recs, machina) ->
 
-  ({ state with machina = Server machina ; version },
+  ({ state with machina = Server machina ; version = epoch.protocol_version },
    [`Record (Packet.HANDSHAKE, Cs.appends out_recs)])
+
+let agreed_cipher server_supported requested =
+  match first_match requested server_supported with
+  | Some x -> return x
+  | None   -> fail_handshake
+
+let agreed_version supported requested =
+  match supported_protocol_version supported requested with
+  | Some x -> return x
+  | None   -> fail Packet.PROTOCOL_VERSION
+
+let answer_client_hello state (ch : client_hello) raw =
+  let ensure_reneg require ciphers their_data  =
+    let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
+    match require, reneg_cs, their_data with
+    | _    , _   , Some x -> assure (Cs.null x)
+    | _    , true, _      -> return ()
+    | false, _   , _      -> return ()
+    | _    , _   , _      -> fail_handshake
+  in
+
+  let process_client_hello config ch =
+    let cciphers = ch.ciphersuites in
+    assure (client_hello_valid ch) >>= fun () ->
+    agreed_version config.protocol_versions ch.version >>= fun version ->
+    agreed_cipher config.ciphers cciphers >>= fun cipher ->
+    let theirs = get_secure_renegotiation ch.extensions in
+    ensure_reneg config.secure_reneg cciphers theirs >|= fun () ->
+
+    Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
+    Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
+
+    { protocol_version = version ;
+      ciphersuite      = cipher ;
+      server_name      = hostname ch ;
+      master_secret    = Cstruct.create 0 ;
+      peer_certificate = [] ;
+      own_certificate  = [] }
+  in
+
+  process_client_hello state.config ch >>= fun epoch ->
+  answer_client_hello_common state epoch ch raw
+
+let answer_client_hello_reneg state epoch (ch : client_hello) raw =
+  (* ensure reneg allowed and supplied *)
+  let ensure_reneg require our_data their_data  =
+    match require, our_data, their_data with
+    | _    , Some (cvd, _), Some x -> assure (Cs.equal cvd x)
+    | false, _            , _      -> return ()
+    | true , _            , _      -> fail_handshake
+  in
+
+  let process_client_hello config ours ch =
+    let cciphers = ch.ciphersuites in
+    assure (client_hello_valid ch) >>= fun () ->
+    agreed_version config.protocol_versions ch.version >>= fun version ->
+    assure (version = epoch.protocol_version) >>= fun () ->
+    agreed_cipher config.ciphers cciphers >>= fun cipher ->
+    let theirs = get_secure_renegotiation ch.extensions in
+    ensure_reneg config.secure_reneg ours theirs >|= fun () ->
+
+    Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
+    Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
+
+    { protocol_version = version ;
+      ciphersuite      = cipher ;
+      server_name      = hostname ch ;
+      master_secret    = Cstruct.create 0 ;
+      peer_certificate = [] ;
+      own_certificate  = [] }
+  in
+
+  let config = state.config in
+  if config.use_reneg then
+    process_client_hello config state.reneg ch >>= fun epoch ->
+    answer_client_hello_common state epoch ch raw
+  else
+    fail_handshake
 
 let handle_change_cipher_spec ss state packet =
   let open Reader in
   match parse_change_cipher_spec packet, ss with
-  | Or_error.Ok (), AwaitClientChangeCipherSpec (server_ctx, client_ctx, master_secret, log) ->
+  | Or_error.Ok (), AwaitClientChangeCipherSpec (epoch, server_ctx, client_ctx, log) ->
      assure (Cs.null state.hs_fragment)
      >>= fun () ->
      let ccs = change_cipher_spec in
-     let machina = AwaitClientFinished (master_secret, log)
+     let machina = AwaitClientFinished (epoch, log)
      in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      Tracing.cs ~tag:"change-cipher-spec-out" packet ;
@@ -262,13 +292,13 @@ let handle_handshake ss hs buf =
      ( match ss, handshake with
        | AwaitClientHello, ClientHello ch ->
           answer_client_hello hs ch buf
-       | AwaitClientKeyExchange_RSA (params, log), ClientKeyExchange kex ->
-          answer_client_key_exchange_RSA hs params kex buf log
-       | AwaitClientKeyExchange_DHE_RSA (params, dh_sent, log), ClientKeyExchange kex ->
-          answer_client_key_exchange_DHE_RSA hs params dh_sent kex buf log
-       | AwaitClientFinished (master_secret, log), Finished fin ->
-          answer_client_finished hs master_secret fin buf log
-       | Established, ClientHello ch -> (* renegotiation *)
-          answer_client_hello hs ch buf
+       | AwaitClientKeyExchange_RSA (epoch, params, log), ClientKeyExchange kex ->
+          answer_client_key_exchange_RSA hs epoch params kex buf log
+       | AwaitClientKeyExchange_DHE_RSA (epoch, params, dh_sent, log), ClientKeyExchange kex ->
+          answer_client_key_exchange_DHE_RSA hs epoch params dh_sent kex buf log
+       | AwaitClientFinished (epoch, log), Finished fin ->
+          answer_client_finished hs epoch fin buf log
+       | Established epoch, ClientHello ch -> (* renegotiation *)
+          answer_client_hello_reneg hs epoch ch buf
        | _, _-> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
