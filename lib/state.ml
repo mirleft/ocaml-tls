@@ -54,30 +54,38 @@ type handshake_params = {
   server_random  : Cstruct_s.t ; (* 32 bytes random from the server hello *)
   client_random  : Cstruct_s.t ; (* 32 bytes random from the client hello *)
   client_version : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
-  cipher         : Ciphersuite.ciphersuite (* selected ciphersuite by the server *)
+} with sexp
+
+type epoch_data = {
+  protocol_version : tls_version ;
+  ciphersuite      : Ciphersuite.ciphersuite ;
+  peer_certificate : Certificate.certificate list ;
+  own_certificate  : Certificate.certificate list ;
+  master_secret    : master_secret ;
+  server_name      : string option ;
 } with sexp
 
 (* state machine of the server *)
 type server_handshake_state =
   | AwaitClientHello (* initial state *)
-  | AwaitClientKeyExchange_RSA of handshake_params * hs_log (* server hello done is sent, and RSA key exchange used, waiting for a client key exchange message *)
-  | AwaitClientKeyExchange_DHE_RSA of handshake_params * dh_sent * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
-  | AwaitClientChangeCipherSpec of crypto_context * crypto_context * master_secret * hs_log (* client key exchange received, next should be change cipher spec *)
-  | AwaitClientFinished of master_secret * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
-  | Established (* handshake successfully completed *)
+  | AwaitClientKeyExchange_RSA of epoch_data * handshake_params * hs_log (* server hello done is sent, and RSA key exchange used, waiting for a client key exchange message *)
+  | AwaitClientKeyExchange_DHE_RSA of epoch_data * handshake_params * dh_sent * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
+  | AwaitClientChangeCipherSpec of epoch_data * crypto_context * crypto_context * hs_log (* client key exchange received, next should be change cipher spec *)
+  | AwaitClientFinished of epoch_data * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
+  | Established of epoch_data (* handshake successfully completed *)
   with sexp
 
 (* state machine of the client *)
 type client_handshake_state =
   | ClientInitial (* initial state *)
   | AwaitServerHello of client_hello * handshake_params * hs_log (* client hello is sent, handshake_params are half-filled *)
-  | AwaitCertificate_RSA of handshake_params * hs_log (* certificate expected with RSA key exchange *)
-  | AwaitCertificate_DHE_RSA of handshake_params * hs_log (* certificate expected with DHE_RSA key exchange *)
-  | AwaitServerKeyExchange_DHE_RSA of handshake_params * Certificate.certificate * hs_log (* server key exchange expected with DHE_RSA *)
-  | AwaitServerHelloDone of handshake_params * Cstruct_s.t * Cstruct_s.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
-  | AwaitServerChangeCipherSpec of crypto_context * Cstruct_s.t * master_secret * hs_log (* change cipher spec expected *)
-  | AwaitServerFinished of Cstruct_s.t * master_secret * hs_log (* finished expected with a hmac over all handshake packets *)
-  | Established (* handshake successfully completed *)
+  | AwaitCertificate_RSA of epoch_data * handshake_params * hs_log (* certificate expected with RSA key exchange *)
+  | AwaitCertificate_DHE_RSA of epoch_data * handshake_params * hs_log (* certificate expected with DHE_RSA key exchange *)
+  | AwaitServerKeyExchange_DHE_RSA of epoch_data * handshake_params * hs_log (* server key exchange expected with DHE_RSA *)
+  | AwaitServerHelloDone of epoch_data * handshake_params * Cstruct_s.t * Cstruct_s.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
+  | AwaitServerChangeCipherSpec of epoch_data * crypto_context * Cstruct_s.t * hs_log (* change cipher spec expected *)
+  | AwaitServerFinished of epoch_data * Cstruct_s.t * hs_log (* finished expected with a hmac over all handshake packets *)
+  | Established of epoch_data (* handshake successfully completed *)
   with sexp
 
 type handshake_machina_state =
@@ -123,8 +131,14 @@ type handshake_return = handshake_state * rec_resp list
 (* return type of change cipher spec handlers *)
 type ccs_return = handshake_state * rec_resp list * dec_resp
 
+type epoch = [
+  | `InitialEpoch
+  | `Epoch of epoch_data
+] with sexp
+
 (* Top level state, encapsulating the entire session. *)
 type state = {
+  epoch     : epoch ;
   handshake : handshake_state ; (* the current handshake state *)
   decryptor : crypto_state ; (* the current decryption state *)
   encryptor : crypto_state ; (* the current encryption state *)
