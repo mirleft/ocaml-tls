@@ -23,10 +23,11 @@ let answer_client_finished state epoch client_fin raw log =
   assure (Cs.null state.hs_fragment)
   >|= fun () ->
   let reneg = Some (client, server)
-  and machina = Server (Established epoch)
+  and machina = Server Established
   in
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
-  ({ state with machina ; reneg }, [`Record (Packet.HANDSHAKE, fin_raw)])
+  ({ state with machina ; reneg ; epoch = `Epoch epoch },
+   [`Record (Packet.HANDSHAKE, fin_raw)])
 
 let establish_master_secret state epoch params premastersecret raw log =
   let client_ctx, server_ctx, master_secret =
@@ -230,7 +231,7 @@ let answer_client_hello state (ch : client_hello) raw =
   process_client_hello state.config ch >>= fun epoch ->
   answer_client_hello_common state epoch ch raw
 
-let answer_client_hello_reneg state epoch (ch : client_hello) raw =
+let answer_client_hello_reneg state (ch : client_hello) raw =
   (* ensure reneg allowed and supplied *)
   let ensure_reneg require our_data their_data  =
     match require, our_data, their_data with
@@ -239,7 +240,7 @@ let answer_client_hello_reneg state epoch (ch : client_hello) raw =
     | true , _            , _      -> fail_handshake
   in
 
-  let process_client_hello config ours ch =
+  let process_client_hello config epoch ours ch =
     let cciphers = ch.ciphersuites in
     assure (client_hello_valid ch) >>= fun () ->
     agreed_version config.protocol_versions ch.version >>= fun version ->
@@ -260,11 +261,11 @@ let answer_client_hello_reneg state epoch (ch : client_hello) raw =
   in
 
   let config = state.config in
-  if config.use_reneg then
-    process_client_hello config state.reneg ch >>= fun epoch ->
-    answer_client_hello_common state epoch ch raw
-  else
-    fail_handshake
+  match config.use_reneg, state.epoch with
+  | true, `Epoch epoch  ->
+     process_client_hello config epoch state.reneg ch >>= fun epoch ->
+     answer_client_hello_common state epoch ch raw
+  | _   , _             -> fail_handshake
 
 let handle_change_cipher_spec ss state packet =
   let open Reader in
@@ -298,7 +299,7 @@ let handle_handshake ss hs buf =
           answer_client_key_exchange_DHE_RSA hs epoch params dh_sent kex buf log
        | AwaitClientFinished (epoch, log), Finished fin ->
           answer_client_finished hs epoch fin buf log
-       | Established epoch, ClientHello ch -> (* renegotiation *)
-          answer_client_hello_reneg hs epoch ch buf
+       | Established, ClientHello ch -> (* renegotiation *)
+          answer_client_hello_reneg hs ch buf
        | _, _-> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE

@@ -274,11 +274,11 @@ let answer_server_finished state epoch client_verify fin log =
   in
   assure (Cs.equal computed fin && Cs.null state.hs_fragment)
   >|= fun () ->
-  let machina = Established epoch in
+  let machina = Established in
   let reneg = Some (client_verify, computed) in
-  ({ state with machina = Client machina ; reneg }, [])
+  ({ state with machina = Client machina ; reneg ; epoch = `Epoch epoch }, [])
 
-let answer_hello_request epoch state =
+let answer_hello_request state =
   let get_reneg_data optdata =
     match optdata with
     | None          -> fail_handshake
@@ -330,8 +330,8 @@ let handle_handshake cs hs buf =
           answer_server_hello_done hs epoch params kex pms buf log
        | AwaitServerFinished (epoch, client_verify, log), Finished fin ->
           answer_server_finished hs epoch client_verify fin log
-       | Established epoch, HelloRequest ->
-          answer_hello_request epoch hs
+       | Established, HelloRequest ->
+          answer_hello_request hs
        | _, _ -> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
 
