@@ -72,7 +72,7 @@ type server_handshake_state =
   | AwaitClientKeyExchange_DHE_RSA of epoch_data * handshake_params * dh_sent * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
   | AwaitClientChangeCipherSpec of epoch_data * crypto_context * crypto_context * hs_log (* client key exchange received, next should be change cipher spec *)
   | AwaitClientFinished of epoch_data * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
-  | Established of epoch_data (* handshake successfully completed *)
+  | Established (* handshake successfully completed *)
   with sexp
 
 (* state machine of the client *)
@@ -85,7 +85,7 @@ type client_handshake_state =
   | AwaitServerHelloDone of epoch_data * handshake_params * Cstruct_s.t * Cstruct_s.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
   | AwaitServerChangeCipherSpec of epoch_data * crypto_context * Cstruct_s.t * hs_log (* change cipher spec expected *)
   | AwaitServerFinished of epoch_data * Cstruct_s.t * hs_log (* finished expected with a hmac over all handshake packets *)
-  | Established of epoch_data (* handshake successfully completed *)
+  | Established (* handshake successfully completed *)
   with sexp
 
 type handshake_machina_state =
@@ -97,8 +97,14 @@ type handshake_machina_state =
 type reneg_params = Cstruct_s.t * Cstruct_s.t
   with sexp
 
+type epoch = [
+  | `InitialEpoch
+  | `Epoch of epoch_data
+] with sexp
+
 (* state during a handshake, used in the handlers *)
 type handshake_state = {
+  epoch       : epoch ;
   version     : tls_version ; (* negotiated version *)
   machina     : handshake_machina_state ; (* state machine state *)
   config      : Config.config ; (* given config *)
@@ -131,14 +137,8 @@ type handshake_return = handshake_state * rec_resp list
 (* return type of change cipher spec handlers *)
 type ccs_return = handshake_state * rec_resp list * dec_resp
 
-type epoch = [
-  | `InitialEpoch
-  | `Epoch of epoch_data
-] with sexp
-
 (* Top level state, encapsulating the entire session. *)
 type state = {
-  epoch     : epoch ;
   handshake : handshake_state ; (* the current handshake state *)
   decryptor : crypto_state ; (* the current decryption state *)
   encryptor : crypto_state ; (* the current encryption state *)
