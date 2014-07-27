@@ -28,8 +28,7 @@ let new_state config role =
     | `Server -> Server AwaitClientHello
   in
   let handshake = {
-    epoch       = `InitialEpoch ;
-    version     = max_protocol_version Config.(config.protocol_versions) ;
+    epoch       = `InitialEpoch (max_protocol_version Config.(config.protocol_versions)) ;
     machina     = handshake_state ;
     config      = config ;
     hs_fragment = Cstruct.create 0 ;
@@ -211,8 +210,8 @@ end
 
 let hs_can_handle_appdata s =
   match s.epoch with
-  | `Epoch _      -> true
-  | `InitialEpoch -> false
+  | `Epoch _        -> true
+  | `InitialEpoch _ -> false
 
 let rec separate_handshakes buf =
   let open Cstruct in
@@ -278,7 +277,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   Tracing.sexpf ~tag:"record-in" ~f:sexp_of_raw_record record ;
 
   let hs = state.handshake in
-  let version = hs.version in
+  let version = epoch_version hs.epoch in
   ( match hs.machina, version_eq hdr.version version with
     | Client (AwaitServerHello _), _     -> return ()
     | Server (AwaitClientHello)  , _     -> return ()
@@ -293,7 +292,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
     List.fold_left (fun (st, es) -> function
       | `Change_enc st' -> (st', es)
       | `Record r       ->
-          let (st', enc) = encrypt_records st handshake.version [r] in
+          let (st', enc) = encrypt_records st (epoch_version handshake.epoch) [r] in
           (st', es @ enc))
     (state.encryptor, [])
     items
@@ -334,7 +333,7 @@ let handle_tls state buf =
     >>= fun (in_records, fragment) ->
       handle_records state in_records
     >|= fun (state', out_records, data, err) ->
-      let version = state'.handshake.version in
+      let version = epoch_version state'.handshake.epoch in
       let buf'    = assemble_records version out_records in
       ({ state' with fragment }, buf', data, err)
   with
@@ -344,13 +343,13 @@ let handle_tls state buf =
         | `No_err                -> `Ok state in
       `Ok (res, `Response resp, `Data data)
   | Error x ->
-      let version = state.handshake.version in
+      let version = epoch_version state.handshake.epoch in
       let resp    = assemble_records version [Alert.make x] in
       Tracing.sexpf ~tag:"alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, x) ;
       `Fail (x, `Response resp)
 
 let send_records (st : state) records =
-  let version = st.handshake.version in
+  let version = epoch_version st.handshake.epoch in
   let (encryptor, encs) =
     encrypt_records st.encryptor version records in
   let data = assemble_records version encs in
@@ -434,18 +433,20 @@ let client config =
   let ch = ClientHello client_hello in
   let raw = Writer.assemble_handshake ch in
   let machina = AwaitServerHello (client_hello, params, [raw]) in
-  let handshake = {
-    state.handshake with
-      machina = Client machina ;
-      (* from RFC5246, appendix E.1
+    (* from RFC5246, appendix E.1
    TLS clients that wish to negotiate with older servers MAY send any
    value {03,XX} as the record layer version number.  Typical values
    would be {03,00}, the lowest version number supported by the client,
    and the value of ClientHello.client_version.  No single value will
    guarantee interoperability with all old servers, but this is a
-   complex topic beyond the scope of this document.
-       *)
-      version = min_protocol_version Config.(config.protocol_versions)
+   complex topic beyond the scope of this document. *)
+  let epoch = `InitialEpoch (min_protocol_version Config.(config.protocol_versions)) in
+
+
+  let handshake = {
+    state.handshake with
+      machina = Client machina ;
+      epoch   = epoch
   } in
 
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;

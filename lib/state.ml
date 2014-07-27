@@ -99,14 +99,17 @@ type handshake_machina_state =
   with sexp
 
 type epoch = [
-  | `InitialEpoch
+  | `InitialEpoch of tls_version
   | `Epoch of epoch_data
 ] with sexp
+
+let epoch_version = function
+  | `InitialEpoch v   -> v
+  | `Epoch epoch_data -> epoch_data.protocol_version
 
 (* state during a handshake, used in the handlers *)
 type handshake_state = {
   epoch       : epoch ;
-  version     : tls_version ; (* negotiated version *)
   machina     : handshake_machina_state ; (* state machine state *)
   config      : Config.config ; (* given config *)
   hs_fragment : Cstruct_s.t (* handshake messages can be fragmented, leftover from before *)

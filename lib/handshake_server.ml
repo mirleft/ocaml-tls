@@ -186,7 +186,7 @@ let answer_client_hello_common state epoch ch raw =
         return (outs, machina)
     ) >|= fun (out_recs, machina) ->
 
-  ({ state with machina = Server machina ; version = epoch.protocol_version },
+  ({ state with machina = Server machina ; epoch = `InitialEpoch epoch.protocol_version },
    [`Record (Packet.HANDSHAKE, Cs.appends out_recs)])
 
 let agreed_cipher server_supported requested =

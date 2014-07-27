@@ -23,7 +23,7 @@ let hostname h : string option =
 
 let reneg state =
   let reneg_from_epoch epoch = match epoch with
-    | `InitialEpoch     -> None
+    | `InitialEpoch _   -> None
     | `Epoch epoch_data -> Some epoch_data.reneg
   in
   reneg_from_epoch state.epoch

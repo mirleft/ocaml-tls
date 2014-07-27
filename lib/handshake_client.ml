@@ -73,7 +73,7 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
           server_exts_subset_of_client sh.extensions ch.extensions)
   >>= fun () ->
   validate_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
-  version_compatible (reneg state) state.version sh.version >>= fun () ->
+  version_compatible (reneg state) (epoch_version state.epoch) sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let reneg_data = get_secure_renegotiation sh.extensions in
   validate_reneg cfg.secure_reneg (reneg state) reneg_data >|= fun () ->
@@ -94,7 +94,7 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
                  | RSA     -> AwaitCertificate_RSA (epoch, params, log @ [raw])
                  | DHE_RSA -> AwaitCertificate_DHE_RSA (epoch, params, log @ [raw]))
   in
-  ({ state with version = sh.version ; machina = Client machina }, [])
+  ({ state with epoch = `InitialEpoch sh.version ; machina = Client machina }, [])
 
 let validate_chain config cipher certificates =
   let open Certificate in
@@ -285,7 +285,7 @@ let answer_hello_request state =
     | `Epoch epochdata ->
        let cvd, _ = epochdata.reneg in
        return (SecureRenegotiation cvd)
-    | `InitialEpoch    -> fail_handshake
+    | `InitialEpoch _  -> fail_handshake
 
   and produce_client_hello config exts =
      let dch, params, _ = default_client_hello config in
