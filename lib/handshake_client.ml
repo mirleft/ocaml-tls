@@ -73,10 +73,10 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
           server_exts_subset_of_client sh.extensions ch.extensions)
   >>= fun () ->
   validate_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
-  version_compatible state.reneg state.version sh.version >>= fun () ->
+  version_compatible (reneg state) state.version sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let reneg_data = get_secure_renegotiation sh.extensions in
-  validate_reneg cfg.secure_reneg state.reneg reneg_data >|= fun () ->
+  validate_reneg cfg.secure_reneg (reneg state) reneg_data >|= fun () ->
 
   let machina =
     let cipher = sh.ciphersuites in
@@ -86,7 +86,8 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
       peer_certificate = [] ;
       own_certificate  = [] ;
       master_secret    = Cstruct.create 0 ;
-      server_name      = cfg.peer_name
+      server_name      = cfg.peer_name ;
+      reneg            = Cstruct.(create 0, create 0)
     }
     and params = { params with server_random = sh.random } in
     Ciphersuite.(match ciphersuite_kex cipher with
@@ -274,15 +275,17 @@ let answer_server_finished state epoch client_verify fin log =
   in
   assure (Cs.equal computed fin && Cs.null state.hs_fragment)
   >|= fun () ->
-  let machina = Established in
-  let reneg = Some (client_verify, computed) in
-  ({ state with machina = Client machina ; reneg ; epoch = `Epoch epoch }, [])
+  let machina = Established
+  and epoch = { epoch with reneg = (client_verify, computed) } in
+  ({ state with machina = Client machina ; epoch = `Epoch epoch }, [])
 
 let answer_hello_request state =
-  let get_reneg_data optdata =
-    match optdata with
-    | None          -> fail_handshake
-    | Some (cvd, _) -> return (SecureRenegotiation cvd)
+  let get_reneg_data epoch =
+    match epoch with
+    | `Epoch epochdata ->
+       let cvd, _ = epochdata.reneg in
+       return (SecureRenegotiation cvd)
+    | `InitialEpoch    -> fail_handshake
 
   and produce_client_hello config exts =
      let dch, params, _ = default_client_hello config in
@@ -295,7 +298,7 @@ let answer_hello_request state =
 
   in
   if state.config.use_reneg then
-    get_reneg_data state.reneg >|= fun ext ->
+    get_reneg_data state.epoch >|= fun ext ->
     produce_client_hello state.config [ext]
   else
     let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in

@@ -30,7 +30,6 @@ let new_state config role =
   let handshake = {
     epoch       = `InitialEpoch ;
     version     = max_protocol_version Config.(config.protocol_versions) ;
-    reneg       = None ;
     machina     = handshake_state ;
     config      = config ;
     hs_fragment = Cstruct.create 0 ;
@@ -211,9 +210,9 @@ module Alert = struct
 end
 
 let hs_can_handle_appdata s =
-  match s.reneg with
-  | Some _ -> true
-  | None   -> false
+  match s.epoch with
+  | `Epoch _      -> true
+  | `InitialEpoch -> false
 
 let rec separate_handshakes buf =
   let open Cstruct in

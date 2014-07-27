@@ -1,6 +1,6 @@
 open Utils
 open Core
-
+open State
 
 let empty = function [] -> true | _ -> false
 
@@ -20,6 +20,13 @@ let hostname h : string option =
   match get_hostname_ext h with
   | Some (Some name) -> Some name
   | _                -> None
+
+let reneg state =
+  let reneg_from_epoch epoch = match epoch with
+    | `InitialEpoch     -> None
+    | `Epoch epoch_data -> Some epoch_data.reneg
+  in
+  reneg_from_epoch state.epoch
 
 let get_secure_renegotiation exts =
   map_find

@@ -22,11 +22,11 @@ let answer_client_finished state epoch client_fin raw log =
   (* we really do not want to have any leftover handshake fragments *)
   assure (Cs.null state.hs_fragment)
   >|= fun () ->
-  let reneg = Some (client, server)
+  let epoch = { epoch with reneg = (client, server) }
   and machina = Server Established
   in
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
-  ({ state with machina ; reneg ; epoch = `Epoch epoch },
+  ({ state with machina ; epoch = `Epoch epoch },
    [`Record (Packet.HANDSHAKE, fin_raw)])
 
 let establish_master_secret state epoch params premastersecret raw log =
@@ -168,7 +168,7 @@ let answer_client_hello_common state epoch ch raw =
       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ;
       (hs, dh_state) in
 
-  let sh, params = server_hello epoch (extract_params ch) state.reneg in
+  let sh, params = server_hello epoch (extract_params ch) (reneg state) in
   server_cert epoch params state.config >>= fun (certificates, epoch) ->
   let hello_done = Writer.assemble_handshake ServerHelloDone in
 
@@ -225,7 +225,8 @@ let answer_client_hello state (ch : client_hello) raw =
       server_name      = hostname ch ;
       master_secret    = Cstruct.create 0 ;
       peer_certificate = [] ;
-      own_certificate  = [] }
+      own_certificate  = [] ;
+      reneg            = Cstruct.(create 0, create 0) }
   in
 
   process_client_hello state.config ch >>= fun epoch ->
@@ -257,13 +258,14 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
       server_name      = hostname ch ;
       master_secret    = Cstruct.create 0 ;
       peer_certificate = [] ;
-      own_certificate  = [] }
+      own_certificate  = [] ;
+      reneg            = Cstruct.(create 0, create 0) }
   in
 
   let config = state.config in
   match config.use_reneg, state.epoch with
   | true, `Epoch epoch  ->
-     process_client_hello config epoch state.reneg ch >>= fun epoch ->
+     process_client_hello config epoch (reneg state) ch >>= fun epoch ->
      answer_client_hello_common state epoch ch raw
   | _   , _             -> fail_handshake
 
