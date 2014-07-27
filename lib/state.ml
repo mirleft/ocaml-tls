@@ -56,6 +56,10 @@ type handshake_params = {
   client_version : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
 } with sexp
 
+(* a collection of client and server verify bytes for renegotiation *)
+type reneg_params = Cstruct_s.t * Cstruct_s.t
+  with sexp
+
 type epoch_data = {
   protocol_version : tls_version ;
   ciphersuite      : Ciphersuite.ciphersuite ;
@@ -63,6 +67,7 @@ type epoch_data = {
   own_certificate  : Certificate.certificate list ;
   master_secret    : master_secret ;
   server_name      : string option ;
+  reneg            : reneg_params ; (* renegotiation data *)
 } with sexp
 
 (* state machine of the server *)
@@ -93,10 +98,6 @@ type handshake_machina_state =
   | Server of server_handshake_state
   with sexp
 
-(* a collection of client and server verify bytes for renegotiation *)
-type reneg_params = Cstruct_s.t * Cstruct_s.t
-  with sexp
-
 type epoch = [
   | `InitialEpoch
   | `Epoch of epoch_data
@@ -108,7 +109,6 @@ type handshake_state = {
   version     : tls_version ; (* negotiated version *)
   machina     : handshake_machina_state ; (* state machine state *)
   config      : Config.config ; (* given config *)
-  reneg       : reneg_params option ; (* renegotiation data *)
   hs_fragment : Cstruct_s.t (* handshake messages can be fragmented, leftover from before *)
 } with sexp
 
