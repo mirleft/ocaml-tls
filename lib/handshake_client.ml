@@ -41,31 +41,18 @@ let default_client_hello config =
       client_version = ch.version } ,
    version)
 
+let validate_cipher suites suite = assure (List.mem suite suites)
+
 let answer_server_hello state params ch (sh : server_hello) raw log =
   let validate_version requested (lo, _) server_version =
-    match
-      version_ge requested server_version, server_version >= lo
-    with
-    | true, true -> return ()
-    | _   , _    -> fail Packet.PROTOCOL_VERSION
+    guard (version_ge requested server_version && server_version >= lo)
+          Packet.PROTOCOL_VERSION
 
-  and version_compatible reneg prev_version version =
-    match reneg with
-    | None                               -> return ()
-    | Some _ when prev_version = version -> return ()
-    | Some _                             -> fail Packet.PROTOCOL_VERSION
-
-  and validate_cipher suites suite =
-    match List.mem suite suites with
-    | true  -> return ()
-    | false -> fail_handshake
-
-  and validate_reneg required reneg data =
-    match required, reneg, data with
-    | _    , None           , Some x -> assure (Cs.null x)
-    | _    , Some (cvd, svd), Some x -> assure (Cs.equal (cvd <+> svd) x)
-    | false, _              , _      -> return ()
-    | true , _              , _      -> fail_handshake
+  and validate_reneg required data =
+    match required, data with
+    | _    , Some x -> assure (Cs.null x)
+    | false, _      -> return ()
+    | true , _      -> fail_handshake
   in
 
   let cfg = state.config in
@@ -73,10 +60,8 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
           server_exts_subset_of_client sh.extensions ch.extensions)
   >>= fun () ->
   validate_version params.client_version state.config.protocol_versions sh.version >>= fun () ->
-  version_compatible (reneg state) (epoch_version state.epoch) sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
-  let reneg_data = get_secure_renegotiation sh.extensions in
-  validate_reneg cfg.secure_reneg (reneg state) reneg_data >|= fun () ->
+  validate_reneg cfg.secure_reneg (get_secure_renegotiation sh.extensions) >|= fun () ->
 
   let machina =
     let cipher = sh.ciphersuites in
@@ -95,6 +80,40 @@ let answer_server_hello state params ch (sh : server_hello) raw log =
                  | DHE_RSA -> AwaitCertificate_DHE_RSA (epoch, params, log @ [raw]))
   in
   ({ state with epoch = `InitialEpoch sh.version ; machina = Client machina }, [])
+
+let answer_server_hello_renegotiate state epoch params ch (sh : server_hello) raw log =
+  let validate_reneg required reneg data =
+    match required, reneg, data with
+    | _    , (cvd, svd), Some x -> assure (Cs.equal (cvd <+> svd) x)
+    | false, _         , _      -> return ()
+    | true , _         , _      -> fail_handshake
+  in
+
+  let cfg = state.config in
+  assure (server_hello_valid sh &&
+          server_exts_subset_of_client sh.extensions ch.extensions)
+  >>= fun () ->
+  guard (epoch.protocol_version = sh.version) Packet.PROTOCOL_VERSION >>= fun () ->
+  validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
+  let reneg_data = get_secure_renegotiation sh.extensions in
+  validate_reneg cfg.secure_reneg epoch.reneg reneg_data >|= fun () ->
+
+  let machina =
+    let cipher = sh.ciphersuites in
+    let epoch = { epoch with
+      ciphersuite      = cipher ;
+      peer_certificate = [] ;
+      own_certificate  = [] ;
+      master_secret    = Cstruct.create 0 ;
+      reneg            = Cstruct.(create 0, create 0)
+    }
+    and params = { params with server_random = sh.random } in
+    Ciphersuite.(match ciphersuite_kex cipher with
+                 | RSA     -> AwaitCertificate_RSA (epoch, params, log @ [raw])
+                 | DHE_RSA -> AwaitCertificate_DHE_RSA (epoch, params, log @ [raw]))
+  in
+  ({ state with machina = Client machina }, [])
+
 
 let validate_chain config cipher certificates =
   let open Certificate in
@@ -280,26 +299,26 @@ let answer_server_finished state epoch client_verify fin log =
   ({ state with machina = Client machina ; epoch = `Epoch epoch }, [])
 
 let answer_hello_request state =
-  let get_reneg_data epoch =
-    match epoch with
-    | `Epoch epochdata ->
-       let cvd, _ = epochdata.reneg in
-       return (SecureRenegotiation cvd)
+  let epoch_data state = match state.epoch with
     | `InitialEpoch _  -> fail_handshake
+    | `Epoch epochdata -> return epochdata
 
-  and produce_client_hello config exts =
+  and produce_client_hello epoch config exts =
      let dch, params, _ = default_client_hello config in
-     let ch = { dch with
-                  extensions = exts @ dch.extensions } in
+     let ch = { dch with extensions = exts @ dch.extensions } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
-     let machina = AwaitServerHello (ch, params, [raw]) in
+     let machina = AwaitServerHelloRenegotiate (epoch, ch, params, [raw]) in
      Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ;
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
-
   in
+
   if state.config.use_reneg then
-    get_reneg_data state.epoch >|= fun ext ->
-    produce_client_hello state.config [ext]
+    epoch_data state >|= fun epoch ->
+    let ext =
+      let cvd, _ = epoch.reneg in
+      SecureRenegotiation cvd
+    in
+    produce_client_hello epoch state.config [ext]
   else
     let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
     return (state, [`Record (Packet.ALERT, no_reneg)])
@@ -323,6 +342,8 @@ let handle_handshake cs hs buf =
      ( match cs, handshake with
        | AwaitServerHello (ch, params, log), ServerHello sh ->
           answer_server_hello hs params ch sh buf log
+       | AwaitServerHelloRenegotiate (epoch, ch, params, log), ServerHello sh ->
+          answer_server_hello_renegotiate hs epoch params ch sh buf log
        | AwaitCertificate_RSA (epoch, params, log), Certificate cs ->
           answer_certificate_RSA hs epoch params cs buf log
        | AwaitCertificate_DHE_RSA (epoch, params, log), Certificate cs ->
