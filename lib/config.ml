@@ -74,8 +74,6 @@ let validate_common config =
        invalid "Some hash algorithms are not supported"
     | _                                                 ->
        () ) ;
-  if not (List_set.subset config.ciphers Ciphers.pfs) then
-    invalid "given ciphers are not supported" ;
   if not (List_set.is_proper_set config.ciphers) then
     invalid "set of ciphers is not a proper set"
 
