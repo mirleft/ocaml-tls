@@ -64,7 +64,6 @@ type session_data = {
   master_secret    : master_secret ;
   renegotiation    : reneg_params ; (* renegotiation data *)
   own_name         : string option ;
-  previous_session : session_data option ;
 } with sexp
 
 (* state machine of the server *)
@@ -99,7 +98,7 @@ type handshake_machina_state =
 
 (* state during a handshake, used in the handlers *)
 type handshake_state = {
-  session          : session_data option ;
+  session          : session_data list ;
   protocol_version : tls_version ;
   machina          : handshake_machina_state ; (* state machine state *)
   config           : Config.config ; (* given config *)

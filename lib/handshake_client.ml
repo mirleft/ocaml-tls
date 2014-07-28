@@ -98,8 +98,7 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
       ciphersuite      = cipher ;
       server_random    = sh.random ;
       client_random    = ch.random ;
-      client_version   = ch.version ;
-      previous_session = Some session
+      client_version   = ch.version
     } in
     Ciphersuite.(match ciphersuite_kex cipher with
                  | RSA     -> AwaitCertificate_RSA (session, log @ [raw])
@@ -289,12 +288,12 @@ let answer_server_finished state session client_verify fin log =
   >|= fun () ->
   let machina = Established
   and session = { session with renegotiation = (client_verify, computed) } in
-  ({ state with machina = Client machina ; session = Some session }, [])
+  ({ state with machina = Client machina ; session = session :: state.session }, [])
 
 let answer_hello_request state =
   let session_data state = match state.session with
-    | None   -> fail_handshake
-    | Some x -> return x
+    | []     -> fail_handshake
+    | x :: _ -> return x
 
   and produce_client_hello session config exts =
      let dch, _ = default_client_hello config in

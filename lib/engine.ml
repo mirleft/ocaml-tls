@@ -29,7 +29,7 @@ let new_state config role =
   in
   let version = max_protocol_version Config.(config.protocol_versions) in
   let handshake = {
-    session          = None ;
+    session          = [] ;
     protocol_version = version ;
     machina          = handshake_state ;
     config           = config ;
@@ -212,8 +212,8 @@ end
 
 let hs_can_handle_appdata s =
   match s.session with
-  | Some _ -> true
-  | None   -> false
+  | [] -> false
+  | _  -> true
 
 let rec separate_handshakes buf =
   let open Cstruct in
@@ -476,8 +476,8 @@ type epoch = [
 let epoch state =
   let hs = state.handshake in
   match hs.session with
-  | None   -> `InitialEpoch
-  | Some session ->
+  | []           -> `InitialEpoch
+  | session :: _ ->
      `Epoch {
         protocol_version = hs.protocol_version ;
         ciphersuite      = session.ciphersuite ;

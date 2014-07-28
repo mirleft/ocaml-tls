@@ -31,11 +31,11 @@ let answer_client_finished state session client_fin raw log =
   (* we really do not want to have any leftover handshake fragments *)
   assure (Cs.null state.hs_fragment)
   >|= fun () ->
-  let session = Some { session with renegotiation = (client, server) }
+  let session = { session with renegotiation = (client, server) }
   and machina = Server Established
   in
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
-  ({ state with machina ; session },
+  ({ state with machina ; session = session :: state.session },
    [`Record (Packet.HANDSHAKE, fin_raw)])
 
 let establish_master_secret state session premastersecret raw log =
@@ -260,13 +260,12 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
       client_random    = ch.random ;
       client_version   = ch.version ;
       ciphersuite      = cipher ;
-      own_name         = hostname ch ;
-      previous_session = Some oldsession }
+      own_name         = hostname ch }
   in
 
   let config = state.config in
   match config.use_reneg, state.session with
-  | true, Some session  ->
+  | true, session :: _  ->
      let reneg = session.renegotiation in
      process_client_hello config session state.protocol_version reneg ch >>= fun session ->
      answer_client_hello_common state session (Some reneg) ch raw
