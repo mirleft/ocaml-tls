@@ -2,8 +2,6 @@ open Utils
 
 open Core
 
-exception Invalid_configuration of string
-
 type own_cert = Certificate.certificate list * Nocrypto.RSA.priv
 
 type config = {
@@ -64,7 +62,7 @@ let default_config = {
   own_certificate   = None ;
 }
 
-let invalid msg = raise (Invalid_configuration msg)
+let invalid msg = invalid_arg ("Tls.Config: invalid configuration: " ^ msg)
 
 let validate_common config =
   let (v_min, v_max) = config.protocol_versions in
@@ -131,7 +129,7 @@ let peer conf name = { conf with peer_name = Some name }
 
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
-let client_exn
+let client
   ?ciphers ?version ?hashes ?reneg ?authenticator ?secure_reneg () =
   let config =
     { default_config with
@@ -144,7 +142,7 @@ let client_exn
     } in
   ( validate_common config ; validate_client config ; config )
 
-let server_exn
+let server
   ?ciphers ?version ?hashes ?reneg ?certificate ?secure_reneg () =
   let config =
     { default_config with

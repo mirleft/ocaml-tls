@@ -2,9 +2,6 @@ open Core
 
 (** Configuration of the TLS stack *)
 
-(** during validating a configuration, this exception might occur *)
-exception Invalid_configuration of string
-
 (** certificate chain and private key of the first certificate *)
 type own_cert = Certificate.certificate list * Nocrypto.RSA.priv
 
@@ -61,8 +58,8 @@ val of_client : client -> config
 val of_server : server -> config
 
 (** [client_exn ?ciphers ?version ?hashes ?reneg ?validator ?secure_reneg] is [client] configuration with the given parameters *)
-(** @raise Invalid_configuration when the configuration is not valid *)
-val client_exn :
+(** @raise Invalid_argument if the configuration is invalid *)
+val client :
   ?ciphers       : Ciphersuite.ciphersuite list ->
   ?version       : tls_version * tls_version ->
   ?hashes        : Packet.hash_algorithm list ->
@@ -72,8 +69,8 @@ val client_exn :
   unit -> client
 
 (** [server_exn ?ciphers ?version ?hashes ?reneg ?certificate ?secure_reneg] is [server] configuration with the given parameters *)
-(** @raise Invalid_configuration when the configuration is not valid *)
-val server_exn :
+(** @raise Invalid_argument if the configuration is invalid *)
+val server :
   ?ciphers      : Ciphersuite.ciphersuite list ->
   ?version      : tls_version * tls_version ->
   ?hashes       : Packet.hash_algorithm list ->
