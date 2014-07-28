@@ -40,3 +40,20 @@ val client : Config.client -> (state * Cstruct.t)
 
 (** [server server] is [tls] where [tls] is the initial server state *)
 val server : Config.server -> state
+
+type epoch_data = {
+  protocol_version : Core.tls_version ;
+  ciphersuite      : Ciphersuite.ciphersuite ;
+  peer_certificate : Certificate.certificate list ;
+  peer_name        : string option ;
+  own_certificate  : Certificate.certificate list ;
+  own_name         : string option ;
+  master_secret    : State.master_secret ;
+} with sexp
+
+type epoch = [
+  | `InitialEpoch
+  | `Epoch of epoch_data
+] with sexp
+
+val epoch : state -> epoch

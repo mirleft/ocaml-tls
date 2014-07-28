@@ -456,3 +456,36 @@ let client config =
       [(Packet.HANDSHAKE, raw)]
 
 let server config = new_state Config.(of_server config) `Server
+
+open Sexplib
+open Sexplib.Conv
+
+type epoch_data = {
+  protocol_version : tls_version ;
+  ciphersuite      : Ciphersuite.ciphersuite ;
+  peer_certificate : Certificate.certificate list ;
+  peer_name        : string option ;
+  own_certificate  : Certificate.certificate list ;
+  own_name         : string option ;
+  master_secret    : master_secret ;
+} with sexp
+
+type epoch = [
+  | `InitialEpoch
+  | `Epoch of epoch_data
+] with sexp
+
+let epoch state =
+  let hs = state.handshake in
+  match hs.session with
+  | None   -> `InitialEpoch
+  | Some session ->
+     `Epoch {
+        protocol_version = hs.protocol_version ;
+        ciphersuite      = session.ciphersuite ;
+        peer_certificate = session.peer_certificate ;
+        peer_name        = hs.config.peer_name ;
+        own_certificate  = session.own_certificate ;
+        own_name         = session.own_name ;
+        master_secret    = session.master_secret ;
+      }
