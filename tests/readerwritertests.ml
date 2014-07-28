@@ -261,7 +261,7 @@ let rw_ds_1_2_params =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let emp = list_to_cstruct [] in
   let cs = [ a ; a <+> a ; emp ; emp <+> a ] in
-  let hashes = Ciphersuite.([ NULL ; MD5 ; SHA ; SHA224 ; SHA256 ; SHA384 ; SHA512 ]) in
+  let hashes = Packet.([ NULL ; MD5 ; SHA ; SHA224 ; SHA256 ; SHA384 ; SHA512 ]) in
   let sign = Packet.([ ANONYMOUS ; RSA ; DSA ; ECDSA ]) in
   let h_s = cartesian_product (fun h s -> (h, s)) hashes sign in
   cartesian_product (fun (h, s) c -> (h, s, c)) h_s cs
@@ -359,14 +359,14 @@ let rw_handshake_client_hello_vals =
           ClientHello { ch with version = Supported TLS_1_0 } ;
           ClientHello { ch with version = Supported TLS_1_1 } ;
 
-          ClientHello { ch with ciphersuites = [ Ciphersuite.TLS_NULL_WITH_NULL_NULL ] } ;
-          ClientHello { ch with ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) } ;
+          ClientHello { ch with ciphersuites = [ Packet.TLS_NULL_WITH_NULL_NULL ] } ;
+          ClientHello { ch with ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) } ;
 
           ClientHello { ch with sessionid = (Some (list_to_cstruct rnd)) } ;
           ClientHello { ch with sessionid = (Some random) } ;
 
           ClientHello { ch with
-                        ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some random) } ;
 
           ClientHello { ch with extensions = [ Hostname None ] } ;
@@ -380,32 +380,32 @@ let rw_handshake_client_hello_vals =
                              Hostname (Some "foobarblubb") ;
                              EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
                              ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS); (Ciphersuite.MD5, Packet.RSA)]
+                             SignatureAlgorithms [(Packet.NULL, Packet.ANONYMOUS); (Packet.MD5, Packet.RSA)]
                            ] } ;
 
           ClientHello { ch with
-                        ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some random) ;
                         extensions = [ Hostname (Some "foobarblubb") ] } ;
 
           ClientHello { ch with
-                        ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some random) ;
                         extensions = [
                              Hostname (Some "foobarblubb") ;
                              EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
                              ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS); (Ciphersuite.MD5, Packet.RSA)]
+                             SignatureAlgorithms [(Packet.NULL, Packet.ANONYMOUS); (Packet.MD5, Packet.RSA)]
                       ] } ;
 
           ClientHello { ch with
-                        ciphersuites = Ciphersuite.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some random) ;
                         extensions = [
                              Hostname (Some "foobarblubb") ;
                              EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
                              ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             SignatureAlgorithms [(Ciphersuite.NULL, Packet.ANONYMOUS); (Ciphersuite.MD5, Packet.RSA)] ;
+                             SignatureAlgorithms [(Packet.NULL, Packet.ANONYMOUS); (Packet.MD5, Packet.RSA)] ;
                              SecureRenegotiation random
                       ] } ;
 
@@ -442,7 +442,7 @@ let rw_handshake_server_hello_vals =
           { version = TLS_1_2 ;
             random ;
             sessionid = None ;
-            ciphersuites = Ciphersuite.TLS_NULL_WITH_NULL_NULL ;
+            ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
             extensions = []}
         in
         [

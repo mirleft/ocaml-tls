@@ -6,10 +6,12 @@ let serve_ssl port callback =
 
   let tag = "server" in
 
-  lwt cert =
+  lwt certificate =
     X509_lwt.private_of_pems
       ~cert:server_cert
-      ~priv_key:server_key in
+      ~priv_key:server_key
+  in
+  let config = Tls.Config.server_exn ~certificate ~ciphers:Tls.Config.supported_ciphers () in
 
   let server_s =
     let open Lwt_unix in
@@ -20,7 +22,7 @@ let serve_ssl port callback =
 
   yap ~tag ("-> start @ " ^ string_of_int port)
   >>
-  lwt (channels, addr) = Tls_lwt.accept cert server_s in
+  lwt (channels, addr) = Tls_lwt.accept_ext config server_s in
   yap ~tag "-> connect"
   >>
   callback channels addr

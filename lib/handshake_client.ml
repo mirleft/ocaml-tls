@@ -21,11 +21,17 @@ let default_client_hello config =
        let supported = List.map (fun h -> (h, Packet.RSA)) config.hashes in
        [SignatureAlgorithms supported]
   in
+  let ciphers =
+    let cs = config.ciphers in
+    match version with
+    | TLS_1_0 | TLS_1_1 -> List.filter (o not Ciphersuite.ciphersuite_tls12_only) cs
+    | TLS_1_2           -> cs
+  in
   let ch = {
     version      = Supported version ;
     random       = Rng.generate 32 ;
     sessionid    = None ;
-    ciphersuites = config.ciphers ;
+    ciphersuites = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
     extensions   = host @ signature_algos
   }
   in
@@ -33,7 +39,7 @@ let default_client_hello config =
     { server_random = Cstruct.create 0 ;
       client_random = ch.random ;
       client_version = ch.version ;
-      cipher = List.hd ch.ciphersuites } ,
+      cipher = List.hd ciphers } ,
    version)
 
 let answer_server_hello state params ch (sh : server_hello) raw log =

@@ -145,16 +145,23 @@ let parse_compression_methods buf =
   let count = get_uint8 buf 0 in
   parse_count_list parse_compression_method (shift buf 1) [] count
 
-let parse_ciphersuite buf =
+let parse_any_ciphersuite buf =
   let typ = BE.get_uint16 buf 0 in
-  (Ciphersuite.int_to_ciphersuite typ, shift buf 2)
+  (int_to_any_ciphersuite typ, shift buf 2)
 
-let parse_ciphersuites buf =
+let parse_any_ciphersuites buf =
   let count = BE.get_uint16 buf 0 in
   if count mod 2 <> 0 then
     raise_wrong_length "ciphersuite list"
   else
-    parse_count_list parse_ciphersuite (shift buf 2) [] (count / 2)
+    parse_count_list parse_any_ciphersuite (shift buf 2) [] (count / 2)
+
+let parse_ciphersuite buf =
+  match parse_any_ciphersuite buf with
+  | None   , buf' -> (None, buf')
+  | Some cs, buf' -> match Ciphersuite.any_ciphersuite_to_ciphersuite cs with
+                       | None     -> (None, buf')
+                       | Some cs' -> (Some cs', buf')
 
 let parse_hostnames buf =
   match len buf with
@@ -296,7 +303,7 @@ let parse_hello get_version get_compression get_cipher buf =
   { version ; random ; sessionid ; ciphersuites ; extensions }
 
 let parse_client_hello buf =
-  let ch = parse_hello parse_any_version_exn parse_compression_methods parse_ciphersuites buf in
+  let ch = parse_hello parse_any_version_exn parse_compression_methods parse_any_ciphersuites buf in
   ClientHello ch
 
 let parse_server_hello buf =

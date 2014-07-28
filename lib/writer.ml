@@ -74,13 +74,17 @@ let assemble_compression_method m =
 let assemble_compression_methods ms =
   assemble_list ~force:true One assemble_compression_method ms
 
-let assemble_ciphersuite c =
+let assemble_any_ciphersuite c =
   let buf = create 2 in
-  BE.set_uint16 buf 0 (Ciphersuite.ciphersuite_to_int c);
+  BE.set_uint16 buf 0 (any_ciphersuite_to_int c);
   buf
 
-let assemble_ciphersuites cs =
-  assemble_list ~force:true Two assemble_ciphersuite cs
+let assemble_any_ciphersuites cs =
+  assemble_list ~force:true Two assemble_any_ciphersuite cs
+
+let assemble_ciphersuite c =
+  let acs = Ciphersuite.ciphersuite_to_any_ciphersuite c in
+  assemble_any_ciphersuite acs
 
 let assemble_hostname host =
   (* 8 bit hostname type; 16 bit length; value *)
@@ -157,7 +161,7 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
     | None   -> set_uint8 buf 0 0; buf
     | Some s -> set_uint8 buf 0 (len s); buf <+> s
   in
-  let css = assemble_ciphersuites cl.ciphersuites in
+  let css = assemble_any_ciphersuites cl.ciphersuites in
   (* compression methods, completely useless *)
   let cms = assemble_compression_methods [NULL] in
   let bbuf = v <+> cl.random <+> sid <+> css <+> cms in

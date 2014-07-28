@@ -48,3 +48,12 @@ for i in $ciphers; do
     extra_args="-tls1_2 -cipher $i"
     testit
 done
+
+tls12_ciphers="DHE-RSA-AES256-SHA256 AES256-SHA256 DHE-RSA-AES128-SHA256 AES128-SHA256"
+for i in $tls12_ciphers; do
+    extra_args="-cipher $i"
+    testit
+
+    extra_args="-tls1_2 -cipher $i"
+    testit
+done

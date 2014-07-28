@@ -88,7 +88,7 @@ type ('a, 'b) hello = {
   extensions   : extension list
 } with sexp
 
-type client_hello = (ciphersuite list, tls_any_version) hello
+type client_hello = (any_ciphersuite list, tls_any_version) hello
   with sexp
 
 type server_hello = (ciphersuite, tls_version) hello

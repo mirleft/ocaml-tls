@@ -78,12 +78,15 @@ let answer_client_hello state (ch : client_hello) raw =
     | None   -> fail Packet.PROTOCOL_VERSION
 
   and find_ciphersuite server_supported requested =
-    match first_match requested server_supported with
+    match first_match
+            (filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite requested)
+            server_supported
+    with
     | None   -> fail_handshake
     | Some c -> return c
 
   and ensure_reneg require our_data ciphers their_data  =
-    let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
+    let reneg_cs = List.mem Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
     match require, reneg_cs, our_data, their_data with
     | _    , _    , None         , Some x -> assure (Cs.null x)
     | _    , _    , Some (cvd, _), Some x -> assure (Cs.equal cvd x)
@@ -188,12 +191,12 @@ let answer_client_hello state (ch : client_hello) raw =
               | SignatureAlgorithms xs -> Some xs
               | _                      -> None
           with
-          | None    -> return Ciphersuite.SHA
+          | None              -> return Packet.SHA
           | Some client_algos ->
               let client_hashes =
                 List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) client_algos)
               in
-              match first_match client_hashes supported_hashes with
+              match first_match client_hashes config.hashes with
               | None      -> fail_handshake
               | Some hash -> return hash )
           >>= fun hash ->
