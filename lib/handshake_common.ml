@@ -33,6 +33,7 @@ let empty_session = {
   ciphersuite      = Ciphersuite.TLS_RSA_WITH_RC4_128_MD5 ;
   peer_certificate = [] ;
   own_certificate  = [] ;
+  own_private_key  = None ;
   own_name         = None ;
   master_secret    = Cstruct.create 0 ;
   renegotiation    = Cstruct.(create 0, create 0) ;

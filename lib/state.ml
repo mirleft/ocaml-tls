@@ -60,6 +60,7 @@ type session_data = {
   ciphersuite      : Ciphersuite.ciphersuite ;
   peer_certificate : Certificate.certificate list ;
   own_certificate  : Certificate.certificate list ;
+  own_private_key  : Nocrypto.RSA.priv option ;
   master_secret    : master_secret ;
   renegotiation    : reneg_params ; (* renegotiation data *)
   own_name         : string option ;

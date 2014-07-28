@@ -40,10 +40,10 @@ let establish_master_secret state session premastersecret raw log =
   Tracing.cs ~tag:"master-secret" master_secret ;
   ({ state with machina = Server machina }, [])
 
-let private_key config =
-  match config.own_certificate with
-    | Some (_, priv) -> return priv
-    | None           -> fail_handshake
+let private_key session =
+  match session.own_private_key with
+    | Some priv -> return priv
+    | None      -> fail_handshake
 
 let answer_client_key_exchange_RSA state session kex raw log =
   (* due to bleichenbacher attach, we should use a random pms *)
@@ -63,7 +63,7 @@ let answer_client_key_exchange_RSA state session kex raw log =
     | _                                                                  -> other
   in
 
-  private_key state.config >|= fun priv ->
+  private_key session >|= fun priv ->
 
   let pms = match RSA.PKCS1.decrypt priv kex with
     | None   -> validate_premastersecret other
@@ -107,15 +107,16 @@ let answer_client_hello_common state session reneg ch raw =
       Ciphersuite.(needs_certificate @@ ciphersuite_kex session.ciphersuite) in
     ( match config.own_certificate, cert_needed with
       (* XXX: select based on session.own_name *)
-      | Some (certs, _), true -> return certs
-      | _, false              -> return []
-      | _                     -> fail_handshake
+      | Some (certs, pk), true  -> return (certs, Some pk)
+      | _               , false -> return ([], None)
+      | _               , _     -> fail_handshake
       (* ^^^ Rig ciphersuite selection never to end up with one than needs a cert
        * if we haven't got one. *)
-    ) >|= fun certs ->
+    ) >|= fun (certs, pk) ->
     let cert = Certificate (List.map Certificate.cs_of_cert certs) in
     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ;
-    ([ Writer.assemble_handshake cert ], { session with own_certificate = certs })
+    ([ Writer.assemble_handshake cert ],
+     { session with own_certificate = certs ; own_private_key = pk })
 
   and kex_dhe_rsa config session version sig_algs =
     let group         = DH.Group.oakley_2 in (* rfc2409 1024-bit group *)
@@ -156,7 +157,7 @@ let answer_client_hello_common state session reneg ch raw =
                 sign to_sign >|= Writer.assemble_digitally_signed_1_2 hash Packet.RSA
     in
 
-    private_key state.config >>= signature >|= fun sgn ->
+    private_key session >>= signature >|= fun sgn ->
       let kex = ServerKeyExchange (written <+> sgn) in
       let hs = Writer.assemble_handshake kex in
       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ;

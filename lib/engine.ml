@@ -466,6 +466,7 @@ type epoch_data = {
   peer_certificate : Certificate.certificate list ;
   peer_name        : string option ;
   own_certificate  : Certificate.certificate list ;
+  own_private_key  : Nocrypto.RSA.priv option ;
   own_name         : string option ;
   master_secret    : master_secret ;
 } with sexp
@@ -486,6 +487,7 @@ let epoch state =
         peer_certificate = session.peer_certificate ;
         peer_name        = hs.config.peer_name ;
         own_certificate  = session.own_certificate ;
+        own_private_key  = session.own_private_key ;
         own_name         = session.own_name ;
         master_secret    = session.master_secret ;
       }

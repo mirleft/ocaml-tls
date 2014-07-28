@@ -47,6 +47,7 @@ type epoch_data = {
   peer_certificate : Certificate.certificate list ;
   peer_name        : string option ;
   own_certificate  : Certificate.certificate list ;
+  own_private_key  : Nocrypto.RSA.priv option ;
   own_name         : string option ;
   master_secret    : State.master_secret ;
 } with sexp
