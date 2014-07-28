@@ -19,9 +19,8 @@ covering them. This is slightly out of date as the RFC is roughly six years old 
 in the meantime more attacks have been published, such as the [renegotiation
 flaw][understanding_reneg].
 
-As [already mentioned][tls-intro], we track all our
-[mitigated][closed] and [open][open] security issues on our GitHub
-issue tracker.
+We track all our [mitigated][closed] and [open][open] security issues
+on our GitHub issue tracker.
 
 Due to the choice of using OCaml, a memory managed programming
 language, we obstruct entire bug classes, namely temporal and spatial

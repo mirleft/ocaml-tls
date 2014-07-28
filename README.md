@@ -52,7 +52,7 @@ particularly interested in discussion of our APIs.  Please use the
 list](http://lists.xenproject.org/archives/html/mirageos-devel/) for
 discussions.
 
-**Please be aware that this release is a *beta* and is missing external code audits.
+**Please be aware that this software is *beta* and is missing external code audits.
 It is not yet intended for use in any security critical applications.**
 
 In our [issue tracker][issues] we transparently document known attacks
@@ -62,6 +62,13 @@ against either the
 [Lucky13](http://www.isg.rhul.ac.uk/tls/Lucky13.html) timing attack or
 traffic analysis (e.g. [length-hiding
 padding](http://tools.ietf.org/html/draft-pironti-tls-length-hiding-02)).
+
+You can read more about
+[attacks](https://github.com/mirleft/ocaml-tls/blob/master/attacks.md)
+and our mitigations. We also [documented the
+design](https://github.com/mirleft/ocaml-tls/blob/master/design.md) of
+`ocaml-tls`.
+
 
 ### Trusted code base
 
