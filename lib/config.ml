@@ -2,8 +2,6 @@ open Utils
 
 open Core
 
-exception Invalid_configuration of string
-
 type own_cert = Certificate.certificate list * Nocrypto.RSA.priv
 
 type config = {
@@ -18,22 +16,33 @@ type config = {
   own_certificate   : own_cert option ;
 }
 
-let supported_ciphers = [
-  `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 ;
-  `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 ;
-  `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
-  `TLS_DHE_RSA_WITH_AES_128_CBC_SHA ;
-  `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-  `TLS_RSA_WITH_AES_256_CBC_SHA256 ;
-  `TLS_RSA_WITH_AES_128_CBC_SHA256 ;
-  `TLS_RSA_WITH_AES_256_CBC_SHA ;
-  `TLS_RSA_WITH_AES_128_CBC_SHA ;
-  `TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
-  `TLS_RSA_WITH_RC4_128_SHA ;
-  `TLS_RSA_WITH_RC4_128_MD5
-  ]
+module Ciphers = struct
 
-let pfs_ciphers = List.filter Ciphersuite.ciphersuite_pfs supported_ciphers
+  open Ciphersuite
+
+  (* A good place for various pre-baked cipher lists and helper functions to
+   * slice and groom those lists. *)
+
+  let supported = [
+    `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 ;
+    `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 ;
+    `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
+    `TLS_DHE_RSA_WITH_AES_128_CBC_SHA ;
+    `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+    `TLS_RSA_WITH_AES_256_CBC_SHA256 ;
+    `TLS_RSA_WITH_AES_128_CBC_SHA256 ;
+    `TLS_RSA_WITH_AES_256_CBC_SHA ;
+    `TLS_RSA_WITH_AES_128_CBC_SHA ;
+    `TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+    `TLS_RSA_WITH_RC4_128_SHA ;
+    `TLS_RSA_WITH_RC4_128_MD5
+    ]
+
+  let pfs_of = List.filter Ciphersuite.ciphersuite_pfs
+
+  let pfs = pfs_of supported
+
+end
 
 let supported_hashes =
   Packet.([ SHA512 ; SHA384 ; SHA256 ; SHA ; MD5 ])
@@ -43,7 +52,7 @@ let min_dh_size = 512
 let min_rsa_key_size = 1024
 
 let default_config = {
-  ciphers           = pfs_ciphers ;
+  ciphers           = Ciphers.pfs ;
   protocol_versions = (TLS_1_0, TLS_1_2) ;
   hashes            = supported_hashes ;
   use_reneg         = true ;
@@ -53,7 +62,7 @@ let default_config = {
   own_certificate   = None ;
 }
 
-let invalid msg = raise (Invalid_configuration msg)
+let invalid msg = invalid_arg ("Tls.Config: invalid configuration: " ^ msg)
 
 let validate_common config =
   let (v_min, v_max) = config.protocol_versions in
@@ -65,8 +74,6 @@ let validate_common config =
        invalid "Some hash algorithms are not supported"
     | _                                                 ->
        () ) ;
-  if not (List_set.subset config.ciphers supported_ciphers) then
-    invalid "given ciphers are not supported" ;
   if not (List_set.is_proper_set config.ciphers) then
     invalid "set of ciphers is not a proper set"
 
@@ -120,7 +127,7 @@ let peer conf name = { conf with peer_name = Some name }
 
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
-let client_exn
+let client
   ?ciphers ?version ?hashes ?reneg ?authenticator ?secure_reneg () =
   let config =
     { default_config with
@@ -133,7 +140,7 @@ let client_exn
     } in
   ( validate_common config ; validate_client config ; config )
 
-let server_exn
+let server
   ?ciphers ?version ?hashes ?reneg ?certificate ?secure_reneg () =
   let config =
     { default_config with

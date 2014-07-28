@@ -9,7 +9,7 @@ let test_client _ =
   lwt authenticator = X509_lwt.authenticator `No_authentication_I'M_STUPID in
   lwt (ic, oc) =
     Tls_lwt.connect_ext
-      (Tls.Config.client_exn ~authenticator ~ciphers:Tls.Config.supported_ciphers ())
+      Tls.Config.(client ~authenticator ~ciphers:Ciphers.supported ())
       (host, port) in
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ host ; "Connection: close" ; "" ; ""
