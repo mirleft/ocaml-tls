@@ -59,6 +59,7 @@ type session_data = {
   client_version   : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
   ciphersuite      : Ciphersuite.ciphersuite ;
   peer_certificate : Certificate.certificate list ;
+  trust_anchor     : Certificate.certificate option ;
   own_certificate  : Certificate.certificate list ;
   own_private_key  : Nocrypto.RSA.priv option ;
   master_secret    : master_secret ;

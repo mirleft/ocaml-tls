@@ -46,6 +46,7 @@ type epoch_data = {
   ciphersuite      : Ciphersuite.ciphersuite ;
   peer_certificate : Certificate.certificate list ;
   peer_name        : string option ;
+  trust_anchor     : Certificate.certificate option ;
   own_certificate  : Certificate.certificate list ;
   own_private_key  : Nocrypto.RSA.priv option ;
   own_name         : string option ;

@@ -105,7 +105,7 @@ let validate_server config =
             match
               Certificate.verify_chain_of_trust ~anchors:[ta] (s, cs)
             with
-            | `Ok     -> ()
+            | `Ok _   -> ()
             | `Fail x -> invalid ("certificate chain does not validate: " ^
                                (Certificate.certificate_failure_to_string x)) )
    (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)

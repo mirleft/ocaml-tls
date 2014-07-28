@@ -32,6 +32,7 @@ let empty_session = {
   client_version   = Supported TLS_1_0 ;
   ciphersuite      = `TLS_RSA_WITH_RC4_128_MD5 ;
   peer_certificate = [] ;
+  trust_anchor     = None ;
   own_certificate  = [] ;
   own_private_key  = None ;
   own_name         = None ;

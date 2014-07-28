@@ -462,6 +462,7 @@ type epoch_data = {
   ciphersuite      : Ciphersuite.ciphersuite ;
   peer_certificate : Certificate.certificate list ;
   peer_name        : string option ;
+  trust_anchor     : Certificate.certificate option ;
   own_certificate  : Certificate.certificate list ;
   own_private_key  : Nocrypto.RSA.priv option ;
   own_name         : string option ;
@@ -483,6 +484,7 @@ let epoch state =
         ciphersuite      = session.ciphersuite ;
         peer_certificate = session.peer_certificate ;
         peer_name        = Config.(hs.config.peer_name) ;
+        trust_anchor     = session.trust_anchor ;
         own_certificate  = session.own_certificate ;
         own_private_key  = session.own_private_key ;
         own_name         = session.own_name ;
