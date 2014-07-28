@@ -61,12 +61,11 @@ let divide_keyblock version key mac iv buf =
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
 
-let initialise_crypto_ctx epoch params premaster =
+let initialise_crypto_ctx version session premaster =
   let open Ciphersuite in
-  let client_random = params.client_random
-  and server_random = params.server_random
-  and cipher = epoch.ciphersuite
-  and version = epoch.protocol_version
+  let client_random = session.client_random
+  and server_random = session.server_random
+  and cipher = session.ciphersuite
   in
 
   let master = generate_master_secret version premaster
