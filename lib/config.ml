@@ -18,22 +18,33 @@ type config = {
   own_certificate   : own_cert option ;
 }
 
-let supported_ciphers = [
-  `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 ;
-  `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 ;
-  `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
-  `TLS_DHE_RSA_WITH_AES_128_CBC_SHA ;
-  `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-  `TLS_RSA_WITH_AES_256_CBC_SHA256 ;
-  `TLS_RSA_WITH_AES_128_CBC_SHA256 ;
-  `TLS_RSA_WITH_AES_256_CBC_SHA ;
-  `TLS_RSA_WITH_AES_128_CBC_SHA ;
-  `TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
-  `TLS_RSA_WITH_RC4_128_SHA ;
-  `TLS_RSA_WITH_RC4_128_MD5
-  ]
+module Ciphers = struct
 
-let pfs_ciphers = List.filter Ciphersuite.ciphersuite_pfs supported_ciphers
+  open Ciphersuite
+
+  (* A good place for various pre-baked cipher lists and helper functions to
+   * slice and groom those lists. *)
+
+  let supported = [
+    `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 ;
+    `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 ;
+    `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
+    `TLS_DHE_RSA_WITH_AES_128_CBC_SHA ;
+    `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+    `TLS_RSA_WITH_AES_256_CBC_SHA256 ;
+    `TLS_RSA_WITH_AES_128_CBC_SHA256 ;
+    `TLS_RSA_WITH_AES_256_CBC_SHA ;
+    `TLS_RSA_WITH_AES_128_CBC_SHA ;
+    `TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
+    `TLS_RSA_WITH_RC4_128_SHA ;
+    `TLS_RSA_WITH_RC4_128_MD5
+    ]
+
+  let pfs_of = List.filter Ciphersuite.ciphersuite_pfs
+
+  let pfs = pfs_of supported
+
+end
 
 let supported_hashes =
   Packet.([ SHA512 ; SHA384 ; SHA256 ; SHA ; MD5 ])
@@ -43,7 +54,7 @@ let min_dh_size = 512
 let min_rsa_key_size = 1024
 
 let default_config = {
-  ciphers           = pfs_ciphers ;
+  ciphers           = Ciphers.pfs ;
   protocol_versions = (TLS_1_0, TLS_1_2) ;
   hashes            = supported_hashes ;
   use_reneg         = true ;
@@ -65,7 +76,7 @@ let validate_common config =
        invalid "Some hash algorithms are not supported"
     | _                                                 ->
        () ) ;
-  if not (List_set.subset config.ciphers supported_ciphers) then
+  if not (List_set.subset config.ciphers Ciphers.pfs) then
     invalid "given ciphers are not supported" ;
   if not (List_set.is_proper_set config.ciphers) then
     invalid "set of ciphers is not a proper set"
