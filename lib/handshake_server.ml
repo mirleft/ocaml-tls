@@ -195,7 +195,8 @@ let answer_client_hello_common state session reneg ch raw =
    [`Record (Packet.HANDSHAKE, Cs.appends out_recs)])
 
 let agreed_cipher server_supported requested =
-  match first_match requested server_supported with
+  let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite requested in
+  match first_match cciphers server_supported with
   | Some x -> return x
   | None   -> fail_handshake
 
@@ -206,7 +207,7 @@ let agreed_version supported requested =
 
 let answer_client_hello state (ch : client_hello) raw =
   let ensure_reneg require ciphers their_data  =
-    let reneg_cs = List.mem Ciphersuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
+    let reneg_cs = List.mem Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
     match require, reneg_cs, their_data with
     | _    , _   , Some x -> assure (Cs.null x)
     | _    , true, _      -> return ()
