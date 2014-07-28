@@ -107,7 +107,7 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
   ({ state with machina = Client machina }, [])
 
 
-let validate_chain config cipher certificates =
+let validate_chain config session certificates =
   let open Certificate in
 
   let parse css =
@@ -123,7 +123,7 @@ let validate_chain config cipher certificates =
     | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
     | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
     | `Fail _                  -> fail Packet.BAD_CERTIFICATE
-    | `Ok                      -> return ()
+    | `Ok anchor               -> return anchor
 
   and validate_keytype cert ktype =
     cert_type cert = ktype
@@ -156,19 +156,20 @@ let validate_chain config cipher certificates =
   (* RFC2246/4346: is generally x509v3, signing algorithm for certificate _must_ be same as algorithm for certificate key *)
 
   match config.authenticator with
-  | None -> parse certificates
+  | None -> parse certificates >|= fun (s, xs) ->
+            (s, { session with peer_certificate = s :: xs })
   | Some authenticator ->
       parse certificates >>= fun (s, xs) ->
       key_size Config.min_rsa_key_size (s :: xs) >>= fun () ->
-      authenticate authenticator host (s, xs) >>= fun () ->
+      authenticate authenticator host (s, xs) >>= fun anchor ->
       let keytype, usage =
-        Ciphersuite.(o required_keytype_and_usage ciphersuite_kex cipher)
+        Ciphersuite.(o required_keytype_and_usage ciphersuite_kex session.ciphersuite)
       in
       guard (validate_keytype s keytype &&
              validate_usage s usage &&
              validate_ext_usage s `Server_auth)
             Packet.BAD_CERTIFICATE >|= fun () ->
-      (s, xs)
+      (s, { session with peer_certificate = s :: xs ; trust_anchor = Some anchor })
 
 let peer_rsa_key cert =
   let open Asn_grammars in
@@ -177,7 +178,7 @@ let peer_rsa_key cert =
   | _          -> fail_handshake
 
 let answer_certificate_RSA state session cs raw log =
-  validate_chain state.config session.ciphersuite cs >>= fun (cert, xs) ->
+  validate_chain state.config session cs >>= fun (cert, session) ->
   ( match session.client_version with
     | Supported v -> return v
     | _           -> fail_handshake ) >>= fun v ->
@@ -185,15 +186,13 @@ let answer_certificate_RSA state session cs raw log =
   let premaster = ver <+> Rng.generate 46 in
   peer_rsa_key cert >|= fun pubkey ->
   let kex = RSA.PKCS1.encrypt pubkey premaster
-  and session = { session with peer_certificate = cert :: xs }
   in
 
   let machina = AwaitServerHelloDone (session, kex, premaster, log @ [raw]) in
   ({ state with machina = Client machina }, [])
 
 let answer_certificate_DHE_RSA state session cs raw log =
-  validate_chain state.config session.ciphersuite cs >|= fun (cert, xs) ->
-  let session = { session with peer_certificate = cert :: xs } in
+  validate_chain state.config session cs >|= fun (_, session) ->
   let machina = AwaitServerKeyExchange_DHE_RSA (session, log @ [raw]) in
   ({ state with machina = Client machina }, [])
 
