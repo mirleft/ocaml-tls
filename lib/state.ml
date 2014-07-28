@@ -70,6 +70,7 @@ type session_data = {
 (* state machine of the server *)
 type server_handshake_state =
   | AwaitClientHello (* initial state *)
+  | AwaitClientHelloRenegotiate
   | AwaitClientKeyExchange_RSA of session_data * hs_log (* server hello done is sent, and RSA key exchange used, waiting for a client key exchange message *)
   | AwaitClientKeyExchange_DHE_RSA of session_data * dh_sent * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
   | AwaitClientChangeCipherSpec of session_data * crypto_context * crypto_context * hs_log (* client key exchange received, next should be change cipher spec *)

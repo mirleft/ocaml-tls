@@ -9,6 +9,16 @@ open Config
 
 let (<+>) = Cs.(<+>)
 
+let hello_request state =
+  if state.config.use_reneg then
+    let hr = HelloRequest in
+    Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ;
+    let state = { state with machina = Server AwaitClientHelloRenegotiate } in
+    return (state, [`Record (Packet.HANDSHAKE, Writer.assemble_handshake hr)])
+  else
+    fail_handshake
+
+
 let answer_client_finished state session client_fin raw log =
   let client, server =
     let ver, ms = (state.protocol_version, session.master_secret) in
@@ -294,7 +304,9 @@ let handle_handshake ss hs buf =
           answer_client_key_exchange_DHE_RSA hs session dh_sent kex buf log
        | AwaitClientFinished (session, log), Finished fin ->
           answer_client_finished hs session fin buf log
-       | Established, ClientHello ch -> (* renegotiation *)
+       | Established, ClientHello ch -> (* client-initiated renegotiation *)
+          answer_client_hello_reneg hs ch buf
+       | AwaitClientHelloRenegotiate, ClientHello ch -> (* hello-request send, renegotiation *)
           answer_client_hello_reneg hs ch buf
        | _, _-> fail_handshake )
   | Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE

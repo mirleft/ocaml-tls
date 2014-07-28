@@ -388,12 +388,9 @@ let reneg st =
   let hs = st.handshake in
   match hs.machina with
   | Server Established ->
-     if Config.(hs.config.use_reneg) then
-       let hr = HelloRequest in
-       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ;
-       Some (send_records st [(Packet.HANDSHAKE, Writer.assemble_handshake hr)])
-     else
-       None
+     ( match Handshake_server.hello_request hs with
+       | Ok (handshake, [`Record hr]) -> Some (send_records { st with handshake } [hr])
+       | _                            -> None )
   | Client Established ->
      ( match Handshake_client.answer_hello_request hs with
        | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
