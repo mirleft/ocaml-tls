@@ -1,6 +1,6 @@
 open Utils
 open Core
-
+open State
 
 let empty = function [] -> true | _ -> false
 
@@ -25,6 +25,19 @@ let get_secure_renegotiation exts =
   map_find
     exts
     ~f:(function SecureRenegotiation data -> Some data | _ -> None)
+
+let empty_session = {
+  server_random    = Cstruct.create 0 ;
+  client_random    = Cstruct.create 0 ;
+  client_version   = Supported TLS_1_0 ;
+  ciphersuite      = `TLS_RSA_WITH_RC4_128_MD5 ;
+  peer_certificate = [] ;
+  own_certificate  = [] ;
+  own_private_key  = None ;
+  own_name         = None ;
+  master_secret    = Cstruct.create 0 ;
+  renegotiation    = Cstruct.(create 0, create 0) ;
+}
 
 let supported_protocol_version (min, max) v =
   match version_ge v min, version_ge v max with

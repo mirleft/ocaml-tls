@@ -27,12 +27,13 @@ let new_state config role =
     | `Client -> Client ClientInitial
     | `Server -> Server AwaitClientHello
   in
+  let version = max_protocol_version Config.(config.protocol_versions) in
   let handshake = {
-    version     = max_protocol_version Config.(config.protocol_versions) ;
-    reneg       = None ;
-    machina     = handshake_state ;
-    config      = config ;
-    hs_fragment = Cstruct.create 0 ;
+    session          = [] ;
+    protocol_version = version ;
+    machina          = handshake_state ;
+    config           = config ;
+    hs_fragment      = Cstruct.create 0 ;
   }
   in
   {
@@ -210,9 +211,9 @@ module Alert = struct
 end
 
 let hs_can_handle_appdata s =
-  match s.reneg with
-  | Some _ -> true
-  | None   -> false
+  match s.session with
+  | [] -> false
+  | _  -> true
 
 let rec separate_handshakes buf =
   let open Cstruct in
@@ -278,7 +279,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   Tracing.sexpf ~tag:"record-in" ~f:sexp_of_raw_record record ;
 
   let hs = state.handshake in
-  let version = hs.version in
+  let version = hs.protocol_version in
   ( match hs.machina, version_eq hdr.version version with
     | Client (AwaitServerHello _), _     -> return ()
     | Server (AwaitClientHello)  , _     -> return ()
@@ -293,7 +294,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
     List.fold_left (fun (st, es) -> function
       | `Change_enc st' -> (st', es)
       | `Record r       ->
-          let (st', enc) = encrypt_records st handshake.version [r] in
+          let (st', enc) = encrypt_records st handshake.protocol_version [r] in
           (st', es @ enc))
     (state.encryptor, [])
     items
@@ -334,7 +335,7 @@ let handle_tls state buf =
     >>= fun (in_records, fragment) ->
       handle_records state in_records
     >|= fun (state', out_records, data, err) ->
-      let version = state'.handshake.version in
+      let version = state'.handshake.protocol_version in
       let buf'    = assemble_records version out_records in
       ({ state' with fragment }, buf', data, err)
   with
@@ -344,13 +345,13 @@ let handle_tls state buf =
         | `No_err                -> `Ok state in
       `Ok (res, `Response resp, `Data data)
   | Error x ->
-      let version = state.handshake.version in
+      let version = state.handshake.protocol_version in
       let resp    = assemble_records version [Alert.make x] in
       Tracing.sexpf ~tag:"alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, x) ;
       `Fail (x, `Response resp)
 
 let send_records (st : state) records =
-  let version = st.handshake.version in
+  let version = st.handshake.protocol_version in
   let (encryptor, encs) =
     encrypt_records st.encryptor version records in
   let data = assemble_records version encs in
@@ -387,12 +388,9 @@ let reneg st =
   let hs = st.handshake in
   match hs.machina with
   | Server Established ->
-     if Config.(hs.config.use_reneg) then
-       let hr = HelloRequest in
-       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ;
-       Some (send_records st [(Packet.HANDSHAKE, Writer.assemble_handshake hr)])
-     else
-       None
+     ( match Handshake_server.hello_request hs with
+       | Ok (handshake, [`Record hr]) -> Some (send_records { st with handshake } [hr])
+       | _                            -> None )
   | Client Established ->
      ( match Handshake_client.answer_hello_request hs with
        | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
@@ -402,8 +400,7 @@ let reneg st =
 let client config =
   let config = Config.of_client config in
   let state = new_state config `Client in
-  let dch, params, version = Handshake_client.default_client_hello config in
-  let secure_reneg = SecureRenegotiation (Cstruct.create 0) in
+  let dch, version = Handshake_client.default_client_hello config in
   let ciphers, extensions = match version with
       (* from RFC 5746 section 3.3:
    Both the SSLv3 and TLS 1.0/TLS 1.1 specifications require
@@ -422,7 +419,7 @@ let client config =
    implementations reliably ignore unknown cipher suites, the SCSV may
    be safely sent to any server. *)
     | TLS_1_0 -> ([Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
-    | TLS_1_1 | TLS_1_2 -> ([], [secure_reneg])
+    | TLS_1_1 | TLS_1_2 -> ([], [SecureRenegotiation (Cstruct.create 0)])
   in
 
   let client_hello =
@@ -433,19 +430,20 @@ let client config =
 
   let ch = ClientHello client_hello in
   let raw = Writer.assemble_handshake ch in
-  let machina = AwaitServerHello (client_hello, params, [raw]) in
-  let handshake = {
-    state.handshake with
-      machina = Client machina ;
-      (* from RFC5246, appendix E.1
+  let machina = AwaitServerHello (client_hello, [raw]) in
+
+    (* from RFC5246, appendix E.1
    TLS clients that wish to negotiate with older servers MAY send any
    value {03,XX} as the record layer version number.  Typical values
    would be {03,00}, the lowest version number supported by the client,
    and the value of ClientHello.client_version.  No single value will
    guarantee interoperability with all old servers, but this is a
-   complex topic beyond the scope of this document.
-       *)
-      version = min_protocol_version Config.(config.protocol_versions)
+   complex topic beyond the scope of this document. *)
+  let version = min_protocol_version Config.(config.protocol_versions) in
+  let handshake = {
+    state.handshake with
+      machina          = Client machina ;
+      protocol_version = version
   } in
 
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
@@ -455,3 +453,38 @@ let client config =
       [(Packet.HANDSHAKE, raw)]
 
 let server config = new_state Config.(of_server config) `Server
+
+open Sexplib
+open Sexplib.Conv
+
+type epoch_data = {
+  protocol_version : tls_version ;
+  ciphersuite      : Ciphersuite.ciphersuite ;
+  peer_certificate : Certificate.certificate list ;
+  peer_name        : string option ;
+  own_certificate  : Certificate.certificate list ;
+  own_private_key  : Nocrypto.RSA.priv option ;
+  own_name         : string option ;
+  master_secret    : master_secret ;
+} with sexp
+
+type epoch = [
+  | `InitialEpoch
+  | `Epoch of epoch_data
+] with sexp
+
+let epoch state =
+  let hs = state.handshake in
+  match hs.session with
+  | []           -> `InitialEpoch
+  | session :: _ ->
+     `Epoch {
+        protocol_version = hs.protocol_version ;
+        ciphersuite      = session.ciphersuite ;
+        peer_certificate = session.peer_certificate ;
+        peer_name        = Config.(hs.config.peer_name) ;
+        own_certificate  = session.own_certificate ;
+        own_private_key  = session.own_private_key ;
+        own_name         = session.own_name ;
+        master_secret    = session.master_secret ;
+      }

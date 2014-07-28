@@ -1,4 +1,5 @@
 (trunk):
+* information about the active session is exposed via epoch : state -> epoch
 * by default only perfect-forward secrecy ciphersuites are used
    (configuration can be altered by ~ciphers:Config.supported_ciphers)
 * distinguish between supported ciphersuites (type ciphersuite) and

@@ -49,34 +49,45 @@ type master_secret = Cstruct_s.t with sexp
 (* diffie hellman group and secret *)
 type dh_sent = DH.group * DH.secret with sexp
 
-(* persistent information during a handshake *)
-type handshake_params = {
-  server_random  : Cstruct_s.t ; (* 32 bytes random from the server hello *)
-  client_random  : Cstruct_s.t ; (* 32 bytes random from the client hello *)
-  client_version : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
-  cipher         : Ciphersuite.ciphersuite (* selected ciphersuite by the server *)
+(* a collection of client and server verify bytes for renegotiation *)
+type reneg_params = Cstruct_s.t * Cstruct_s.t
+  with sexp
+
+type session_data = {
+  server_random    : Cstruct_s.t ; (* 32 bytes random from the server hello *)
+  client_random    : Cstruct_s.t ; (* 32 bytes random from the client hello *)
+  client_version   : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
+  ciphersuite      : Ciphersuite.ciphersuite ;
+  peer_certificate : Certificate.certificate list ;
+  own_certificate  : Certificate.certificate list ;
+  own_private_key  : Nocrypto.RSA.priv option ;
+  master_secret    : master_secret ;
+  renegotiation    : reneg_params ; (* renegotiation data *)
+  own_name         : string option ;
 } with sexp
 
 (* state machine of the server *)
 type server_handshake_state =
   | AwaitClientHello (* initial state *)
-  | AwaitClientKeyExchange_RSA of handshake_params * hs_log (* server hello done is sent, and RSA key exchange used, waiting for a client key exchange message *)
-  | AwaitClientKeyExchange_DHE_RSA of handshake_params * dh_sent * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
-  | AwaitClientChangeCipherSpec of crypto_context * crypto_context * master_secret * hs_log (* client key exchange received, next should be change cipher spec *)
-  | AwaitClientFinished of master_secret * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
+  | AwaitClientHelloRenegotiate
+  | AwaitClientKeyExchange_RSA of session_data * hs_log (* server hello done is sent, and RSA key exchange used, waiting for a client key exchange message *)
+  | AwaitClientKeyExchange_DHE_RSA of session_data * dh_sent * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
+  | AwaitClientChangeCipherSpec of session_data * crypto_context * crypto_context * hs_log (* client key exchange received, next should be change cipher spec *)
+  | AwaitClientFinished of session_data * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
   with sexp
 
 (* state machine of the client *)
 type client_handshake_state =
   | ClientInitial (* initial state *)
-  | AwaitServerHello of client_hello * handshake_params * hs_log (* client hello is sent, handshake_params are half-filled *)
-  | AwaitCertificate_RSA of handshake_params * hs_log (* certificate expected with RSA key exchange *)
-  | AwaitCertificate_DHE_RSA of handshake_params * hs_log (* certificate expected with DHE_RSA key exchange *)
-  | AwaitServerKeyExchange_DHE_RSA of handshake_params * Certificate.certificate * hs_log (* server key exchange expected with DHE_RSA *)
-  | AwaitServerHelloDone of handshake_params * Cstruct_s.t * Cstruct_s.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
-  | AwaitServerChangeCipherSpec of crypto_context * Cstruct_s.t * master_secret * hs_log (* change cipher spec expected *)
-  | AwaitServerFinished of Cstruct_s.t * master_secret * hs_log (* finished expected with a hmac over all handshake packets *)
+  | AwaitServerHello of client_hello * hs_log (* client hello is sent, handshake_params are half-filled *)
+  | AwaitServerHelloRenegotiate of session_data * client_hello * hs_log (* client hello is sent, handshake_params are half-filled *)
+  | AwaitCertificate_RSA of session_data * hs_log (* certificate expected with RSA key exchange *)
+  | AwaitCertificate_DHE_RSA of session_data * hs_log (* certificate expected with DHE_RSA key exchange *)
+  | AwaitServerKeyExchange_DHE_RSA of session_data * hs_log (* server key exchange expected with DHE_RSA *)
+  | AwaitServerHelloDone of session_data * Cstruct_s.t * Cstruct_s.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
+  | AwaitServerChangeCipherSpec of session_data * crypto_context * Cstruct_s.t * hs_log (* change cipher spec expected *)
+  | AwaitServerFinished of session_data * Cstruct_s.t * hs_log (* finished expected with a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
   with sexp
 
@@ -85,17 +96,13 @@ type handshake_machina_state =
   | Server of server_handshake_state
   with sexp
 
-(* a collection of client and server verify bytes for renegotiation *)
-type reneg_params = Cstruct_s.t * Cstruct_s.t
-  with sexp
-
 (* state during a handshake, used in the handlers *)
 type handshake_state = {
-  version     : tls_version ; (* negotiated version *)
-  machina     : handshake_machina_state ; (* state machine state *)
-  config      : Config.config ; (* given config *)
-  reneg       : reneg_params option ; (* renegotiation data *)
-  hs_fragment : Cstruct_s.t (* handshake messages can be fragmented, leftover from before *)
+  session          : session_data list ;
+  protocol_version : tls_version ;
+  machina          : handshake_machina_state ; (* state machine state *)
+  config           : Config.config ; (* given config *)
+  hs_fragment      : Cstruct_s.t (* handshake messages can be fragmented, leftover from before *)
 } with sexp
 
 (* connection state: initially None, after handshake a crypto context *)
@@ -130,3 +137,4 @@ type state = {
   encryptor : crypto_state ; (* the current encryption state *)
   fragment  : Cstruct_s.t ; (* the leftover fragment from TCP fragmentation *)
 } with sexp
+
