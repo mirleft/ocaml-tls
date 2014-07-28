@@ -21,9 +21,8 @@ let hello_request state =
 
 let answer_client_finished state session client_fin raw log =
   let client, server =
-    let ver, ms = (state.protocol_version, session.master_secret) in
-    (Handshake_crypto.finished ver ms "client finished" log,
-     Handshake_crypto.finished ver ms "server finished" (log @ [raw]))
+    let checksum = Handshake_crypto.finished state.protocol_version session.master_secret in
+    (checksum "client finished" log, checksum "server finished" (log @ [raw]))
   in
   assure (Cs.equal client client_fin)
   >>= fun () ->
