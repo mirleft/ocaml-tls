@@ -21,17 +21,23 @@ let hostname h : string option =
   | Some (Some name) -> Some name
   | _                -> None
 
-let reneg state =
-  let reneg_from_epoch epoch = match epoch with
-    | `InitialEpoch _   -> None
-    | `Epoch epoch_data -> Some epoch_data.reneg
-  in
-  reneg_from_epoch state.epoch
-
 let get_secure_renegotiation exts =
   map_find
     exts
     ~f:(function SecureRenegotiation data -> Some data | _ -> None)
+
+let empty_session = {
+  server_random    = Cstruct.create 0 ;
+  client_random    = Cstruct.create 0 ;
+  client_version   = Supported TLS_1_0 ;
+  ciphersuite      = Ciphersuite.TLS_RSA_WITH_RC4_128_MD5 ;
+  peer_certificate = [] ;
+  own_certificate  = [] ;
+  own_name         = None ;
+  master_secret    = Cstruct.create 0 ;
+  renegotiation    = Cstruct.(create 0, create 0) ;
+  previous_session = None ;
+}
 
 let supported_protocol_version (min, max) v =
   match version_ge v min, version_ge v max with
