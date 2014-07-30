@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: a6ce36442605dc60fb69f27e8add3a84)
+# DO NOT EDIT (digest: f54e164f101d5cc637ee809abd355b63)
 version = "0.1.1"
-description = "TLS support for ocaml"
+description = "TLS support for OCaml"
 requires = "tls oUnit cstruct.unix"
 archive(byte) = "tests.cma"
 archive(byte, plugin) = "tests.cma"
