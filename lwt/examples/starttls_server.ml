@@ -1,6 +1,6 @@
 open Lwt
 
-let capability = "* OK [CAPABILITY IMAP4rev1 LITERAL+ SASL-IR LOGIN-REFERRALS ID ENABLE IDLE STARTTLS AUTH=PLAIN] server ready.\r\n"
+let capability = "[CAPABILITY IMAP4rev1 LITERAL+ SASL-IR LOGIN-REFERRALS ID ENABLE IDLE STARTTLS AUTH=PLAIN] server ready.\r\n"
 
 let ok_starttls = "OK STARTTLS\r\n"
 
@@ -28,37 +28,47 @@ let accept sock =
   return ((ic,oc), addr, sock_cl)
 
 let start_server () =
-  let sock = create_srv_socket "127.0.0.1" 143 in
-  accept sock >>= fun ((ic,oc), addr, sock_cl) ->
   let write oc buff =
     Lwt_io.write oc buff >> Lwt_io.flush oc
   in
   let read ic =
     Lwt_io.read ic ~count:2048 >>= fun buff ->
-    Printf.printf "%s" buff;
+    Printf.printf "%s%!" buff;
     return buff
   in
-  write oc capability >>
-  read ic >>= fun buff -> 
-  let starttls = 
-    try Str.search_forward (Str.regexp "^\\([^ ]+ \\)STARTTLS") buff 0 = 0
-    with _ -> false
+  let parse buff = 
+    try 
+      let _ = Str.search_forward (Str.regexp "^\\([^ ]+ \\)\\([^ ]+\\)\r\n$") buff 0
+      in
+      Str.matched_group 1 buff, Str.matched_group 2 buff
+    with _ -> "","" 
   in
-  if starttls = false then
-    return ()
-  else (
-    let tag = Str.matched_group 1 buff in
-    write oc (tag ^ ok_starttls) >>
-    Lwt_io.close ic >>= fun () ->
-    Lwt_io.close oc >>= fun () ->
-    Tls_lwt.rng_init () >>= fun () ->
-    cert () >>= fun cert ->
-    Tls_lwt.Unix.server_of_fd 
-     (Tls.Config.server ~certificate:cert()) sock_cl >>= fun s ->
-    let ic,oc = Tls_lwt.of_t s in
-    read ic >>= fun _ ->
-    write oc capability
-  )
+  let rec wait_cmd sock_cl ic oc =
+    read ic >>= fun buff -> 
+    let tag,cmd = parse buff in
+    match cmd with
+    | "CAPABILITY" ->
+      write oc ("* " ^ capability ^ tag ^ " OK CAPABILITY\r\n") >>
+      wait_cmd sock_cl ic oc
+    | "STARTTLS" ->
+      write oc (tag ^ ok_starttls) >>
+      Lwt_io.close ic >>= fun () ->
+      Lwt_io.close oc >>= fun () ->
+      Tls_lwt.rng_init () >>= fun () ->
+      cert () >>= fun cert ->
+      Tls_lwt.Unix.server_of_fd 
+       (Tls.Config.server ~certificate:cert()) sock_cl >>= fun s ->
+      let ic,oc = Tls_lwt.of_t s in
+      write oc ("* OK " ^ capability) >>
+      wait_cmd sock_cl ic oc
+    | _ ->
+      write oc ("BAD\r\n") >>
+      wait_cmd sock_cl ic oc
+  in
+  let sock = create_srv_socket "127.0.0.1" 143 in
+  accept sock >>= fun ((ic,oc), addr, sock_cl) ->
+  write oc ("* OK " ^ capability) >>
+  wait_cmd sock_cl ic oc
 
 let () =
   Lwt_main.run (start_server())
