@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: d84858d6116ba81107a55e3eb2943631)
+# DO NOT EDIT (digest: 8a60fb8a39ba60772c5bb3a06d233d00)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -84,6 +84,17 @@
 <tests/*.ml{,i}>: pkg_x509
 <tests/*.ml{,i}>: use_tests
 <tests/*.ml{,i}>: use_tls
+# Executable starttls_server
+"lwt/examples/starttls_server.native": pkg_cstruct.syntax
+"lwt/examples/starttls_server.native": pkg_lwt.syntax
+"lwt/examples/starttls_server.native": pkg_lwt.unix
+"lwt/examples/starttls_server.native": pkg_nocrypto
+"lwt/examples/starttls_server.native": pkg_sexplib.syntax
+"lwt/examples/starttls_server.native": pkg_str
+"lwt/examples/starttls_server.native": pkg_x509
+"lwt/examples/starttls_server.native": use_tls
+"lwt/examples/starttls_server.native": use_tls-lwt
+<lwt/examples/*.ml{,i}>: pkg_str
 # Executable echo_server
 "lwt/examples/echo_server.native": pkg_cstruct.syntax
 "lwt/examples/echo_server.native": pkg_lwt.syntax

@@ -78,6 +78,14 @@ Executable "feedback"
   MainIs          : feedback.ml
   BuildDepends    : tests, cstruct.unix
 
+Executable "starttls_server"
+  Build          $: flag(lwt) && flag(tests)
+  Path            : lwt/examples/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : starttls_server.ml
+  BuildDepends    : tls.lwt, str
+
 Executable "echo_server"
   Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
