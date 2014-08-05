@@ -74,7 +74,7 @@ let answer_client_key_exchange_RSA state session kex raw log =
 
   private_key session >|= fun priv ->
 
-  let pms = match RSA.PKCS1.decrypt priv kex with
+  let pms = match Rsa.PKCS1.decrypt priv kex with
     | None   -> validate_premastersecret other
     | Some k -> validate_premastersecret k
   in
@@ -128,8 +128,8 @@ let answer_client_hello_common state session reneg ch raw =
      { session with own_certificate = certs ; own_private_key = pk })
 
   and kex_dhe_rsa config session version sig_algs =
-    let group         = DH.Group.oakley_2 in (* rfc2409 1024-bit group *)
-    let (secret, msg) = DH.gen_secret group in
+    let group         = Dh.Group.oakley_2 in (* rfc2409 1024-bit group *)
+    let (secret, msg) = Dh.gen_secret group in
     let dh_state      = group, secret in
     let written =
       let dh_param = Crypto.dh_params_pack group msg in
@@ -139,7 +139,7 @@ let answer_client_hello_common state session reneg ch raw =
 
     let signature pk =
       let sign x =
-        match RSA.PKCS1.sign pk x with
+        match Rsa.PKCS1.sign pk x with
         | None        -> fail_handshake
         | Some signed -> return signed
       in

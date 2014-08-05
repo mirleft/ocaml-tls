@@ -47,7 +47,7 @@ type hs_log = Cstruct_s.t list with sexp
 (* the master secret of a TLS connection *)
 type master_secret = Cstruct_s.t with sexp
 (* diffie hellman group and secret *)
-type dh_sent = DH.group * DH.secret with sexp
+type dh_sent = Dh.group * Dh.secret with sexp
 
 (* a collection of client and server verify bytes for renegotiation *)
 type reneg_params = Cstruct_s.t * Cstruct_s.t
@@ -61,7 +61,7 @@ type session_data = {
   peer_certificate : Certificate.certificate list ;
   trust_anchor     : Certificate.certificate option ;
   own_certificate  : Certificate.certificate list ;
-  own_private_key  : Nocrypto.RSA.priv option ;
+  own_private_key  : Nocrypto.Rsa.priv option ;
   master_secret    : master_secret ;
   renegotiation    : reneg_params ; (* renegotiation data *)
   own_name         : string option ;

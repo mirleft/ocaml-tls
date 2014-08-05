@@ -1,6 +1,6 @@
 
 open Nocrypto
-open Nocrypto.Common
+open Nocrypto.Uncommon
 open Nocrypto.Hash
 
 open Ciphersuite
@@ -11,19 +11,19 @@ let (<+>) = Utils.Cs.(<+>)
 
 (* on-the-wire dh_params <-> (group, pub_message) *)
 let dh_params_pack group message =
-  let (p, g) = DH.to_cstruct group in
+  let (p, g) = Dh.to_cstruct group in
   { Core.dh_p = p ; dh_g = g ; dh_Ys = message }
 
 and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
-  ( DH.group ~p:dh_p ~gg:dh_g (), dh_Ys )
+  ( Dh.group ~p:dh_p ~gg:dh_g (), dh_Ys )
 
 let dh_shared group secret public =
-  try Some (DH.shared group secret public)
-  with DH.Invalid_public_key -> None
+  try Some (Dh.shared group secret public)
+  with Dh.Invalid_public_key -> None
 
 
-type 'k stream_cipher = (module Stream.T    with type key = 'k)
-type 'k cbc_cipher    = (module Block.T_CBC with type key = 'k)
+type 'k stream_cipher = (module Cipher_stream.T    with type key = 'k)
+type 'k cbc_cipher    = (module Cipher_block.T_CBC with type key = 'k)
 type hash_fn          = (module Hash.T_MAC)
 
 module Ciphers = struct
@@ -47,23 +47,23 @@ module Ciphers = struct
   let get_cipher ~secret = function
 
     | RC4_128 ->
-        let open Stream in
-        K_Stream ( (module ARC4 : Stream.T with type key = ARC4.key),
+        let open Cipher_stream in
+        K_Stream ( (module ARC4 : Cipher_stream.T with type key = ARC4.key),
                    ARC4.of_secret secret )
 
     | TRIPLE_DES_EDE_CBC ->
-        let open Block.DES in
-        K_CBC ( (module CBC : Block.T_CBC with type key = CBC.key),
+        let open Cipher_block.DES in
+        K_CBC ( (module CBC : Cipher_block.T_CBC with type key = CBC.key),
                 CBC.of_secret secret )
 
     | AES_128_CBC ->
-        let open Block.AES in
-        K_CBC ( (module CBC : Block.T_CBC with type key = CBC.key),
+        let open Cipher_block.AES in
+        K_CBC ( (module CBC : Cipher_block.T_CBC with type key = CBC.key),
                 CBC.of_secret secret )
 
     | AES_256_CBC ->
-        let open Block.AES in
-        K_CBC ( (module CBC : Block.T_CBC with type key = CBC.key),
+        let open Cipher_block.AES in
+        K_CBC ( (module CBC : Cipher_block.T_CBC with type key = CBC.key),
                 CBC.of_secret secret )
 end
 
@@ -109,19 +109,19 @@ and pkcs1_digest_info_to_cstruct hashalgo data =
   | None   -> None
 
 let cbc_block (type a) cipher =
-  let module C = (val cipher : Block.T_CBC with type key = a) in C.block_size
+  let module C = (val cipher : Cipher_block.T_CBC with type key = a) in C.block_size
 
 let digest_size h =
   let module H = (val h : Hash.T_MAC) in H.digest_size
 
 
 let encrypt_stream (type a) ~cipher ~key data =
-  let module C = (val cipher : Stream.T with type key = a) in
+  let module C = (val cipher : Cipher_stream.T with type key = a) in
   let { C.message ; key } = C.encrypt ~key data in
   (message, key)
 
 let decrypt_stream (type a) ~cipher ~key data =
-  let module C = (val cipher : Stream.T with type key = a) in
+  let module C = (val cipher : Cipher_stream.T with type key = a) in
   let { C.message ; key } = C.decrypt ~key data in
   (message, key)
 
@@ -159,13 +159,13 @@ let cbc_unpad ~block data =
 
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
-  let module C = (val cipher : Block.T_CBC with type key = a) in
+  let module C = (val cipher : Cipher_block.T_CBC with type key = a) in
   let { C.message ; iv } =
     C.encrypt ~key ~iv (data <+> cbc_pad C.block_size data) in
   (message, iv)
 
 let decrypt_cbc (type a) ~cipher ~key ~iv data =
-  let module C = (val cipher : Block.T_CBC with type key = a) in
+  let module C = (val cipher : Cipher_block.T_CBC with type key = a) in
   try
     let { C.message ; iv } = C.decrypt ~key ~iv data in
     match cbc_unpad C.block_size message with

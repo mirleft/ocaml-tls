@@ -142,7 +142,7 @@ let validate_chain config session certificates =
     let check c =
       let open Asn_grammars in
       ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
-        | PK.RSA key when RSA.pub_bits key >= min -> true
+        | PK.RSA key when Rsa.pub_bits key >= min -> true
         | _                                       -> false )
     in
     guard (List.for_all check cs) Packet.INSUFFICIENT_SECURITY
@@ -185,7 +185,7 @@ let answer_certificate_RSA state session cs raw log =
   let ver = Writer.assemble_protocol_version v in
   let premaster = ver <+> Rng.generate 46 in
   peer_rsa_key cert >|= fun pubkey ->
-  let kex = RSA.PKCS1.encrypt pubkey premaster
+  let kex = Rsa.PKCS1.encrypt pubkey premaster
   in
 
   let machina = AwaitServerHelloDone (session, kex, premaster, log @ [raw]) in
@@ -229,7 +229,7 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
          | _ -> fail_handshake )
 
   and signature pubkey raw_signature =
-    match RSA.PKCS1.verify pubkey raw_signature with
+    match Rsa.PKCS1.verify pubkey raw_signature with
     | Some signature -> return signature
     | None -> fail_handshake
 
@@ -244,10 +244,10 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
   let sigdata = session.client_random <+> session.server_random <+> raw_dh_params in
   verifier signature sigdata >>= fun () ->
   let group, shared = Crypto.dh_params_unpack dh_params in
-  guard (DH.apparent_bit_size group >= Config.min_dh_size) Packet.INSUFFICIENT_SECURITY
+  guard (Dh.apparent_bit_size group >= Config.min_dh_size) Packet.INSUFFICIENT_SECURITY
   >>= fun () ->
 
-  let secret, kex = DH.gen_secret group in
+  let secret, kex = Dh.gen_secret group in
   match Crypto.dh_shared group secret shared with
   | None     -> fail Packet.INSUFFICIENT_SECURITY
   | Some pms -> let machina = AwaitServerHelloDone (session, kex, pms, log @ [raw]) in
