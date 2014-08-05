@@ -3,7 +3,7 @@ open Core
 (** Configuration of the TLS stack *)
 
 (** certificate chain and private key of the first certificate *)
-type own_cert = Certificate.certificate list * Nocrypto.RSA.priv
+type own_cert = Certificate.certificate list * Nocrypto.Rsa.priv
 
 (** configuration parameters *)
 type config = private {

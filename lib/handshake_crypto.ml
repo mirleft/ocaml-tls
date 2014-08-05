@@ -1,5 +1,5 @@
 open Nocrypto
-open Nocrypto.Common
+open Nocrypto.Uncommon
 open Nocrypto.Hash
 
 open Core

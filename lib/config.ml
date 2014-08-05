@@ -2,7 +2,7 @@ open Utils
 
 open Core
 
-type own_cert = Certificate.certificate list * Nocrypto.RSA.priv
+type own_cert = Certificate.certificate list * Nocrypto.Rsa.priv
 
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
@@ -97,7 +97,7 @@ let validate_server config =
            invalid "require a certificate with a different keyusage" ) ;
   ( match config.own_certificate with
     | Some (c::_, priv) ->
-       let pub = Nocrypto.RSA.pub_of_priv priv in
+       let pub = Nocrypto.Rsa.pub_of_priv priv in
        let open Asn_grammars in
        ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
          | PK.RSA pub' when pub = pub' -> ()
