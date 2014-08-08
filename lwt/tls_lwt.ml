@@ -238,7 +238,7 @@ and connect_ext ?trace conf addr =
   Unix.connect ?trace conf addr >|= of_t
 
 let accept ?trace certificate =
-  let config = Tls.Config.server ~certificate ()
+  let config = Tls.Config.server ~certificates:(Some certificate, []) ()
   in accept_ext ?trace config
 
 and connect ?trace authenticator addr =
