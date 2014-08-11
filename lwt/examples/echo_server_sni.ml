@@ -39,7 +39,8 @@ let serve_ssl port callback =
       | exn -> yap ~tag "handler: exception" >> fail exn
   in
 
-  yap ~tag ("-> start @ " ^ string_of_int port)
+  let ps = string_of_int port in
+  yap ~tag ("-> start @ " ^ ps ^ " (use `openssl s_client -connect host:" ^ ps ^ " -servername foo` (or -servername bar))")
   >>
   let rec loop () =
     let config = Tls.Config.server ~certificates:(`Multiple [barcert ; foocert]) () in
