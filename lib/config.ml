@@ -3,7 +3,14 @@ open Nocrypto
 open Utils
 open Core
 
-type own_cert = Certificate.certificate list * Rsa.priv
+type certchain = Certificate.certificate list * Rsa.priv
+
+type own_cert = [
+  | `None
+  | `Single of certchain
+  | `Multiple of certchain list
+  | `Multiple_default of certchain * certchain list
+]
 
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
@@ -14,7 +21,7 @@ type config = {
   secure_reneg      : bool ;
   authenticator     : X509.Authenticator.t option ;
   peer_name         : string option ;
-  own_certificates  : own_cert option * own_cert list ;
+  own_certificates  : own_cert ;
 }
 
 module Ciphers = struct
@@ -67,7 +74,7 @@ let default_config = {
   secure_reneg      = true ;
   authenticator     = None ;
   peer_name         = None ;
-  own_certificates  = (None, []) ;
+  own_certificates  = `None ;
 }
 
 let invalid msg = invalid_arg ("Tls.Config: invalid configuration: " ^ msg)
@@ -150,8 +157,10 @@ let validate_server config =
     List.fold_right CertTypeUsageSet.add tylist CertTypeUsageSet.empty
   and certificate_chains =
     match config.own_certificates with
-    | (Some c, cs) -> c :: cs
-    | (None  , cs) -> cs
+    | `Single c                 -> [c]
+    | `Multiple cs              -> cs
+    | `Multiple_default (c, cs) -> c :: cs
+    | `None                     -> []
   in
   let certtypes =
     filter_map ~f:(function
@@ -165,7 +174,10 @@ let validate_server config =
        List.exists (fun (ct, cu) -> ct = t && option true (List.mem u) cu) certtypes)
       typeusage ) || invalid "certificate type or usage does not match" ;
   List.iter validate_certificate_chain certificate_chains ;
-  non_overlapping (snd config.own_certificates)
+  ( match config.own_certificates with
+    | `Multiple cs              -> non_overlapping cs
+    | `Multiple_default (_, cs) -> non_overlapping cs
+    | _                         -> () )
   (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
 
 type client = config
