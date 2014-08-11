@@ -7,17 +7,6 @@ let o f g x = f (g x)
 
 type tracer = Sexplib.Sexp.t -> unit
 
-(* This really belongs just about anywhere else: generic unix name resolution. *)
-let resolve host service =
-  let open Lwt_unix in
-  lwt tcp = getprotobyname "tcp" in
-  match_lwt getaddrinfo host service [AI_PROTOCOL tcp.p_proto] with
-  | []    ->
-      let msg = Printf.sprintf "no address for %s:%s" host service in
-      fail (Invalid_argument msg)
-  | ai::_ -> return ai.ai_addr
-
-
 module Lwt_cs = struct
 
   let naked ~name f fd cs =
@@ -196,9 +185,11 @@ module Unix = struct
     lwt t = server_of_fd conf ?trace fd' in
     return (t, addr)
 
-  let connect ?trace conf (host, port) =
-    lwt addr = resolve host (string_of_int port) in
-    let fd   = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
+  let connect ?trace ?fd conf ~host addr =
+    let fd   = match fd with
+      | None -> Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0)
+      | Some fd -> fd
+    in
     Lwt_unix.connect fd addr >> client_of_fd ?trace conf ~host fd
 
 
@@ -224,16 +215,16 @@ let of_t t =
 let accept_ext ?trace conf fd =
   Unix.accept ?trace conf fd >|= fun (t, peer) -> (of_t t, peer)
 
-and connect_ext ?trace conf addr =
-  Unix.connect ?trace conf addr >|= of_t
+and connect_ext ?trace ?fd conf ~host addr =
+  Unix.connect ?trace ?fd conf ~host addr >|= of_t
 
 let accept ?trace certificate =
   let config = Tls.Config.server ~certificate ()
   in accept_ext ?trace config
 
-and connect ?trace authenticator addr =
+and connect ?trace ?fd authenticator ~host addr =
   let config = Tls.Config.client ~authenticator ()
-  in connect_ext ?trace config addr
+  in connect_ext ?trace ?fd config ~host addr
 
 (*
  * XXX
