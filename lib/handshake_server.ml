@@ -110,61 +110,61 @@ let rec find_wildcard_matching host = function
   | c::_ when wildcard_match host c -> Some c
   | _::xs                           -> find_wildcard_matching host xs
 
-let agreed_cert certs = function
-  | None      -> fst certs
-  | Some host ->
+let agreed_cert certs hostname =
+  let match_host ?default host certs =
      let host = String.lowercase host in
-     let default, xs = certs in
-     match find_matching host xs with
-     | Some x -> Some x
-     | None   -> match find_wildcard_matching host xs with
-                 | Some x -> Some x
-                 | None   -> default
+     match find_matching host certs with
+     | Some x -> return x
+     | None   -> match find_wildcard_matching host certs with
+                 | Some x -> return x
+                 | None   -> match default with
+                             | Some c -> return c
+                             | None   -> fail_handshake
+  in
+  match certs, hostname with
+  | `None                    , _      -> fail_handshake
+  | `Single c                , _      -> return c
+  | `Multiple_default (c, _) , None   -> return c
+  | `Multiple cs             , Some h -> match_host h cs
+  | `Multiple_default (c, cs), Some h -> match_host h cs ~default:c
+  | _                                 -> fail_handshake
 
-let agreed_cipher cert server_supported requested =
-  let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite requested in
-  (* no sensible client would ever propose ciphersuites which require a
-     certificate together with ciphersuites which do not require one *)
-  let tst = Ciphersuite.(o needs_certificate ciphersuite_kex) in
-  if List.for_all tst cciphers then
-    ( match cert with
-      | Some (c::_, _) -> return Certificate.(cert_type c, cert_usage c)
-      | _              -> fail_handshake ) >>= fun (certtype, certusage) ->
-    let type_usage_matches cipher =
-      let cstyp, csusage = Ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher) in
-      certtype = cstyp && option true (List.mem csusage) certusage
-    in
-    let good_ccs = List.filter type_usage_matches cciphers in
-    match first_match good_ccs server_supported with
-    | Some x -> return x
-    | None   -> fail_handshake
-  else if List.exists tst cciphers then
-    fail_handshake
-  else
-    match first_match cciphers server_supported with
-    | Some x -> return x
-    | None   -> fail_handshake
+let agreed_cipher cert requested =
+  let certtype, certusage = Certificate.(cert_type cert, cert_usage cert) in
+  let type_usage_matches cipher =
+    let cstyp, csusage = Ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher) in
+    certtype = cstyp && option true (List.mem csusage) certusage
+  in
+  List.filter type_usage_matches requested
 
 let answer_client_hello_common state reneg ch raw =
   let process_client_hello ch config =
-    let cciphers = ch.ciphersuites
-    and host = hostname ch
-    in
-    let cert = agreed_cert config.own_certificates host in
-    agreed_cipher cert config.ciphers cciphers >|= fun cipher ->
+    let host = hostname ch
+    and cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites
+    and tst = Ciphersuite.(o needs_certificate ciphersuite_kex) in
+    ( if List.for_all tst cciphers then
+        agreed_cert config.own_certificates host >>= fun cert ->
+        match cert with
+        | (c::cs, priv) -> let cciphers = agreed_cipher c cciphers in
+                           return (cciphers, c::cs, Some priv)
+        | _             -> fail_handshake
+      else if List.exists tst cciphers then
+        fail_handshake
+      else
+        return (cciphers, [], None) ) >>= fun (cciphers, chain, priv) ->
+
+    ( match first_match cciphers config.ciphers with
+      | Some x -> return x
+      | None   -> fail_handshake ) >|= fun cipher ->
 
     Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
 
-    let certs, pk = match cert with
-      | Some (cs, pk) -> (cs, Some pk)
-      | None          -> ([], None)
-    in
     { empty_session with
       client_random    = ch.random ;
       client_version   = ch.version ;
       ciphersuite      = cipher ;
-      own_certificate  = certs ;
-      own_private_key  = pk ;
+      own_certificate  = chain ;
+      own_private_key  = priv ;
       own_name         = host }
 
   and server_hello session reneg =
