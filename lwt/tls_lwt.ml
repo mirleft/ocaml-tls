@@ -217,7 +217,6 @@ module Unix = struct
         | `Epoch data   -> `Ok data )
     | `Eof      -> `Error
     | `Error _  -> `Error
-
 end
 
 
@@ -238,7 +237,7 @@ and connect_ext ?trace conf addr =
   Unix.connect ?trace conf addr >|= of_t
 
 let accept ?trace certificate =
-  let config = Tls.Config.server ~certificates:(Some certificate, []) ()
+  let config = Tls.Config.server ~certificates:certificate ()
   in accept_ext ?trace config
 
 and connect ?trace authenticator addr =
