@@ -57,7 +57,7 @@ let start_server () =
       Tls_lwt.rng_init () >>= fun () ->
       cert () >>= fun cert ->
       Tls_lwt.Unix.server_of_fd 
-       (Tls.Config.server ~certificates:(Some cert, []) ()) sock_cl >>= fun s ->
+       (Tls.Config.server ~certificates:(`Single cert) ()) sock_cl >>= fun s ->
       let ic,oc = Tls_lwt.of_t s in
       write oc ("* OK " ^ capability) >>
       wait_cmd sock_cl ic oc
