@@ -237,16 +237,30 @@ and connect ?trace authenticator addr =
 
 (*
  * XXX
- * This is wrong, revisit.
- *
- * Either Rng should be functorized out of Nocrypto and we should use
- * non-blocking system rng (/dev/urandom), or we should satisfy Fortuna's
- * assumptions and keep on reseeding the rng as we go.
- * Plus, this one-time seeding uses non-blocking randomness.
- * ....
+ * Not completely wrong, but a more correct version would piggyback on
+ * Lwt_engine events and fire only then, instead of setting up its own timer.
+ * Needs patching the lwt, though.
  *)
-let rng_init ?(device = "/dev/urandom") () =
+
+let seed fd =
   let buf = Cstruct.create 32 in
-  lwt dev = Lwt_unix.(openfile device [O_RDONLY] 0) in
-  Lwt_cstruct.(complete (read dev) buf) >|= fun () ->
+  Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
     Nocrypto.Rng.reseed buf
+
+let trickle period fd =
+  let buf = Cstruct.create 4 in
+  let _   =
+    Lwt_engine.on_timer (float period) true @@ fun _ ->
+      async @@ fun () ->
+        Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
+          Nocrypto.Rng.Accumulator.add_rr ~source:0 buf
+  in
+  return_unit
+
+let rng_init ?period ?(device = "/dev/urandom") () =
+  lwt dev = Lwt_unix.(openfile device [O_RDONLY] 0) in
+  seed dev
+  >>
+  match period with
+  | None     -> Lwt_unix.close dev
+  | Some sec -> trickle sec dev
