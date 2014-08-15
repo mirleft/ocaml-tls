@@ -45,7 +45,7 @@ Library "tls-lwt"
   FindlibParent   : tls
   Path            : lwt
   Modules         : Tls_lwt, X509_lwt
-  BuildDepends    : x509, tls, lwt.syntax, lwt.unix
+  BuildDepends    : x509, tls, lwt.syntax, lwt.unix, cstruct.lwt
 
 Library "tls-mirage"
   Build          $: flag(mirage)
