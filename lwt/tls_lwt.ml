@@ -257,7 +257,7 @@ let trickle period fd =
   in
   return_unit
 
-let rng_init ?period ?(device = "/dev/urandom") () =
+let rng_init ?(period = Some 10) ?(device = "/dev/urandom") () =
   lwt dev = Lwt_unix.(openfile device [O_RDONLY] 0) in
   seed dev
   >>
