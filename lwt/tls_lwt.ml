@@ -237,22 +237,82 @@ and connect ?trace authenticator addr =
 
 (*
  * XXX
- * This is wrong, revisit.
- *
- * Either Rng should be functorized out of Nocrypto and we should use
- * non-blocking system rng (/dev/urandom), or we should satisfy Fortuna's
- * assumptions and keep on reseeding the rng as we go.
- * Plus, this one-time seeding uses non-blocking randomness.
- * ....
+ * Not completely wrong, but a more correct version would piggyback on
+ * Lwt_engine events and fire only then, instead of setting up its own timer.
+ * Needs patching the lwt, though.
  *)
-let rng_init ?(rng_file = "/dev/urandom") () =
-  let random = Cstruct.create 16 in
-  lwt rng    = Lwt_unix.(openfile rng_file [O_RDONLY] 0) in
-  let rec read off = function
-    | len when len <= 0 -> return_unit
-    | len ->
-        Lwt_bytes.read rng random.Cstruct.buffer off len
-        >>= fun n -> read (off + n) (len - n)
+
+let seed fd =
+  let buf = Cstruct.create 32 in
+  Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
+    Nocrypto.Rng.reseed buf
+
+let trickle period fd =
+  let buf = Cstruct.create 4 in
+  let _   =
+    Lwt_engine.on_timer (float period) true @@ fun _ ->
+      async @@ fun () ->
+        Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
+          Nocrypto.Rng.Accumulator.add_rr ~source:0 buf
   in
-  read random.Cstruct.off random.Cstruct.len >>
-  ( Nocrypto.Rng.reseed random ; return_unit )
+  return_unit
+
+let rng_init ?(period = Some 10) ?(device = "/dev/urandom") () =
+  lwt dev = Lwt_unix.(openfile device [O_RDONLY] 0) in
+  seed dev
+  >>
+  match period with
+  | None     -> Lwt_unix.close dev
+  | Some sec -> trickle sec dev
+
+
+(*
+ * XXX
+ *
+ * A sketch of what the real thing is supposed to look like. Not exported.
+ *
+ * Would much rather have hook-all-events support in Lwt_engine than have to
+ * wrap an engine like this. Plus, breaks on engine swap and is generally
+ * fragile.
+ *)
+
+class hooked_engine (e : Lwt_engine.t) f = object
+  method destroy = e#destroy
+  method transfer x = e#transfer x
+  method iter b = e#iter b
+  method on_readable fd h = e#on_readable fd (fun x -> f(); h x)
+  method on_writable fd h = e#on_writable fd (fun x -> f(); h x)
+  method on_timer a b h = e#on_timer a b (fun x -> f(); h x)
+  method fake_io fd = e#fake_io fd
+  method readable_count = e#readable_count
+  method writable_count = e#writable_count
+  method timer_count    = e#timer_count
+end
+
+let throttled ~period ~engine (f : 'a -> unit) =
+  let silent = ref false in fun a ->
+    if not !silent then begin
+      silent := true ;
+      engine#on_timer period false (fun _ -> silent := false);
+      f a
+    end
+
+let try_reseed ~period ~engine fd =
+  let buf = Cstruct.create 4 in
+  throttled ~period ~engine @@ fun () ->
+    async @@ fun () ->
+      Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
+        Nocrypto.Rng.Accumulator.add_rr ~source:0 buf
+
+let rng_init_exp ?(period = Some 10) ?(device = "/dev/urandom") () =
+  lwt dev = Lwt_unix.(openfile device [O_RDONLY] 0) in
+  seed dev
+  >>
+  match period with
+  | None     -> Lwt_unix.close dev
+  | Some sec ->
+      let d  = float sec in
+      let e  = Lwt_engine.get () in
+      let e' = new hooked_engine e (try_reseed ~period:d ~engine:e dev) in
+      Lwt_engine.set ~transfer:false ~destroy:false e' ;
+      return_unit

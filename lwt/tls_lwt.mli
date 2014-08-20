@@ -45,4 +45,4 @@ val connect :
 
 val of_t : Unix.t -> ic * oc
 
-val rng_init : ?rng_file:string -> unit -> unit Lwt.t
+val rng_init : ?period:int option -> ?device:string -> unit -> unit Lwt.t
