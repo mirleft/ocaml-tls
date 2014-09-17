@@ -75,7 +75,9 @@ let validate_common config =
     | _                                                 ->
        () ) ;
   if not (List_set.is_proper_set config.ciphers) then
-    invalid "set of ciphers is not a proper set"
+    invalid "set of ciphers is not a proper set" ;
+  if List.length config.ciphers = 0 then
+    invalid "set of ciphers is empty"
 
 let validate_client config = ()
 
