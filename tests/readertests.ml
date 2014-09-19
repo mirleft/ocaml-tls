@@ -1235,10 +1235,10 @@ let good_client_hellos =
 
           (* signature algorithm *)
           ([1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 13; 0; 2; 0; 0] , { ch with extensions = [SignatureAlgorithms []] } ) ;
-          ([1; 0; 0; 48; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 8; 0; 13; 0; 4; 0; 2; 0; 0] , { ch with extensions = [SignatureAlgorithms [(Packet.NULL, Packet.ANONYMOUS)]] } ) ;
-          ([1; 0; 0; 50; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 10; 0; 13; 0; 6; 0; 4; 0; 0; 1; 1] , { ch with extensions = [SignatureAlgorithms [(Packet.NULL, Packet.ANONYMOUS); (Packet.MD5, Packet.RSA)]] } ) ;
+          ([1; 0; 0; 48; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 8; 0; 13; 0; 4; 0; 2; 1; 0] , { ch with extensions = [SignatureAlgorithms [(`MD5, Packet.ANONYMOUS)]] } ) ;
+          ([1; 0; 0; 50; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 10; 0; 13; 0; 6; 0; 4; 2; 0; 1; 1] , { ch with extensions = [SignatureAlgorithms [(`SHA1, Packet.ANONYMOUS); (`MD5, Packet.RSA)]] } ) ;
           (* unknown one *)
-          ([1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 13; 0; 8; 0; 6; 42; 42; 0; 0; 1; 1] , { ch with extensions = [SignatureAlgorithms [(Packet.NULL, Packet.ANONYMOUS); (Packet.MD5, Packet.RSA)]] } ) ;
+          ([1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 13; 0; 8; 0; 6; 42; 42; 1; 0; 1; 1] , { ch with extensions = [SignatureAlgorithms [(`MD5, Packet.ANONYMOUS); (`MD5, Packet.RSA)]] } ) ;
 
           (* combinations from the real world *)
           ([0x01; (* hello *)
@@ -1301,21 +1301,21 @@ let good_client_hellos =
               extensions = [ECPointFormats Packet.([UNCOMPRESSED; ANSIX962_COMPRESSED_PRIME; ANSIX962_COMPRESSED_CHAR2]);
                             EllipticCurves Packet.([SECT571R1; SECT571K1; SECP521R1; SECT409K1; SECT409R1; SECP384R1; SECT283K1; SECT283R1; SECP256K1; SECP256R1; SECT239K1; SECT233K1; SECT233R1; SECP224K1; SECP224R1; SECT193R1; SECT193R2; SECP192K1; SECP192R1; SECT163K1; SECT163R1; SECT163R2; SECP160K1; SECP160R1; SECP160R2]);
                             SignatureAlgorithms
-                              [(Packet.SHA512, Packet.RSA) ;
-                               (Packet.SHA512, Packet.DSA) ;
-                               (Packet.SHA512, Packet.ECDSA) ;
-                               (Packet.SHA384, Packet.RSA) ;
-                               (Packet.SHA384, Packet.DSA) ;
-                               (Packet.SHA384, Packet.ECDSA) ;
-                               (Packet.SHA256, Packet.RSA) ;
-                               (Packet.SHA256, Packet.DSA) ;
-                               (Packet.SHA256, Packet.ECDSA) ;
-                               (Packet.SHA224, Packet.RSA) ;
-                               (Packet.SHA224, Packet.DSA) ;
-                               (Packet.SHA224, Packet.ECDSA) ;
-                               (Packet.SHA, Packet.RSA) ;
-                               (Packet.SHA, Packet.DSA) ;
-                               (Packet.SHA, Packet.ECDSA)] ;
+                              [(`SHA512, Packet.RSA) ;
+                               (`SHA512, Packet.DSA) ;
+                               (`SHA512, Packet.ECDSA) ;
+                               (`SHA384, Packet.RSA) ;
+                               (`SHA384, Packet.DSA) ;
+                               (`SHA384, Packet.ECDSA) ;
+                               (`SHA256, Packet.RSA) ;
+                               (`SHA256, Packet.DSA) ;
+                               (`SHA256, Packet.ECDSA) ;
+                               (`SHA224, Packet.RSA) ;
+                               (`SHA224, Packet.DSA) ;
+                               (`SHA224, Packet.ECDSA) ;
+                               (`SHA1, Packet.RSA) ;
+                               (`SHA1, Packet.DSA) ;
+                               (`SHA1, Packet.ECDSA)] ;
                             Padding 203] } );
 
 
@@ -1338,11 +1338,11 @@ let good_client_hellos =
                       extensions = [ SecureRenegotiation (Cstruct.create 0) ;
                                      Hostname (Some "127.0.0.1") ;
                                      SignatureAlgorithms
-                                       [(Packet.SHA512, Packet.RSA) ;
-                                        (Packet.SHA384, Packet.RSA) ;
-                                        (Packet.SHA256, Packet.RSA) ;
-                                        (Packet.SHA, Packet.RSA) ;
-                                        (Packet.MD5, Packet.RSA)] ]
+                                       [(`SHA512, Packet.RSA) ;
+                                        (`SHA384, Packet.RSA) ;
+                                        (`SHA256, Packet.RSA) ;
+                                        (`SHA1, Packet.RSA) ;
+                                        (`MD5, Packet.RSA)] ]
             }
           )
 ])
