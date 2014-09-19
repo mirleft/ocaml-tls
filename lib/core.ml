@@ -69,6 +69,12 @@ type tls_hdr = {
   version      : tls_any_version;
 } with sexp
 
+(* TODO temporary forward declaration (of Nocrypto.Hash.hash) for sexp serialization *)
+type hash =
+  [ `MD5 | `SHA1 | `SHA224 | `SHA256 | `SHA384 | `SHA512 ]
+  with sexp
+
+
 type extension =
   | Hostname of string option
   | MaxFragmentLength of max_fragment_length
