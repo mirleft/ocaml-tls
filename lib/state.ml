@@ -23,7 +23,7 @@ type cipher_st =
 type crypto_context = {
   sequence  : int64 ; (* sequence number *)
   cipher_st : cipher_st ; (* cipher state *)
-  mac       : Crypto.hash_fn * Cstruct.t (* hmac state *)
+  mac       : Hash.mac * Cstruct.t (* hmac state *)
 }
 
 (* Sexplib stubs -- rethink how to play with crypto. *)

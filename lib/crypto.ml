@@ -97,7 +97,8 @@ let mac (hash, secret) seq ty (v_major, v_minor) data =
   set_uint8 prefix 10 v_minor;
   BE.set_uint16 prefix 11 len;
 
-  let module H = (val hash : Hash.T_MAC) in
+  let hashm = Ciphers.get_mac hash in
+  let module H = (val hashm : Hash.T_MAC) in
   H.hmac ~key:secret (prefix <+> data)
 
 let cbc_block (type a) cipher =
