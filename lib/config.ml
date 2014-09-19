@@ -52,7 +52,7 @@ let min_dh_size = 512
 let min_rsa_key_size = 1024
 
 let default_config = {
-  ciphers           = Ciphers.pfs ;
+  ciphers           = Ciphers.supported ;
   protocol_versions = (TLS_1_0, TLS_1_2) ;
   hashes            = supported_hashes ;
   use_reneg         = true ;
