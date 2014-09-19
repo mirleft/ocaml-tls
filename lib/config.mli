@@ -9,7 +9,7 @@ type own_cert = Certificate.certificate list * Nocrypto.Rsa.priv
 type config = private {
   ciphers           : Ciphersuite.ciphersuite list ; (** ordered list (regarding preference) of supported cipher suites *)
   protocol_versions : tls_version * tls_version ; (** supported protocol versions (min, max) *)
-  hashes            : Packet.hash_algorithm list ; (** ordered list of supported hash algorithms (regarding preference) *)
+  hashes            : hash list ; (** ordered list of supported hash algorithms (regarding preference) *)
   use_reneg         : bool ; (** endpoint should accept renegotiation requests *)
   secure_reneg      : bool ; (** other end must use secure renegotiation (RFC 5746) *)
   authenticator     : X509.Authenticator.t option ; (** optional X509 authenticator *)
@@ -34,7 +34,7 @@ module Ciphers : sig
 end
 
 (** [supported_hashes] is a list of supported hash algorithms by this library *)
-val supported_hashes  : Packet.hash_algorithm list
+val supported_hashes  : hash list
 
 (** [min_dh_size] is minimal diffie hellman group size in bits (currently 512) *)
 val min_dh_size : int
@@ -62,7 +62,7 @@ val of_server : server -> config
 val client :
   ?ciphers       : Ciphersuite.ciphersuite list ->
   ?version       : tls_version * tls_version ->
-  ?hashes        : Packet.hash_algorithm list ->
+  ?hashes        : hash list ->
   ?reneg         : bool ->
   ?authenticator : X509.Authenticator.t ->
   ?secure_reneg  : bool ->
@@ -73,7 +73,7 @@ val client :
 val server :
   ?ciphers      : Ciphersuite.ciphersuite list ->
   ?version      : tls_version * tls_version ->
-  ?hashes       : Packet.hash_algorithm list ->
+  ?hashes       : hash list ->
   ?reneg        : bool ->
   ?certificate  : own_cert ->
   ?secure_reneg : bool ->

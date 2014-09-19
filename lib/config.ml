@@ -7,7 +7,7 @@ type own_cert = Certificate.certificate list * Nocrypto.Rsa.priv
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
   protocol_versions : tls_version * tls_version ;
-  hashes            : Packet.hash_algorithm list ;
+  hashes            : hash list ;
   (* signatures        : Packet.signature_algorithm_type list ; *)
   use_reneg         : bool ;
   secure_reneg      : bool ;
@@ -45,7 +45,7 @@ module Ciphers = struct
 end
 
 let supported_hashes =
-  Packet.([ SHA512 ; SHA384 ; SHA256 ; SHA ; MD5 ])
+  [ `SHA512 ; `SHA384 ; `SHA256 ; `SHA1 ; `MD5 ]
 
 let min_dh_size = 512
 
@@ -176,7 +176,7 @@ let sexp_of_config c =
   Sexp_ext.record [
     "ciphers"        , Conv.sexp_of_list sexp_of_ciphersuite c.ciphers ;
     "version"        , sexp_of_version c.protocol_versions ;
-    "hashes"         , Conv.sexp_of_list Packet.sexp_of_hash_algorithm c.hashes ;
+    "hashes"         , Conv.sexp_of_list sexp_of_hash c.hashes ;
     "use_reneg"      , Conv.sexp_of_bool c.use_reneg ;
     "secure_reneg"   , Conv.sexp_of_bool c.secure_reneg ;
     "authenticator"  , sexp_of_authenticator_o c.authenticator ;
