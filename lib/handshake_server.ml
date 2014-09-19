@@ -151,7 +151,7 @@ let answer_client_hello_common state session reneg ch raw =
           (* if no signature_algorithms extension is sent by the client,
              support for md5 and sha1 can be safely assumed! *)
         ( match sig_algs with
-          | None    -> return Packet.SHA
+          | None              -> return `SHA1
           | Some client_algos ->
               let client_hashes =
                 List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) client_algos)
@@ -159,11 +159,10 @@ let answer_client_hello_common state session reneg ch raw =
               match first_match client_hashes config.hashes with
               | None      -> fail_handshake
               | Some hash -> return hash )
-          >>= fun hash ->
-            match Crypto.pkcs1_digest_info_to_cstruct hash data with
-            | None         -> fail_handshake
-            | Some to_sign ->
-                sign to_sign >|= Writer.assemble_digitally_signed_1_2 hash Packet.RSA
+          >>= fun hash_algo ->
+            let hash = Crypto.hash hash_algo data in
+            let cs = Asn_grammars.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
+            sign cs >|= Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA
     in
 
     private_key session >>= signature >|= fun sgn ->

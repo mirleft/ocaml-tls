@@ -218,7 +218,7 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
        ( match parse_digitally_signed_1_2 data with
          | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
             let compare_hashes should data =
-              match Crypto.pkcs1_digest_info_of_cstruct should with
+              match Asn_grammars.pkcs1_digest_info_of_cstruct should with
               | Some (hash_algo', target) when hash_algo = hash_algo' ->
                  ( match Crypto.hash_eq hash_algo ~target data with
                    | true  -> return ()

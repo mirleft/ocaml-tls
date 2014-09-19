@@ -100,23 +100,6 @@ let mac (hash, secret) seq ty (v_major, v_minor) data =
   let module H = (val hash : Hash.T_MAC) in
   H.hmac ~key:secret (prefix <+> data)
 
-(* XXX Make these two go away by controling the number of ways to represent the
- * hash algorithm... *)
-
-let pkcs1_digest_info_of_cstruct cs =
-  match Asn_grammars.pkcs1_digest_info_of_cstruct cs with
-  | None -> None
-  | Some (asn_algo, digest) ->
-      match hash_algorithm_of_tag asn_algo with
-      | Some hash -> Some (hash, digest)
-      | None      -> None
-
-and pkcs1_digest_info_to_cstruct hashalgo data =
-  let signature = hash hashalgo data in
-  match tag_of_hash_algorithm hashalgo with
-  | Some x -> Some (Asn_grammars.pkcs1_digest_info_to_cstruct (x, signature))
-  | None   -> None
-
 let cbc_block (type a) cipher =
   let module C = (val cipher : Cipher_block.T_CBC with type key = a) in C.block_size
 
