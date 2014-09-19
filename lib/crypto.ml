@@ -28,16 +28,25 @@ type hash_fn          = (module Hash.T_MAC)
 
 module Ciphers = struct
 
-  (* XXX partial *)
+  let get_mac = function
+    | `MD5    -> (module Hash.MD5    : Hash.T_MAC)
+    | `SHA1   -> (module Hash.SHA1   : Hash.T_MAC)
+    | `SHA256 -> (module Hash.SHA256 : Hash.T_MAC)
+    | `SHA384 -> (module Hash.SHA384 : Hash.T_MAC)
+    | `SHA512 -> (module Hash.SHA512 : Hash.T_MAC)
+
   let get_hash = function
-    | MD5    -> (module Hash.MD5    : Hash.T_MAC)
-    | SHA    -> (module Hash.SHA1   : Hash.T_MAC)
-(* XXX needs either divorcing hash selection from hmac selection, or a bit of
- * structural subtyping magic as SHA224 has no defined HMAC. (?) *)
-(*     | SHA224 -> (module Hash.SHA224 : Hash.T_MAC) *)
-    | SHA256 -> (module Hash.SHA256 : Hash.T_MAC)
-    | SHA384 -> (module Hash.SHA384 : Hash.T_MAC)
-    | SHA512 -> (module Hash.SHA512 : Hash.T_MAC)
+    | `MD5    -> (module Hash.MD5    : Hash.T)
+    | `SHA1   -> (module Hash.SHA1   : Hash.T)
+    | `SHA224 -> (module Hash.SHA224 : Hash.T)
+    | `SHA256 -> (module Hash.SHA256 : Hash.T)
+    | `SHA384 -> (module Hash.SHA384 : Hash.T)
+    | `SHA512 -> (module Hash.SHA512 : Hash.T)
+
+  let digest_size h =
+    let h' = get_hash h in
+    let module H = (val h' : Hash.T) in H.digest_size
+
 
   type keyed =
     | K_Stream : 'k stream_cipher * 'k -> keyed
@@ -69,7 +78,7 @@ end
 
 let hash hash_ctor cs =
   let hasht = Ciphers.get_hash hash_ctor in
-  let module H = (val hasht : Hash.T_MAC) in
+  let module H = (val hasht : Hash.T) in
   H.digest cs
 
 let hash_eq hash_ctor ~target cs =
@@ -110,10 +119,6 @@ and pkcs1_digest_info_to_cstruct hashalgo data =
 
 let cbc_block (type a) cipher =
   let module C = (val cipher : Cipher_block.T_CBC with type key = a) in C.block_size
-
-let digest_size h =
-  let module H = (val h : Hash.T_MAC) in H.digest_size
-
 
 let encrypt_stream (type a) ~cipher ~key data =
   let module C = (val cipher : Cipher_stream.T with type key = a) in
