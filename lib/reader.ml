@@ -217,7 +217,11 @@ let parse_ec_point_format buf =
 
 let parse_hash_sig buf =
   let parsef buf =
-    match int_to_hash_algorithm (get_uint8 buf 0),
+    let hash_tag = function
+      | None -> None
+      | Some h -> hash_tag_of_hash_algorithm h
+    in
+    match hash_tag (int_to_hash_algorithm (get_uint8 buf 0)),
           int_to_signature_algorithm_type (get_uint8 buf 1)
     with
     | Some h, Some s -> (Some (h, s), shift buf 2)
@@ -357,8 +361,12 @@ let parse_digitally_signed_1_2 = catch @@ fun buf ->
   let hash = get_uint8 buf 0 in
   (* signature algorithm *)
   let sign = get_uint8 buf 1 in
+  let hash_tag = function
+    | None -> None
+    | Some h -> hash_tag_of_hash_algorithm h
+  in
   (* XXX project packet-level algorithm_type into something from Ciphersuite. *)
-  match int_to_hash_algorithm hash,
+  match hash_tag (int_to_hash_algorithm hash),
         int_to_signature_algorithm_type sign with
   | Some hash', Some sign' ->
      let signature = parse_digitally_signed_exn (shift buf 2) in

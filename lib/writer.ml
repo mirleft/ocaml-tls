@@ -99,7 +99,7 @@ let assemble_hostnames hosts =
 
 let assemble_hash_signature (h, s) =
   let buf = create 2 in
-  set_uint8 buf 0 (hash_algorithm_to_int h);
+  set_uint8 buf 0 (hash_algorithm_to_int (hash_algorithm_of_tag h));
   set_uint8 buf 1 (signature_algorithm_type_to_int s);
   buf
 

@@ -82,7 +82,7 @@ type extension =
   | ECPointFormats of ec_point_format list
   | SecureRenegotiation of Cstruct_s.t
   | Padding of int
-  | SignatureAlgorithms of (hash_algorithm * signature_algorithm_type) list
+  | SignatureAlgorithms of (hash * signature_algorithm_type) list
   | UnknownExtension of (int * Cstruct_s.t)
   with sexp
 
