@@ -24,16 +24,8 @@ let dh_shared group secret public =
 
 type 'k stream_cipher = (module Cipher_stream.T    with type key = 'k)
 type 'k cbc_cipher    = (module Cipher_block.T_CBC with type key = 'k)
-type hash_fn          = (module Hash.T_MAC)
 
 module Ciphers = struct
-
-  let get_mac = function
-    | `MD5    -> (module Hash.MD5    : Hash.T_MAC)
-    | `SHA1   -> (module Hash.SHA1   : Hash.T_MAC)
-    | `SHA256 -> (module Hash.SHA256 : Hash.T_MAC)
-    | `SHA384 -> (module Hash.SHA384 : Hash.T_MAC)
-    | `SHA512 -> (module Hash.SHA512 : Hash.T_MAC)
 
   let get_hash = function
     | `MD5    -> (module Hash.MD5    : Hash.T)
@@ -76,16 +68,13 @@ module Ciphers = struct
                 CBC.of_secret secret )
 end
 
-let hash hash_ctor cs =
-  let hasht = Ciphers.get_hash hash_ctor in
-  let module H = (val hasht : Hash.T) in
-  H.digest cs
+let hash = Hash.digest
 
 let hash_eq hash_ctor ~target cs =
   Utils.Cs.equal target (hash hash_ctor cs)
 
 (* MAC used in TLS *)
-let mac (hash, secret) seq ty (v_major, v_minor) data =
+let mac (hash, key) seq ty (v_major, v_minor) data =
   let open Cstruct in
 
   let prefix = create 13
@@ -97,9 +86,7 @@ let mac (hash, secret) seq ty (v_major, v_minor) data =
   set_uint8 prefix 10 v_minor;
   BE.set_uint16 prefix 11 len;
 
-  let hashm = Ciphers.get_mac hash in
-  let module H = (val hashm : Hash.T_MAC) in
-  H.hmac ~key:secret (prefix <+> data)
+  Hash.mac hash ~key (prefix <+> data)
 
 let cbc_block (type a) cipher =
   let module C = (val cipher : Cipher_block.T_CBC with type key = a) in C.block_size
