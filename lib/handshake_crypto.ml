@@ -74,7 +74,7 @@ let initialise_crypto_ctx version session premaster =
   let key_len, iv_len = ciphersuite_cipher_mac_length cipher in
 
   let mac_algo = ciphersuite_mac cipher in
-  let mac_len = Crypto.Ciphers.digest_size (ciphersuite_mac cipher) in
+  let mac_len = Hash.digest_size (ciphersuite_mac cipher) in
 
   let kblen = match version with
     | TLS_1_0           -> 2 * key_len + 2 * mac_len + 2 * iv_len

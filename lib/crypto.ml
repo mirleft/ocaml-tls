@@ -27,8 +27,6 @@ type 'k cbc_cipher    = (module Cipher_block.T_CBC with type key = 'k)
 
 module Ciphers = struct
 
-  let digest_size = Hash.digest_size
-
   type keyed =
     | K_Stream : 'k stream_cipher * 'k -> keyed
     | K_CBC    : 'k cbc_cipher    * 'k -> keyed
@@ -57,10 +55,8 @@ module Ciphers = struct
                 CBC.of_secret secret )
 end
 
-let hash = Hash.digest
-
-let hash_eq hash_ctor ~target cs =
-  Utils.Cs.equal target (hash hash_ctor cs)
+let digest_eq fn ~target cs =
+  Utils.Cs.equal target (Hash.digest fn cs)
 
 (* MAC used in TLS *)
 let mac (hash, key) seq ty (v_major, v_minor) data =

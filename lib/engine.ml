@@ -84,7 +84,7 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
 
 (* well-behaved pure decryptor *)
 let verify_mac { mac = (hash, _) as mac ; sequence } ty ver decrypted =
-  let macstart = Cstruct.len decrypted - Crypto.Ciphers.digest_size hash in
+  let macstart = Cstruct.len decrypted - Hash.digest_size hash in
   if macstart < 0 then fail Packet.BAD_RECORD_MAC else
     let (body, mmac) = Cstruct.split decrypted macstart in
     let cmac =
