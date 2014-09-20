@@ -1,4 +1,5 @@
 open Sexplib.Conv
+open Nocrypto
 
 open Packet
 open Ciphersuite
@@ -69,12 +70,6 @@ type tls_hdr = {
   version      : tls_any_version;
 } with sexp
 
-(* TODO temporary forward declaration (of Nocrypto.Hash.hash) for sexp serialization *)
-type hash =
-  [ `MD5 | `SHA1 | `SHA224 | `SHA256 | `SHA384 | `SHA512 ]
-  with sexp
-
-
 type extension =
   | Hostname of string option
   | MaxFragmentLength of max_fragment_length
@@ -82,7 +77,7 @@ type extension =
   | ECPointFormats of ec_point_format list
   | SecureRenegotiation of Cstruct_s.t
   | Padding of int
-  | SignatureAlgorithms of (hash * signature_algorithm_type) list
+  | SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
   | UnknownExtension of (int * Cstruct_s.t)
   with sexp
 

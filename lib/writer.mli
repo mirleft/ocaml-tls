@@ -13,4 +13,4 @@ val assemble_dh_parameters : Core.dh_parameters -> Cstruct.t
 
 val assemble_digitally_signed : Cstruct.t -> Cstruct.t
 
-val assemble_digitally_signed_1_2 : Core.hash -> Packet.signature_algorithm_type -> Cstruct.t -> Cstruct.t
+val assemble_digitally_signed_1_2 : Nocrypto.Hash.hash -> Packet.signature_algorithm_type -> Cstruct.t -> Cstruct.t
