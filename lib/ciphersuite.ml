@@ -48,6 +48,10 @@ type ciphersuite = [
   | `TLS_RSA_WITH_3DES_EDE_CBC_SHA
   | `TLS_RSA_WITH_RC4_128_SHA
   | `TLS_RSA_WITH_RC4_128_MD5
+  | `TLS_DHE_RSA_WITH_AES_256_CCM
+  | `TLS_DHE_RSA_WITH_AES_128_CCM
+  | `TLS_RSA_WITH_AES_256_CCM
+  | `TLS_RSA_WITH_AES_128_CCM
 ]  with sexp
 
 let any_ciphersuite_to_ciphersuite = function
@@ -63,6 +67,10 @@ let any_ciphersuite_to_ciphersuite = function
   | Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA       -> Some `TLS_RSA_WITH_3DES_EDE_CBC_SHA
   | Packet.TLS_RSA_WITH_RC4_128_SHA            -> Some `TLS_RSA_WITH_RC4_128_SHA
   | Packet.TLS_RSA_WITH_RC4_128_MD5            -> Some `TLS_RSA_WITH_RC4_128_MD5
+  | Packet.TLS_RSA_WITH_AES_128_CCM            -> Some `TLS_RSA_WITH_AES_128_CCM
+  | Packet.TLS_RSA_WITH_AES_256_CCM            -> Some `TLS_RSA_WITH_AES_256_CCM
+  | Packet.TLS_DHE_RSA_WITH_AES_128_CCM        -> Some `TLS_DHE_RSA_WITH_AES_128_CCM
+  | Packet.TLS_DHE_RSA_WITH_AES_256_CCM        -> Some `TLS_DHE_RSA_WITH_AES_256_CCM
   | _                                          -> None
 
 let ciphersuite_to_any_ciphersuite = function
@@ -78,6 +86,10 @@ let ciphersuite_to_any_ciphersuite = function
   | `TLS_RSA_WITH_3DES_EDE_CBC_SHA       -> Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA
   | `TLS_RSA_WITH_RC4_128_SHA            -> Packet.TLS_RSA_WITH_RC4_128_SHA
   | `TLS_RSA_WITH_RC4_128_MD5            -> Packet.TLS_RSA_WITH_RC4_128_MD5
+  | `TLS_RSA_WITH_AES_128_CCM            -> Packet.TLS_RSA_WITH_AES_128_CCM
+  | `TLS_RSA_WITH_AES_256_CCM            -> Packet.TLS_RSA_WITH_AES_256_CCM
+  | `TLS_DHE_RSA_WITH_AES_128_CCM        -> Packet.TLS_DHE_RSA_WITH_AES_128_CCM
+  | `TLS_DHE_RSA_WITH_AES_256_CCM        -> Packet.TLS_DHE_RSA_WITH_AES_256_CCM
 
 let ciphersuite_to_string x= Packet.any_ciphersuite_to_string (ciphersuite_to_any_ciphersuite x)
 
@@ -116,8 +128,12 @@ let ciphersuite_pfs cs =
   | RSA     -> false
 
 let ciphersuite_tls12_only = function
-  | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 -> true
-  | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 -> true
-  | `TLS_RSA_WITH_AES_256_CBC_SHA256     -> true
-  | `TLS_RSA_WITH_AES_128_CBC_SHA256     -> true
+  | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+  | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
+  | `TLS_RSA_WITH_AES_256_CBC_SHA256
+  | `TLS_RSA_WITH_AES_128_CBC_SHA256
+  | `TLS_RSA_WITH_AES_128_CCM
+  | `TLS_RSA_WITH_AES_256_CCM
+  | `TLS_DHE_RSA_WITH_AES_128_CCM
+  | `TLS_DHE_RSA_WITH_AES_256_CCM        -> true
   | _                                    -> false
