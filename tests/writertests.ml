@@ -225,9 +225,9 @@ let ds_1_2_assembler_tests =
   let le2 = list_to_cstruct [ 0; 32 ] in
   let emp, empl = (list_to_cstruct [], list_to_cstruct [0; 0]) in
   [
-    ( Packet.NULL, Packet.RSA, a , list_to_cstruct [0; 1] <+> le <+> a ) ;
-    ( Packet.MD5, Packet.DSA, a <+> a , list_to_cstruct [1 ; 2] <+> le2 <+> a <+> a ) ;
-    ( Packet.SHA, Packet.ECDSA, emp , list_to_cstruct [2; 3] <+> empl )
+    ( `MD5, Packet.RSA, a , list_to_cstruct [1; 1] <+> le <+> a ) ;
+    ( `SHA1, Packet.DSA, a <+> a , list_to_cstruct [2; 2] <+> le2 <+> a <+> a ) ;
+    ( `SHA256, Packet.ECDSA, emp , list_to_cstruct [4; 3] <+> empl )
   ]
 
 let ds_1_2_tests =
@@ -315,21 +315,21 @@ let handshake_assembler_tests =
                    ciphersuites = Packet.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
                    extensions = [
                             SignatureAlgorithms
-                              [(Packet.SHA512, Packet.RSA) ;
-                               (Packet.SHA512, Packet.DSA) ;
-                               (Packet.SHA512, Packet.ECDSA) ;
-                               (Packet.SHA384, Packet.RSA) ;
-                               (Packet.SHA384, Packet.DSA) ;
-                               (Packet.SHA384, Packet.ECDSA) ;
-                               (Packet.SHA256, Packet.RSA) ;
-                               (Packet.SHA256, Packet.DSA) ;
-                               (Packet.SHA256, Packet.ECDSA) ;
-                               (Packet.SHA224, Packet.RSA) ;
-                               (Packet.SHA224, Packet.DSA) ;
-                               (Packet.SHA224, Packet.ECDSA) ;
-                               (Packet.SHA, Packet.RSA) ;
-                               (Packet.SHA, Packet.DSA) ;
-                               (Packet.SHA, Packet.ECDSA)] ] },
+                              [(`SHA512, Packet.RSA) ;
+                               (`SHA512, Packet.DSA) ;
+                               (`SHA512, Packet.ECDSA) ;
+                               (`SHA384, Packet.RSA) ;
+                               (`SHA384, Packet.DSA) ;
+                               (`SHA384, Packet.ECDSA) ;
+                               (`SHA256, Packet.RSA) ;
+                               (`SHA256, Packet.DSA) ;
+                               (`SHA256, Packet.ECDSA) ;
+                               (`SHA224, Packet.RSA) ;
+                               (`SHA224, Packet.DSA) ;
+                               (`SHA224, Packet.ECDSA) ;
+                               (`SHA1, Packet.RSA) ;
+                               (`SHA1, Packet.DSA) ;
+                               (`SHA1, Packet.ECDSA)] ] },
      [ 1; 0; 0; 85; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ; 0; 0x24 ;
 
               0x00; 0x0d; 0x00; 0x20; (* signature algorithms *)

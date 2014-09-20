@@ -22,4 +22,4 @@ val parse_change_cipher_spec   : Cstruct.t -> unit or_error
 
 val parse_dh_parameters        : Cstruct.t -> (Core.dh_parameters * Cstruct.t * Cstruct.t) or_error
 val parse_digitally_signed     : Cstruct.t -> Cstruct.t or_error
-val parse_digitally_signed_1_2 : Cstruct.t -> (Packet.hash_algorithm * Packet.signature_algorithm_type * Cstruct.t) or_error
+val parse_digitally_signed_1_2 : Cstruct.t -> (Core.hash * Packet.signature_algorithm_type * Cstruct.t) or_error

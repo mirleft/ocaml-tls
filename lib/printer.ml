@@ -21,8 +21,17 @@ let header_to_string (header : tls_hdr) =
 let certificate_request_to_string cr =
   "FOOO"
 
+let hash_to_string = function
+  | `MD5    -> "MD5"
+  | `SHA1   -> "SHA1"
+  | `SHA224 -> "SHA224"
+  | `SHA256 -> "SHA256"
+  | `SHA384 -> "SHA384"
+  | `SHA512 -> "SHA512"
+
+
 let hash_sig_to_string (h, s) =
-  hash_algorithm_to_string h ^ " with " ^ signature_algorithm_type_to_string s
+  hash_to_string h ^ " with " ^ signature_algorithm_type_to_string s
 
 let extension_to_string = function
   | Hostname host -> "Hostname: " ^ (match host with

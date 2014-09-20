@@ -261,7 +261,7 @@ let rw_ds_1_2_params =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let emp = list_to_cstruct [] in
   let cs = [ a ; a <+> a ; emp ; emp <+> a ] in
-  let hashes = Packet.([ NULL ; MD5 ; SHA ; SHA224 ; SHA256 ; SHA384 ; SHA512 ]) in
+  let hashes = [ `MD5 ; `SHA1 ; `SHA224 ; `SHA256 ; `SHA384 ; `SHA512 ] in
   let sign = Packet.([ ANONYMOUS ; RSA ; DSA ; ECDSA ]) in
   let h_s = cartesian_product (fun h s -> (h, s)) hashes sign in
   cartesian_product (fun (h, s) c -> (h, s, c)) h_s cs
@@ -380,7 +380,7 @@ let rw_handshake_client_hello_vals =
                              Hostname (Some "foobarblubb") ;
                              EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
                              ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             SignatureAlgorithms [(Packet.NULL, Packet.ANONYMOUS); (Packet.MD5, Packet.RSA)]
+                             SignatureAlgorithms [(`MD5, Packet.RSA)]
                            ] } ;
 
           ClientHello { ch with
@@ -395,7 +395,7 @@ let rw_handshake_client_hello_vals =
                              Hostname (Some "foobarblubb") ;
                              EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
                              ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             SignatureAlgorithms [(Packet.NULL, Packet.ANONYMOUS); (Packet.MD5, Packet.RSA)]
+                             SignatureAlgorithms [(`SHA1, Packet.ANONYMOUS); (`MD5, Packet.RSA)]
                       ] } ;
 
           ClientHello { ch with
@@ -405,7 +405,7 @@ let rw_handshake_client_hello_vals =
                              Hostname (Some "foobarblubb") ;
                              EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
                              ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             SignatureAlgorithms [(Packet.NULL, Packet.ANONYMOUS); (Packet.MD5, Packet.RSA)] ;
+                             SignatureAlgorithms [(`MD5, Packet.ANONYMOUS); (`SHA1, Packet.RSA)] ;
                              SecureRenegotiation random
                       ] } ;
 
