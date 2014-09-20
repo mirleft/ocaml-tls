@@ -16,7 +16,7 @@ type config = private {
   authenticator     : X509.Authenticator.t option ; (** optional X509 authenticator *)
   peer_name         : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
   own_certificate   : own_cert option ; (** optional certificate chain *)
-}
+} with sexp
 
 module Ciphers : sig
 
@@ -79,7 +79,3 @@ val server :
   ?certificate  : own_cert ->
   ?secure_reneg : bool ->
   unit -> server
-
-open Sexplib
-val sexp_of_config : config -> Sexp.t
-val config_of_sexp : Sexp.t -> config
