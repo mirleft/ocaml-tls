@@ -27,18 +27,7 @@ type 'k cbc_cipher    = (module Cipher_block.T_CBC with type key = 'k)
 
 module Ciphers = struct
 
-  let get_hash = function
-    | `MD5    -> (module Hash.MD5    : Hash.T)
-    | `SHA1   -> (module Hash.SHA1   : Hash.T)
-    | `SHA224 -> (module Hash.SHA224 : Hash.T)
-    | `SHA256 -> (module Hash.SHA256 : Hash.T)
-    | `SHA384 -> (module Hash.SHA384 : Hash.T)
-    | `SHA512 -> (module Hash.SHA512 : Hash.T)
-
-  let digest_size h =
-    let h' = get_hash h in
-    let module H = (val h' : Hash.T) in H.digest_size
-
+  let digest_size = Hash.digest_size
 
   type keyed =
     | K_Stream : 'k stream_cipher * 'k -> keyed
