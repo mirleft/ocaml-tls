@@ -160,7 +160,7 @@ let answer_client_hello_common state session reneg ch raw =
               | None      -> fail_handshake
               | Some hash -> return hash )
           >>= fun hash_algo ->
-            let hash = Crypto.hash hash_algo data in
+            let hash = Hash.digest hash_algo data in
             let cs = Asn_grammars.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
             sign cs >|= Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA
     in

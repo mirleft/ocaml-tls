@@ -220,7 +220,7 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
             let compare_hashes should data =
               match Asn_grammars.pkcs1_digest_info_of_cstruct should with
               | Some (hash_algo', target) when hash_algo = hash_algo' ->
-                 ( match Crypto.hash_eq hash_algo ~target data with
+                 ( match Crypto.digest_eq hash_algo ~target data with
                    | true  -> return ()
                    | false -> fail_handshake )
               | _ -> fail_handshake

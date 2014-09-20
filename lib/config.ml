@@ -1,13 +1,14 @@
-open Utils
+open Nocrypto
 
+open Utils
 open Core
 
-type own_cert = Certificate.certificate list * Nocrypto.Rsa.priv
+type own_cert = Certificate.certificate list * Rsa.priv
 
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
   protocol_versions : tls_version * tls_version ;
-  hashes            : hash list ;
+  hashes            : Hash.hash list ;
   (* signatures        : Packet.signature_algorithm_type list ; *)
   use_reneg         : bool ;
   secure_reneg      : bool ;
@@ -99,7 +100,7 @@ let validate_server config =
            invalid "require a certificate with a different keyusage" ) ;
   ( match config.own_certificate with
     | Some (c::_, priv) ->
-       let pub = Nocrypto.Rsa.pub_of_priv priv in
+       let pub = Rsa.pub_of_priv priv in
        let open Asn_grammars in
        ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
          | PK.RSA pub' when pub = pub' -> ()
@@ -176,7 +177,7 @@ let sexp_of_config c =
   Sexp_ext.record [
     "ciphers"        , Conv.sexp_of_list sexp_of_ciphersuite c.ciphers ;
     "version"        , sexp_of_version c.protocol_versions ;
-    "hashes"         , Conv.sexp_of_list sexp_of_hash c.hashes ;
+    "hashes"         , Conv.sexp_of_list Hash.sexp_of_hash c.hashes ;
     "use_reneg"      , Conv.sexp_of_bool c.use_reneg ;
     "secure_reneg"   , Conv.sexp_of_bool c.secure_reneg ;
     "authenticator"  , sexp_of_authenticator_o c.authenticator ;
