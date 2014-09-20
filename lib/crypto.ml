@@ -1,7 +1,6 @@
 
 open Nocrypto
 open Nocrypto.Uncommon
-open Nocrypto.Hash
 
 open Ciphersuite
 open Packet
