@@ -50,54 +50,64 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
   match st with
   | None     -> (st, buf)
   | Some ctx ->
-      let signature =
-        let ver = pair_of_tls_version version in
-        Crypto.mac ctx.mac ctx.sequence ty ver buf in
-
-      let to_encrypt = buf <+> signature in
-
-      let (st', enc) =
+      let seq = ctx.sequence in
+      let ver = pair_of_tls_version version in
+      let signature mac mac_k =
+        Crypto.mac mac mac_k seq ty ver buf
+      in
+      let to_encrypt mac mac_k = buf <+> signature mac mac_k in
+      let c_st, enc =
         match ctx.cipher_st with
+        | Stream s ->
+           let to_encrypt = to_encrypt s.hmac s.hmac_secret in
+           let (message, key') =
+             Crypto.encrypt_stream ~cipher:s.cipher ~key:s.cipher_secret to_encrypt in
+           (Stream { s with cipher_secret = key'}, message)
 
-        | Stream (m, key) ->
-            let (message, key') =
-              Crypto.encrypt_stream ~cipher:m ~key to_encrypt in
-            (Stream (m, key'), message)
+        | CBC c ->
+           let enc iv =
+             let to_encrypt = to_encrypt c.hmac c.hmac_secret in
+             Crypto.encrypt_cbc ~cipher:c.cipher ~key:c.cipher_secret ~iv to_encrypt
+           in
+           ( match c.iv_mode with
+             | Random_iv ->
+                let iv = Rng.generate (Crypto.cbc_block c.cipher) in
+                let m, _ = enc iv in
+                (CBC c, iv <+> m)
+             | Iv iv ->
+                let m, iv' = enc iv in
+                (CBC { c with iv_mode = Iv iv' }, m) )
 
-        | CBC (m, key, Iv iv) ->
-            let (message, iv') =
-              Crypto.encrypt_cbc ~cipher:m ~key ~iv to_encrypt in
-            (CBC (m, key, Iv iv'), message)
-
-        | CBC (m, key, Random_iv) ->
-            let iv = Rng.generate (Crypto.cbc_block m) in
-            let (message, _) =
-              Crypto.encrypt_cbc ~cipher:m ~key ~iv to_encrypt in
-            (CBC (m, key, Random_iv), iv <+> message)
-
+        | CCM c ->
+           let adata =
+             Crypto.auth_header seq ty ver (Cstruct.len buf)
+           in
+           let explicit_nonce = Crypto.sequence_buf seq in
+           let cipher = c.cipher
+           and key = c.cipher_secret
+           and nonce = c.nonce <+> explicit_nonce
+           in
+           let msg =
+             Crypto.encrypt_ccm ~cipher ~key ~nonce ~adata buf
+           in
+           (CCM c, explicit_nonce <+> msg)
       in
-      let ctx' = { ctx with
-                     sequence  = Int64.succ ctx.sequence ;
-                     cipher_st = st' }
-      in
-      (Some ctx', enc)
+      (Some { sequence = Int64.succ seq ; cipher_st = c_st }, enc)
 
 (* well-behaved pure decryptor *)
-let verify_mac { mac = (hash, _) as mac ; sequence } ty ver decrypted =
-  let macstart = Cstruct.len decrypted - Hash.digest_size hash in
+let verify_mac sequence mac mac_k ty ver decrypted =
+  let macstart = Cstruct.len decrypted - Hash.digest_size mac in
   if macstart < 0 then fail Packet.BAD_RECORD_MAC else
     let (body, mmac) = Cstruct.split decrypted macstart in
     let cmac =
       let ver = pair_of_tls_version ver in
-      Crypto.mac mac sequence ty ver body in
+      Crypto.mac mac mac_k sequence ty ver body in
     guard (Cs.equal cmac mmac) Packet.BAD_RECORD_MAC >|= fun () -> body
 
 
 let decrypt (version : tls_version) (st : crypto_state) ty buf =
 
-  let verify ctx (st', dec) =
-    verify_mac ctx ty version dec >>= fun body -> return (st', body)
-
+  let compute_mac seq mac mac_k buf = verify_mac seq mac mac_k ty version buf in
   (* hmac is computed in this failure branch from the encrypted data, in the
      successful branch it is decrypted - padding (which is smaller equal than
      encrypted data) *)
@@ -107,43 +117,62 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
      plaintext length. *)
   (* defense against http://lasecwww.epfl.ch/memo/memo_ssl.shtml 1) in
      https://www.openssl.org/~bodo/tls-cbc.txt *)
-  and mask_decrypt_failure ctx =
-    verify_mac ctx ty version buf >>= fun _ -> fail Packet.BAD_RECORD_MAC
+  let mask_decrypt_failure seq mac mac_k =
+    compute_mac seq mac mac_k buf >>= fun _ -> fail Packet.BAD_RECORD_MAC
   in
 
   let dec ctx =
+    let seq = ctx.sequence in
     match ctx.cipher_st with
 
-    | Stream (m, key) ->
-        let (message, key') = Crypto.decrypt_stream ~cipher:m ~key buf in
-        verify ctx (Stream (m, key'), message)
+    | Stream s ->
+        let (message, key') = Crypto.decrypt_stream ~cipher:s.cipher ~key:s.cipher_secret buf in
+        compute_mac seq s.hmac s.hmac_secret message >|= fun msg ->
+        (Stream { s with cipher_secret = key' }, msg)
 
-    | CBC (m, key, Iv iv) ->
-      ( match Crypto.decrypt_cbc ~cipher:m ~key ~iv buf with
-        | None            -> mask_decrypt_failure ctx
-        | Some (dec, iv') ->
-            let st' = CBC (m, key, Iv iv') in
-            verify ctx (st', dec) )
+    | CBC c ->
+       let dec iv buf =
+         match Crypto.decrypt_cbc ~cipher:c.cipher ~key:c.cipher_secret ~iv buf with
+         | None ->
+            mask_decrypt_failure seq c.hmac c.hmac_secret
+         | Some (dec, iv') ->
+            compute_mac seq c.hmac c.hmac_secret dec >|= fun msg ->
+            (msg, iv')
+       in
+       ( match c.iv_mode with
+         | Iv iv ->
+            dec iv buf >|= fun (msg, iv') ->
+            CBC { c with iv_mode = Iv iv' }, msg
+         | Random_iv ->
+            if Cstruct.len buf < Crypto.cbc_block c.cipher then
+              fail Packet.BAD_RECORD_MAC
+            else
+              let iv, buf = Cstruct.split buf (Crypto.cbc_block c.cipher) in
+              dec iv buf >|= fun (msg, _) ->
+              (CBC c, msg) )
 
-    | CBC (m, key, Random_iv) ->
-        if Cstruct.len buf < Crypto.cbc_block m then
-          fail Packet.BAD_RECORD_MAC
-        else
-          let (iv, buf) = Cstruct.split buf (Crypto.cbc_block m) in
-          match Crypto.decrypt_cbc ~cipher:m ~key ~iv buf with
-            | None          -> mask_decrypt_failure ctx
-            | Some (dec, _) ->
-                let st' = CBC (m, key, Random_iv) in
-                verify ctx (st', dec)
-
+    | CCM c ->
+       (* buf has 8 byte nonce! *)
+       let explicit_nonce, buf = Cstruct.split buf 8 in
+       let adata =
+         let ver = pair_of_tls_version version in
+         (* 16 byte mac *)
+         Crypto.auth_header seq ty ver (Cstruct.len buf - 16)
+       in
+       let cipher = c.cipher
+       and key = c.cipher_secret
+       and nonce = c.nonce <+> explicit_nonce
+       in
+       match Crypto.decrypt_ccm ~cipher ~key ~nonce ~adata buf with
+       | None -> fail Packet.BAD_RECORD_MAC
+       | Some x -> return (CCM c, x)
   in
   match st with
   | None     -> return (st, buf)
   | Some ctx ->
       dec ctx >>= fun (st', msg) ->
-      let ctx' = { ctx with
-                     sequence  = Int64.succ ctx.sequence ;
-                     cipher_st = st' }
+      let ctx' = { sequence  = Int64.succ ctx.sequence ;
+                   cipher_st = st' }
       in
       return (Some ctx', msg)
 
@@ -376,8 +405,8 @@ let send_application_data st css =
      Tracing.css ~tag:"application-data-out" css ;
      let datas = match st.encryptor with
        (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
-       | Some { cipher_st = CBC (_, _, Iv _) } -> Cstruct.create 0 :: css
-       | _                                     -> css
+       | Some { cipher_st = CBC { iv_mode = Iv _ } } -> Cstruct.create 0 :: css
+       | _                                           -> css
      in
      let ty = Packet.APPLICATION_DATA in
      let data = List.map (fun cs -> (ty, cs)) datas in
