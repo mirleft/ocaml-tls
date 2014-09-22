@@ -58,19 +58,24 @@ end
 let digest_eq fn ~target cs =
   Utils.Cs.equal target (Hash.digest fn cs)
 
-(* MAC used in TLS *)
-let mac (hash, key) seq ty (v_major, v_minor) data =
+let sequence_buf seq =
   let open Cstruct in
+  let buf = create 8 in
+  BE.set_uint64 buf 0 seq ;
+  buf
 
-  let prefix = create 13
-  and len = len data in
+let auth_header seq ty (v_major, v_minor) length =
+  let open Cstruct in
+  let prefix = create 5 in
+  set_uint8 prefix 0 (Packet.content_type_to_int ty);
+  set_uint8 prefix 1 v_major;
+  set_uint8 prefix 2 v_minor;
+  BE.set_uint16 prefix 3 length;
+  sequence_buf seq <+> prefix
 
-  BE.set_uint64 prefix 0 seq;
-  set_uint8 prefix 8 (Packet.content_type_to_int ty);
-  set_uint8 prefix 9 v_major;
-  set_uint8 prefix 10 v_minor;
-  BE.set_uint16 prefix 11 len;
-
+(* MAC used in TLS *)
+let mac hash key seq ty v data =
+  let prefix = auth_header seq ty v (Cstruct.len data) in
   Hash.mac hash ~key (prefix <+> data)
 
 let cbc_block (type a) cipher =
