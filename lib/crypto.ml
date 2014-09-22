@@ -21,38 +21,47 @@ let dh_shared group secret public =
   try Some (Dh.shared group secret public)
   with Dh.Invalid_public_key -> None
 
-
-type 'k stream_cipher = (module Cipher_stream.T    with type key = 'k)
-type 'k cbc_cipher    = (module Cipher_block.T.CBC with type key = 'k)
-
 module Ciphers = struct
 
-  type keyed =
-    | K_Stream : 'k stream_cipher * 'k -> keyed
-    | K_CBC    : 'k cbc_cipher    * 'k -> keyed
+  (* I'm not sure how to get rid of this type, but would welcome a solution *)
+  (* only used as result of get_block, which is called by get_cipher below *)
+  type keyed = | K_CBC : 'k State.cbc_cipher * (Cstruct.t -> 'k) -> keyed
 
-  (* XXX partial *)
-  let get_cipher ~secret = function
-
-    | RC4_128 ->
-        let open Cipher_stream in
-        K_Stream ( (module ARC4 : Cipher_stream.T with type key = ARC4.key),
-                   ARC4.of_secret secret )
-
+  let get_block = function
     | TRIPLE_DES_EDE_CBC ->
         let open Cipher_block.DES in
         K_CBC ( (module CBC : Cipher_block.T.CBC with type key = CBC.key),
-                CBC.of_secret secret )
+                CBC.of_secret )
 
     | AES_128_CBC ->
         let open Cipher_block.AES in
         K_CBC ( (module CBC : Cipher_block.T.CBC with type key = CBC.key),
-                CBC.of_secret secret )
+                CBC.of_secret )
 
     | AES_256_CBC ->
         let open Cipher_block.AES in
         K_CBC ( (module CBC : Cipher_block.T.CBC with type key = CBC.key),
-                CBC.of_secret secret )
+                CBC.of_secret )
+
+  let get_cipher ~secret ~hmac_secret ~iv_mode ~nonce = function
+    | Stream (RC4_128, hmac) ->
+        let open Cipher_stream in
+        let cipher = (module ARC4 : Cipher_stream.T with type key = ARC4.key) in
+        let cipher_secret = ARC4.of_secret secret in
+        State.(Stream { cipher ; cipher_secret ; hmac ; hmac_secret })
+
+    | Block (cipher, hmac) ->
+       ( match get_block cipher with
+         | K_CBC (cipher, sec) ->
+            let cipher_secret = sec secret in
+            State.(CBC { cipher ; cipher_secret ; iv_mode ; hmac ; hmac_secret })
+       )
+
+    | AEAD cipher ->
+       let open Cipher_block.AES in
+       let cipher = (module CCM : Cipher_block.T.CCM with type key = CCM.key) in
+       let cipher_secret = CCM.of_secret ~maclen:16 secret in
+       State.(CCM { cipher ; cipher_secret ; nonce })
 end
 
 let digest_eq fn ~target cs =
@@ -123,6 +132,13 @@ let cbc_unpad ~block data =
     if check 0 then Some res else None
   with Invalid_argument _ -> None
 
+let encrypt_ccm (type a) ~cipher ~key ~nonce ~adata data =
+  let module C = (val cipher : Cipher_block.T.CCM with type key = a) in
+  C.encrypt ~key ~nonce ~adata data
+
+let decrypt_ccm (type a) ~cipher ~key ~nonce ~adata data =
+  let module C = (val cipher : Cipher_block.T.CCM with type key = a) in
+  C.decrypt ~key ~nonce ~adata data
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
   let module C = (val cipher : Cipher_block.T.CBC with type key = a) in
