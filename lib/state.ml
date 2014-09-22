@@ -23,7 +23,6 @@ type cipher_st =
 type crypto_context = {
   sequence  : int64 ; (* sequence number *)
   cipher_st : cipher_st ; (* cipher state *)
-  mac       : Hash.hash * Cstruct.t (* hmac state *)
 }
 
 (* Sexplib stubs -- rethink how to play with crypto. *)
@@ -36,8 +35,7 @@ let crypto_context_of_sexp _ = failwith "can't parse crypto context from sexp"
 and sexp_of_crypto_context cc =
   Sexp_ext.record [
     "sequence" , sexp_of_int64 cc.sequence ;
-    "cipher_st", sexp_of_cipher_st cc.cipher_st ;
-    "mac"      , Cstruct_s.sexp_of_t (snd cc.mac)
+    "cipher_st", sexp_of_cipher_st cc.cipher_st
   ]
 
 (* *** *)
