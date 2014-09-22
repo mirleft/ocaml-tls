@@ -7,17 +7,41 @@ open Sexplib.Conv
 open Core
 open Nocrypto
 
+type hmac_key = Cstruct.t
+
+type 'k stream_state = {
+  cipher         : (module Cipher_stream.T    with type key = 'k) ;
+  cipher_secret  : 'k ;
+  hmac           : Hash.hash ;
+  hmac_secret    : hmac_key
+}
+
 (* initialisation vector style, depending on TLS version *)
 type iv_mode =
   | Iv of Cstruct_s.t  (* traditional CBC (reusing last cipherblock) *)
   | Random_iv          (* TLS 1.1 and higher explicit IV (we use random) *)
   with sexp
+type 'k cbc_cipher    = (module Cipher_block.T_CBC with type key = 'k)
+type 'k cbc_state = {
+  cipher         : 'k cbc_cipher ;
+  cipher_secret  : 'k ;
+  iv_mode        : iv_mode ;
+  hmac           : Hash.hash ;
+  hmac_secret    : hmac_key
+}
+
+type nonce = Cstruct.t
+type 'k ccm_state = {
+  cipher         : (module Cipher_block.T_CCM with type key = 'k) ;
+  cipher_secret  : 'k ;
+  nonce          : nonce
+}
 
 (* state of a symmetric cipher *)
 type cipher_st =
-  | Stream : 'k Crypto.stream_cipher * 'k -> cipher_st (* stream cipher state *)
-  | CBC    : 'k Crypto.cbc_cipher * 'k * iv_mode -> cipher_st (* block cipher state *)
-(*   | GCM : ... *)
+  | Stream : 'k stream_state -> cipher_st
+  | CBC    : 'k cbc_state -> cipher_st
+  | CCM    : 'k ccm_state -> cipher_st
 
 (* context of a TLS connection (both in and out has each one of these) *)
 type crypto_context = {
@@ -28,8 +52,9 @@ type crypto_context = {
 (* Sexplib stubs -- rethink how to play with crypto. *)
 
 let sexp_of_cipher_st = function
-  | Stream _        -> Sexp.(Atom "<stream-state>")
-  | CBC (_, _, ivm) -> Sexp.(List [Atom "<cbc-state>"; sexp_of_iv_mode ivm])
+  | Stream _ -> Sexp.(Atom "<stream-state>")
+  | CBC _    -> Sexp.(Atom "<cbc-state>")
+  | CCM _    -> Sexp.(Atom "<ccm-state>")
 
 let crypto_context_of_sexp _ = failwith "can't parse crypto context from sexp"
 and sexp_of_crypto_context cc =
