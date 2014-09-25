@@ -109,6 +109,7 @@ type client_handshake_state =
   | AwaitCertificate_RSA of session_data * hs_log (* certificate expected with RSA key exchange *)
   | AwaitCertificate_DHE_RSA of session_data * hs_log (* certificate expected with DHE_RSA key exchange *)
   | AwaitServerKeyExchange_DHE_RSA of session_data * hs_log (* server key exchange expected with DHE_RSA *)
+  | AwaitCertificateRequestOrServerHelloDone of session_data * Cstruct_s.t * Cstruct_s.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
   | AwaitServerHelloDone of session_data * Cstruct_s.t * Cstruct_s.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
   | AwaitServerChangeCipherSpec of session_data * crypto_context * Cstruct_s.t * hs_log (* change cipher spec expected *)
   | AwaitServerFinished of session_data * Cstruct_s.t * hs_log (* finished expected with a hmac over all handshake packets *)

@@ -188,7 +188,7 @@ let answer_certificate_RSA state session cs raw log =
   let kex = Rsa.PKCS1.encrypt pubkey premaster
   in
 
-  let machina = AwaitServerHelloDone (session, kex, premaster, log @ [raw]) in
+  let machina = AwaitCertificateRequestOrServerHelloDone (session, kex, premaster, log @ [raw]) in
   ({ state with machina = Client machina }, [])
 
 let answer_certificate_DHE_RSA state session cs raw log =
@@ -250,7 +250,7 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
   let secret, kex = Dh.gen_secret group in
   match Crypto.dh_shared group secret shared with
   | None     -> fail Packet.INSUFFICIENT_SECURITY
-  | Some pms -> let machina = AwaitServerHelloDone (session, kex, pms, log @ [raw]) in
+  | Some pms -> let machina = AwaitCertificateRequestOrServerHelloDone (session, kex, pms, log @ [raw]) in
                 return ({ state with machina = Client machina }, [])
 
 let answer_server_hello_done state session kex premaster raw log =
@@ -341,6 +341,10 @@ let handle_handshake cs hs buf =
           answer_certificate_DHE_RSA hs session cs buf log
        | AwaitServerKeyExchange_DHE_RSA (session, log), ServerKeyExchange kex ->
           answer_server_key_exchange_DHE_RSA hs session kex buf log
+       | AwaitCertificateRequestOrServerHelloDone (session, kex, pms, log), CertificateRequest cr ->
+          answer_certificate_request hs session cr kex pms buf log
+       | AwaitCertificateRequestOrServerHelloDone (session, kex, pms, log), ServerHelloDone ->
+          answer_server_hello_done hs session kex pms buf log
        | AwaitServerHelloDone (session, kex, pms, log), ServerHelloDone ->
           answer_server_hello_done hs session kex pms buf log
        | AwaitServerFinished (session, client_verify, log), Finished fin ->
