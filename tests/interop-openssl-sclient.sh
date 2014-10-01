@@ -24,9 +24,10 @@ testit () {
         rm $statfile
     else
         echo "failure with openssl $s_client_args$port $extra_args"
+        exit 1
     fi
     sleep 0.3
-    port=$(echo 1 + $port | bc)
+    port=$(expr $port + 1)
 }
 
 testit
