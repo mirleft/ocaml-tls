@@ -7,11 +7,12 @@ extra_args=""
 statfile="/tmp/test_server.status"
 
 testit () {
-    /bin/sh -c "cd .. && ./test_server.native $port > /dev/null && echo foo > $statfile" &
+    echo "connection on $port"
+    /bin/sh -c "cd .. && ./test_server.native $port && echo foo > $statfile" &
 
-    sleep 0.5
+    sleep 0.3
 
-    echo "GET /" | openssl $s_client_args$port $extra_args 2> /dev/null > /dev/null
+    echo "GET /" | openssl $s_client_args$port $extra_args
 
     if [ -e $statfile ]; then
         result=$(cat $statfile)
