@@ -1,18 +1,17 @@
 #!/bin/sh
 
 port=4455
-s_client_args="s_client -connect 127.0.0.1:"
+s_client_args="s_client -quiet -connect 127.0.0.1:"
 
 extra_args=""
 statfile="/tmp/test_server.status"
 
 testit () {
-    echo "connection on $port"
-    /bin/sh -c "cd .. && ./test_server.native $port && echo foo > $statfile" &
+    /bin/sh -c "cd .. && ./test_server.native $port > /dev/null && echo foo > $statfile" &
 
     sleep 0.3
 
-    echo "GET /" | openssl $s_client_args$port $extra_args
+    echo "GET /" | openssl $s_client_args$port $extra_args 2> /dev/null > /dev/null
 
     sleep 0.3
 

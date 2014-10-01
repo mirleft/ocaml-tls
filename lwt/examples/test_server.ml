@@ -23,7 +23,7 @@ let serve_ssl port callback =
 
   yap ~tag ("-> start @ " ^ string_of_int port)
   >>
-  lwt (channels, addr) = Tls_lwt.accept_ext ~trace:eprint_sexp config server_s in
+  lwt (channels, addr) = Tls_lwt.accept_ext config server_s in
   yap ~tag "-> connect"
   >>
   callback channels addr
