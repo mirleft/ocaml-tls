@@ -26,3 +26,4 @@ ocaml setup.ml -configure --enable-tests --enable-lwt --enable-mirage
 ocaml setup.ml -build
 ocaml setup.ml -test
 cd tests ; ./interop-openssl-sserver.sh
+cd tests ; ./interop-openssl-sclient.sh
