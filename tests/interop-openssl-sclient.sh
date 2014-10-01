@@ -9,7 +9,7 @@ statfile="/tmp/test_server.status"
 testit () {
     /bin/sh -c "cd .. && ./test_server.native $port > /dev/null && echo foo > $statfile" &
 
-    sleep 0.3
+    sleep 0.5
 
     echo "GET /" | openssl $s_client_args$port $extra_args 2> /dev/null > /dev/null
 
@@ -18,7 +18,7 @@ testit () {
         if [ $result = "foo" ]; then
             echo "success with $extra_args"
         else
-            echo "failure with openssl $s_client_args $extra_args"
+            echo "failure with openssl $s_client_args $extra_args (statfile there)"
             exit 1
         fi
         rm $statfile
