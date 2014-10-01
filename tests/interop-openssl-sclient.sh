@@ -14,18 +14,19 @@ testit () {
     echo "GET /" | openssl $s_client_args$port $extra_args 2> /dev/null > /dev/null
 
     if [ -e $statfile ]; then
-        result=`cat $statfile`
+        result=$(cat $statfile)
         if [ $result = "foo" ]; then
             echo "success with $extra_args"
         else
             echo "failure with openssl $s_client_args $extra_args"
+            exit 1
         fi
         rm $statfile
     else
         echo "failure with openssl $s_client_args$port $extra_args"
     fi
     sleep 0.3
-    port=`echo 1 + $port | bc`
+    port=$(echo 1 + $port | bc)
 }
 
 testit

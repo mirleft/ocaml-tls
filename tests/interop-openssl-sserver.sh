@@ -17,6 +17,7 @@ testit () {
         echo "success with $extra_args"
     else
         echo "failure with openssl $s_server_args $extra_args"
+        exit 1
     fi
     cat $pidfile | xargs kill
     rm $pidfile
