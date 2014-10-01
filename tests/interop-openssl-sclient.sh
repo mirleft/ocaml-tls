@@ -1,7 +1,7 @@
 #!/bin/sh
 
 port=4455
-s_client_args="s_client -quiet -connect 127.0.0.1:"
+s_client_args="s_client -connect 127.0.0.1:"
 
 extra_args=""
 statfile="/tmp/test_server.status"
@@ -13,6 +13,8 @@ testit () {
     sleep 0.3
 
     echo "GET /" | openssl $s_client_args$port $extra_args
+
+    sleep 0.3
 
     if [ -e $statfile ]; then
         result=$(cat $statfile)
