@@ -13,7 +13,7 @@ testit () {
 
     ../test_client.native > /dev/null
 
-    if [ $? == 0 ]; then
+    if [ $? -eq 0 ]; then
         echo "success with $extra_args"
     else
         echo "failure with openssl $s_server_args $extra_args"
