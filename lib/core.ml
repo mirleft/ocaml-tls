@@ -151,6 +151,7 @@ type tls_handshake =
   | ServerKeyExchange of Cstruct_s.t
   | CertificateRequest of certificate_request
   | ClientKeyExchange of Cstruct_s.t
+  | CertificateVerify of Cstruct_s.t
   | Finished of Cstruct_s.t
   with sexp
 
