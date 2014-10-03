@@ -350,9 +350,9 @@ let handle_handshake cs hs buf =
        | AwaitCertificateRequestOrServerHelloDone (session, kex, pms, log), CertificateRequest cr ->
           answer_certificate_request hs session cr kex pms buf log
        | AwaitCertificateRequestOrServerHelloDone (session, kex, pms, log), ServerHelloDone ->
-          answer_server_hello_done hs session kex pms buf log
-       | AwaitServerHelloDone (session, kex, pms, log), ServerHelloDone ->
-          answer_server_hello_done hs session kex pms buf log
+          answer_server_hello_done hs session None kex pms buf log
+       | AwaitServerHelloDone (session, sigalgs, kex, pms, log), ServerHelloDone ->
+          answer_server_hello_done hs session sigalgs kex pms buf log
        | AwaitServerFinished (session, client_verify, log), Finished fin ->
           answer_server_finished hs session client_verify fin log
        | Established, HelloRequest ->
