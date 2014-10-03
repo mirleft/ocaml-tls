@@ -259,12 +259,65 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
                 in
                 return ({ state with machina = Client machina }, [])
 
-let answer_server_hello_done state session kex premaster raw log =
+let answer_certificate_request state session cr kex pms raw log =
+  let cfg = state.config in
+  let open Reader in
+  ( match state.protocol_version with
+    | TLS_1_0 | TLS_1_1 ->
+       ( match parse_certificate_request cr with
+         | Or_error.Ok (types, cas) -> return (types, None, cas)
+         | Or_error.Error _ -> fail_handshake )
+    | TLS_1_2 ->
+       ( match Reader.parse_certificate_request_1_2 cr with
+         | Or_error.Ok (types, sigalgs, cas) -> return (types, Some sigalgs, cas)
+         | Or_error.Error _ -> fail_handshake )
+  ) >|= fun (types, sigalgs, cas) ->
+  (* TODO: respect cas, maybe multiple client certificates? *)
+  let own_certificate, own_private_key =
+    match
+      List.mem Packet.RSA_SIGN types,
+      cfg.own_certificates
+    with
+    | true, `Single (chain, priv) -> (chain, Some priv)
+    | _ -> ([], None)
+  in
+  let session = {
+    session with
+      own_certificate ;
+      own_private_key ;
+      client_auth = true
+  } in
+  let machina = AwaitServerHelloDone (session, sigalgs, kex, pms, log @ [raw]) in
+  ({ state with machina = Client machina }, [])
+
+let answer_server_hello_done state session sigalgs kex premaster raw log =
   let kex = ClientKeyExchange kex in
   let ckex = Writer.assemble_handshake kex in
   let client_ctx, server_ctx, master_secret =
     Handshake_crypto.initialise_crypto_ctx state.protocol_version session premaster in
-  let to_fin = log @ [raw; ckex] in
+
+  ( match session.client_auth, session.own_private_key with
+    | true, Some p ->
+       let cert = Certificate (List.map Certificate.cs_of_cert session.own_certificate) in
+       let ccert = Writer.assemble_handshake cert in
+       let to_sign = log @ [ raw ; ccert ; ckex ] in
+       let data = Cs.appends to_sign in
+       let ver = state.protocol_version
+       and my_sigalgs = state.config.hashes in
+       signature ver data sigalgs my_sigalgs p >|= fun (signature) ->
+       let cert_verify = CertificateVerify signature in
+       let ccert_verify = Writer.assemble_handshake cert_verify in
+       ([ cert ; kex ; cert_verify ],
+        [ ccert ; ckex ; ccert_verify ],
+        to_sign @ [ ccert_verify ])
+    | true, None ->
+       let cert = Certificate [] in
+       let ccert = Writer.assemble_handshake cert in
+       return ([cert ; kex], [ccert ; ckex], log @ [ raw ; ccert ; ckex ])
+    | false, _ ->
+       return ([kex], [ckex], log @ [ raw ; ckex ]) )
+  >|= fun (msgs, raw_msgs, to_fin) ->
+
   let checksum = Handshake_crypto.finished state.protocol_version master_secret "client finished" to_fin in
   let fin = Finished checksum in
   let raw_fin = Writer.assemble_handshake fin in
@@ -274,16 +327,16 @@ let answer_server_hello_done state session kex premaster raw log =
   let machina = AwaitServerChangeCipherSpec (session, server_ctx, checksum, ps)
   and ccst, ccs = change_cipher_spec in
 
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex;
+  List.iter (Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake) msgs;
   Tracing.cs ~tag:"change-cipher-spec-out" ccs ;
   Tracing.cs ~tag:"master-secret" master_secret;
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin;
 
-  return ({ state with machina = Client machina },
-          [`Record (Packet.HANDSHAKE, ckex);
-           `Record (ccst, ccs);
-           `Change_enc (Some client_ctx);
-           `Record (Packet.HANDSHAKE, raw_fin)])
+  ({ state with machina = Client machina },
+   List.map (fun x -> `Record (Packet.HANDSHAKE, x)) raw_msgs @
+     [ `Record (ccst, ccs);
+       `Change_enc (Some client_ctx);
+       `Record (Packet.HANDSHAKE, raw_fin)])
 
 let answer_server_finished state session client_verify fin log =
   let computed =
