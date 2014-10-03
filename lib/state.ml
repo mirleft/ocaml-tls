@@ -88,6 +88,7 @@ type session_data = {
   master_secret    : master_secret ;
   renegotiation    : reneg_params ; (* renegotiation data *)
   own_name         : string option ;
+  client_auth      : bool ;
 } with sexp
 
 (* state machine of the server *)
