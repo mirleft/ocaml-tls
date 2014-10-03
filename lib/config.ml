@@ -94,8 +94,6 @@ let validate_common config =
   if List.length config.ciphers = 0 then
     invalid "set of ciphers is empty"
 
-let validate_client config = ()
-
 module CertTypeUsageOrdered = struct
   type t = Certificate.key_type * Asn_grammars.Extension.key_usage
   let compare = compare
@@ -122,6 +120,12 @@ let validate_certificate_chain = function
                                  (Certificate.certificate_failure_to_string x)) )
        | None -> () )
   | _ -> invalid "certificate"
+
+let validate_client config =
+  match config.own_certificates with
+  | `None -> ()
+  | `Single c -> validate_certificate_chain c
+  | _ -> invalid_arg "multiple client certificates not supported in client config"
 
 module StringSet = Set.Make(String)
 
