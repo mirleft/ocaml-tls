@@ -137,11 +137,6 @@ type ec_parameters =
   | NamedCurveParameters of (named_curve_type * Cstruct_s.t)
   with sexp
 
-type certificate_request = {
-  certificate_types       : client_certificate_type list;
-  certificate_authorities : string list
-} with sexp
-
 type tls_handshake =
   | HelloRequest
   | ServerHelloDone
@@ -149,7 +144,7 @@ type tls_handshake =
   | ServerHello of server_hello
   | Certificate of Cstruct_s.t list
   | ServerKeyExchange of Cstruct_s.t
-  | CertificateRequest of certificate_request
+  | CertificateRequest of Cstruct_s.t
   | ClientKeyExchange of Cstruct_s.t
   | CertificateVerify of Cstruct_s.t
   | Finished of Cstruct_s.t
