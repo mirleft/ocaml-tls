@@ -112,31 +112,6 @@ let rec parse_list parsef buf acc =
      | Some elem, buf' -> parse_list parsef buf' (elem :: acc)
      | None     , buf' -> parse_list parsef buf'          acc
 
-let parse_certificate_types buf =
-  let parsef buf =
-    let byte = get_uint8 buf 0 in
-    (int_to_client_certificate_type byte, shift buf 1)
-  in
-  let count = get_uint8 buf 0 in
-  parse_count_list parsef (shift buf 1) [] count
-
-let parse_cas buf =
-  let parsef buf =
-    let length = BE.get_uint16 buf 0 in
-    let name = copy buf 2 length in
-    (Some name, shift buf (2 + length))
-  in
-  let calength = BE.get_uint16 buf 0 in
-  if calength <> (len buf) + 2 then
-    raise_trailing_bytes "cas"
-  else
-    parse_list parsef (sub buf 2 calength) []
-
-let parse_certificate_request buf =
-  let certificate_types, buf' = parse_certificate_types buf in
-  let certificate_authorities = parse_cas buf' in
-  CertificateRequest { certificate_types ; certificate_authorities }
-
 let parse_compression_method buf =
   let cm = get_uint8 buf 0 in
   (int_to_compression_method cm, shift buf 1)
@@ -333,6 +308,43 @@ let parse_certificates buf =
   else
     Certificate (parse_list parsef (sub buf 3 length) [])
 
+let parse_certificate_types buf =
+  let parsef buf =
+    let byte = get_uint8 buf 0 in
+    (int_to_client_certificate_type byte, shift buf 1)
+  in
+  let count = get_uint8 buf 0 in
+  parse_count_list parsef (shift buf 1) [] count
+
+let parse_cas buf =
+  let parsef buf =
+    let length = BE.get_uint16 buf 0 in
+    let name = sub buf 2 length in
+    (Some name, shift buf (2 + length))
+  in
+  let calength = BE.get_uint16 buf 0 in
+  if (calength + 2) <> len buf then
+    raise_trailing_bytes "cas"
+  else
+    parse_list parsef (sub buf 2 calength) []
+
+let parse_certificate_request_exn buf =
+  let certificate_types, buf' = parse_certificate_types buf in
+  let certificate_authorities = parse_cas buf' in
+  (certificate_types, certificate_authorities)
+
+let parse_certificate_request =
+  catch parse_certificate_request_exn
+
+let parse_certificate_request_1_2_exn buf =
+  let certificate_types, buf' = parse_certificate_types buf in
+  let sigs, buf'' = parse_hash_sig buf' in
+  let cas = parse_cas buf'' in
+  (certificate_types, sigs, cas)
+
+let parse_certificate_request_1_2 =
+  catch parse_certificate_request_1_2_exn
+
 let parse_dh_parameters = catch @@ fun raw ->
   let plength = BE.get_uint16 raw 0 in
   let dh_p = sub raw 2 plength in
@@ -404,7 +416,7 @@ let parse_handshake = catch @@ fun buf ->
                                   raise_trailing_bytes "server hello done"
                                 else
                                   ServerHelloDone
-    | Some CERTIFICATE_REQUEST -> parse_certificate_request payload
+    | Some CERTIFICATE_REQUEST -> CertificateRequest payload
     | Some CLIENT_KEY_EXCHANGE -> parse_client_key_exchange payload
     | Some FINISHED -> Finished payload
     | _  -> raise_unknown @@ "handshake type" ^ string_of_int typ
