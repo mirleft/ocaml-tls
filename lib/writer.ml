@@ -247,6 +247,7 @@ let assemble_handshake hs =
     | ClientHello ch -> (assemble_client_hello ch, CLIENT_HELLO)
     | ServerHello sh -> (assemble_server_hello sh, SERVER_HELLO)
     | Certificate cs -> (assemble_certificates cs, CERTIFICATE)
+    | CertificateRequest cr -> (cr, CERTIFICATE_REQUEST)
     | CertificateVerify c -> (c, CERTIFICATE_VERIFY)
     | ServerKeyExchange kex -> (kex, SERVER_KEY_EXCHANGE)
     | ClientKeyExchange kex -> (assemble_client_key_exchange kex, CLIENT_KEY_EXCHANGE)
