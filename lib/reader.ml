@@ -411,6 +411,7 @@ let parse_handshake = catch @@ fun buf ->
     | Some CLIENT_HELLO -> parse_client_hello payload
     | Some SERVER_HELLO -> parse_server_hello payload
     | Some CERTIFICATE -> parse_certificates payload
+    | Some CERTIFICATE_VERIFY -> CertificateVerify payload
     | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange payload
     | Some SERVER_HELLO_DONE -> if len payload <> 0 then
                                   raise_trailing_bytes "server hello done"
