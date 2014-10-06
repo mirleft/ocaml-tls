@@ -30,7 +30,7 @@ let assemble_hdr version (content_type, payload) =
 
 type len = One | Two | Three
 
-let assemble_list ?force lenb f elements =
+let assemble_list ?none_if_empty lenb f elements =
   let length body =
     match lenb with
     | One   ->
@@ -51,11 +51,11 @@ let assemble_list ?force lenb f elements =
     let body = b es in
     length body <+> body
   in
-  match force with
-  | None   -> (match elements with
+  match none_if_empty with
+  | Some _ -> (match elements with
                | []   -> create 0
                | eles -> full eles)
-  | Some _ -> full elements
+  | None   -> full elements
 
 let assemble_certificate c =
   let length = len c in
@@ -64,7 +64,7 @@ let assemble_certificate c =
   buf <+> c
 
 let assemble_certificates cs =
-  assemble_list ~force:true Three assemble_certificate cs
+  assemble_list Three assemble_certificate cs
 
 let assemble_compression_method m =
   let buf = create 1 in
@@ -72,7 +72,7 @@ let assemble_compression_method m =
   buf
 
 let assemble_compression_methods ms =
-  assemble_list ~force:true One assemble_compression_method ms
+  assemble_list One assemble_compression_method ms
 
 let assemble_any_ciphersuite c =
   let buf = create 2 in
@@ -80,7 +80,7 @@ let assemble_any_ciphersuite c =
   buf
 
 let assemble_any_ciphersuites cs =
-  assemble_list ~force:true Two assemble_any_ciphersuite cs
+  assemble_list Two assemble_any_ciphersuite cs
 
 let assemble_ciphersuite c =
   let acs = Ciphersuite.ciphersuite_to_any_ciphersuite c in
@@ -151,7 +151,7 @@ let assemble_extension e =
   buf <+> pay
 
 let assemble_extensions es =
-  assemble_list Two assemble_extension es
+  assemble_list ~none_if_empty:true Two assemble_extension es
 
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let v = assemble_any_protocol_version cl.version in
