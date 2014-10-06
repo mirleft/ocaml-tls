@@ -106,6 +106,30 @@ let assemble_hash_signature (h, s) =
 let assemble_signature_algorithms s =
   assemble_list Two assemble_hash_signature s
 
+let assemble_certificate_types ts =
+  let ass x =
+    let buf = create 1 in
+    set_uint8 buf 0 (client_certificate_type_to_int x) ;
+    buf
+  in
+  assemble_list One ass ts
+
+let assemble_cas cas =
+  let ass x =
+    let buf = create 2 in
+    BE.set_uint16 buf 0 (len x) ;
+    buf <+> x
+  in
+  assemble_list Two ass cas
+
+let assemble_certificate_request ts cas =
+  assemble_certificate_types ts <+> assemble_cas cas
+
+let assemble_certificate_request_1_2 ts sigalgs cas =
+  assemble_certificate_types ts <+>
+    assemble_signature_algorithms sigalgs <+>
+    assemble_cas cas
+
 let assemble_named_curve nc =
   let buf = create 2 in
   BE.set_uint16 buf 0 (named_curve_type_to_int nc);
