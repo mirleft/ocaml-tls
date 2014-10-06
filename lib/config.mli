@@ -84,10 +84,11 @@ val client :
 (** [server_exn ?ciphers ?version ?hashes ?reneg ?certificate ?secure_reneg] is [server] configuration with the given parameters *)
 (** @raise Invalid_argument if the configuration is invalid *)
 val server :
-  ?ciphers      : Ciphersuite.ciphersuite list ->
-  ?version      : tls_version * tls_version ->
-  ?hashes       : Hash.hash list ->
-  ?reneg        : bool ->
-  ?certificates : own_cert ->
-  ?secure_reneg : bool ->
+  ?ciphers       : Ciphersuite.ciphersuite list ->
+  ?version       : tls_version * tls_version ->
+  ?hashes        : Hash.hash list ->
+  ?reneg         : bool ->
+  ?certificates  : own_cert ->
+  ?authenticator : X509.Authenticator.t ->
+  ?secure_reneg  : bool ->
   unit -> server

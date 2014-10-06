@@ -214,7 +214,7 @@ let client
   ( validate_common config ; validate_client config ; config )
 
 let server
-  ?ciphers ?version ?hashes ?reneg ?certificates ?secure_reneg () =
+  ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator ?secure_reneg () =
   let config =
     { default_config with
         ciphers           = ciphers      <?> default_config.ciphers ;
@@ -222,6 +222,7 @@ let server
         hashes            = hashes       <?> default_config.hashes ;
         use_reneg         = reneg        <?> default_config.use_reneg ;
         own_certificates  = certificates <?> default_config.own_certificates ;
+        authenticator     = authenticator ;
         secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
     } in
   ( validate_common config ; validate_server config ; config )
