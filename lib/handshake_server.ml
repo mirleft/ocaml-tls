@@ -44,7 +44,9 @@ let establish_master_secret state session premastersecret raw log =
   in
   let session = { session with master_secret = master_secret } in
   let machina =
-    AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log @ [raw])
+    match session.peer_certificate with
+    | [] -> AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log @ [raw])
+    | _ -> AwaitClientCertificateVerify (session, server_ctx, client_ctx, log @ [raw])
   in
   Tracing.cs ~tag:"master-secret" master_secret ;
   ({ state with machina = Server machina }, [])
@@ -53,6 +55,28 @@ let private_key session =
   match session.own_private_key with
     | Some priv -> return priv
     | None      -> fail_handshake
+
+let answer_client_certificate_RSA state session certs raw log =
+  ( match certs with
+    | [] -> return session
+    | certificates ->
+       validate_chain state.config.authenticator certificates session None `RSA `Digital_signature ) >|= fun session ->
+  let machina = AwaitClientKeyExchange_RSA (session, log @ [raw]) in
+  ({ state with machina = Server machina }, [])
+
+let answer_client_certificate_DHE_RSA state session dh_sent certs raw log =
+  ( match certs with
+    | [] -> return session
+    | certificates ->
+       validate_chain state.config.authenticator certificates session None `RSA `Digital_signature ) >|= fun session ->
+  let machina = AwaitClientKeyExchange_DHE_RSA (session, dh_sent, log @ [raw]) in
+  ({ state with machina = Server machina }, [])
+
+let answer_client_certificate_verify state session sctx cctx verify raw log =
+  let sigdata = Cs.appends log in
+  verify_digitally_signed state.protocol_version verify sigdata  session.peer_certificate >|= fun () ->
+  let machina = AwaitClientChangeCipherSpec (session, sctx, cctx, log @ [raw]) in
+  ({ state with machina = Server machina }, [])
 
 let answer_client_key_exchange_RSA state session kex raw log =
   (* due to bleichenbacher attach, we should use a random pms *)
@@ -195,6 +219,24 @@ let answer_client_hello_common state reneg ch raw =
        Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ;
        [ Writer.assemble_handshake cert ]
 
+  and cert_request version config session =
+    let open Writer in
+    match config.authenticator with
+    | None -> ([], session)
+    | Some _ ->
+       (* TODO: extract DN from authenticator and send to client *)
+       let certreq = match version with
+         | TLS_1_0 | TLS_1_1 ->
+            let data = assemble_certificate_request [Packet.RSA_SIGN] [] in
+            CertificateRequest data
+         | TLS_1_2 ->
+            let sigalgs = List.map (fun h -> (h, Packet.RSA)) config.hashes in
+            let data = assemble_certificate_request_1_2 [Packet.RSA_SIGN] sigalgs [] in
+            CertificateRequest data
+       in
+       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake certreq ;
+       ([ assemble_handshake certreq ], { session with client_auth = true })
+
   and kex_dhe_rsa config session version sig_algs =
     let group         = Dh.Group.oakley_2 in (* rfc2409 1024-bit group *)
     let (secret, msg) = Dh.gen_secret group in
@@ -213,19 +255,32 @@ let answer_client_hello_common state reneg ch raw =
   process_client_hello ch state.config >>= fun session ->
   let sh, session = server_hello session reneg in
   let certificates = server_cert session
+  and cert_req, session = cert_request state.protocol_version state.config session
   and hello_done = Writer.assemble_handshake ServerHelloDone
   in
 
   ( match Ciphersuite.ciphersuite_kex session.ciphersuite with
     | Ciphersuite.DHE_RSA ->
         kex_dhe_rsa state.config session state.protocol_version (sig_algs ch) >>= fun (kex, dh) ->
-        let outs = sh :: certificates @ [ kex ; hello_done] in
-        let machina = AwaitClientKeyExchange_DHE_RSA (session, dh, raw :: outs) in
+        let outs = sh :: certificates @ [ kex ] @ cert_req @ [ hello_done ] in
+        let log = raw :: outs in
+        let machina =
+          if session.client_auth then
+            AwaitClientCertificate_DHE_RSA (session, dh, log)
+          else
+            AwaitClientKeyExchange_DHE_RSA (session, dh, log)
+        in
         Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
         return (outs, machina)
     | Ciphersuite.RSA ->
-        let outs = sh :: certificates @ [ hello_done] in
-        let machina = AwaitClientKeyExchange_RSA (session, raw :: outs) in
+        let outs = sh :: certificates @ cert_req @ [ hello_done ] in
+        let log = raw :: outs in
+        let machina =
+          if session.client_auth then
+            AwaitClientCertificate_RSA (session, log)
+          else
+            AwaitClientKeyExchange_RSA (session, log)
+        in
         Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
         return (outs, machina)
     ) >|= fun (out_recs, machina) ->
@@ -321,10 +376,16 @@ let handle_handshake ss hs buf =
      ( match ss, handshake with
        | AwaitClientHello, ClientHello ch ->
           answer_client_hello hs ch buf
+       | AwaitClientCertificate_RSA (session, log), Certificate cs ->
+          answer_client_certificate_RSA hs session cs buf log
+       | AwaitClientCertificate_DHE_RSA (session, dh_sent, log), Certificate cs ->
+          answer_client_certificate_DHE_RSA hs session dh_sent cs buf log
        | AwaitClientKeyExchange_RSA (session, log), ClientKeyExchange kex ->
           answer_client_key_exchange_RSA hs session kex buf log
        | AwaitClientKeyExchange_DHE_RSA (session, dh_sent, log), ClientKeyExchange kex ->
           answer_client_key_exchange_DHE_RSA hs session dh_sent kex buf log
+       | AwaitClientCertificateVerify (session, sctx, cctx, log), CertificateVerify ver ->
+          answer_client_certificate_verify hs session sctx cctx ver buf log
        | AwaitClientFinished (session, log), Finished fin ->
           answer_client_finished hs session fin buf log
        | Established, ClientHello ch -> (* client-initiated renegotiation *)
