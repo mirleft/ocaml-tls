@@ -31,8 +31,10 @@ let serve_ssl port callback =
   yap ~tag ("-> start @ " ^ string_of_int port)
   >>
   let rec loop () =
+    lwt authenticator = X509_lwt.authenticator `No_authentication_I'M_STUPID in
+    let config = Tls.Config.server ~certificates:(`Single cert) ~authenticator () in
     lwt (channels, addr) =
-      Tls_lwt.accept ~trace:eprint_sexp (`Single cert) server_s in
+      Tls_lwt.accept_ext ~trace:eprint_sexp config server_s in
     yap ~tag "-> connect"
     >>
     ( handle channels addr ; loop () )
