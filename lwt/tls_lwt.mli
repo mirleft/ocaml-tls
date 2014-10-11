@@ -12,7 +12,7 @@ module Unix : sig
   val reneg : t -> unit Lwt.t
 
   val server_of_fd : ?trace:tracer -> Tls.Config.server -> Lwt_unix.file_descr -> t Lwt.t
-  val client_of_fd : ?trace:tracer -> Tls.Config.client -> host:string -> Lwt_unix.file_descr -> t Lwt.t
+  val client_of_fd : ?trace:tracer -> Tls.Config.client -> ?host:string -> Lwt_unix.file_descr -> t Lwt.t
 
   val accept  : ?trace:tracer -> Tls.Config.server -> Lwt_unix.file_descr -> (t * Lwt_unix.sockaddr) Lwt.t
   val connect : ?trace:tracer -> Tls.Config.client -> string * int -> t Lwt.t
