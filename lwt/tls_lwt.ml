@@ -179,8 +179,12 @@ module Unix = struct
       tracer = trace ;
     }
 
-  let client_of_fd ?trace config ~host fd =
-    let config'     = Tls.Config.peer config host in
+  let client_of_fd ?trace config ?host fd =
+    let config'     =
+      match host with
+      | Some host -> Tls.Config.peer config host
+      | None -> config
+    in
     let (tls, init) = Tls.Engine.client config' in
     let t = {
       state  = `Active tls ;
