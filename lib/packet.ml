@@ -162,19 +162,15 @@ let hash_algorithm_of_tag = function
   | `SHA384 -> SHA384
   | `SHA512 -> SHA512
 
-(** [mac_tag_of_hash_algorithm hash_algorithm] is [tag] for the given [hash_algorithm] *)
-let mac_tag_of_hash_algorithm = function
+(** [tag_of_hash_algorithm hash_algorithm] is [tag] for the given [hash_algorithm] *)
+let tag_of_hash_algorithm = function
   | MD5    -> Some `MD5
   | SHA    -> Some `SHA1
+  | SHA224 -> Some `SHA224
   | SHA256 -> Some `SHA256
   | SHA384 -> Some `SHA384
   | SHA512 -> Some `SHA512
   | _      -> None
-
-(** [hash_tag_of_hash_algorithm hash_algorithm] is [tag] for the given [hash_algorithm] *)
-let hash_tag_of_hash_algorithm = function
-  | SHA224 -> Some `SHA224
-  | x      -> mac_tag_of_hash_algorithm x
 
 (* EC RFC4492*)
 cenum ec_curve_type {
