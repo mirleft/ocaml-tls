@@ -170,7 +170,7 @@ let tag_of_hash_algorithm = function
   | SHA256 -> Some `SHA256
   | SHA384 -> Some `SHA384
   | SHA512 -> Some `SHA512
-  | _      -> None
+  | NULL   -> None
 
 (* EC RFC4492*)
 cenum ec_curve_type {
