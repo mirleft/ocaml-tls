@@ -78,7 +78,7 @@ struct
   let start c stack e kv =
     TLS.attach_entropy e >>
     lwt certificate = X509.certificate kv `Default in
-    let conf        = Tls.Config.server_exn ~certificate () in
+    let conf        = Tls.Config.server ~certificate () in
     S.listen_tcpv4 stack 4433 (accept c conf handle) ;
     S.listen stack
 
@@ -113,7 +113,7 @@ struct
   let start c stack e kv =
     TLS.attach_entropy e >>
     lwt authenticator = X509.authenticator kv `CAs in
-    let conf          = Tls.Config.client_exn ~authenticator () in
+    let conf          = Tls.Config.client ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer) >>==
     TLS.client_of_tcp_flow conf (snd peer) >>==
     chat c >>= function

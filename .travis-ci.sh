@@ -2,8 +2,8 @@
 OPAM_PACKAGES="cstruct sexplib ctypes nocrypto x509 oUnit lwt mirage"
 
 case "$OCAML_VERSION" in
-    4.01.0) ppa=avsm/ocaml41+opam11 ;;
-    4.02.0) ppa=avsm/ocaml42+opam11 ;;
+    4.01.0) ppa=avsm/ocaml41+opam12 ;;
+    4.02.0) ppa=avsm/ocaml42+opam12 ;;
     *) echo Unknown $OCAML_VERSION; exit 1 ;;
 esac
 
@@ -14,10 +14,13 @@ sudo apt-get install -qq ocaml ocaml-native-compilers camlp4-extra opam libgmp-d
 export OPAMYES=1
 
 opam init git://github.com/ocaml/opam-repository >/dev/null 2>&1
+opam repo add mirage-dev git://github.com/mirage/mirage-dev > /dev/null 2>&1
 
-opam pin nocrypto git://github.com/mirleft/ocaml-nocrypto.git
-opam pin asn1-combinators git://github.com/mirleft/ocaml-asn1-combinators.git
-opam pin x509 git://github.com/mirleft/ocaml-x509.git
+opam pin -n add nocrypto git://github.com/mirleft/ocaml-nocrypto.git
+opam pin -n add asn1-combinators git://github.com/mirleft/ocaml-asn1-combinators.git
+opam pin -n add x509 git://github.com/mirleft/ocaml-x509.git
+
+opam update -u
 
 opam install ${OPAM_PACKAGES}
 
