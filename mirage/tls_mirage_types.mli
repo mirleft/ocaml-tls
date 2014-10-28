@@ -5,15 +5,15 @@ module type TLS_core = sig
   module ENTROPY : V1_LWT.ENTROPY
 
   type error = TCP.error
-  type flow
+
+  include V1_LWT.FLOW
+    with type error  := error
+     and type 'a io  := 'a Lwt.t
+     and type buffer := Cstruct.t
 
   val attach_entropy : ENTROPY.t -> unit Lwt.t
 
-  val read   : flow -> [> `Ok of Cstruct.t | `Eof | `Error of error ] Lwt.t
-  val write  : flow -> Cstruct.t -> unit Lwt.t
-  val writev : flow -> Cstruct.t list -> unit Lwt.t
-  val close  : flow -> unit Lwt.t
-  val reneg  : flow -> [> `Ok | `Eof | `Error of error ] Lwt.t
+  val reneg  : flow -> [ `Ok of unit | `Eof | `Error of error ] Lwt.t
 
   type tracer = Sexplib.Sexp.t -> unit
 
