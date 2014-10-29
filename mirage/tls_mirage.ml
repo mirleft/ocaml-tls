@@ -56,7 +56,7 @@ module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
             | `Ok tls      -> `Active tls
             | `Eof         -> `Eof
             | `Alert alert -> `Error (error_of_alert alert) );
-          TCP.write flow.tcp resp >>
+          TCP.write flow.tcp resp >>= check_write flow >>
           ( match res with
             | `Ok _ -> return_unit
             | _     -> TCP.close flow.tcp ) >>
