@@ -13,7 +13,7 @@ type alert = Packet.alert_type
 type ret = [
 
   | `Ok of [ `Ok of state | `Eof | `Alert of alert ]
-         * [ `Response of Cstruct.t ]
+         * [ `Response of Cstruct.t option ]
          * [ `Data of Cstruct.t option ]
 
   | `Fail of alert * [ `Response of Cstruct.t ]
@@ -336,8 +336,10 @@ let handle_tls state buf =
       handle_records state in_records
     >|= fun (state', out_records, data, err) ->
       let version = state'.handshake.protocol_version in
-      let buf'    = assemble_records version out_records in
-      ({ state' with fragment }, buf', data, err)
+      let resp    = match out_records with
+                    | [] -> None
+                    | _  -> Some (assemble_records version out_records) in
+      ({ state' with fragment }, resp, data, err)
   with
   | Ok (state, resp, data, err) ->
       let res = match err with
