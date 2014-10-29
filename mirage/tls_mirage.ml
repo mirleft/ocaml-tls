@@ -33,6 +33,13 @@ module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
 
   let list_of_option = function None -> [] | Some x -> [x]
 
+  let check_write flow res =
+    ( match (flow.state, res) with
+      | (`Active _, (`Eof | `Error _ as e)) ->
+          flow.state <- e ; TCP.close flow.tcp
+      | _ -> return_unit ) >>
+    return res
+
   let tracing flow f =
     match flow.tracer with
     | None      -> f ()
@@ -85,7 +92,8 @@ module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
           tracing flow @@ fun () -> Tls.Engine.send_application_data tls bufs
         with
         | Some (tls, answer) ->
-            flow.state <- `Active tls ; TCP.write flow.tcp answer
+            flow.state <- `Active tls ;
+            TCP.write flow.tcp answer >>= check_write flow
         | None ->
             (* "Impossible" due to handhake draining. *)
             error (`Unknown "tls: write: flow not ready to send")
