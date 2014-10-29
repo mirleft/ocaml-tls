@@ -30,10 +30,11 @@ ocaml setup.ml -build
 ocaml setup.ml -test
 ocaml setup.ml -install
 
-cd mirage/example ; mirage clean && mirage configure && mirage build
+cd mirage/example
+mirage clean && mirage configure && mirage build
 
 export BUILD=client
-cd mirage/example ; mirage clean && mirage configure && mirage build && ./mir-tls-client
+mirage clean && mirage configure && mirage build && ./mir-tls-client
 
 # these are too brittle on travis
 #cd tests
