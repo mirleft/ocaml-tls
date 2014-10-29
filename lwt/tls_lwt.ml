@@ -59,6 +59,8 @@ module Unix = struct
   let send_and_close_no_exn fd buf =
     safely (Lwt_cs.write_full fd buf >> Lwt_unix.close fd)
 
+  let when_some f = function None -> return_unit | Some x -> f x
+
   let tracing t f =
     match t.tracer with
     | None      -> f ()
@@ -74,14 +76,14 @@ module Unix = struct
       with
       | `Ok (`Ok tls, `Response resp, `Data data) ->
           t.state <- `Active tls ;
-          write_t t resp >> return (`Ok data)
+          (resp |> when_some (write_t t)) >> return (`Ok data)
 
       | `Ok ((`Eof | `Alert _ as err), `Response resp, `Data data) ->
           let e_res = match err with
             | `Eof     -> `Eof
             | `Alert a -> `Error (Tls_alert a) in
           t.state <- e_res ;
-          send_and_close_no_exn t.fd resp >> return (`Ok data)
+          (resp |> when_some (send_and_close_no_exn t.fd)) >> return (`Ok data)
 
       | `Fail (alert, `Response resp) ->
           t.state <- `Error (Tls_failure alert) ;

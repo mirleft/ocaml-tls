@@ -27,6 +27,7 @@ module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
   }
 
   let error e = return (`Error e)
+  let return_ok = return (`Ok ())
 
   let error_of_alert alert =
     `Unknown (Tls.Packet.alert_type_to_string alert)
@@ -56,7 +57,9 @@ module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
             | `Ok tls      -> `Active tls
             | `Eof         -> `Eof
             | `Alert alert -> `Error (error_of_alert alert) );
-          TCP.write flow.tcp resp >>= check_write flow >>
+          ( match resp with
+            | None     -> return_ok
+            | Some buf -> TCP.write flow.tcp buf >>= check_write flow ) >>
           ( match res with
             | `Ok _ -> return_unit
             | _     -> TCP.close flow.tcp ) >>

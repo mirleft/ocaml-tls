@@ -18,8 +18,9 @@ module Flow = struct
       | `S st -> (st, "server")
       | `C st -> (st, "client") in
     match Tls.Engine.handle_tls st msg with
-    | `Ok (`Ok st', `Response ans, `Data appdata) ->
+    | `Ok (`Ok st', `Response (Some ans), `Data appdata) ->
         (rewrap_st (state, st'), ans, appdata)
+    | `Ok _ -> assert false
     | `Fail (a, _) ->
         failwith @@ Printf.sprintf "[%s] %s error: %s"
           tag descr (Tls.Packet.alert_type_to_string a)
