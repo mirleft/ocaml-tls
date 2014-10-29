@@ -10,7 +10,7 @@ type state
 type ret = [
 
   | `Ok of [ `Ok of state | `Eof | `Alert of alert ]
-         * [ `Response of Cstruct.t ]
+         * [ `Response of Cstruct.t option ]
          * [ `Data of Cstruct.t option ]
  (** success with either a new state, end of file, or an alert, a response to the communication partner and potential data for the application *)
 

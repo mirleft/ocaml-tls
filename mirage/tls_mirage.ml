@@ -26,10 +26,20 @@ module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
     mutable linger : Cstruct.t list ;
   }
 
+  let error e = return (`Error e)
+  let return_ok = return (`Ok ())
+
   let error_of_alert alert =
     `Unknown (Tls.Packet.alert_type_to_string alert)
 
   let list_of_option = function None -> [] | Some x -> [x]
+
+  let check_write flow res =
+    ( match (flow.state, res) with
+      | (`Active _, (`Eof | `Error _ as e)) ->
+          flow.state <- e ; TCP.close flow.tcp
+      | _ -> return_unit ) >>
+    return res
 
   let tracing flow f =
     match flow.tracer with
@@ -47,7 +57,9 @@ module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
             | `Ok tls      -> `Active tls
             | `Eof         -> `Eof
             | `Alert alert -> `Error (error_of_alert alert) );
-          TCP.write flow.tcp resp >>
+          ( match resp with
+            | None     -> return_ok
+            | Some buf -> TCP.write flow.tcp buf >>= check_write flow ) >>
           ( match res with
             | `Ok _ -> return_unit
             | _     -> TCP.close flow.tcp ) >>
@@ -77,17 +89,17 @@ module Make (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
 
   let writev flow bufs =
     match flow.state with
-    | `Eof     -> fail @@ Invalid_argument "tls: write: flow is closed"
-    | `Error e -> fail @@ Invalid_argument "tls: write: flow is broken"
+    | `Eof | `Error _ as e -> return e
     | `Active tls ->
         match
           tracing flow @@ fun () -> Tls.Engine.send_application_data tls bufs
         with
         | Some (tls, answer) ->
-            flow.state <- `Active tls ; TCP.write flow.tcp answer
+            flow.state <- `Active tls ;
+            TCP.write flow.tcp answer >>= check_write flow
         | None ->
             (* "Impossible" due to handhake draining. *)
-            fail @@ Invalid_argument "tls: write: flow not ready to send"
+            error (`Unknown "tls: write: flow not ready to send")
 
   let write flow buf = writev flow [buf]
 
