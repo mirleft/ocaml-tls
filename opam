@@ -27,4 +27,4 @@ depopts: [
   "lwt"
   "mirage"
 ]
-conflicts: [ "mirage" {<"1.2.0"} ]
+conflicts: [ "mirage" {<"2.0.0"} ]
