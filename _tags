@@ -1,8 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 25069a7654a65850172ca6687409d6be)
+# DO NOT EDIT (digest: 75bfb6ffd47189fbc52ed21073f7dd82)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
+true: annot, bin_annot
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
 ".bzr": -traverse
@@ -33,32 +34,32 @@
 "lib/handshake_crypto.cmx": for-pack(Tls)
 "lib/handshake_server.cmx": for-pack(Tls)
 "lib/handshake_client.cmx": for-pack(Tls)
-<lib/*.ml{,i}>: pkg_cstruct.syntax
-<lib/*.ml{,i}>: pkg_nocrypto
-<lib/*.ml{,i}>: pkg_sexplib.syntax
-<lib/*.ml{,i}>: pkg_x509
+<lib/*.ml{,i,y}>: pkg_cstruct.syntax
+<lib/*.ml{,i,y}>: pkg_nocrypto
+<lib/*.ml{,i,y}>: pkg_sexplib.syntax
+<lib/*.ml{,i,y}>: pkg_x509
 # Library tests
 "tests/tests.cmxs": use_tests
 # Library tls-lwt
 "lwt/tls-lwt.cmxs": use_tls-lwt
-<lwt/*.ml{,i}>: pkg_cstruct.lwt
-<lwt/*.ml{,i}>: pkg_cstruct.syntax
-<lwt/*.ml{,i}>: pkg_lwt.syntax
-<lwt/*.ml{,i}>: pkg_lwt.unix
-<lwt/*.ml{,i}>: pkg_nocrypto
-<lwt/*.ml{,i}>: pkg_sexplib.syntax
-<lwt/*.ml{,i}>: pkg_x509
-<lwt/*.ml{,i}>: use_tls
+<lwt/*.ml{,i,y}>: pkg_cstruct.lwt
+<lwt/*.ml{,i,y}>: pkg_cstruct.syntax
+<lwt/*.ml{,i,y}>: pkg_lwt.syntax
+<lwt/*.ml{,i,y}>: pkg_lwt.unix
+<lwt/*.ml{,i,y}>: pkg_nocrypto
+<lwt/*.ml{,i,y}>: pkg_sexplib.syntax
+<lwt/*.ml{,i,y}>: pkg_x509
+<lwt/*.ml{,i,y}>: use_tls
 # Library tls-mirage
 "mirage/tls-mirage.cmxs": use_tls-mirage
-<mirage/*.ml{,i}>: pkg_cstruct.syntax
-<mirage/*.ml{,i}>: pkg_lwt
-<mirage/*.ml{,i}>: pkg_lwt.syntax
-<mirage/*.ml{,i}>: pkg_mirage
-<mirage/*.ml{,i}>: pkg_nocrypto
-<mirage/*.ml{,i}>: pkg_sexplib.syntax
-<mirage/*.ml{,i}>: pkg_x509
-<mirage/*.ml{,i}>: use_tls
+<mirage/*.ml{,i,y}>: pkg_cstruct.syntax
+<mirage/*.ml{,i,y}>: pkg_lwt
+<mirage/*.ml{,i,y}>: pkg_lwt.syntax
+<mirage/*.ml{,i,y}>: pkg_mirage
+<mirage/*.ml{,i,y}>: pkg_nocrypto
+<mirage/*.ml{,i,y}>: pkg_sexplib.syntax
+<mirage/*.ml{,i,y}>: pkg_x509
+<mirage/*.ml{,i,y}>: use_tls
 # Executable test_runner
 "tests/unittestrunner.native": pkg_cstruct.syntax
 "tests/unittestrunner.native": pkg_cstruct.unix
@@ -77,14 +78,14 @@
 "tests/feedback.native": pkg_x509
 "tests/feedback.native": use_tests
 "tests/feedback.native": use_tls
-<tests/*.ml{,i}>: pkg_cstruct.syntax
-<tests/*.ml{,i}>: pkg_cstruct.unix
-<tests/*.ml{,i}>: pkg_nocrypto
-<tests/*.ml{,i}>: pkg_oUnit
-<tests/*.ml{,i}>: pkg_sexplib.syntax
-<tests/*.ml{,i}>: pkg_x509
-<tests/*.ml{,i}>: use_tests
-<tests/*.ml{,i}>: use_tls
+<tests/*.ml{,i,y}>: pkg_cstruct.syntax
+<tests/*.ml{,i,y}>: pkg_cstruct.unix
+<tests/*.ml{,i,y}>: pkg_nocrypto
+<tests/*.ml{,i,y}>: pkg_oUnit
+<tests/*.ml{,i,y}>: pkg_sexplib.syntax
+<tests/*.ml{,i,y}>: pkg_x509
+<tests/*.ml{,i,y}>: use_tests
+<tests/*.ml{,i,y}>: use_tls
 # Executable starttls_server
 "lwt/examples/starttls_server.native": pkg_cstruct.lwt
 "lwt/examples/starttls_server.native": pkg_cstruct.syntax
@@ -96,7 +97,7 @@
 "lwt/examples/starttls_server.native": pkg_x509
 "lwt/examples/starttls_server.native": use_tls
 "lwt/examples/starttls_server.native": use_tls-lwt
-<lwt/examples/*.ml{,i}>: pkg_str
+<lwt/examples/*.ml{,i,y}>: pkg_str
 # Executable echo_server
 "lwt/examples/echo_server.native": pkg_cstruct.lwt
 "lwt/examples/echo_server.native": pkg_cstruct.syntax
@@ -147,13 +148,13 @@
 "lwt/examples/test_client.native": pkg_x509
 "lwt/examples/test_client.native": use_tls
 "lwt/examples/test_client.native": use_tls-lwt
-<lwt/examples/*.ml{,i}>: pkg_cstruct.lwt
-<lwt/examples/*.ml{,i}>: pkg_cstruct.syntax
-<lwt/examples/*.ml{,i}>: pkg_lwt.syntax
-<lwt/examples/*.ml{,i}>: pkg_lwt.unix
-<lwt/examples/*.ml{,i}>: pkg_nocrypto
-<lwt/examples/*.ml{,i}>: pkg_sexplib.syntax
-<lwt/examples/*.ml{,i}>: pkg_x509
-<lwt/examples/*.ml{,i}>: use_tls
-<lwt/examples/*.ml{,i}>: use_tls-lwt
+<lwt/examples/*.ml{,i,y}>: pkg_cstruct.lwt
+<lwt/examples/*.ml{,i,y}>: pkg_cstruct.syntax
+<lwt/examples/*.ml{,i,y}>: pkg_lwt.syntax
+<lwt/examples/*.ml{,i,y}>: pkg_lwt.unix
+<lwt/examples/*.ml{,i,y}>: pkg_nocrypto
+<lwt/examples/*.ml{,i,y}>: pkg_sexplib.syntax
+<lwt/examples/*.ml{,i,y}>: pkg_x509
+<lwt/examples/*.ml{,i,y}>: use_tls
+<lwt/examples/*.ml{,i,y}>: use_tls-lwt
 # OASIS_STOP
