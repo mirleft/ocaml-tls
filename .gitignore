@@ -3,7 +3,6 @@ local/
 _build/
 setup.data
 setup.log
-Makefile
 log
 
 main.ml
@@ -12,3 +11,7 @@ main.ml
 *.docdir
 mir-*-*
 *-*.xl
+*-*.xe
+*-*_libvirt.xml
+*.cmt
+mirage/*/Makefile
