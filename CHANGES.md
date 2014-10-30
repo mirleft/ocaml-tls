@@ -1,8 +1,6 @@
 (trunk):
 * expose trust anchor when authenticating the certificate (requires x509 >= 0.2)
 * information about the active session is exposed via epoch : state -> epoch
-* by default only perfect-forward secrecy ciphersuites are used
-   (configuration can be altered by ~ciphers:Config.supported_ciphers)
 * distinguish between supported ciphersuites (type ciphersuite) and
   known ciphersuites (type any_ciphersuite)
 * distinguish between supported versions by the stack (type tls_version)
