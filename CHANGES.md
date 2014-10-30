@@ -1,4 +1,4 @@
-(trunk):
+0.2.0 (2014-10-30):
 * expose trust anchor when authenticating the certificate (requires x509 >= 0.2)
 * information about the active session is exposed via epoch : state -> epoch
 * distinguish between supported ciphersuites (type ciphersuite) and
