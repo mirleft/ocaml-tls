@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 9cc763afb574adac9256faf6deabc331)
+# DO NOT EDIT (digest: 3b8156b87a32319f0097285d02aee110)
 version = "0.1.1"
 description = "TLS support for OCaml"
 requires = "cstruct.syntax sexplib.syntax nocrypto x509"
@@ -11,7 +11,7 @@ exists_if = "tls.cma"
 package "mirage" (
  version = "0.1.1"
  description = "TLS support for OCaml"
- requires = "x509 tls mirage lwt lwt.syntax"
+ requires = "x509 tls mirage-types ipaddr lwt lwt.syntax"
  archive(byte) = "tls-mirage.cma"
  archive(byte, plugin) = "tls-mirage.cma"
  archive(native) = "tls-mirage.cmxa"
