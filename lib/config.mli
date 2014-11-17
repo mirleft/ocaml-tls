@@ -61,11 +61,11 @@ val of_server : server -> config
 (** [client_exn ?ciphers ?version ?hashes ?reneg ?validator ?secure_reneg] is [client] configuration with the given parameters *)
 (** @raise Invalid_argument if the configuration is invalid *)
 val client :
+  authenticator  : X509.Authenticator.t ->
   ?ciphers       : Ciphersuite.ciphersuite list ->
   ?version       : tls_version * tls_version ->
   ?hashes        : Hash.hash list ->
   ?reneg         : bool ->
-  authenticator  : X509.Authenticator.t ->
   ?secure_reneg  : bool ->
   unit -> client
 
