@@ -33,7 +33,8 @@ let loop_chatter ~certificate ~loops ~size =
 
   let message  = Nocrypto.Rng.generate size
   and server   = Tls.(Engine.server (Config.server ~certificate ()))
-  and (client, init) = Tls.(Engine.client @@ Config.client ())
+  and (client, init) =
+    Tls.(Engine.client @@ Config.client ~authenticator:X509.Authenticator.null ())
   in
   Testlib.time @@ fun () ->
 
