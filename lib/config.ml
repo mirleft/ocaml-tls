@@ -80,7 +80,10 @@ let validate_common config =
   if List.length config.ciphers = 0 then
     invalid "set of ciphers is empty"
 
-let validate_client config = ()
+let validate_client config =
+  match config.authenticator with
+  | None -> invalid "no authenticator provided"
+  | Some _ -> ()
 
 let validate_server config =
   let open Ciphersuite in
