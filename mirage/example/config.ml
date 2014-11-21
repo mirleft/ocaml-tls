@@ -47,7 +47,7 @@ let () =
     | `Unix -> "unix"
     | `Xen -> "xen" in
   (* Regrettably, CLOCK can't be dep-injected for now. *)
-  add_to_opam_packages [ "mirage-clock-" ^ platform ] ;
+  add_to_opam_packages [ "mirage-clock-" ^ platform; "tls" ] ;
   add_to_ocamlfind_libraries [ "mirage-clock-" ^ platform; "tls"; "tls.mirage" ] ;
   match build with
   | `Server ->
