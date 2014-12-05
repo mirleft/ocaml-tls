@@ -2,14 +2,15 @@
 open Lwt
 open Ex_common
 
-let http_client ?ca host port =
+let http_client ?ca ?fp host port =
   lwt () = Tls_lwt.rng_init () in
   let port          = int_of_string port in
   lwt authenticator = X509_lwt.authenticator
-    ( match ca with
-      | None        -> `Ca_dir ca_cert_dir
-      | Some "NONE" -> `No_authentication_I'M_STUPID
-      | Some f      -> `Ca_file f )
+    ( match ca, fp with
+      | None, Some fp -> `Fingerprint fp
+      | None, _        -> `Ca_dir ca_cert_dir
+      | Some "NONE", _ -> `No_authentication_I'M_STUPID
+      | Some f, _      -> `Ca_file f )
   in
   lwt (ic, oc) =
     Tls_lwt.connect_ext
@@ -28,6 +29,7 @@ let print_alert where alert =
 let () =
   try
     match Sys.argv with
+    | [| _ ; host ; port ; "FP" ; fp |] -> Lwt_main.run (http_client host port ~fp)
     | [| _ ; host ; port ; trust |] -> Lwt_main.run (http_client host port ~ca:trust)
     | [| _ ; host ; port |]         -> Lwt_main.run (http_client host port)
     | [| _ ; host |]                -> Lwt_main.run (http_client host "443")
