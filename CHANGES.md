@@ -1,3 +1,7 @@
+master
+* X509_lwt provides `Fingerprints and `Hex_fingerprints constructor for checking fingerprints of certificates instead of trusting trust anchors
+* client configuration requires an authenticator
+
 0.2.0 (2014-10-30):
 * expose trust anchor when authenticating the certificate (requires x509 >= 0.2)
 * information about the active session is exposed via epoch : state -> epoch

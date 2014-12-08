@@ -7,7 +7,7 @@ let http_client ?ca ?fp host port =
   let port          = int_of_string port in
   lwt authenticator = X509_lwt.authenticator
     ( match ca, fp with
-      | None, Some fp -> `Fingerprint fp
+      | None, Some fp  -> `Hex_fingerprints (`SHA256, [(host, fp)])
       | None, _        -> `Ca_dir ca_cert_dir
       | Some "NONE", _ -> `No_authentication_I'M_STUPID
       | Some f, _      -> `Ca_file f )
