@@ -14,7 +14,6 @@ sudo apt-get install -qq ocaml ocaml-native-compilers camlp4-extra opam libgmp-d
 export OPAMYES=1
 
 opam init git://github.com/ocaml/opam-repository >/dev/null 2>&1
-opam repo add mirage-dev git://github.com/mirage/mirage-dev > /dev/null 2>&1
 
 opam pin -n add nocrypto git://github.com/mirleft/ocaml-nocrypto.git
 opam pin -n add asn1-combinators git://github.com/mirleft/ocaml-asn1-combinators.git
