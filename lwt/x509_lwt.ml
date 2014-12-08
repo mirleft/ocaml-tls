@@ -71,12 +71,16 @@ let certs_of_pem_dir path =
 let authenticator param =
   let now = Unix.gettimeofday () in
   let of_cas cas =
-    X509.Authenticator.chain_of_trust ~time:now cas in
+    X509.Authenticator.chain_of_trust ~time:now cas
+  in
+  let fingerp hash fingerprints =
+    X509.Authenticator.server_fingerprint ~time:now ~hash ~fingerprints
+  in
   match param with
   | `Ca_file path -> certs_of_pem path >|= of_cas
   | `Ca_dir path  -> certs_of_pem_dir path >|= of_cas
-  | `Fingerprint fp ->
-    let fp = String.map (function | ':' -> ' ' | x -> x) fp in
-    let server_fingerprint = Nocrypto.Uncommon.Cs.of_hex fp in
-    return (X509.Authenticator.server_fingerprint ~time:now ~server_fingerprint)
+  | `Fingerprints (hash, fps) -> return (fingerp hash fps)
+  | `Hex_fingerprints (hash, fps) ->
+    let fps = List.map (fun (n, v) -> (n, X509.Cs.dotted_hex_to_cs v)) fps in
+    return (fingerp hash fps)
   | `No_authentication_I'M_STUPID -> return X509.Authenticator.null
