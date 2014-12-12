@@ -212,8 +212,11 @@ module Unix = struct
 
   let epoch t =
     match t.state with
-    | `Active tls -> Tls.Engine.epoch tls
-    | _           -> `InitialEpoch
+    | `Active tls -> ( match Tls.Engine.epoch tls with
+        | `InitialEpoch -> `Error (* can not happen! *)
+        | `Epoch data   -> `Ok data )
+    | `Eof      -> `Error
+    | `Error _  -> `Error
 
 end
 

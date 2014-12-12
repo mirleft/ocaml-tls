@@ -24,7 +24,7 @@ module Unix : sig
   val read_bytes  : t -> Lwt_bytes.t -> int -> int -> int  Lwt.t
   val write_bytes : t -> Lwt_bytes.t -> int -> int -> unit Lwt.t
 
-  val epoch  : t -> Tls.Engine.epoch
+  val epoch  : t -> [ `Ok of Tls.Engine.epoch_data | `Error | `Eof ]
 
 end
 
