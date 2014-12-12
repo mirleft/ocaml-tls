@@ -210,6 +210,11 @@ module Unix = struct
   let write_bytes t bs off len =
     write t (Cstruct.of_bigarray ~off ~len bs)
 
+  let epoch t =
+    match t.state with
+    | `Active tls -> Tls.Engine.epoch tls
+    | _           -> `InitialEpoch
+
 end
 
 
