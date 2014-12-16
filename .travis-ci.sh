@@ -1,5 +1,4 @@
-# OPAM packages needed to build tests.
-OPAM_PACKAGES="cstruct sexplib ctypes nocrypto x509 oUnit lwt mirage"
+#!/bin/sh
 
 case "$OCAML_VERSION" in
     4.01.0) ppa=avsm/ocaml41+opam12 ;;
@@ -19,9 +18,12 @@ opam pin -n add nocrypto git://github.com/mirleft/ocaml-nocrypto.git
 opam pin -n add asn1-combinators git://github.com/mirleft/ocaml-asn1-combinators.git
 opam pin -n add x509 git://github.com/mirleft/ocaml-x509.git
 
+opam pin -n add tls .
+
 opam update -u
 
-opam install ${OPAM_PACKAGES}
+opam install --deps-only tls
+opam install oUnit lwt mirage
 
 eval `opam config env`
 ocaml setup.ml -configure --enable-tests --enable-lwt --enable-mirage
