@@ -139,9 +139,8 @@ let answer_client_hello_common state session reneg ch raw =
 
     let signature pk =
       let sign x =
-        match Rsa.PKCS1.sign pk x with
-        | None        -> fail_handshake
-        | Some signed -> return signed
+        try return (Rsa.PKCS1.sign pk x)
+        with _ -> fail_handshake
       in
       match version with
       | TLS_1_0 | TLS_1_1 ->
