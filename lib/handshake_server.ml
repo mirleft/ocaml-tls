@@ -138,15 +138,10 @@ let answer_client_hello_common state session reneg ch raw =
     let data = session.client_random <+> session.server_random <+> written in
 
     let signature pk =
-      let sign x =
-        match Rsa.PKCS1.sign pk x with
-        | None        -> fail_handshake
-        | Some signed -> return signed
-      in
       match version with
       | TLS_1_0 | TLS_1_1 ->
-          sign Hash.( MD5.digest data <+> SHA1.digest data )
-          >|= Writer.assemble_digitally_signed
+          let signed = Rsa.PKCS1.sign pk Hash.( MD5.digest data <+> SHA1.digest data ) in
+          return (Writer.assemble_digitally_signed signed)
       | TLS_1_2 ->
           (* if no signature_algorithms extension is sent by the client,
              support for md5 and sha1 can be safely assumed! *)
@@ -159,10 +154,11 @@ let answer_client_hello_common state session reneg ch raw =
               match first_match client_hashes config.hashes with
               | None      -> fail_handshake
               | Some hash -> return hash )
-          >>= fun hash_algo ->
+          >|= fun hash_algo ->
             let hash = Hash.digest hash_algo data in
             let cs = Asn_grammars.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
-            sign cs >|= Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA
+            let sign = Rsa.PKCS1.sign pk cs in
+            Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
     in
 
     private_key session >>= signature >|= fun sgn ->
