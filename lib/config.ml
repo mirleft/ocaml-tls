@@ -101,6 +101,8 @@ let validate_server config =
   ( match config.own_certificate with
     | Some (c::_, priv) ->
        let pub = Rsa.pub_of_priv priv in
+       if Rsa.pub_bits pub < min_rsa_key_size then
+         invalid "RSA key too short!" ;
        let open Asn_grammars in
        ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
          | PK.RSA pub' when pub = pub' -> ()
