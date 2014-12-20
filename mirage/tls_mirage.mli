@@ -19,11 +19,11 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) : sig
 
   val reneg  : flow -> [ `Ok of unit | `Eof | `Error of error ] Lwt.t
 
-  val client_of_tcp_flow :
+  val client_of_flow :
     ?trace:tracer -> Tls.Config.client -> string -> FLOW.flow ->
     [> `Ok of flow | `Error of error ] Lwt.t
 
-  val server_of_tcp_flow :
+  val server_of_flow :
     ?trace:tracer -> Tls.Config.server -> FLOW.flow ->
     [> `Ok of flow | `Error of error ] Lwt.t
 

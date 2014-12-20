@@ -21,7 +21,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
 
   type flow = {
     role           : [ `Server | `Client ] ;
-    tcp            : FLOW.flow ;
+    flow           : FLOW.flow ;
     tracer         : tracer option ;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
@@ -46,7 +46,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
     let res = lift_result f_res in
     ( match (flow.state, res) with
       | (`Active _, (`Eof | `Error _ as e)) ->
-          flow.state <- e ; FLOW.close flow.tcp
+          flow.state <- e ; FLOW.close flow.flow
       | _ -> return_unit ) >>
     return res
 
@@ -68,20 +68,20 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
             | `Alert alert -> tls_alert alert );
           ( match resp with
             | None     -> return_ok
-            | Some buf -> FLOW.write flow.tcp buf >>= check_write flow ) >>
+            | Some buf -> FLOW.write flow.flow buf >>= check_write flow ) >>
           ( match res with
             | `Ok _ -> return_unit
-            | _     -> FLOW.close flow.tcp ) >>
+            | _     -> FLOW.close flow.flow ) >>
           return (`Ok data)
       | `Fail (alert, `Response resp) ->
           let reason = tls_alert alert in
           flow.state <- reason ;
-          FLOW.(write flow.tcp resp >> close flow.tcp) >> return reason
+          FLOW.(write flow.flow resp >> close flow.flow) >> return reason
     in
     match flow.state with
     | `Eof | `Error _ as e -> return e
     | `Active tls          ->
-        FLOW.read flow.tcp >|= lift_result >>= function
+        FLOW.read flow.flow >|= lift_result >>= function
           | `Eof | `Error _ as e -> flow.state <- e ; return e
           | `Ok buf              -> handle tls buf
 
@@ -105,7 +105,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
         with
         | Some (tls, answer) ->
             flow.state <- `Active tls ;
-            FLOW.write flow.tcp answer >>= check_write flow
+            FLOW.write flow.flow answer >>= check_write flow
         | None ->
             (* "Impossible" due to handhake draining. *)
             return_tls_error "write: flow not ready to send"
@@ -140,7 +140,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
         | None             -> return_tls_error "renegotiation in progress"
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
-            FLOW.write flow.tcp buf >|= lift_result
+            FLOW.write flow.flow buf >|= lift_result
 
   let close flow =
     match flow.state with
@@ -148,24 +148,24 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
       flow.state <- `Eof ;
       let (_, buf) = tracing flow @@ fun () ->
         Tls.Engine.send_close_notify tls in
-      FLOW.(write flow.tcp buf >> close flow.tcp)
+      FLOW.(write flow.flow buf >> close flow.flow)
     | _           -> return_unit
 
-  let client_of_tcp_flow ?trace conf host flow =
+  let client_of_flow ?trace conf host flow =
     let (tls, init) = Tls.Engine.client conf in
     let tls_flow = {
       role   = `Client ;
-      tcp    = flow ;
+      flow   = flow ;
       state  = `Active tls ;
       linger = [] ;
       tracer = trace ;
     } in
     FLOW.write flow init >> drain_handshake tls_flow
 
-  let server_of_tcp_flow ?trace conf flow =
+  let server_of_flow ?trace conf flow =
     let tls_flow = {
       role   = `Server ;
-      tcp    = flow ;
+      flow   = flow ;
       state  = `Active (Tls.Engine.server conf) ;
       linger = [] ;
       tracer = trace ;
