@@ -22,9 +22,10 @@ end
 
 
 let string_of_err = function
-  | `Timeout     -> "TIMEOUT"
-  | `Refused     -> "REFUSED"
-  | `Unknown msg -> msg
+  | `Flow `Timeout       -> "TIMEOUT"
+  | `Flow `Refused       -> "REFUSED"
+  | `Flow (`Unknown msg)
+  | `Tls msg             -> msg
 
 module Log (C: CONSOLE) = struct
 
@@ -68,7 +69,7 @@ struct
   let accept c conf k flow =
     let (trace, flush_trace) = make_tracer (C.log_s c) in
     L.log_trace c "accepted." >>
-    TLS.server_of_tcp_flow ~trace conf flow
+    TLS.server_of_flow ~trace conf flow
     >>== (fun tls -> L.log_trace c "shook hands" >> k c flush_trace tls)
     >>= function
       | `Ok _    -> assert false
@@ -116,11 +117,15 @@ struct
     TLS.attach_entropy e >>
     lwt authenticator = X509.authenticator kv `CAs in
     let conf          = Tls.Config.client ~authenticator () in
-    S.TCPV4.create_connection (S.tcpv4 stack) (fst peer) >>==
-    TLS.client_of_tcp_flow conf (snd peer) >>==
-    chat c >>= function
-    | `Error e -> L.log_error c e
-    | `Eof     -> L.log_trace c "eof."
-    | `Ok _    -> assert false
+    S.TCPV4.create_connection (S.tcpv4 stack) (fst peer)
+    >>= function
+    | `Error e -> L.log_error c (`Flow e)
+    | `Ok tcp  ->
+        TLS.client_of_flow conf (snd peer) tcp
+        >>== chat c
+        >>= function
+        | `Error e -> L.log_error c e
+        | `Eof     -> L.log_trace c "eof."
+        | `Ok _    -> assert false
 
 end
