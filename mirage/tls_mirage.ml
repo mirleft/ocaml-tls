@@ -183,41 +183,6 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
 
 end
 
-(* Mock-`FLOW` module, for constructing a `Channel` on top of. *)
-module Make_flow (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
-
-  include Make (TCP) (E)
-
-  type t = unit
-
-  type buffer = Cstruct.t
-
-  type ip      = TCP.ip
-  type ipaddr  = TCP.ipaddr
-  type ipinput = TCP.ipinput
-
-  type +'a io = 'a Lwt.t
-
-  type callback = flow -> unit io
-
-  type ipv4input = unit
-  type ipv4addr  = Ipaddr.V4.t
-  type ipv4      = unit
-
-  let lament = "not implemented"
-  let nope   = fail (Failure lament)
-
-  let write_nodelay _ _     = nope
-  and writev_nodelay _ _    = nope
-  and create_connection _ _ = nope
-  and disconnect _          = nope
-  and connect _             = nope
-  and input _ ~listeners    = failwith lament
-  and get_dest _            = failwith lament
-
-  and id _ = assert false
-end
-
 module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) = struct
 
   let (</>) p1 p2 = p1 ^ "/" ^ p2
