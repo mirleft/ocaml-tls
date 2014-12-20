@@ -184,6 +184,11 @@ module Make_flow (TCP: V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) = struct
   type t = unit
 
   type buffer = Cstruct.t
+
+  type ip      = TCP.ip
+  type ipaddr  = TCP.ipaddr
+  type ipinput = TCP.ipinput
+
   type +'a io = 'a Lwt.t
 
   type callback = flow -> unit io
