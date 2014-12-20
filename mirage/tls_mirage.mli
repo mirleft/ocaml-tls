@@ -1,8 +1,8 @@
 
-module Make (TCP : V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) : sig
+module Make (FLOW : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) : sig
   include Tls_mirage_types.TLS_core
 end
-  with module TCP     := TCP
+  with module FLOW    := FLOW
    and module ENTROPY := E
 
 module Make_flow (TCP : V1_LWT.TCPV4) (E : V1_LWT.ENTROPY) : sig
