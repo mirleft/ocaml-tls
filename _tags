@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 75bfb6ffd47189fbc52ed21073f7dd82)
+# DO NOT EDIT (digest: 01dd712377037819dc673f0b105844c6)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -53,9 +53,10 @@ true: annot, bin_annot
 # Library tls-mirage
 "mirage/tls-mirage.cmxs": use_tls-mirage
 <mirage/*.ml{,i,y}>: pkg_cstruct.syntax
+<mirage/*.ml{,i,y}>: pkg_ipaddr
 <mirage/*.ml{,i,y}>: pkg_lwt
 <mirage/*.ml{,i,y}>: pkg_lwt.syntax
-<mirage/*.ml{,i,y}>: pkg_mirage
+<mirage/*.ml{,i,y}>: pkg_mirage-types
 <mirage/*.ml{,i,y}>: pkg_nocrypto
 <mirage/*.ml{,i,y}>: pkg_sexplib.syntax
 <mirage/*.ml{,i,y}>: pkg_x509
