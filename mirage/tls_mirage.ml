@@ -5,7 +5,9 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
 
   module FLOW = F
 
-  type error = [ `Tls of string | `Flow of FLOW.error ]
+  type error  = [ `Tls of string | `Flow of FLOW.error ]
+  type buffer = Cstruct.t
+  type +'a io = 'a Lwt.t
 
   module ENTROPY = E
   (*
