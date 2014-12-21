@@ -65,15 +65,9 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
   let conv_io buf =
     let open Cstruct in
     let blen = len buf in
-    let pages = cdiv blen 4096 in
-    Printf.printf "blen %d allocating %d pages\n%!" blen pages ;
-    let io = Io_page.get pages in
-    Printf.printf "io allocated (size: %d)\n%!" (Io_page.length io) ;
+    let io = Io_page.get (cdiv blen 4096) in
     Io_page.string_blit (to_string buf) 0 io 0 blen ;
-    Printf.printf "string blit\n%!" ;
-    let res = sub (Io_page.to_cstruct io) 0 blen in
-    Printf.printf "returning%!" ; Cstruct.hexdump res ;
-    res
+    sub (Io_page.to_cstruct io) 0 blen
 
   let read_react flow =
 
@@ -96,7 +90,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
       | `Fail (alert, `Response resp) ->
           let reason = tls_alert alert in
           flow.state <- reason ;
-          FLOW.(write flow.flow (conv_io resp) >> close flow.tcp) >> return reason
+          FLOW.(write flow.flow (conv_io resp) >> close flow.flow) >> return reason
     in
     match flow.state with
     | `Eof | `Error _ as e -> return e
