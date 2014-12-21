@@ -1,6 +1,11 @@
-master
+0.3.0 (2014-12-21):
 * X509_lwt provides `Fingerprints and `Hex_fingerprints constructor for checking fingerprints of certificates instead of trusting trust anchors
 * client configuration requires an authenticator
+* server certificate must be at least Config.min_rsa_key_size bits
+* expose epoch via lwt interface
+* mirage-2.2.0 compatibility
+* cleanups of mirage interface
+* nocrypto-0.3.0 compatibility
 
 0.2.0 (2014-10-30):
 * expose trust anchor when authenticating the certificate (requires x509 >= 0.2)
