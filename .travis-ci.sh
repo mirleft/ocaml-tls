@@ -23,13 +23,15 @@ opam pin -n add tls .
 opam update -u
 
 opam install --deps-only tls
-opam install oUnit lwt mirage
+opam install oUnit lwt mirage-types-lwt
 
 eval `opam config env`
 ocaml setup.ml -configure --enable-tests --enable-lwt --enable-mirage
 ocaml setup.ml -build
 ocaml setup.ml -test
 ocaml setup.ml -install
+
+opam install mirage
 
 cd mirage/example
 mirage clean && mirage configure && mirage build
