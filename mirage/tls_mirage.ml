@@ -55,6 +55,20 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
     | None      -> f ()
     | Some hook -> Tls.Tracing.active ~hook f
 
+  let sign = function
+    | 0            -> 0
+    | x when x > 0 ->  1
+    | _            -> -1
+
+  let cdiv x y = x / y + sign (x mod y)
+
+  let conv_io buf =
+    let open Cstruct in
+    let blen = len buf in
+    let io = Io_page.get (cdiv blen 4096) in
+    Io_page.string_blit (to_string buf) 0 io 0 blen ;
+    sub (Io_page.to_cstruct io) 0 blen
+
   let read_react flow =
 
     let handle tls buf =
@@ -68,7 +82,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
             | `Alert alert -> tls_alert alert );
           ( match resp with
             | None     -> return_ok
-            | Some buf -> FLOW.write flow.flow buf >>= check_write flow ) >>
+            | Some buf -> FLOW.write flow.flow (conv_io buf) >>= check_write flow ) >>
           ( match res with
             | `Ok _ -> return_unit
             | _     -> FLOW.close flow.flow ) >>
@@ -76,7 +90,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
       | `Fail (alert, `Response resp) ->
           let reason = tls_alert alert in
           flow.state <- reason ;
-          FLOW.(write flow.flow resp >> close flow.flow) >> return reason
+          FLOW.(write flow.flow (conv_io resp) >> close flow.flow) >> return reason
     in
     match flow.state with
     | `Eof | `Error _ as e -> return e
@@ -105,7 +119,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
         with
         | Some (tls, answer) ->
             flow.state <- `Active tls ;
-            FLOW.write flow.flow answer >>= check_write flow
+            FLOW.write flow.flow (conv_io answer) >>= check_write flow
         | None ->
             (* "Impossible" due to handhake draining. *)
             return_tls_error "write: flow not ready to send"
@@ -140,7 +154,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
         | None             -> return_tls_error "renegotiation in progress"
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
-            FLOW.write flow.flow buf >|= lift_result
+            FLOW.write flow.flow (conv_io buf) >|= lift_result
 
   let close flow =
     match flow.state with
@@ -148,7 +162,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
       flow.state <- `Eof ;
       let (_, buf) = tracing flow @@ fun () ->
         Tls.Engine.send_close_notify tls in
-      FLOW.(write flow.flow buf >> close flow.flow)
+      FLOW.(write flow.flow (conv_io buf) >> close flow.flow)
     | _           -> return_unit
 
   let client_of_flow ?trace conf host flow =
@@ -160,7 +174,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
       linger = [] ;
       tracer = trace ;
     } in
-    FLOW.write flow init >> drain_handshake tls_flow
+    FLOW.write flow (conv_io init) >> drain_handshake tls_flow
 
   let server_of_flow ?trace conf flow =
     let tls_flow = {
