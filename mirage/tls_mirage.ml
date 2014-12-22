@@ -1,5 +1,5 @@
-
 open Lwt
+open Nocrypto
 
 module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
 
@@ -55,19 +55,13 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
     | None      -> f ()
     | Some hook -> Tls.Tracing.active ~hook f
 
-  let sign = function
-    | 0            -> 0
-    | x when x > 0 ->  1
-    | _            -> -1
-
-  let cdiv x y = x / y + sign (x mod y)
-
   let conv_io buf =
     let open Cstruct in
     let blen = len buf in
-    let io = Io_page.get (cdiv blen 4096) in
-    Io_page.string_blit (to_string buf) 0 io 0 blen ;
-    sub (Io_page.to_cstruct io) 0 blen
+    let io = Io_page.get (Uncommon.cdiv blen 4096) in
+    let cs = Cstruct.(of_bigarray ~len:blen io) in
+    Cstruct.blit buf 0 cs 0 blen ;
+    cs
 
   let read_react flow =
 
