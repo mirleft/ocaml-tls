@@ -194,9 +194,12 @@ let agreed_cipher server_supported requested =
   | Some x -> return x
   | None   -> fail_handshake
 
-let agreed_version supported requested =
+let agreed_version supported requested fallback =
   match supported_protocol_version supported requested with
-  | Some x -> return x
+  | Some x ->
+      if fallback && x != max_protocol_version supported
+      then fail Packet.INAPPROPRIATE_FALLBACK
+      else return x
   | None   -> fail Packet.PROTOCOL_VERSION
 
 let answer_client_hello state (ch : client_hello) raw =
@@ -211,8 +214,9 @@ let answer_client_hello state (ch : client_hello) raw =
 
   let process_client_hello config ch =
     let cciphers = ch.ciphersuites in
+    let fallback = List.mem Packet.TLS_FALLBACK_SCSV cciphers in
     assure (client_hello_valid ch) >>= fun () ->
-    agreed_version config.protocol_versions ch.version >>= fun version ->
+    agreed_version config.protocol_versions ch.version fallback >>= fun version ->
     agreed_cipher config.ciphers cciphers >>= fun cipher ->
     let theirs = get_secure_renegotiation ch.extensions in
     ensure_reneg config.secure_reneg cciphers theirs >|= fun () ->
@@ -242,7 +246,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
   let process_client_hello config oldsession oldversion ours ch =
     let cciphers = ch.ciphersuites in
     assure (client_hello_valid ch) >>= fun () ->
-    agreed_version config.protocol_versions ch.version >>= fun version ->
+    agreed_version config.protocol_versions ch.version false >>= fun version ->
     assure (version = oldversion) >>= fun () ->
     agreed_cipher config.ciphers cciphers >>= fun cipher ->
     let theirs = get_secure_renegotiation ch.extensions in
