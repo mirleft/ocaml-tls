@@ -29,15 +29,13 @@ eval `opam config env`
 ocaml setup.ml -configure --enable-tests --enable-lwt --enable-mirage
 ocaml setup.ml -build
 ocaml setup.ml -test
-ocaml setup.ml -install
 
 opam install mirage
 
 cd mirage/example
-mirage clean && mirage configure && mirage build
+mirage clean && mirage configure && mirage build && opam remove tls &&
 
-export BUILD=client
-mirage clean && mirage configure && mirage build && ./mir-tls-client
+export BUILD=client && mirage clean && mirage configure && mirage build && ./mir-tls-client
 
 # these are too brittle on travis
 #cd tests
