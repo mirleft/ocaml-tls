@@ -167,6 +167,7 @@ Posts in the TLS series:
 - RFC 5746 - TLS Renegotiation Indication Extension
 - draft-agl-tls-padding-03 - A TLS padding extension
 - draft-mathewson-no-gmtunixtime - No UNIX time in client and server hello
+- draft-ietf-tls-downgrade-scsv - Reject client-flagged version downgrades
 
 ### Acknowledgements
 
