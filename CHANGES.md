@@ -1,4 +1,5 @@
 (trunk):
+* remove RC4 ciphers from default config
 * support for AEAD ciphers, currently CCM
 
 0.3.0 (2014-12-21):
