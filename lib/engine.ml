@@ -50,12 +50,16 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
   match st with
   | None     -> (st, buf)
   | Some ctx ->
-      let seq = ctx.sequence in
-      let ver = pair_of_tls_version version in
-      let signature mac mac_k =
-        Crypto.mac mac mac_k seq ty ver buf
+      let pseudo_hdr =
+        let seq = ctx.sequence
+        and ver = pair_of_tls_version version
+        in
+        Crypto.pseudo_header seq ty ver (Cstruct.len buf)
       in
-      let to_encrypt mac mac_k = buf <+> signature mac mac_k in
+      let to_encrypt mac mac_k =
+        let signature = Crypto.mac mac mac_k pseudo_hdr buf in
+        buf <+> signature
+      in
       let c_st, enc =
         match ctx.cipher_st with
         | Stream s ->
@@ -79,20 +83,15 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
                 (CBC { c with iv_mode = Iv iv' }, m) )
 
         | CCM c ->
-           let adata =
-             Crypto.auth_header seq ty ver (Cstruct.len buf)
-           in
-           let explicit_nonce = Crypto.sequence_buf seq in
-           let cipher = c.cipher
-           and key = c.cipher_secret
-           and nonce = c.nonce <+> explicit_nonce
+           let explicit_nonce = Crypto.sequence_buf ctx.sequence in
+           let nonce = c.nonce <+> explicit_nonce
            in
            let msg =
-             Crypto.encrypt_ccm ~cipher ~key ~nonce ~adata buf
+             Crypto.encrypt_ccm ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
            in
            (CCM c, explicit_nonce <+> msg)
       in
-      (Some { sequence = Int64.succ seq ; cipher_st = c_st }, enc)
+      (Some { sequence = Int64.succ ctx.sequence ; cipher_st = c_st }, enc)
 
 (* well-behaved pure decryptor *)
 let verify_mac sequence mac mac_k ty ver decrypted =
@@ -101,7 +100,8 @@ let verify_mac sequence mac mac_k ty ver decrypted =
     let (body, mmac) = Cstruct.split decrypted macstart in
     let cmac =
       let ver = pair_of_tls_version ver in
-      Crypto.mac mac mac_k sequence ty ver body in
+      let hdr = Crypto.pseudo_header sequence ty ver (Cstruct.len body) in
+      Crypto.mac mac mac_k hdr body in
     guard (Cs.equal cmac mmac) Packet.BAD_RECORD_MAC >|= fun () -> body
 
 
@@ -124,7 +124,6 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
   let dec ctx =
     let seq = ctx.sequence in
     match ctx.cipher_st with
-
     | Stream s ->
         let (message, key') = Crypto.decrypt_stream ~cipher:s.cipher ~key:s.cipher_secret buf in
         compute_mac seq s.hmac s.hmac_secret message >|= fun msg ->
@@ -169,8 +168,10 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
   | None     -> return (st, buf)
   | Some ctx ->
       dec ctx >>= fun (st', msg) ->
-      let ctx' = { sequence  = Int64.succ ctx.sequence ;
-                   cipher_st = st' }
+      let ctx' = {
+        sequence  = Int64.succ ctx.sequence ;
+        cipher_st = st'
+      }
       in
       return (Some ctx', msg)
 
