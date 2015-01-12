@@ -73,7 +73,7 @@ let sequence_buf seq =
   BE.set_uint64 buf 0 seq ;
   buf
 
-let auth_header seq ty (v_major, v_minor) length =
+let pseudo_header seq ty (v_major, v_minor) length =
   let open Cstruct in
   let prefix = create 5 in
   set_uint8 prefix 0 (Packet.content_type_to_int ty);
@@ -83,9 +83,8 @@ let auth_header seq ty (v_major, v_minor) length =
   sequence_buf seq <+> prefix
 
 (* MAC used in TLS *)
-let mac hash key seq ty v data =
-  let prefix = auth_header seq ty v (Cstruct.len data) in
-  Hash.mac hash ~key (prefix <+> data)
+let mac hash key pseudo_hdr data =
+  Hash.mac hash ~key (pseudo_hdr <+> data)
 
 let cbc_block (type a) cipher =
   let module C = (val cipher : Cipher_block.T.CBC with type key = a) in C.block_size
