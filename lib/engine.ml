@@ -152,20 +152,18 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
               (CBC c, msg) )
 
     | CCM c ->
-       (* buf has 8 byte nonce! *)
-       let explicit_nonce, buf = Cstruct.split buf 8 in
-       let adata =
-         let ver = pair_of_tls_version version in
-         (* 16 byte mac *)
-         Crypto.auth_header seq ty ver (Cstruct.len buf - 16)
-       in
-       let cipher = c.cipher
-       and key = c.cipher_secret
-       and nonce = c.nonce <+> explicit_nonce
-       in
-       match Crypto.decrypt_ccm ~cipher ~key ~nonce ~adata buf with
-       | None -> fail Packet.BAD_RECORD_MAC
-       | Some x -> return (CCM c, x)
+       if Cstruct.len buf < 8 then
+         fail Packet.BAD_RECORD_MAC
+       else
+         let explicit_nonce, buf = Cstruct.split buf 8 in
+         let adata =
+           let ver = pair_of_tls_version version in
+           Crypto.pseudo_header seq ty ver (Cstruct.len buf - 16)
+         and nonce = c.nonce <+> explicit_nonce
+         in
+         match Crypto.decrypt_ccm ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
+         | None -> fail Packet.BAD_RECORD_MAC
+         | Some x -> return (CCM c, x)
   in
   match st with
   | None     -> return (st, buf)
