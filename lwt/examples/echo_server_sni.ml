@@ -24,11 +24,11 @@ let serve_ssl port callback =
     s in
 
   let handle ep channels addr =
-    let host = Tls.Engine.(match ep with
-                           | `Epoch data   -> (match data.own_name with
-                                               | Some n -> n
-                                               | None   -> "no name")
-                           | `InitialEpoch -> "no session")
+    let host = match ep with
+      | `Ok data -> ( match data.Tls.Engine.own_name with
+          | Some n -> n
+          | None   -> "no name" )
+      | `Error   -> "no session"
     in
     async @@ fun () ->
       try_lwt

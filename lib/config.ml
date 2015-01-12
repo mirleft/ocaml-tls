@@ -105,21 +105,21 @@ module CertTypeUsageSet = Set.Make(CertTypeUsageOrdered)
 let validate_certificate_chain = function
   | (s::chain, priv) ->
      let pub = Rsa.pub_of_priv priv in
+     if Rsa.pub_bits pub < min_rsa_key_size then
+       invalid "RSA key too short!" ;
      let open Asn_grammars in
      ( match Certificate.(asn_of_cert s).tbs_cert.pk_info with
        | PK.RSA pub' when pub = pub' ->
-         if Rsa.pub_bits pub < min_rsa_key_size then
-           invalid "RSA key too short!"
-         else
-           ()
+         ()
        | _                           ->
          invalid "public / private key combination" ) ;
      ( match init_and_last chain with
        | Some (ch, trust) ->
-          ( match Certificate.verify_chain_of_trust ~anchors:[trust] (s, ch) with
-            | `Ok _   -> ()
-            | `Fail x -> invalid ("certificate chain does not validate: " ^
-                                    (Certificate.certificate_failure_to_string x)) )
+         (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
+         ( match Certificate.verify_chain_of_trust ~anchors:[trust] (s, ch) with
+           | `Ok _   -> ()
+           | `Fail x -> invalid ("certificate chain does not validate: " ^
+                                 (Certificate.certificate_failure_to_string x)) )
        | None -> () )
   | _ -> invalid "certificate"
 
@@ -169,10 +169,15 @@ let validate_server config =
                certificate_chains |>
       List.map (fun c -> Certificate.(cert_type c, cert_usage c))
   in
-  ( CertTypeUsageSet.for_all
-      (fun (t, u) ->
-       List.exists (fun (ct, cu) -> ct = t && option true (List.mem u) cu) certtypes)
-      typeusage ) || invalid "certificate type or usage does not match" ;
+  if
+    not (CertTypeUsageSet.for_all
+           (fun (t, u) ->
+              List.exists (fun (ct, cu) ->
+                  ct = t && option true (List.mem u) cu)
+                certtypes)
+           typeusage)
+  then
+    invalid "certificate type or usage does not match" ;
   List.iter validate_certificate_chain certificate_chains ;
   ( match config.own_certificates with
     | `Multiple cs              -> non_overlapping cs
