@@ -1,3 +1,6 @@
+(trunk):
+* support for AEAD ciphers, currently CCM
+
 0.3.0 (2014-12-21):
 * X509_lwt provides `Fingerprints and `Hex_fingerprints constructor for
   checking fingerprints of certificates instead of trusting trust
