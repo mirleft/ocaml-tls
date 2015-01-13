@@ -9,6 +9,10 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
 
+  let error_message = function
+    | `Tls msg -> Printf.sprintf "TLS error: %s" msg
+    | `Flow err -> F.error_message err
+
   module ENTROPY = E
   (*
    * XXX 1: Would be nice if this happened behind the scenes.
