@@ -119,11 +119,11 @@ let validate_chain config session certificates =
     match
       X509.Authenticator.authenticate ?host:server_name authenticator stack
     with
-    | `Fail SelfSigned         -> fail Packet.UNKNOWN_CA
-    | `Fail NoTrustAnchor      -> fail Packet.UNKNOWN_CA
-    | `Fail CertificateExpired -> fail Packet.CERTIFICATE_EXPIRED
-    | `Fail _                  -> fail Packet.BAD_CERTIFICATE
-    | `Ok anchor               -> return anchor
+    | `Fail (SelfSigned _)         -> fail Packet.UNKNOWN_CA
+    | `Fail NoTrustAnchor          -> fail Packet.UNKNOWN_CA
+    | `Fail (CertificateExpired _) -> fail Packet.CERTIFICATE_EXPIRED
+    | `Fail _                      -> fail Packet.BAD_CERTIFICATE
+    | `Ok anchor                   -> return anchor
 
   and validate_keytype cert ktype =
     cert_type cert = ktype
