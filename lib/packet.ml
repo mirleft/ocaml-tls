@@ -47,6 +47,7 @@ cenum alert_type {
   PROTOCOL_VERSION                = 70;  (*RFC5246*)
   INSUFFICIENT_SECURITY           = 71;  (*RFC5246*)
   INTERNAL_ERROR                  = 80;  (*RFC5246*)
+  INAPPROPRIATE_FALLBACK          = 86;  (*draft-ietf-tls-downgrade-scsv*)
   USER_CANCELED                   = 90;  (*RFC5246*)
   NO_RENEGOTIATION                = 100; (*RFC5246*)
   UNSUPPORTED_EXTENSION           = 110; (*RFC5246*)
@@ -376,6 +377,7 @@ cenum any_ciphersuite {
   TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0x00C4; (*RFC5932*)
   TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA256 = 0x00C5; (*RFC5932*)
   TLS_EMPTY_RENEGOTIATION_INFO_SCSV        = 0x00FF; (*RFC5746*)
+  TLS_FALLBACK_SCSV                        = 0x5600; (*draft-ietf-tls-downgrade-scsv*)
   (* from RFC 4492 *)
   TLS_ECDH_ECDSA_WITH_NULL_SHA                 = 0xC001;
   TLS_ECDH_ECDSA_WITH_RC4_128_SHA              = 0xC002;
