@@ -24,14 +24,17 @@ module Ciphers : sig
 
   (** Cipher selection related utilities. *)
 
+  val advertised : ciphersuite list
+  (** All ciphersuites this library advertises by default. *)
+
   val supported : ciphersuite list
-  (** All the ciphers this library can use. *)
+  (** All ciphersuites this library implements. *)
 
   val pfs : ciphersuite list
-  (** All the PFS ciphers this library can use. *)
+  (** All perfect forward secrecy ciphersuites this library supports. *)
 
   val pfs_of : ciphersuite list -> ciphersuite list
-  (** [pfs_of ciphers] selects only PFS ciphers. *)
+  (** [pfs_of ciphers] selects only perfect forward secrecy ciphersuites. *)
 end
 
 (** [supported_hashes] is a list of supported hash algorithms by this library *)
