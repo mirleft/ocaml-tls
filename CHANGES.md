@@ -1,6 +1,7 @@
 (trunk):
-* remove RC4 ciphers from default config
-* support for AEAD ciphers, currently CCM
+* SCSV server-side downgrade prevention (contributed by Gabriel de Perthuis @g2p #5)
+* remove RC4 ciphers from default config #8
+* support for AEAD ciphers, currently CCM #191
 
 0.3.0 (2014-12-21):
 * X509_lwt provides `Fingerprints and `Hex_fingerprints constructor for
