@@ -213,10 +213,9 @@ let answer_client_hello state (ch : client_hello) raw =
     let cciphers = ch.ciphersuites in
     assure (client_hello_valid ch) >>= fun () ->
     agreed_version config.protocol_versions ch.version >>= fun version ->
-    ( if List.mem Packet.TLS_FALLBACK_SCSV cciphers then
-        guard (version = max_protocol_version config.protocol_versions) Packet.INAPPROPRIATE_FALLBACK
-      else
-        return () ) >>= fun () ->
+    guard (not (List.mem Packet.TLS_FALLBACK_SCSV cciphers) ||
+           version = max_protocol_version config.protocol_versions)
+      Packet.INAPPROPRIATE_FALLBACK >>= fun () ->
     agreed_cipher config.ciphers cciphers >>= fun cipher ->
     let theirs = get_secure_renegotiation ch.extensions in
     ensure_reneg config.secure_reneg cciphers theirs >|= fun () ->
