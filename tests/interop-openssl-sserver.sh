@@ -35,7 +35,7 @@ testit
 extra_args="-tls1_2"
 testit
 
-ciphers="DHE-RSA-AES256-SHA AES256-SHA DHE-RSA-AES128-SHA AES128-SHA EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA"
+ciphers="DHE-RSA-AES256-SHA AES256-SHA DHE-RSA-AES128-SHA AES128-SHA EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA RC4-SHA RC4-MD5"
 for i in $ciphers; do
     extra_args="-cipher $i"
     testit
