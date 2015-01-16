@@ -204,36 +204,11 @@ let answer_client_hello_common state reneg ch raw =
       Writer.assemble_dh_parameters dh_param in
 
     let data = session.client_random <+> session.server_random <+> written in
-
-    let signature pk =
-      match version with
-      | TLS_1_0 | TLS_1_1 ->
-          let signed = Rsa.PKCS1.sign pk Hash.( MD5.digest data <+> SHA1.digest data ) in
-          return (Writer.assemble_digitally_signed signed)
-      | TLS_1_2 ->
-          (* if no signature_algorithms extension is sent by the client,
-             support for md5 and sha1 can be safely assumed! *)
-        ( match sig_algs with
-          | None              -> return `SHA1
-          | Some client_algos ->
-              let client_hashes =
-                List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) client_algos)
-              in
-              match first_match client_hashes config.hashes with
-              | None      -> fail_handshake
-              | Some hash -> return hash )
-          >|= fun hash_algo ->
-            let hash = Hash.digest hash_algo data in
-            let cs = Asn_grammars.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
-            let sign = Rsa.PKCS1.sign pk cs in
-            Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
-    in
-
-    private_key session >>= signature >|= fun sgn ->
-      let kex = ServerKeyExchange (written <+> sgn) in
-      let hs = Writer.assemble_handshake kex in
-      Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ;
-      (hs, dh_state) in
+    private_key session >>= signature version data sig_algs config.hashes >|= fun sgn ->
+    let kex = ServerKeyExchange (written <+> sgn) in
+    let hs = Writer.assemble_handshake kex in
+    Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ;
+    (hs, dh_state) in
 
   process_client_hello ch state.config >>= fun session ->
   let sh, session = server_hello session reneg in
