@@ -3,7 +3,14 @@ open Nocrypto
 open Utils
 open Core
 
-type own_cert = Certificate.certificate list * Rsa.priv
+type certchain = Certificate.certificate list * Rsa.priv
+
+type own_cert = [
+  | `None
+  | `Single of certchain
+  | `Multiple of certchain list
+  | `Multiple_default of certchain * certchain list
+]
 
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
@@ -14,7 +21,7 @@ type config = {
   secure_reneg      : bool ;
   authenticator     : X509.Authenticator.t option ;
   peer_name         : string option ;
-  own_certificate   : own_cert option ;
+  own_certificates  : own_cert ;
 }
 
 module Ciphers = struct
@@ -67,7 +74,7 @@ let default_config = {
   secure_reneg      = true ;
   authenticator     = None ;
   peer_name         = None ;
-  own_certificate   = None ;
+  own_certificates  = `None ;
 }
 
 let invalid msg = invalid_arg ("Tls.Config: invalid configuration: " ^ msg)
@@ -89,45 +96,94 @@ let validate_common config =
 
 let validate_client config = ()
 
+module CertTypeUsageOrdered = struct
+  type t = Certificate.key_type * Asn_grammars.Extension.key_usage
+  let compare = compare
+end
+module CertTypeUsageSet = Set.Make(CertTypeUsageOrdered)
+
+let validate_certificate_chain = function
+  | (s::chain, priv) ->
+     let pub = Rsa.pub_of_priv priv in
+     if Rsa.pub_bits pub < min_rsa_key_size then
+       invalid "RSA key too short!" ;
+     let open Asn_grammars in
+     ( match Certificate.(asn_of_cert s).tbs_cert.pk_info with
+       | PK.RSA pub' when pub = pub' ->
+         ()
+       | _                           ->
+         invalid "public / private key combination" ) ;
+     ( match init_and_last chain with
+       | Some (ch, trust) ->
+         (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
+         ( match Certificate.verify_chain_of_trust ~anchors:[trust] (s, ch) with
+           | `Ok _   -> ()
+           | `Fail x -> invalid ("certificate chain does not validate: " ^
+                                 (Certificate.certificate_failure_to_string x)) )
+       | None -> () )
+  | _ -> invalid "certificate"
+
+module StringSet = Set.Make(String)
+
+let non_overlapping cs =
+  let namessets =
+    let nameslists = filter_map cs ~f:(function
+                                        | (s :: _, _) -> Some s
+                                        | _           -> None)
+                     |> List.map Certificate.cert_hostnames
+    in
+    List.map (fun xs -> List.fold_right StringSet.add xs StringSet.empty) nameslists
+  in
+  let rec check = function
+    | []    -> ()
+    | s::ss -> if not (List.for_all
+                         (fun ss' -> StringSet.is_empty (StringSet.inter s ss'))
+                         ss)
+               then
+                 invalid_arg "overlapping names in certificates"
+               else
+                 check ss
+  in
+  check namessets
+
 let validate_server config =
   let open Ciphersuite in
-  List.map ciphersuite_kex config.ciphers |>
-    List.filter needs_certificate |>
-    List.iter (fun kex ->
-      let ctype, cusage = match config.own_certificate with
-        | None | Some ([], _) -> invalid "no certificate provided"
-        | Some (c::_, _)      -> Certificate.(cert_type c, cert_usage c)
-      in
-      let ktype, usage = required_keytype_and_usage kex in
-      if ktype != ctype then invalid "need a certificate of different keytype for selected ciphers" ;
-      match cusage with
-      | None    -> ()
-      | Some us ->
-         if not (List.mem usage us) then
-           invalid "require a certificate with a different keyusage" ) ;
-  ( match config.own_certificate with
-    | Some (c::_, priv) ->
-       let pub = Rsa.pub_of_priv priv in
-       if Rsa.pub_bits pub < min_rsa_key_size then
-         invalid "RSA key too short!" ;
-       let open Asn_grammars in
-       ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
-         | PK.RSA pub' when pub = pub' -> ()
-         | _                           -> invalid "public / private key combination" )
-    | None | Some ([], _) -> () ) ;
-  ( match config.own_certificate with
-    | None         -> ()
-    | Some (xs, _) ->
-        match init_and_last xs with
-        | None | Some ([], _) -> ()
-        | Some (s::cs, ta)    ->
-            match
-              Certificate.verify_chain_of_trust ~anchors:[ta] (s, cs)
-            with
-            | `Ok _   -> ()
-            | `Fail x -> invalid ("certificate chain does not validate: " ^
-                               (Certificate.certificate_failure_to_string x)) )
-   (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
+  let typeusage =
+    let tylist =
+      List.map ciphersuite_kex config.ciphers |>
+        List.filter needs_certificate |>
+        List.map required_keytype_and_usage
+    in
+    List.fold_right CertTypeUsageSet.add tylist CertTypeUsageSet.empty
+  and certificate_chains =
+    match config.own_certificates with
+    | `Single c                 -> [c]
+    | `Multiple cs              -> cs
+    | `Multiple_default (c, cs) -> c :: cs
+    | `None                     -> []
+  in
+  let certtypes =
+    filter_map ~f:(function
+                    | (s::_, _) -> Some s
+                    | _         -> None)
+               certificate_chains |>
+      List.map (fun c -> Certificate.(cert_type c, cert_usage c))
+  in
+  if
+    not (CertTypeUsageSet.for_all
+           (fun (t, u) ->
+              List.exists (fun (ct, cu) ->
+                  ct = t && option true (List.mem u) cu)
+                certtypes)
+           typeusage)
+  then
+    invalid "certificate type or usage does not match" ;
+  List.iter validate_certificate_chain certificate_chains ;
+  ( match config.own_certificates with
+    | `Multiple cs              -> non_overlapping cs
+    | `Multiple_default (_, cs) -> non_overlapping cs
+    | _                         -> () )
+  (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
 
 type client = config
 type server = config
@@ -153,14 +209,14 @@ let client
   ( validate_common config ; validate_client config ; config )
 
 let server
-  ?ciphers ?version ?hashes ?reneg ?certificate ?secure_reneg () =
+  ?ciphers ?version ?hashes ?reneg ?certificates ?secure_reneg () =
   let config =
     { default_config with
         ciphers           = ciphers      <?> default_config.ciphers ;
         protocol_versions = version      <?> default_config.protocol_versions ;
         hashes            = hashes       <?> default_config.hashes ;
         use_reneg         = reneg        <?> default_config.use_reneg ;
-        own_certificate   = certificate;
+        own_certificates  = certificates <?> default_config.own_certificates ;
         secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
     } in
   ( validate_common config ; validate_server config ; config )
@@ -178,9 +234,6 @@ let sexp_of_version =
 let sexp_of_authenticator_o =
   Conv.sexp_of_option (fun _ -> Sexp.Atom "<AUTHENTICATOR>")
 
-let sexp_of_certificate_o =
-  Conv.sexp_of_option (fun _ -> Sexp.Atom "<CERTIFICATE>")
-
 let sexp_of_config c =
   let open Ciphersuite in
   Sexp_ext.record [
@@ -191,5 +244,5 @@ let sexp_of_config c =
     "secure_reneg"   , Conv.sexp_of_bool c.secure_reneg ;
     "authenticator"  , sexp_of_authenticator_o c.authenticator ;
     "peer_name"      , Conv.(sexp_of_option sexp_of_string) c.peer_name ;
-    "certificate"    , sexp_of_certificate_o c.own_certificate ;
+    "certificates"   , Sexp.Atom "<CERTIFICATE>" ;
   ]

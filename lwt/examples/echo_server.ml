@@ -32,7 +32,7 @@ let serve_ssl port callback =
   >>
   let rec loop () =
     lwt (channels, addr) =
-      Tls_lwt.accept ~trace:eprint_sexp cert server_s in
+      Tls_lwt.accept ~trace:eprint_sexp (`Single cert) server_s in
     yap ~tag "-> connect"
     >>
     ( handle channels addr ; loop () )

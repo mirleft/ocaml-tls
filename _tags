@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 167143f0c1add797cf9e6f7b8c9f2018)
+# DO NOT EDIT (digest: e627de736b4d03a8f68ec1061fe2f00b)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -110,6 +110,16 @@ true: annot, bin_annot
 "lwt/examples/echo_server.native": pkg_x509
 "lwt/examples/echo_server.native": use_tls
 "lwt/examples/echo_server.native": use_tls-lwt
+# Executable echo_server_sni
+"lwt/examples/echo_server_sni.native": pkg_cstruct.lwt
+"lwt/examples/echo_server_sni.native": pkg_cstruct.syntax
+"lwt/examples/echo_server_sni.native": pkg_lwt.syntax
+"lwt/examples/echo_server_sni.native": pkg_lwt.unix
+"lwt/examples/echo_server_sni.native": pkg_nocrypto
+"lwt/examples/echo_server_sni.native": pkg_sexplib.syntax
+"lwt/examples/echo_server_sni.native": pkg_x509
+"lwt/examples/echo_server_sni.native": use_tls
+"lwt/examples/echo_server_sni.native": use_tls-lwt
 # Executable echo_client
 "lwt/examples/echo_client.native": pkg_cstruct.lwt
 "lwt/examples/echo_client.native": pkg_cstruct.syntax

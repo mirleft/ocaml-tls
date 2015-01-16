@@ -90,8 +90,84 @@ let sig_algs client_hello =
            | SignatureAlgorithms xs -> Some xs
            | _                      -> None
 
-let answer_client_hello_common state session reneg ch raw =
-  let server_hello session reneg =
+let cert_from_own_cert = function
+  | (s::_, _) -> Some s
+  | _         -> None
+
+let cert_names c =
+  option [] Certificate.cert_hostnames (cert_from_own_cert c)
+
+let wildcard_match host c =
+  option false (Certificate.wildcard_matches host) (cert_from_own_cert c)
+
+let rec find_matching host = function
+  | []                                     -> None
+  | c::_ when List.mem host (cert_names c) -> Some c
+  | _::xs                                  -> find_matching host xs
+
+let rec find_wildcard_matching host = function
+  | []                              -> None
+  | c::_ when wildcard_match host c -> Some c
+  | _::xs                           -> find_wildcard_matching host xs
+
+let agreed_cert certs hostname =
+  let match_host ?default host certs =
+     let host = String.lowercase host in
+     match find_matching host certs with
+     | Some x -> return x
+     | None   -> match find_wildcard_matching host certs with
+                 | Some x -> return x
+                 | None   -> match default with
+                             | Some c -> return c
+                             | None   -> fail_handshake
+  in
+  match certs, hostname with
+  | `None                    , _      -> fail_handshake
+  | `Single c                , _      -> return c
+  | `Multiple_default (c, _) , None   -> return c
+  | `Multiple cs             , Some h -> match_host h cs
+  | `Multiple_default (c, cs), Some h -> match_host h cs ~default:c
+  | _                                 -> fail_handshake
+
+let agreed_cipher cert requested =
+  let certtype, certusage = Certificate.(cert_type cert, cert_usage cert) in
+  let type_usage_matches cipher =
+    let cstyp, csusage = Ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher) in
+    certtype = cstyp && option true (List.mem csusage) certusage
+  in
+  List.filter type_usage_matches requested
+
+let answer_client_hello_common state reneg ch raw =
+  let process_client_hello ch config =
+    let host = hostname ch
+    and cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites
+    and tst = Ciphersuite.(o needs_certificate ciphersuite_kex) in
+    ( if List.for_all tst cciphers then
+        agreed_cert config.own_certificates host >>= fun cert ->
+        match cert with
+        | (c::cs, priv) -> let cciphers = agreed_cipher c cciphers in
+                           return (cciphers, c::cs, Some priv)
+        | _             -> fail_handshake
+      else if List.exists tst cciphers then
+        fail_handshake
+      else
+        return (cciphers, [], None) ) >>= fun (cciphers, chain, priv) ->
+
+    ( match first_match cciphers config.ciphers with
+      | Some x -> return x
+      | None   -> fail_handshake ) >|= fun cipher ->
+
+    Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
+
+    { empty_session with
+      client_random    = ch.random ;
+      client_version   = ch.version ;
+      ciphersuite      = cipher ;
+      own_certificate  = chain ;
+      own_private_key  = priv ;
+      own_name         = host }
+
+  and server_hello session reneg =
     let server_hello =
       (* RFC 4366: server shall reply with an empty hostname extension *)
       let host = option [] (fun _ -> [Hostname None]) session.own_name
@@ -111,21 +187,13 @@ let answer_client_hello_common state session reneg ch raw =
     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ;
     (Writer.assemble_handshake sh, { session with server_random = server_hello.random })
 
-  and server_cert session config =
-    let cert_needed =
-      Ciphersuite.(needs_certificate @@ ciphersuite_kex session.ciphersuite) in
-    ( match config.own_certificate, cert_needed with
-      (* XXX: select based on session.own_name *)
-      | Some (certs, pk), true  -> return (certs, Some pk)
-      | _               , false -> return ([], None)
-      | _               , _     -> fail_handshake
-      (* ^^^ Rig ciphersuite selection never to end up with one than needs a cert
-       * if we haven't got one. *)
-    ) >|= fun (certs, pk) ->
-    let cert = Certificate (List.map Certificate.cs_of_cert certs) in
-    Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ;
-    ([ Writer.assemble_handshake cert ],
-     { session with own_certificate = certs ; own_private_key = pk })
+  and server_cert session =
+    match session.own_certificate with
+    | []    -> []
+    | certs ->
+       let cert = Certificate (List.map Certificate.cs_of_cert certs) in
+       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ;
+       [ Writer.assemble_handshake cert ]
 
   and kex_dhe_rsa config session version sig_algs =
     let group         = Dh.Group.oakley_2 in (* rfc2409 1024-bit group *)
@@ -167,9 +235,11 @@ let answer_client_hello_common state session reneg ch raw =
       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ;
       (hs, dh_state) in
 
+  process_client_hello ch state.config >>= fun session ->
   let sh, session = server_hello session reneg in
-  server_cert session state.config >>= fun (certificates, session) ->
-  let hello_done = Writer.assemble_handshake ServerHelloDone in
+  let certificates = server_cert session
+  and hello_done = Writer.assemble_handshake ServerHelloDone
+  in
 
   ( match Ciphersuite.ciphersuite_kex session.ciphersuite with
     | Ciphersuite.DHE_RSA ->
@@ -187,12 +257,6 @@ let answer_client_hello_common state session reneg ch raw =
 
   ({ state with machina = Server machina },
    [`Record (Packet.HANDSHAKE, Cs.appends out_recs)])
-
-let agreed_cipher server_supported requested =
-  let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite requested in
-  match first_match cciphers server_supported with
-  | Some x -> return x
-  | None   -> fail_handshake
 
 let agreed_version supported requested =
   match supported_protocol_version supported requested with
@@ -216,22 +280,16 @@ let answer_client_hello state (ch : client_hello) raw =
     guard (not (List.mem Packet.TLS_FALLBACK_SCSV cciphers) ||
            version = max_protocol_version config.protocol_versions)
       Packet.INAPPROPRIATE_FALLBACK >>= fun () ->
-    agreed_cipher config.ciphers cciphers >>= fun cipher ->
     let theirs = get_secure_renegotiation ch.extensions in
     ensure_reneg config.secure_reneg cciphers theirs >|= fun () ->
 
     Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
-    Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
 
-    ({ empty_session with
-       client_random    = ch.random ;
-       client_version   = ch.version ;
-       ciphersuite      = cipher ;
-       own_name         = hostname ch }, version)
+    version
   in
 
-  process_client_hello state.config ch >>= fun (session, protocol_version) ->
-  answer_client_hello_common { state with protocol_version } session None ch raw
+  process_client_hello state.config ch >>= fun protocol_version ->
+  answer_client_hello_common { state with protocol_version } None ch raw
 
 let answer_client_hello_reneg state (ch : client_hello) raw =
   (* ensure reneg allowed and supplied *)
@@ -242,31 +300,24 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
     | true , _       , _      -> fail_handshake
   in
 
-  let process_client_hello config oldsession oldversion ours ch =
-    let cciphers = ch.ciphersuites in
+  let process_client_hello config oldversion ours ch =
     assure (client_hello_valid ch) >>= fun () ->
     agreed_version config.protocol_versions ch.version >>= fun version ->
     assure (version = oldversion) >>= fun () ->
-    agreed_cipher config.ciphers cciphers >>= fun cipher ->
     let theirs = get_secure_renegotiation ch.extensions in
     ensure_reneg config.secure_reneg ours theirs >|= fun () ->
 
     Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
-    Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
 
-    { empty_session with
-      client_random    = ch.random ;
-      client_version   = ch.version ;
-      ciphersuite      = cipher ;
-      own_name         = hostname ch }
+    version
   in
 
   let config = state.config in
   match config.use_reneg, state.session with
   | true, session :: _  ->
      let reneg = session.renegotiation in
-     process_client_hello config session state.protocol_version reneg ch >>= fun session ->
-     answer_client_hello_common state session (Some reneg) ch raw
+     process_client_hello config state.protocol_version reneg ch >>= fun version ->
+     answer_client_hello_common state (Some reneg) ch raw
   | _   , _             -> fail_handshake
 
 let handle_change_cipher_spec ss state packet =

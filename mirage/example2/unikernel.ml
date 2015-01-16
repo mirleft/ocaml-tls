@@ -41,7 +41,7 @@ struct
   let start c stack e kv =
     TLS.attach_entropy e >>
     lwt cert = X509.certificate kv `Default in
-    let conf = Tls.Config.server_exn ~certificate:cert () in
+    let conf = Tls.Config.server_exn ~certificates:(`Single cert) () in
     S.listen_tcpv4 stack 4433 (upgrade c conf) ;
     S.listen stack
 
