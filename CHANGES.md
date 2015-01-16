@@ -1,4 +1,5 @@
 (trunk):
+* client authentication (both client and server side)
 * server side SNI configuration possible (see sni.md)
 * SCSV server-side downgrade prevention (contributed by Gabriel de Perthuis @g2p #5)
 * remove RC4 ciphers from default config #8
