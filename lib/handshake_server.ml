@@ -56,19 +56,21 @@ let private_key session =
     | Some priv -> return priv
     | None      -> fail_handshake
 
+let validate_certs certs authenticator session =
+  match certs with
+  | [] ->
+    return session
+  | cs ->
+    validate_chain authenticator cs None `RSA `Digital_signature >|= fun ((cert, cs), trust_anchor) ->
+    { session with peer_certificate = cert :: cs ; trust_anchor }
+
 let answer_client_certificate_RSA state session certs raw log =
-  ( match certs with
-    | [] -> return session
-    | certificates ->
-       validate_chain state.config.authenticator certificates session None `RSA `Digital_signature ) >|= fun session ->
+  validate_certs certs state.config.authenticator session >|= fun session ->
   let machina = AwaitClientKeyExchange_RSA (session, log @ [raw]) in
   ({ state with machina = Server machina }, [])
 
 let answer_client_certificate_DHE_RSA state session dh_sent certs raw log =
-  ( match certs with
-    | [] -> return session
-    | certificates ->
-       validate_chain state.config.authenticator certificates session None `RSA `Digital_signature ) >|= fun session ->
+  validate_certs certs state.config.authenticator session >|= fun session ->
   let machina = AwaitClientKeyExchange_DHE_RSA (session, dh_sent, log @ [raw]) in
   ({ state with machina = Server machina }, [])
 
