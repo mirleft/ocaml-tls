@@ -167,6 +167,47 @@ let peer_rsa_key cert =
   | PK.RSA key -> return key
   | _          -> fail_handshake
 
+let verify_digitally_signed version data signature_data certificate =
+  let signature_verifier version data =
+    let open Reader in
+    match version with
+    | TLS_1_0 | TLS_1_1 ->
+      ( match parse_digitally_signed data with
+        | Or_error.Ok signature ->
+          let compare_hashes should data =
+            let computed_sig = Hash.MD5.digest data <+> Hash.SHA1.digest data in
+            assure (Cs.equal should computed_sig)
+          in
+          return (signature, compare_hashes)
+        | Or_error.Error _      -> fail_handshake )
+    | TLS_1_2 ->
+      ( match parse_digitally_signed_1_2 data with
+        | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
+          let compare_hashes should data =
+            match Asn_grammars.pkcs1_digest_info_of_cstruct should with
+            | Some (hash_algo', target) when hash_algo = hash_algo' ->
+              ( match Crypto.digest_eq hash_algo ~target data with
+                | true  -> return ()
+                | false -> fail_handshake )
+            | _ -> fail_handshake
+          in
+          return (signature, compare_hashes)
+        | _ -> fail_handshake )
+
+  and signature pubkey raw_signature =
+    match Rsa.PKCS1.verify pubkey raw_signature with
+    | Some signature -> return signature
+    | None -> fail_handshake
+  in
+
+  signature_verifier version data >>= fun (raw_signature, verifier) ->
+  ( match certificate with
+    | cert :: _ -> peer_rsa_key cert
+    | []        -> fail_handshake ) >>= fun pubkey ->
+  signature pubkey raw_signature >>= fun signature ->
+  verifier signature signature_data
+
+(* TODO: extended_key_usage *)
 let validate_chain authenticator certificates hostname keytype usage =
   let open Certificate in
 

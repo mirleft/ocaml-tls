@@ -152,47 +152,11 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
     match parse_dh_parameters kex with
     | Or_error.Ok data -> return data
     | Or_error.Error _ -> fail_handshake
-
-  and signature_verifier version data =
-    match version with
-    | TLS_1_0 | TLS_1_1 ->
-        ( match parse_digitally_signed data with
-          | Or_error.Ok signature ->
-             let compare_hashes should data =
-               let computed_sig = Hash.(MD5.digest data <+> SHA1.digest data) in
-               assure (Cs.equal should computed_sig)
-             in
-             return (signature, compare_hashes)
-          | Or_error.Error _      -> fail_handshake )
-    | TLS_1_2 ->
-       ( match parse_digitally_signed_1_2 data with
-         | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
-            let compare_hashes should data =
-              match Asn_grammars.pkcs1_digest_info_of_cstruct should with
-              | Some (hash_algo', target) when hash_algo = hash_algo' ->
-                 ( match Crypto.digest_eq hash_algo ~target data with
-                   | true  -> return ()
-                   | false -> fail_handshake )
-              | _ -> fail_handshake
-            in
-            return (signature, compare_hashes)
-         | _ -> fail_handshake )
-
-  and signature pubkey raw_signature =
-    match Rsa.PKCS1.verify pubkey raw_signature with
-    | Some signature -> return signature
-    | None -> fail_handshake
-
   in
 
   dh_params kex >>= fun (dh_params, raw_dh_params, leftover) ->
-  signature_verifier state.protocol_version leftover >>= fun (raw_signature, verifier) ->
-  (match session.peer_certificate with
-   | cert :: _ -> peer_rsa_key cert
-   | []        -> fail_handshake ) >>= fun pubkey ->
-  signature pubkey raw_signature >>= fun signature ->
   let sigdata = session.client_random <+> session.server_random <+> raw_dh_params in
-  verifier signature sigdata >>= fun () ->
+  verify_digitally_signed state.protocol_version leftover sigdata session.peer_certificate >>= fun () ->
   let group, shared = Crypto.dh_params_unpack dh_params in
   guard (Dh.apparent_bit_size group >= Config.min_dh_size) Packet.INSUFFICIENT_SECURITY
   >>= fun () ->
