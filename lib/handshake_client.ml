@@ -107,78 +107,17 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
   ({ state with machina = Client machina }, [])
 
 
-let validate_chain config session certificates =
-  let open Certificate in
-
-  let parse css =
-    match parse_stack css with
-    | None       -> fail Packet.BAD_CERTIFICATE
-    | Some stack -> return stack
-
-  and authenticate authenticator server_name ((server_cert, _) as stack) =
-    match
-      X509.Authenticator.authenticate ?host:server_name authenticator stack
-    with
-    | `Fail (SelfSigned _)         -> fail Packet.UNKNOWN_CA
-    | `Fail NoTrustAnchor          -> fail Packet.UNKNOWN_CA
-    | `Fail (CertificateExpired _) -> fail Packet.CERTIFICATE_EXPIRED
-    | `Fail _                      -> fail Packet.BAD_CERTIFICATE
-    | `Ok anchor                   -> return anchor
-
-  and validate_keytype cert ktype =
-    cert_type cert = ktype
-
-  and validate_usage cert usage =
-    match cert_usage cert with
-    | None        -> true
-    | Some usages -> List.mem usage usages
-
-  and validate_ext_usage cert ext_use =
-    match cert_extended_usage cert with
-    | None            -> true
-    | Some ext_usages -> List.mem ext_use ext_usages || List.mem `Any ext_usages
-
-  and key_size min cs =
-    let check c =
-      let open Asn_grammars in
-      ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
-        | PK.RSA key when Rsa.pub_bits key >= min -> true
-        | _                                       -> false )
-    in
-    guard (List.for_all check cs) Packet.INSUFFICIENT_SECURITY
-
-  and host = match config.peer_name with
+let answer_certificate_RSA state session cs raw log =
+  let cfg = state.config in
+  let peer_name = match cfg.peer_name with
     | None   -> None
     | Some x -> Some (`Wildcard x)
   in
-
-  (* RFC5246: must be x509v3, take signaturealgorithms into account! *)
-  (* RFC2246/4346: is generally x509v3, signing algorithm for certificate _must_ be same as algorithm for certificate key *)
-
-  match config.authenticator with
-  | None -> parse certificates >|= fun (s, xs) ->
-            (s, { session with peer_certificate = s :: xs })
-  | Some authenticator ->
-      parse certificates >>= fun (s, xs) ->
-      key_size Config.min_rsa_key_size (s :: xs) >>= fun () ->
-      authenticate authenticator host (s, xs) >>= fun anchor ->
-      let keytype, usage =
-        Ciphersuite.(o required_keytype_and_usage ciphersuite_kex session.ciphersuite)
-      in
-      guard (validate_keytype s keytype &&
-             validate_usage s usage &&
-             validate_ext_usage s `Server_auth)
-            Packet.BAD_CERTIFICATE >|= fun () ->
-      (s, { session with peer_certificate = s :: xs ; trust_anchor = Some anchor })
-
-let peer_rsa_key cert =
-  let open Asn_grammars in
-  match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
-  | PK.RSA key -> return key
-  | _          -> fail_handshake
-
-let answer_certificate_RSA state session cs raw log =
-  validate_chain state.config session cs >>= fun (cert, session) ->
+  let keytype, usage =
+    Ciphersuite.(o required_keytype_and_usage ciphersuite_kex session.ciphersuite)
+  in
+  validate_chain cfg.authenticator cs peer_name keytype usage >>= fun ((cert, chain), trust_anchor) ->
+  let session = { session with peer_certificate = cert :: chain ; trust_anchor } in
   ( match session.client_version with
     | Supported v -> return v
     | _           -> fail_handshake ) >>= fun v ->
@@ -195,7 +134,15 @@ let answer_certificate_RSA state session cs raw log =
   ({ state with machina = Client machina }, [])
 
 let answer_certificate_DHE_RSA state session cs raw log =
-  validate_chain state.config session cs >|= fun (_, session) ->
+  let peer_name = match state.config.peer_name with
+    | None   -> None
+    | Some x -> Some (`Wildcard x)
+  in
+  let keytype, usage =
+    Ciphersuite.(o required_keytype_and_usage ciphersuite_kex session.ciphersuite)
+  in
+  validate_chain state.config.authenticator cs peer_name keytype usage >|= fun ((cert, cs), trust_anchor) ->
+  let session = { session with peer_certificate = cert :: cs ; trust_anchor } in
   let machina = AwaitServerKeyExchange_DHE_RSA (session, log @ [raw]) in
   ({ state with machina = Client machina }, [])
 
