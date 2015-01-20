@@ -94,8 +94,6 @@ let validate_common config =
   if List.length config.ciphers = 0 then
     invalid "set of ciphers is empty"
 
-let validate_client config = ()
-
 module CertTypeUsageOrdered = struct
   type t = Certificate.key_type * Asn_grammars.Extension.key_usage
   let compare = compare
@@ -122,6 +120,12 @@ let validate_certificate_chain = function
                                  (Certificate.certificate_failure_to_string x)) )
        | None -> () )
   | _ -> invalid "certificate"
+
+let validate_client config =
+  match config.own_certificates with
+  | `None -> ()
+  | `Single c -> validate_certificate_chain c
+  | _ -> invalid_arg "multiple client certificates not supported in client config"
 
 module StringSet = Set.Make(String)
 
@@ -196,7 +200,7 @@ let peer conf name = { conf with peer_name = Some name }
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
 let client
-  ~authenticator ?ciphers ?version ?hashes ?reneg ?secure_reneg () =
+  ~authenticator ?ciphers ?version ?hashes ?reneg ?certificates ?secure_reneg () =
   let config =
     { default_config with
         authenticator     = Some authenticator ;
@@ -204,12 +208,13 @@ let client
         protocol_versions = version      <?> default_config.protocol_versions ;
         hashes            = hashes       <?> default_config.hashes ;
         use_reneg         = reneg        <?> default_config.use_reneg ;
+        own_certificates  = certificates <?> default_config.own_certificates ;
         secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
     } in
   ( validate_common config ; validate_client config ; config )
 
 let server
-  ?ciphers ?version ?hashes ?reneg ?certificates ?secure_reneg () =
+  ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator ?secure_reneg () =
   let config =
     { default_config with
         ciphers           = ciphers      <?> default_config.ciphers ;
@@ -217,6 +222,7 @@ let server
         hashes            = hashes       <?> default_config.hashes ;
         use_reneg         = reneg        <?> default_config.use_reneg ;
         own_certificates  = certificates <?> default_config.own_certificates ;
+        authenticator     = authenticator ;
         secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
     } in
   ( validate_common config ; validate_server config ; config )

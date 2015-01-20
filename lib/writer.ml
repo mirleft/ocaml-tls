@@ -30,7 +30,7 @@ let assemble_hdr version (content_type, payload) =
 
 type len = One | Two | Three
 
-let assemble_list ?force lenb f elements =
+let assemble_list ?none_if_empty lenb f elements =
   let length body =
     match lenb with
     | One   ->
@@ -51,11 +51,11 @@ let assemble_list ?force lenb f elements =
     let body = b es in
     length body <+> body
   in
-  match force with
-  | None   -> (match elements with
+  match none_if_empty with
+  | Some _ -> (match elements with
                | []   -> create 0
                | eles -> full eles)
-  | Some _ -> full elements
+  | None   -> full elements
 
 let assemble_certificate c =
   let length = len c in
@@ -64,7 +64,7 @@ let assemble_certificate c =
   buf <+> c
 
 let assemble_certificates cs =
-  assemble_list ~force:true Three assemble_certificate cs
+  assemble_list Three assemble_certificate cs
 
 let assemble_compression_method m =
   let buf = create 1 in
@@ -72,7 +72,7 @@ let assemble_compression_method m =
   buf
 
 let assemble_compression_methods ms =
-  assemble_list ~force:true One assemble_compression_method ms
+  assemble_list One assemble_compression_method ms
 
 let assemble_any_ciphersuite c =
   let buf = create 2 in
@@ -80,7 +80,7 @@ let assemble_any_ciphersuite c =
   buf
 
 let assemble_any_ciphersuites cs =
-  assemble_list ~force:true Two assemble_any_ciphersuite cs
+  assemble_list Two assemble_any_ciphersuite cs
 
 let assemble_ciphersuite c =
   let acs = Ciphersuite.ciphersuite_to_any_ciphersuite c in
@@ -105,6 +105,30 @@ let assemble_hash_signature (h, s) =
 
 let assemble_signature_algorithms s =
   assemble_list Two assemble_hash_signature s
+
+let assemble_certificate_types ts =
+  let ass x =
+    let buf = create 1 in
+    set_uint8 buf 0 (client_certificate_type_to_int x) ;
+    buf
+  in
+  assemble_list One ass ts
+
+let assemble_cas cas =
+  let ass x =
+    let buf = create 2 in
+    BE.set_uint16 buf 0 (len x) ;
+    buf <+> x
+  in
+  assemble_list Two ass cas
+
+let assemble_certificate_request ts cas =
+  assemble_certificate_types ts <+> assemble_cas cas
+
+let assemble_certificate_request_1_2 ts sigalgs cas =
+  assemble_certificate_types ts <+>
+    assemble_signature_algorithms sigalgs <+>
+    assemble_cas cas
 
 let assemble_named_curve nc =
   let buf = create 2 in
@@ -151,7 +175,7 @@ let assemble_extension e =
   buf <+> pay
 
 let assemble_extensions es =
-  assemble_list Two assemble_extension es
+  assemble_list ~none_if_empty:true Two assemble_extension es
 
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let v = assemble_any_protocol_version cl.version in
@@ -247,6 +271,8 @@ let assemble_handshake hs =
     | ClientHello ch -> (assemble_client_hello ch, CLIENT_HELLO)
     | ServerHello sh -> (assemble_server_hello sh, SERVER_HELLO)
     | Certificate cs -> (assemble_certificates cs, CERTIFICATE)
+    | CertificateRequest cr -> (cr, CERTIFICATE_REQUEST)
+    | CertificateVerify c -> (c, CERTIFICATE_VERIFY)
     | ServerKeyExchange kex -> (kex, SERVER_KEY_EXCHANGE)
     | ClientKeyExchange kex -> (assemble_client_key_exchange kex, CLIENT_KEY_EXCHANGE)
     | ServerHelloDone -> (create 0, SERVER_HELLO_DONE)

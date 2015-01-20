@@ -20,6 +20,9 @@ val parse_alert     : Cstruct.t -> Core.tls_alert or_error
 
 val parse_change_cipher_spec   : Cstruct.t -> unit or_error
 
+val parse_certificate_request     : Cstruct.t -> (Packet.client_certificate_type list * Cstruct.t list) or_error
+val parse_certificate_request_1_2 : Cstruct.t -> (Packet.client_certificate_type list * (Nocrypto.Hash.hash * Packet.signature_algorithm_type) list * Cstruct.t list) or_error
+
 val parse_dh_parameters        : Cstruct.t -> (Core.dh_parameters * Cstruct.t * Cstruct.t) or_error
 val parse_digitally_signed     : Cstruct.t -> Cstruct.t or_error
 val parse_digitally_signed_1_2 : Cstruct.t -> (Nocrypto.Hash.hash * Packet.signature_algorithm_type * Cstruct.t) or_error
