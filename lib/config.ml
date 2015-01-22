@@ -31,7 +31,7 @@ module Ciphers = struct
   (* A good place for various pre-baked cipher lists and helper functions to
    * slice and groom those lists. *)
 
-  let advertised = [
+  let default = [
     `TLS_DHE_RSA_WITH_AES_256_CCM ;
     `TLS_DHE_RSA_WITH_AES_128_CCM ;
     `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 ;
@@ -48,14 +48,14 @@ module Ciphers = struct
     `TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
     ]
 
-  let supported = advertised @ [
+  let supported = default @ [
     `TLS_RSA_WITH_RC4_128_SHA ;
     `TLS_RSA_WITH_RC4_128_MD5
     ]
 
   let pfs_of = List.filter Ciphersuite.ciphersuite_pfs
 
-  let pfs = pfs_of advertised
+  let pfs = pfs_of default
 
 end
 
@@ -67,7 +67,7 @@ let min_dh_size = 512
 let min_rsa_key_size = 1024
 
 let default_config = {
-  ciphers           = Ciphers.advertised ;
+  ciphers           = Ciphers.default ;
   protocol_versions = (TLS_1_0, TLS_1_2) ;
   hashes            = supported_hashes ;
   use_reneg         = true ;
