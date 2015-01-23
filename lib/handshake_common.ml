@@ -161,13 +161,15 @@ let signature version data sig_algs hashes private_key =
     let sign = Rsa.PKCS1.sign private_key cs in
     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
 
-let peer_rsa_key cert =
-  let open Asn_grammars in
-  match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
-  | PK.RSA key -> return key
-  | _          -> fail_handshake
+let peer_rsa_key = function
+  | [] -> fail_handshake
+  | cert::_ ->
+    let open Asn_grammars in
+    match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
+    | PK.RSA key -> return key
+    | _          -> fail_handshake
 
-let verify_digitally_signed version data signature_data certificate =
+let verify_digitally_signed version data signature_data certificates =
   let signature_verifier version data =
     let open Reader in
     match version with
@@ -201,9 +203,7 @@ let verify_digitally_signed version data signature_data certificate =
   in
 
   signature_verifier version data >>= fun (raw_signature, verifier) ->
-  ( match certificate with
-    | cert :: _ -> peer_rsa_key cert
-    | []        -> fail_handshake ) >>= fun pubkey ->
+  peer_rsa_key certificates >>= fun pubkey ->
   signature pubkey raw_signature >>= fun signature ->
   verifier signature signature_data
 
@@ -211,14 +211,9 @@ let verify_digitally_signed version data signature_data certificate =
 let validate_chain authenticator certificates hostname keytype usage =
   let open Certificate in
 
-  let parse css =
-    match parse_stack css with
-    | None       -> fail Packet.BAD_CERTIFICATE
-    | Some stack -> return stack
-
-  and authenticate authenticator server_name ((server_cert, _) as stack) =
+  let authenticate authenticator server_name certificates =
     match
-      X509.Authenticator.authenticate ?host:server_name authenticator stack
+      X509.Authenticator.authenticate ?host:server_name authenticator certificates
     with
     | `Fail (SelfSigned _)         -> fail Packet.UNKNOWN_CA
     | `Fail NoTrustAnchor          -> fail Packet.UNKNOWN_CA
@@ -248,21 +243,27 @@ let validate_chain authenticator certificates hostname keytype usage =
     in
     guard (List.for_all check cs) Packet.INSUFFICIENT_SECURITY
 
+  and parse_certificates certs =
+    let certificates = filter_map ~f:parse certs in
+    guard (List.length certs = List.length certificates) Packet.BAD_CERTIFICATE >|= fun () ->
+    certificates
+
   in
 
   (* RFC5246: must be x509v3, take signaturealgorithms into account! *)
   (* RFC2246/4346: is generally x509v3, signing algorithm for certificate _must_ be same as algorithm for certificate key *)
-
+  parse_certificates certificates >>= fun certs ->
   match authenticator with
   | None ->
-    parse certificates >|= fun (s, xs) ->
-    ((s, xs), None)
+    return (certs, None)
   | Some authenticator ->
-    parse certificates >>= fun (s, xs) ->
-    key_size Config.min_rsa_key_size (s :: xs) >>= fun () ->
-    authenticate authenticator hostname (s, xs) >>= fun anchor ->
-    guard (validate_keytype s keytype &&
-           validate_usage s usage &&
-           validate_ext_usage s `Server_auth)
-      Packet.BAD_CERTIFICATE >|= fun () ->
-    ((s, xs), Some anchor)
+    authenticate authenticator hostname certs >>= fun anchor ->
+    key_size Config.min_rsa_key_size certs >>= fun () ->
+    ( match certs with
+      | s :: _ ->
+        guard (validate_keytype s keytype &&
+               validate_usage s usage &&
+               validate_ext_usage s `Server_auth)
+          Packet.BAD_CERTIFICATE
+      | _ -> return () ) >|= fun () ->
+    (certs, anchor)
