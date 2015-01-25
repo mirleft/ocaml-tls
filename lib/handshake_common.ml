@@ -207,8 +207,7 @@ let verify_digitally_signed version data signature_data certificates =
   signature pubkey raw_signature >>= fun signature ->
   verifier signature signature_data
 
-(* TODO: extended_key_usage *)
-let validate_chain authenticator certificates hostname keytype usage =
+let validate_chain authenticator certificates hostname =
   let open Certificate in
 
   let authenticate authenticator server_name certificates =
@@ -220,19 +219,6 @@ let validate_chain authenticator certificates hostname keytype usage =
     | `Fail (CertificateExpired _) -> fail Packet.CERTIFICATE_EXPIRED
     | `Fail _                      -> fail Packet.BAD_CERTIFICATE
     | `Ok anchor                   -> return anchor
-
-  and validate_keytype cert ktype =
-    cert_type cert = ktype
-
-  and validate_usage cert usage =
-    match cert_usage cert with
-    | None        -> true
-    | Some usages -> List.mem usage usages
-
-  and validate_ext_usage cert ext_use =
-    match cert_extended_usage cert with
-    | None            -> true
-    | Some ext_usages -> List.mem ext_use ext_usages || List.mem `Any ext_usages
 
   and key_size min cs =
     let check c =
@@ -258,12 +244,5 @@ let validate_chain authenticator certificates hostname keytype usage =
     return (certs, None)
   | Some authenticator ->
     authenticate authenticator hostname certs >>= fun anchor ->
-    key_size Config.min_rsa_key_size certs >>= fun () ->
-    ( match certs with
-      | s :: _ ->
-        guard (validate_keytype s keytype &&
-               validate_usage s usage &&
-               validate_ext_usage s `Server_auth)
-          Packet.BAD_CERTIFICATE
-      | _ -> return () ) >|= fun () ->
+    key_size Config.min_rsa_key_size certs >|= fun () ->
     (certs, anchor)

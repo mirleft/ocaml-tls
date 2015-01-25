@@ -57,7 +57,7 @@ let private_key session =
     | None      -> fail_handshake
 
 let validate_certs certs authenticator session =
-  validate_chain authenticator certs None `RSA `Digital_signature >|= fun (peer_certificate, trust_anchor) ->
+  validate_chain authenticator certs None >|= fun (peer_certificate, trust_anchor) ->
   { session with peer_certificate ; trust_anchor }
 
 let answer_client_certificate_RSA state session certs raw log =
