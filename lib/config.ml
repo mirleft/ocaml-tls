@@ -230,9 +230,39 @@ let server
 
 (* Kinda stubby - rethink. *)
 
-let config_of_sexp _ = failwith "can't parse config from sexp"
-
 open Sexplib
+
+let config_of_sexp cfg =
+  let open Sexp in
+  match cfg with
+  | List l ->
+    List.fold_left (fun config sexp ->
+        match sexp with
+        | List [ Atom "ciphers" ; ciphers ] ->
+          let ciphers = Conv.list_of_sexp Ciphersuite.ciphersuite_of_sexp ciphers in
+          { config with ciphers }
+        | List [ Atom "version" ; versions ] ->
+          let protocol_versions = Conv.pair_of_sexp tls_version_of_sexp tls_version_of_sexp versions in
+          { config with protocol_versions }
+        | List [ Atom "hashes" ; hashes ] ->
+          let hashes = Conv.list_of_sexp Hash.hash_of_sexp hashes in
+          { config with hashes }
+        | List [ Atom "use_reneg" ; reneg ] ->
+          let use_reneg = Conv.bool_of_sexp reneg in
+          { config with use_reneg }
+        | List [ Atom "secure_reneg" ; reneg ] ->
+          let secure_reneg = Conv.bool_of_sexp reneg in
+          { config with secure_reneg }
+        | List [ Atom "authenticator" ; _ ]
+        | List [ Atom "certificates" ; _ ] ->
+          (* ignore, never marshalled to disk anyways *)
+          config
+        | List [ Atom "peer_name" ; name ] ->
+          let peer_name = Conv.option_of_sexp Conv.string_of_sexp name in
+          { config with peer_name }
+        | _ -> invalid_arg "error while parsing TLS configuration")
+      default_config l
+  | _ -> invalid_arg "error while parsing TLS configuration"
 
 let sexp_of_version =
   Conv.sexp_of_pair sexp_of_tls_version sexp_of_tls_version
