@@ -69,7 +69,7 @@ val of_client : client -> config
 (** [of_server server] is a server configuration for [server] *)
 val of_server : server -> config
 
-(** [client_exn ?ciphers ?version ?hashes ?reneg ?validator ?secure_reneg] is [client] configuration with the given parameters *)
+(** [client ?ciphers ?version ?hashes ?reneg ?certificates ?secure_reneg] is [client] configuration with the given parameters *)
 (** @raise Invalid_argument if the configuration is invalid *)
 val client :
   authenticator  : X509.Authenticator.t ->
@@ -81,7 +81,7 @@ val client :
   ?secure_reneg  : bool ->
   unit -> client
 
-(** [server_exn ?ciphers ?version ?hashes ?reneg ?certificate ?secure_reneg] is [server] configuration with the given parameters *)
+(** [server ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator ?secure_reneg] is [server] configuration with the given parameters *)
 (** @raise Invalid_argument if the configuration is invalid *)
 val server :
   ?ciphers       : Ciphersuite.ciphersuite list ->
