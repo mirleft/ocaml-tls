@@ -106,6 +106,33 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
   in
   ({ state with machina = Client machina }, [])
 
+let validate_keytype_usage certificates ciphersuite =
+  let open Certificate in
+
+  let validate_keytype cert ktype =
+    cert_type cert = ktype
+
+  and validate_usage cert usage =
+    match cert_usage cert with
+    | None        -> true
+    | Some usages -> List.mem usage usages
+
+  and validate_ext_usage cert ext_use =
+    match cert_extended_usage cert with
+    | None            -> true
+    | Some ext_usages -> List.mem ext_use ext_usages || List.mem `Any ext_usages
+  in
+
+  let keytype, usage =
+    Ciphersuite.(o required_keytype_and_usage ciphersuite_kex ciphersuite)
+  in
+  match certificates with
+  | [] -> fail_handshake
+  | cert :: _ ->
+    guard (validate_keytype cert keytype &&
+           validate_usage cert usage &&
+           validate_ext_usage cert `Server_auth)
+      Packet.BAD_CERTIFICATE
 
 let answer_certificate_RSA state session cs raw log =
   let cfg = state.config in
@@ -113,17 +140,15 @@ let answer_certificate_RSA state session cs raw log =
     | None   -> None
     | Some x -> Some (`Wildcard x)
   in
-  let keytype, usage =
-    Ciphersuite.(o required_keytype_and_usage ciphersuite_kex session.ciphersuite)
-  in
-  validate_chain cfg.authenticator cs peer_name keytype usage >>= fun ((cert, chain), trust_anchor) ->
-  let session = { session with peer_certificate = cert :: chain ; trust_anchor } in
+  validate_chain cfg.authenticator cs peer_name >>= fun (peer_certificate, trust_anchor) ->
+  validate_keytype_usage peer_certificate session.ciphersuite >>= fun () ->
+  let session = { session with peer_certificate ; trust_anchor } in
   ( match session.client_version with
     | Supported v -> return v
     | _           -> fail_handshake ) >>= fun v ->
   let ver = Writer.assemble_protocol_version v in
   let premaster = ver <+> Rng.generate 46 in
-  peer_rsa_key cert >|= fun pubkey ->
+  peer_rsa_key peer_certificate >|= fun pubkey ->
   let kex = Rsa.PKCS1.encrypt pubkey premaster
   in
 
@@ -138,11 +163,9 @@ let answer_certificate_DHE_RSA state session cs raw log =
     | None   -> None
     | Some x -> Some (`Wildcard x)
   in
-  let keytype, usage =
-    Ciphersuite.(o required_keytype_and_usage ciphersuite_kex session.ciphersuite)
-  in
-  validate_chain state.config.authenticator cs peer_name keytype usage >|= fun ((cert, cs), trust_anchor) ->
-  let session = { session with peer_certificate = cert :: cs ; trust_anchor } in
+  validate_chain state.config.authenticator cs peer_name >>= fun (peer_certificate, trust_anchor) ->
+  validate_keytype_usage peer_certificate session.ciphersuite >|= fun () ->
+  let session = { session with peer_certificate ; trust_anchor } in
   let machina = AwaitServerKeyExchange_DHE_RSA (session, log @ [raw]) in
   ({ state with machina = Client machina }, [])
 
