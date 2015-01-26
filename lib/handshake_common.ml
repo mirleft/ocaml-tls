@@ -210,10 +210,8 @@ let verify_digitally_signed version data signature_data certificates =
 let validate_chain authenticator certificates hostname =
   let open Certificate in
 
-  let authenticate authenticator server_name certificates =
-    match
-      X509.Authenticator.authenticate ?host:server_name authenticator certificates
-    with
+  let authenticate authenticator host certificates =
+    match authenticator ?host certificates with
     | `Fail (SelfSigned _)         -> fail Packet.UNKNOWN_CA
     | `Fail NoTrustAnchor          -> fail Packet.UNKNOWN_CA
     | `Fail (CertificateExpired _) -> fail Packet.CERTIFICATE_EXPIRED
