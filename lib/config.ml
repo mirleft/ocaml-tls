@@ -189,46 +189,9 @@ let validate_server config =
     | _                         -> () )
   (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
 
-type client = config
-type server = config
 
-let of_server conf = conf
-and of_client conf = conf
-
-let peer conf name = { conf with peer_name = Some name }
-
-let (<?>) ma b = match ma with None -> b | Some a -> a
-
-let client
-  ~authenticator ?ciphers ?version ?hashes ?reneg ?certificates ?secure_reneg () =
-  let config =
-    { default_config with
-        authenticator     = Some authenticator ;
-        ciphers           = ciphers      <?> default_config.ciphers ;
-        protocol_versions = version      <?> default_config.protocol_versions ;
-        hashes            = hashes       <?> default_config.hashes ;
-        use_reneg         = reneg        <?> default_config.use_reneg ;
-        own_certificates  = certificates <?> default_config.own_certificates ;
-        secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
-    } in
-  ( validate_common config ; validate_client config ; config )
-
-let server
-  ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator ?secure_reneg () =
-  let config =
-    { default_config with
-        ciphers           = ciphers      <?> default_config.ciphers ;
-        protocol_versions = version      <?> default_config.protocol_versions ;
-        hashes            = hashes       <?> default_config.hashes ;
-        use_reneg         = reneg        <?> default_config.use_reneg ;
-        own_certificates  = certificates <?> default_config.own_certificates ;
-        authenticator     = authenticator ;
-        secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
-    } in
-  ( validate_common config ; validate_server config ; config )
-
-
-(* Kinda stubby - rethink. *)
+(* Config sexp. *)
+(* XXX don't do it manually. *)
 
 open Sexplib
 
@@ -282,3 +245,45 @@ let sexp_of_config c =
     "peer_name"      , Conv.(sexp_of_option sexp_of_string) c.peer_name ;
     "certificates"   , Sexp.Atom "<CERTIFICATE>" ;
   ]
+
+(* ... *)
+
+
+type client = config with sexp
+type server = config with sexp
+
+let of_server conf = conf
+and of_client conf = conf
+
+let peer conf name = { conf with peer_name = Some name }
+
+let (<?>) ma b = match ma with None -> b | Some a -> a
+
+let client
+  ~authenticator ?ciphers ?version ?hashes ?reneg ?certificates ?secure_reneg () =
+  let config =
+    { default_config with
+        authenticator     = Some authenticator ;
+        ciphers           = ciphers      <?> default_config.ciphers ;
+        protocol_versions = version      <?> default_config.protocol_versions ;
+        hashes            = hashes       <?> default_config.hashes ;
+        use_reneg         = reneg        <?> default_config.use_reneg ;
+        own_certificates  = certificates <?> default_config.own_certificates ;
+        secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
+    } in
+  ( validate_common config ; validate_client config ; config )
+
+let server
+  ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator ?secure_reneg () =
+  let config =
+    { default_config with
+        ciphers           = ciphers      <?> default_config.ciphers ;
+        protocol_versions = version      <?> default_config.protocol_versions ;
+        hashes            = hashes       <?> default_config.hashes ;
+        use_reneg         = reneg        <?> default_config.use_reneg ;
+        own_certificates  = certificates <?> default_config.own_certificates ;
+        authenticator     = authenticator ;
+        secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
+    } in
+  ( validate_common config ; validate_server config ; config )
+

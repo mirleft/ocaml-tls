@@ -55,10 +55,10 @@ val min_dh_size : int
 val min_rsa_key_size : int
 
 (** opaque type of a client configuration *)
-type client
+type client with sexp
 
 (** opaque type of a server configuration *)
-type server
+type server with sexp
 
 (** [peer client name] is [client] with [name] as [peer_name] *)
 val peer : client -> string -> client
