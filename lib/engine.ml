@@ -241,7 +241,15 @@ end
 let hs_can_handle_appdata s =
   match s.session with
   | [] -> false
-  | _  -> true
+  | _  ->
+    (* if there is a renegotiation going on -
+       specifically ChangeCipherSuite was transmitted, waiting for Finished -
+       we should not allow any application data (since the
+       new crypto context, not authenticated by Finished, is in use *)
+    match s.machina with
+    | Server (AwaitClientFinished _)
+    | Client (AwaitServerFinished _) -> false
+    | _ -> true
 
 let rec separate_handshakes buf =
   let open Cstruct in
