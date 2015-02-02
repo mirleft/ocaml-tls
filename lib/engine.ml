@@ -303,7 +303,6 @@ let handle_packet hs buf = function
 (* the main thingy *)
 let handle_raw_record state (hdr, buf as record : raw_record) =
 
-  Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ;
   Tracing.sexpf ~tag:"record-in" ~f:sexp_of_raw_record record ;
 
   let hs = state.handshake in
@@ -332,7 +331,6 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
     | `Pass           -> dec_st in
   let state' = { state with handshake ; encryptor ; decryptor } in
 
-  Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state' ;
   Tracing.sexpfs ~tag:"record-out" ~f:sexp_of_record encs ;
 
   (state', encs, data, err)
@@ -348,6 +346,9 @@ let assemble_records (version : tls_version) : record list -> Cstruct.t =
 
 (* main entry point *)
 let handle_tls state buf =
+
+  Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ;
+  Tracing.cs ~tag:"buf-in" buf ;
 
   let rec handle_records st = function
     | []    -> return (st, [], None, `No_err)
@@ -371,13 +372,21 @@ let handle_tls state buf =
   with
   | Ok (state, resp, data, err) ->
       let res = match err with
-        | `Eof | `Alert _ as err -> err
-        | `No_err                -> `Ok state in
+        | `Eof ->
+          Tracing.sexpf ~tag:"eof-out" ~f:Sexplib.Conv.sexp_of_unit () ;
+          `Eof
+        | `Alert al ->
+          Tracing.sexpf ~tag:"ok-alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, al) ;
+          `Alert al
+        | `No_err ->
+          Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
+          `Ok state
+      in
       `Ok (res, `Response resp, `Data data)
   | Error x ->
       let version = state.handshake.protocol_version in
       let resp    = assemble_records version [Alert.make x] in
-      Tracing.sexpf ~tag:"alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, x) ;
+      Tracing.sexpf ~tag:"fail-alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, x) ;
       `Fail (x, `Response resp)
 
 let send_records (st : state) records =
