@@ -27,6 +27,8 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) : sig
     ?trace:tracer -> Tls.Config.server -> FLOW.flow ->
     [> `Ok of flow | `Error of error ] Lwt.t
 
+  val epoch : flow -> [ `Ok of Tls.Engine.epoch_data | `Error ]
+
 end
   with module FLOW    = F
    and module ENTROPY = E

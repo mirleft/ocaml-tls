@@ -172,6 +172,14 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
     } in
     drain_handshake tls_flow
 
+  let epoch flow =
+    match flow.state with
+    | `Eof | `Error _ -> `Error
+    | `Active tls     ->
+        match Tls.Engine.epoch tls with
+        | `InitialEpoch -> assert false (* `drain_handshake` invariant. *)
+        | `Epoch e      -> `Ok e
+
 (*   let create_connection t tls_params host (addr, port) =
     |+ XXX addr -> (host : string) +|
     TCP.create_connection t (addr, port) >>= function
