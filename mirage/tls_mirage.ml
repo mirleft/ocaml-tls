@@ -59,7 +59,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
     let open Cstruct in
     let blen = len buf in
     let io = Io_page.get (Uncommon.cdiv blen 4096) in
-    let cs = Cstruct.(of_bigarray ~len:blen io) in
+    let cs = Cstruct.sub (Io_page.to_cstruct io) 0 blen in
     Cstruct.blit buf 0 cs 0 blen ;
     cs
 
