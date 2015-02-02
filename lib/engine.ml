@@ -299,6 +299,8 @@ let handle_packet hs buf = function
      >|= fun (hs, items) ->
        ({ hs with hs_fragment }, items, None, `Pass, `No_err)
 
+  | Packet.HEARTBEAT -> fail Packet.UNEXPECTED_MESSAGE
+
 
 (* the main thingy *)
 let handle_raw_record state (hdr, buf as record : raw_record) =
