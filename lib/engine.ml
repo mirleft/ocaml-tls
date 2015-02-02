@@ -189,6 +189,7 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
        (* 2 ^ 14 + 2048 for TLSCiphertext
           2 ^ 14 + 1024 for TLSCompressed
           2 ^ 14 for TLSPlaintext *)
+       Tracing.cs ~tag:"buf-in" buf ;
        fail Packet.RECORD_OVERFLOW
     | (Some _, Some _, size) when size > len payload       ->
        return ([], buf)
@@ -197,8 +198,10 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
        let packet = ({ content_type ; version }, sub payload 0 size) in
        (packet :: tl, frag)
     | (_, None, _)                                         ->
+       Tracing.cs ~tag:"buf-in" buf ;
        fail Packet.PROTOCOL_VERSION
     | (None, _, _)                                         ->
+       Tracing.cs ~tag:"buf-in" buf ;
        fail Packet.UNEXPECTED_MESSAGE
 
 
@@ -358,7 +361,6 @@ let assemble_records (version : tls_version) : record list -> Cstruct.t =
 let handle_tls state buf =
 
   Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ;
-  Tracing.cs ~tag:"buf-in" buf ;
 
   let rec handle_records st = function
     | []    -> return (st, [], None, `No_err)
