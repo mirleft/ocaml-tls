@@ -1,17 +1,17 @@
 Network Working Group                                         A. Langley
 Internet-Draft                                                Google Inc
-Expires: July 5, 2014                                           Jan 2014
+Expires: July 27, 2015                                  January 23, 2015
 
 
                         A TLS padding extension
-                        draft-agl-tls-padding-03
+                       draft-ietf-tls-padding-00
 
 Abstract
 
    This memo describes the a TLS extension that can be used to pad
    ClientHello messages to a desired size.
 
-Status of this Memo
+Status of This Memo
 
    This Internet-Draft is submitted in full conformance with the
    provisions of BCP 78 and BCP 79.
@@ -26,11 +26,11 @@ Status of this Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on July 5, 2014.
+   This Internet-Draft will expire on July 27, 2015.
 
 Copyright Notice
 
-   Copyright (c) 2014 IETF Trust and the persons identified as the
+   Copyright (c) 2015 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
 
    This document is subject to BCP 78 and the IETF Trust's Legal
@@ -45,15 +45,15 @@ Copyright Notice
 
 Table of Contents
 
-   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
-   2.  Requirements Notation  . . . . . . . . . . . . . . . . . . . .  4
-   3.  Padding Extension  . . . . . . . . . . . . . . . . . . . . . .  5
-   4.  Example usage  . . . . . . . . . . . . . . . . . . . . . . . .  6
-   5.  Security Considerations  . . . . . . . . . . . . . . . . . . .  7
-   6.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . .  8
-   7.  Acknowledgements . . . . . . . . . . . . . . . . . . . . . . .  9
-   8.  Normative References . . . . . . . . . . . . . . . . . . . . . 10
-   Author's Address . . . . . . . . . . . . . . . . . . . . . . . . . 11
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Requirements Notation . . . . . . . . . . . . . . . . . . . .   2
+   3.  Padding Extension . . . . . . . . . . . . . . . . . . . . . .   2
+   4.  Example usage . . . . . . . . . . . . . . . . . . . . . . . .   3
+   5.  Security Considerations . . . . . . . . . . . . . . . . . . .   3
+   6.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   4
+   7.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .   4
+   8.  Normative References  . . . . . . . . . . . . . . . . . . . .   4
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .   4
 
 1.  Introduction
 
@@ -76,19 +76,19 @@ Table of Contents
 
 3.  Padding Extension
 
-   A new extension type ("padding(TBD)") is defined and MAY be included
+   A new extension type ("padding(21)") is defined and MAY be included
    by the client in its ClientHello message.
+
    enum {
-           padding(TBD), (65535)
+           padding(21), (65535)
    } ExtensionType;
 
    The "extension_data" for the extension consists of an arbitary number
    of zero bytes.  For example, the smallest "padding" extension is four
-   bytes long and is encoded as TBD TBD 00 00.  (TBR values to be filled
-   in once an ExtensionType has been assigned.)  A ten byte extension
-   would include 6 bytes of "extension_data" and would be encoded as:
+   bytes long and is encoded as 00 15 00 00.  A ten byte extension would
+   include 6 bytes of "extension_data" and would be encoded as:
 
-   xx xx 00 06 00 00 00 00 00 00
+   00 15 00 06 00 00 00 00 00 00
    |---| |---| |---------------|
      |     |           |
      |     |           \- extension_data: 6 zero bytes
@@ -134,13 +134,13 @@ Table of Contents
 
 6.  IANA Considerations
 
-   IANA is requested to assign an extension value for the padding
-   extension from its ExtensionType registry.
+   IANA is requested to permanently assign the early code point for the
+   padding extension in its ExtensionType registry.
 
 7.  Acknowledgements
 
-   The author gratefully acknowledges the contributions of Wan-Teh
-   Chang.  Also the suggestions of Eric Rescorla.
+   The author gratefully acknowledges the contributions of Wan-Teh Chang
+   and the suggestions of Eric Rescorla.
 
 8.  Normative References
 
