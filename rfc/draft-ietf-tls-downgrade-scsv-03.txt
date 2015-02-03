@@ -1,7 +1,3 @@
-
-
-
-
 Network Working Group                                         B. Moeller
 Internet-Draft                                                A. Langley
 Updates: 2246, 4346, 4347, 5246, 6347                             Google
@@ -49,15 +45,6 @@ Copyright Notice
    carefully, as they describe your rights and restrictions with respect
    to this document.  Code Components extracted from this document must
    include Simplified BSD License text as described in Section 4.e of
-
-
-
-
-Moeller & Langley         Expires June 18, 2015                 [Page 1]
-
-Internet-Draft              TLS Fallback SCSV              December 2014
-
-
    the Trust Legal Provisions and are provided without warranty as
    described in the Simplified BSD License.
 
@@ -105,14 +92,6 @@ Table of Contents
    fallback.  (The alert does not necessarily indicate an intentional
    downgrade attack, since network glitches too could result in
    inappropriate fallback retries.)
-
-
-
-
-Moeller & Langley         Expires June 18, 2015                 [Page 2]
-
-Internet-Draft              TLS Fallback SCSV              December 2014
-
 
    The fallback SCSV defined in this document is not suitable substitute
    for proper TLS version negotiation.  TLS implementations need to
@@ -162,14 +141,6 @@ Internet-Draft              TLS Fallback SCSV              December 2014
    TLS_FALLBACK_SCSV cipher suite from a client in
    ClientHello.cipher_suites.
 
-
-
-
-Moeller & Langley         Expires June 18, 2015                 [Page 3]
-
-Internet-Draft              TLS Fallback SCSV              December 2014
-
-
    o  If TLS_FALLBACK_SCSV appears in ClientHello.cipher_suites and the
       highest protocol version supported by the server is higher than
       the version indicated in ClientHello.client_version, the server
@@ -216,15 +187,6 @@ Internet-Draft              TLS Fallback SCSV              December 2014
       TLS_FALLBACK_SCSV in ClientHello.cipher_suites.  (In this case, it
       is assumed that the client already knows the highest protocol
       version supported by the server: see [RFC5246], Appendix E.1.)
-
-
-
-
-
-Moeller & Langley         Expires June 18, 2015                 [Page 4]
-
-Internet-Draft              TLS Fallback SCSV              December 2014
-
 
    o  If a client sets ClientHello.client_version to its highest
       supported protocol version, it MUST NOT include TLS_FALLBACK_SCSV
@@ -273,14 +235,6 @@ Internet-Draft              TLS Fallback SCSV              December 2014
    version unchanged (by disabling newer versions in server settings);
    then, after all legacy (version-intolerant) implementations have been
    removed, change server settings to allow new protocol versions.
-
-
-
-
-Moeller & Langley         Expires June 18, 2015                 [Page 5]
-
-Internet-Draft              TLS Fallback SCSV              December 2014
-
 
 6.  Security Considerations
 
@@ -331,13 +285,6 @@ Internet-Draft              TLS Fallback SCSV              December 2014
 
    ]]
 
-
-
-Moeller & Langley         Expires June 18, 2015                 [Page 6]
-
-Internet-Draft              TLS Fallback SCSV              December 2014
-
-
    IANA has added TLS cipher suite number 0x56,0x00 with name
    TLS_FALLBACK_SCSV to the TLS Cipher Suite registry, and alert number
    86 with name inappropriate_fallback to the TLS Alert registry.
@@ -382,18 +329,6 @@ Appendix A.  Acknowledgements
    Smith, Martin Thomson, and others in the TLS Working Group for their
    feedback and suggestions.
 
-
-
-
-
-
-
-
-Moeller & Langley         Expires June 18, 2015                 [Page 7]
-
-Internet-Draft              TLS Fallback SCSV              December 2014
-
-
 Authors' Addresses
 
    Bodo Moeller
@@ -412,37 +347,3 @@ Authors' Addresses
    USA
 
    Email: agl@google.com
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Moeller & Langley         Expires June 18, 2015                 [Page 8]
