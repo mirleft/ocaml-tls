@@ -165,7 +165,7 @@ Posts in the TLS series:
 - RFC 4366 - TLS Extensions (notably Server Name Indication - SNI)
 - RFC 5246 - TLS Protocol version 1.2
 - RFC 5746 - TLS Renegotiation Indication Extension
-- draft-agl-tls-padding-03 - A TLS padding extension
+- draft-ietf-tls-padding-00 - A TLS padding extension
 - draft-mathewson-no-gmtunixtime - No UNIX time in client and server hello
 - draft-ietf-tls-downgrade-scsv - Reject client-flagged version downgrades
 

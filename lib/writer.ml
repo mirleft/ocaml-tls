@@ -191,7 +191,7 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let bbuf = v <+> cl.random <+> sid <+> css <+> cms in
   (* some widely deployed firewalls drop ClientHello messages which are
      > 256 and < 511 byte, insert PADDING extension for these *)
-  (* from draft-agl-tls-padding-03:
+  (* from draft-ietf-tls-padding-00:
    As an example, consider a client that wishes to avoid sending a
    ClientHello with a record size between 256 and 511 bytes (inclusive).
    This case is considered because at least one TLS implementation is
