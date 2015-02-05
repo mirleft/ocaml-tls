@@ -22,10 +22,6 @@ let http_client ?ca ?fp host port =
   ] in
   Lwt_io.(write oc req >> read ic >>= print >> printf "++ done.\n%!")
 
-let print_alert where alert =
-    Printf.eprintf "TLS ALERT (%s): %s\n%!"
-      where (Tls.Packet.alert_type_to_string alert)
-
 let () =
   try
     match Sys.argv with
@@ -37,6 +33,6 @@ let () =
   with
   | Tls_lwt.Tls_alert alert as exn ->
       print_alert "remote end" alert ; raise exn
-  | Tls_lwt.Tls_failure alert as exn ->
-      print_alert "our end" alert ; raise exn
+  | Tls_lwt.Tls_failure fail as exn ->
+      print_fail "our end" fail ; raise exn
 

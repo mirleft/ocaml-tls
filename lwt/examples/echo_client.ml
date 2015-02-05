@@ -36,7 +36,8 @@ let () =
     | [| _ ; host ; port |]         -> Lwt_main.run (echo_client host port)
     | [| _ ; host |]                -> Lwt_main.run (echo_client host "443")
     | args                          -> Printf.eprintf "%s <host> <port>\n%!" args.(0) ) with
-  | Tls_lwt.Tls_alert al ->
-     Printf.eprintf "TLS ALERT: %s\n%!" (Tls.Packet.alert_type_to_string al) ;
-     raise (Tls_lwt.Tls_alert al)
+  | Tls_lwt.Tls_alert alert as exn ->
+      print_alert "remote end" alert ; raise exn
+  | Tls_lwt.Tls_failure alert as exn ->
+      print_fail "our end" alert ; raise exn
 

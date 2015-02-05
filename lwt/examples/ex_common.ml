@@ -19,3 +19,11 @@ let eprint_sexp sexp =
   output_string stderr Sexplib.Sexp.(to_string_hum sexp) ;
   output_string stderr "\n\n" ;
   flush stderr
+
+let print_alert where alert =
+    Printf.eprintf "TLS ALERT (%s): %s\n%!"
+      where (Tls.Packet.alert_type_to_string alert)
+
+let print_fail where fail =
+  Printf.eprintf "TLS FAIL (%s): %s\n%!"
+    where (Sexplib.Sexp.to_string_hum (Tls.Engine.sexp_of_failure fail))
