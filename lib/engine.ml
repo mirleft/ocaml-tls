@@ -7,16 +7,73 @@ open State
 
 type state = State.state
 
-(* Alerts are a *wonderful* candidate for polyvars. *)
-type alert = Packet.alert_type
+type problematic = State.problematic
+type impossible = State.impossible
+type failure = State.failure with sexp
+
+let alert_of_authentication_failure = function
+  | Certificate.SelfSigned _ -> Packet.UNKNOWN_CA
+  | Certificate.NoTrustAnchor -> Packet.UNKNOWN_CA
+  | Certificate.CertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
+  | _ -> Packet.BAD_CERTIFICATE
+
+let alert_of_problematic = function
+  | `NoConfiguredVersion _ -> Packet.PROTOCOL_VERSION
+  | `NoConfiguredCiphersuite _ -> Packet.HANDSHAKE_FAILURE
+  | `NoSecureRenegotiation -> Packet.HANDSHAKE_FAILURE
+  | `RenegotiationNotConfigured -> Packet.NO_RENEGOTIATION (* should be a warning! *)
+  | `NoConfiguredHash _ -> Packet.HANDSHAKE_FAILURE
+  | `AuthenticationFailure err -> alert_of_authentication_failure err
+  | `NoMatchingCertificateFound _ -> Packet.HANDSHAKE_FAILURE
+  | `NoCertificateConfigured -> Packet.HANDSHAKE_FAILURE
+  | `CouldntSelectCertificate -> Packet.HANDSHAKE_FAILURE
+
+let alert_of_impossible = function
+  | `MACUnderflow -> Packet.BAD_RECORD_MAC
+  | `MACMismatch -> Packet.BAD_RECORD_MAC
+  | `RecordOverflow _ -> Packet.RECORD_OVERFLOW
+  | `UnknownRecordVersion _ -> Packet.PROTOCOL_VERSION
+  | `UnknownContentType _ -> Packet.UNEXPECTED_MESSAGE
+  | `ReaderError _ -> Packet.UNEXPECTED_MESSAGE
+  | `CannotHandleApplicationDataYet -> Packet.UNEXPECTED_MESSAGE
+  | `NoHeartbeat -> Packet.UNEXPECTED_MESSAGE
+  | `BadRecordVersion _ -> Packet.PROTOCOL_VERSION
+  | `InvalidRenegotiation -> Packet.HANDSHAKE_FAILURE
+  | `InvalidServerHello -> Packet.HANDSHAKE_FAILURE
+  | `InvalidRenegotiationVersion _ -> Packet.HANDSHAKE_FAILURE
+  | `NoCertificateReceived -> Packet.HANDSHAKE_FAILURE
+  | `NotRSACertificate -> Packet.BAD_CERTIFICATE
+  | `InvalidCertificateUsage -> Packet.BAD_CERTIFICATE
+  | `InvalidCertificateExtendedUsage -> Packet.BAD_CERTIFICATE
+  | `NoVersion _ -> Packet.PROTOCOL_VERSION
+  | `InvalidDH -> Packet.INSUFFICIENT_SECURITY
+  | `BadFinished -> Packet.HANDSHAKE_FAILURE
+  | `HandshakeFragmentsNotEmpty -> Packet.HANDSHAKE_FAILURE
+  | `InvalidSession -> Packet.HANDSHAKE_FAILURE
+  | `UnexpectedCCS -> Packet.UNEXPECTED_MESSAGE
+  | `UnexpectedHandshake _ -> Packet.UNEXPECTED_MESSAGE
+  | `RSASignatureMismatch -> Packet.HANDSHAKE_FAILURE
+  | `HashAlgorithmMismatch -> Packet.HANDSHAKE_FAILURE
+  | `NotRSASignature -> Packet.HANDSHAKE_FAILURE
+  | `RSASignatureVerificationFailed -> Packet.HANDSHAKE_FAILURE
+  | `KeyTooSmall -> Packet.INSUFFICIENT_SECURITY
+  | `BadCertificateChain -> Packet.BAD_CERTIFICATE
+  | `MixedCiphersuites -> Packet.HANDSHAKE_FAILURE
+  | `NoCiphersuite _ -> Packet.HANDSHAKE_FAILURE
+  | `InvalidClientHello -> Packet.HANDSHAKE_FAILURE
+  | `InappropriateFallback -> Packet.INAPPROPRIATE_FALLBACK
+
+let alert_of_failure = function
+  | `Problematic x -> alert_of_problematic x
+  | `Impossible x -> alert_of_impossible x
 
 type ret = [
 
-  | `Ok of [ `Ok of state | `Eof | `Alert of alert ]
+  | `Ok of [ `Ok of state | `Eof | `Alert of Packet.alert_type ]
          * [ `Response of Cstruct.t option ]
          * [ `Data of Cstruct.t option ]
 
-  | `Fail of alert * [ `Response of Cstruct.t ]
+  | `Fail of failure * [ `Response of Cstruct.t ]
 ]
 
 
@@ -96,13 +153,14 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
 (* well-behaved pure decryptor *)
 let verify_mac sequence mac mac_k ty ver decrypted =
   let macstart = Cstruct.len decrypted - Hash.digest_size mac in
-  if macstart < 0 then fail Packet.BAD_RECORD_MAC else
-    let (body, mmac) = Cstruct.split decrypted macstart in
-    let cmac =
-      let ver = pair_of_tls_version ver in
-      let hdr = Crypto.pseudo_header sequence ty ver (Cstruct.len body) in
-      Crypto.mac mac mac_k hdr body in
-    guard (Cs.equal cmac mmac) Packet.BAD_RECORD_MAC >|= fun () -> body
+  guard (macstart >= 0) (`Impossible `MACUnderflow) >>= fun () ->
+  let (body, mmac) = Cstruct.split decrypted macstart in
+  let cmac =
+    let ver = pair_of_tls_version ver in
+    let hdr = Crypto.pseudo_header sequence ty ver (Cstruct.len body) in
+    Crypto.mac mac mac_k hdr body in
+  guard (Cs.equal cmac mmac) (`Impossible `MACMismatch) >|= fun () ->
+  body
 
 
 let decrypt (version : tls_version) (st : crypto_state) ty buf =
@@ -118,7 +176,7 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
   (* defense against http://lasecwww.epfl.ch/memo/memo_ssl.shtml 1) in
      https://www.openssl.org/~bodo/tls-cbc.txt *)
   let mask_decrypt_failure seq mac mac_k =
-    compute_mac seq mac mac_k buf >>= fun _ -> fail Packet.BAD_RECORD_MAC
+    compute_mac seq mac mac_k buf >>= fun _ -> fail (`Impossible `MACMismatch)
   in
 
   let dec ctx =
@@ -144,7 +202,7 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
             CBC { c with iv_mode = Iv iv' }, msg
          | Random_iv ->
             if Cstruct.len buf < Crypto.cbc_block c.cipher then
-              fail Packet.BAD_RECORD_MAC
+              fail (`Impossible `MACUnderflow)
             else
               let iv, buf = Cstruct.split buf (Crypto.cbc_block c.cipher) in
               dec iv buf >|= fun (msg, _) ->
@@ -152,7 +210,7 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
 
     | CCM c ->
        if Cstruct.len buf < 8 then
-         fail Packet.BAD_RECORD_MAC
+         fail (`Impossible `MACUnderflow)
        else
          let explicit_nonce, buf = Cstruct.split buf 8 in
          let adata =
@@ -161,7 +219,7 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
          and nonce = c.nonce <+> explicit_nonce
          in
          match Crypto.decrypt_ccm ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
-         | None -> fail Packet.BAD_RECORD_MAC
+         | None -> fail (`Impossible `MACMismatch)
          | Some x -> return (CCM c, x)
   in
   match st with
@@ -190,7 +248,7 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
           2 ^ 14 + 1024 for TLSCompressed
           2 ^ 14 for TLSPlaintext *)
        Tracing.cs ~tag:"buf-in" buf ;
-       fail Packet.RECORD_OVERFLOW
+       fail (`Impossible (`RecordOverflow size))
     | (Some _, Some _, size) when size > len payload       ->
        return ([], buf)
     | (Some content_type, Some version, size)              ->
@@ -199,10 +257,10 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
        (packet :: tl, frag)
     | (_, None, _)                                         ->
        Tracing.cs ~tag:"buf-in" buf ;
-       fail Packet.PROTOCOL_VERSION
+       fail (`Impossible (`UnknownRecordVersion (Reader.parse_version_int (shift buf 1))))
     | (None, _, _)                                         ->
        Tracing.cs ~tag:"buf-in" buf ;
-       fail Packet.UNEXPECTED_MESSAGE
+       fail (`Impossible (`UnknownContentType (get_uint8 buf 0)))
 
 
 let encrypt_records encryptor version records =
@@ -238,7 +296,7 @@ module Alert = struct
           | CLOSE_NOTIFY -> `Eof
           | _            -> `Alert a_type in
         return (err, [`Record close_notify])
-    | Reader.Or_error.Error _ -> fail Packet.UNEXPECTED_MESSAGE
+    | Reader.Or_error.Error re -> fail (`Impossible (`ReaderError re))
 end
 
 let hs_can_handle_appdata s =
@@ -290,11 +348,11 @@ let handle_packet hs buf = function
         (hs, out, None, `Pass, err)
 
   | Packet.APPLICATION_DATA ->
-    ( match hs_can_handle_appdata hs with
-      | true  ->
-         Tracing.cs ~tag:"application-data-in" buf;
-         return (hs, [], non_empty buf, `Pass, `No_err)
-      | false -> fail Packet.UNEXPECTED_MESSAGE )
+    if hs_can_handle_appdata hs then
+      (Tracing.cs ~tag:"application-data-in" buf;
+       return (hs, [], non_empty buf, `Pass, `No_err))
+    else
+      fail (`Impossible `CannotHandleApplicationDataYet)
 
   | Packet.CHANGE_CIPHER_SPEC ->
       handle_change_cipher_spec hs.machina hs buf
@@ -310,7 +368,7 @@ let handle_packet hs buf = function
      >|= fun (hs, items) ->
        ({ hs with hs_fragment }, items, None, `Pass, `No_err)
 
-  | Packet.HEARTBEAT -> fail Packet.UNEXPECTED_MESSAGE
+  | Packet.HEARTBEAT -> fail (`Impossible `NoHeartbeat)
 
 
 (* the main thingy *)
@@ -324,7 +382,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
     | Client (AwaitServerHello _), _     -> return ()
     | Server (AwaitClientHello)  , _     -> return ()
     | _                          , true  -> return ()
-    | _                          , false -> fail Packet.PROTOCOL_VERSION )
+    | _                          , false -> fail (`Impossible (`BadRecordVersion hdr.version)) )
   >>= fun () ->
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->
@@ -397,8 +455,10 @@ let handle_tls state buf =
       `Ok (res, `Response resp, `Data data)
   | Error x ->
       let version = state.handshake.protocol_version in
-      let resp    = assemble_records version [Alert.make x] in
-      Tracing.sexpf ~tag:"fail-alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, x) ;
+      let alert   = alert_of_failure x in
+      let resp    = assemble_records version [Alert.make alert] in
+      Tracing.sexpf ~tag:"fail-alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, alert) ;
+      Tracing.sexpf ~tag:"failure" ~f:sexp_of_failure x ;
       `Fail (x, `Response resp)
 
 let send_records (st : state) records =

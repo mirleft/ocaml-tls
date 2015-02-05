@@ -4,11 +4,13 @@ type error =
   | WrongLength   of string
   | Unknown       of string
   | Underflow
+with sexp
 
 module Or_error :
   Control.Or_error with type err = error
 open Or_error
 
+val parse_version_int : Cstruct.t -> int * int
 val parse_version     : Cstruct.t -> Core.tls_version or_error
 val parse_any_version : Cstruct.t -> Core.tls_any_version or_error
 val parse_hdr         : Cstruct.t -> Packet.content_type option * Core.tls_any_version option * int
