@@ -1,7 +1,7 @@
 open Lwt
 
 exception Tls_alert   of Tls.Packet.alert_type
-exception Tls_failure of Tls.Packet.alert_type
+exception Tls_failure of Tls.Engine.failure
 
 let o f g x = f (g x)
 
