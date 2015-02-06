@@ -59,6 +59,9 @@ type failure = [
 (** convert a failure to a tls alert *)
 val alert_of_failure : failure -> Packet.alert_type
 
+(** convert a failure to a string *)
+val string_of_failure : failure -> string
+
 (** some abstract type a client gets *)
 type state
 

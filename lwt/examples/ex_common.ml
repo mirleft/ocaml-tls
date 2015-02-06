@@ -26,4 +26,4 @@ let print_alert where alert =
 
 let print_fail where fail =
   Printf.eprintf "TLS FAIL (%s): %s\n%!"
-    where (Sexplib.Sexp.to_string_hum (Tls.Engine.sexp_of_failure fail))
+    where (Tls.Engine.string_of_failure fail)

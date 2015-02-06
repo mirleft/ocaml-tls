@@ -67,6 +67,9 @@ let alert_of_failure = function
   | `Problematic x -> alert_of_problematic x
   | `Impossible x -> alert_of_impossible x
 
+let string_of_failure f =
+  Sexplib.Sexp.to_string_hum (sexp_of_failure f)
+
 type ret = [
 
   | `Ok of [ `Ok of state | `Eof | `Alert of Packet.alert_type ]

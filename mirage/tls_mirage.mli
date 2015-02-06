@@ -4,12 +4,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) : sig
   module FLOW    : V1_LWT.FLOW
   module ENTROPY : V1_LWT.ENTROPY
 
-  type error  = [
-    | `Tls of string
-    | `Tls_failure of Tls.Engine.failure
-    | `Tls_alert of Tls.Packet.alert_type
-    | `Flow of FLOW.error
-  ]
+  type error  = [ `Tls of string | `Flow of FLOW.error ]
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
 

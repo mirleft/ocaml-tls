@@ -5,12 +5,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
 
   module FLOW = F
 
-  type error  = [
-    | `Tls of string
-    | `Tls_failure of Tls.Engine.failure
-    | `Tls_alert of Tls.Packet.alert_type
-    | `Flow of FLOW.error
-  ]
+  type error  = [ `Tls of string | `Flow of FLOW.error ]
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
 
@@ -35,8 +30,8 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
   }
 
   let tls_error e = `Error (`Tls e)
-  let tls_alert a = `Error (`Tls_alert a)
-  let tls_fail f  = `Error (`Tls_failure f)
+  let tls_alert a = `Error (`Tls (Tls.Packet.alert_type_to_string a))
+  let tls_fail f  = `Error (`Tls (Tls.Engine.string_of_failure f))
 
   let return_error e     = return (`Error e)
   let return_tls_error e = return (tls_error e)
