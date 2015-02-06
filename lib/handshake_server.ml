@@ -16,7 +16,7 @@ let hello_request state =
     let state = { state with machina = Server AwaitClientHelloRenegotiate } in
     return (state, [`Record (Packet.HANDSHAKE, Writer.assemble_handshake hr)])
   else
-    fail (`Problematic `RenegotiationNotConfigured)
+    fail (`Impossible `InvalidSession)
 
 
 let answer_client_finished state session client_fin raw log =
@@ -349,7 +349,9 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
      let reneg = session.renegotiation in
      process_client_hello config state.protocol_version reneg ch >>= fun version ->
      answer_client_hello_common state (Some reneg) ch raw
-  | false, _             -> fail (`Problematic `RenegotiationNotConfigured)
+  | false, _             ->
+    let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
+    return (state, [`Record (Packet.ALERT, no_reneg)])
   | true , _             -> fail (`Impossible `InvalidSession) (* I'm pretty sure this can be an assert false *)
 
 let handle_change_cipher_spec ss state packet =

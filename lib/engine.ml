@@ -21,7 +21,6 @@ let alert_of_problematic = function
   | `NoConfiguredVersion _ -> Packet.PROTOCOL_VERSION
   | `NoConfiguredCiphersuite _ -> Packet.HANDSHAKE_FAILURE
   | `NoSecureRenegotiation -> Packet.HANDSHAKE_FAILURE
-  | `RenegotiationNotConfigured -> Packet.NO_RENEGOTIATION (* should be a warning! *)
   | `NoConfiguredHash _ -> Packet.HANDSHAKE_FAILURE
   | `AuthenticationFailure err -> alert_of_authentication_failure err
   | `NoMatchingCertificateFound _ -> Packet.HANDSHAKE_FAILURE

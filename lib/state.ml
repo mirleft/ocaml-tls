@@ -173,7 +173,6 @@ type problematic = [
   | `NoConfiguredVersion of tls_version
   | `NoConfiguredHash of Hash.hash list
   | `NoSecureRenegotiation
-  | `RenegotiationNotConfigured
   | `NoMatchingCertificateFound of string
   | `NoCertificateConfigured
   | `CouldntSelectCertificate

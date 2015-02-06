@@ -7,7 +7,6 @@ type problematic = [
   | `NoConfiguredVersion of Core.tls_version
   | `NoConfiguredHash of Nocrypto.Hash.hash list
   | `NoSecureRenegotiation
-  | `RenegotiationNotConfigured
   | `NoMatchingCertificateFound of string
   | `NoCertificateConfigured
   | `CouldntSelectCertificate

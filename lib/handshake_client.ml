@@ -300,7 +300,9 @@ let answer_hello_request state =
     let ext = SecureRenegotiation (fst x.renegotiation) in
     return (produce_client_hello x state.config [ext])
   | true , _      -> fail (`Impossible `InvalidSession) (* I'm pretty sure this can be an assert false *)
-  | false, _      -> fail (`Problematic `RenegotiationNotConfigured)
+  | false, _      ->
+    let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
+    return (state, [`Record (Packet.ALERT, no_reneg)])
 
 let handle_change_cipher_spec cs state packet =
   let open Reader in
