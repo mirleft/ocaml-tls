@@ -8,7 +8,7 @@ open State
 type state = State.state
 
 type problematic = State.problematic
-type impossible = State.impossible
+type fatal = State.fatal
 type failure = State.failure with sexp
 
 let alert_of_authentication_failure = function
@@ -27,7 +27,7 @@ let alert_of_problematic = function
   | `NoCertificateConfigured -> Packet.HANDSHAKE_FAILURE
   | `CouldntSelectCertificate -> Packet.HANDSHAKE_FAILURE
 
-let alert_of_impossible = function
+let alert_of_fatal = function
   | `MACUnderflow -> Packet.BAD_RECORD_MAC
   | `MACMismatch -> Packet.BAD_RECORD_MAC
   | `RecordOverflow _ -> Packet.RECORD_OVERFLOW
@@ -64,7 +64,7 @@ let alert_of_impossible = function
 
 let alert_of_failure = function
   | `Problematic x -> alert_of_problematic x
-  | `Impossible x -> alert_of_impossible x
+  | `Fatal x -> alert_of_fatal x
 
 let string_of_failure f =
   Sexplib.Sexp.to_string_hum (sexp_of_failure f)
@@ -155,13 +155,13 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
 (* well-behaved pure decryptor *)
 let verify_mac sequence mac mac_k ty ver decrypted =
   let macstart = Cstruct.len decrypted - Hash.digest_size mac in
-  guard (macstart >= 0) (`Impossible `MACUnderflow) >>= fun () ->
+  guard (macstart >= 0) (`Fatal `MACUnderflow) >>= fun () ->
   let (body, mmac) = Cstruct.split decrypted macstart in
   let cmac =
     let ver = pair_of_tls_version ver in
     let hdr = Crypto.pseudo_header sequence ty ver (Cstruct.len body) in
     Crypto.mac mac mac_k hdr body in
-  guard (Cs.equal cmac mmac) (`Impossible `MACMismatch) >|= fun () ->
+  guard (Cs.equal cmac mmac) (`Fatal `MACMismatch) >|= fun () ->
   body
 
 
@@ -178,7 +178,7 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
   (* defense against http://lasecwww.epfl.ch/memo/memo_ssl.shtml 1) in
      https://www.openssl.org/~bodo/tls-cbc.txt *)
   let mask_decrypt_failure seq mac mac_k =
-    compute_mac seq mac mac_k buf >>= fun _ -> fail (`Impossible `MACMismatch)
+    compute_mac seq mac mac_k buf >>= fun _ -> fail (`Fatal `MACMismatch)
   in
 
   let dec ctx =
@@ -204,7 +204,7 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
             CBC { c with iv_mode = Iv iv' }, msg
          | Random_iv ->
             if Cstruct.len buf < Crypto.cbc_block c.cipher then
-              fail (`Impossible `MACUnderflow)
+              fail (`Fatal `MACUnderflow)
             else
               let iv, buf = Cstruct.split buf (Crypto.cbc_block c.cipher) in
               dec iv buf >|= fun (msg, _) ->
@@ -212,7 +212,7 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
 
     | CCM c ->
        if Cstruct.len buf < 8 then
-         fail (`Impossible `MACUnderflow)
+         fail (`Fatal `MACUnderflow)
        else
          let explicit_nonce, buf = Cstruct.split buf 8 in
          let adata =
@@ -221,7 +221,7 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
          and nonce = c.nonce <+> explicit_nonce
          in
          match Crypto.decrypt_ccm ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
-         | None -> fail (`Impossible `MACMismatch)
+         | None -> fail (`Fatal `MACMismatch)
          | Some x -> return (CCM c, x)
   in
   match st with
@@ -250,7 +250,7 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
           2 ^ 14 + 1024 for TLSCompressed
           2 ^ 14 for TLSPlaintext *)
        Tracing.cs ~tag:"buf-in" buf ;
-       fail (`Impossible (`RecordOverflow size))
+       fail (`Fatal (`RecordOverflow size))
     | (Some _, Some _, size) when size > len payload       ->
        return ([], buf)
     | (Some content_type, Some version, size)              ->
@@ -259,10 +259,10 @@ let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t
        (packet :: tl, frag)
     | (_, None, _)                                         ->
        Tracing.cs ~tag:"buf-in" buf ;
-       fail (`Impossible (`UnknownRecordVersion (Reader.parse_version_int (shift buf 1))))
+       fail (`Fatal (`UnknownRecordVersion (Reader.parse_version_int (shift buf 1))))
     | (None, _, _)                                         ->
        Tracing.cs ~tag:"buf-in" buf ;
-       fail (`Impossible (`UnknownContentType (get_uint8 buf 0)))
+       fail (`Fatal (`UnknownContentType (get_uint8 buf 0)))
 
 
 let encrypt_records encryptor version records =
@@ -298,7 +298,7 @@ module Alert = struct
           | CLOSE_NOTIFY -> `Eof
           | _            -> `Alert a_type in
         return (err, [`Record close_notify])
-    | Reader.Or_error.Error re -> fail (`Impossible (`ReaderError re))
+    | Reader.Or_error.Error re -> fail (`Fatal (`ReaderError re))
 end
 
 let hs_can_handle_appdata s =
@@ -354,7 +354,7 @@ let handle_packet hs buf = function
       (Tracing.cs ~tag:"application-data-in" buf;
        return (hs, [], non_empty buf, `Pass, `No_err))
     else
-      fail (`Impossible `CannotHandleApplicationDataYet)
+      fail (`Fatal `CannotHandleApplicationDataYet)
 
   | Packet.CHANGE_CIPHER_SPEC ->
       handle_change_cipher_spec hs.machina hs buf
@@ -370,7 +370,7 @@ let handle_packet hs buf = function
      >|= fun (hs, items) ->
        ({ hs with hs_fragment }, items, None, `Pass, `No_err)
 
-  | Packet.HEARTBEAT -> fail (`Impossible `NoHeartbeat)
+  | Packet.HEARTBEAT -> fail (`Fatal `NoHeartbeat)
 
 
 (* the main thingy *)
@@ -384,7 +384,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
     | Client (AwaitServerHello _), _     -> return ()
     | Server (AwaitClientHello)  , _     -> return ()
     | _                          , true  -> return ()
-    | _                          , false -> fail (`Impossible (`BadRecordVersion hdr.version)) )
+    | _                          , false -> fail (`Fatal (`BadRecordVersion hdr.version)) )
   >>= fun () ->
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->

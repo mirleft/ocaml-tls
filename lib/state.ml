@@ -178,7 +178,7 @@ type problematic = [
   | `CouldntSelectCertificate
 ] with sexp
 
-type impossible = [
+type fatal = [
   | `NoCiphersuite of Packet.any_ciphersuite list
   | `NoVersion of tls_any_version
   | `ReaderError of Reader.error
@@ -216,7 +216,7 @@ type impossible = [
 
 type failure = [
   | `Problematic of problematic
-  | `Impossible of impossible
+  | `Fatal of fatal
 ] with sexp
 
 (* Monadic control-flow core. *)

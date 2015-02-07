@@ -47,14 +47,14 @@ let answer_server_hello state ch (sh : server_hello) raw log =
 
   and validate_reneg required data =
     match required, data with
-    | _    , Some x -> guard (Cs.null x) (`Impossible `InvalidRenegotiation)
+    | _    , Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
     | false, _      -> return ()
     | true , _      -> fail (`Problematic `NoSecureRenegotiation)
   in
 
   let cfg = state.config in
   guard (server_hello_valid sh &&
-         server_exts_subset_of_client sh.extensions ch.extensions) (`Impossible `InvalidServerHello)
+         server_exts_subset_of_client sh.extensions ch.extensions) (`Fatal `InvalidServerHello)
   >>= fun () ->
   validate_version ch.version state.config.protocol_versions sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
@@ -79,7 +79,7 @@ let answer_server_hello state ch (sh : server_hello) raw log =
 let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log =
   let validate_reneg required reneg data =
     match required, reneg, data with
-    | _    , (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) (`Impossible `InvalidRenegotiation)
+    | _    , (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) (`Fatal `InvalidRenegotiation)
     | false, _         , _      -> return ()
     | true , _         , _      -> fail (`Problematic `NoSecureRenegotiation)
   in
@@ -87,10 +87,10 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
   let cfg = state.config in
   guard (server_hello_valid sh &&
          server_exts_subset_of_client sh.extensions ch.extensions)
-    (`Impossible `InvalidServerHello)
+    (`Fatal `InvalidServerHello)
   >>= fun () ->
   guard (state.protocol_version = sh.version)
-    (`Impossible (`InvalidRenegotiationVersion sh.version)) >>= fun () ->
+    (`Fatal (`InvalidRenegotiationVersion sh.version)) >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let theirs = get_secure_renegotiation sh.extensions in
   validate_reneg cfg.secure_reneg session.renegotiation theirs >|= fun () ->
@@ -130,11 +130,11 @@ let validate_keytype_usage certificates ciphersuite =
     Ciphersuite.(o required_keytype_and_usage ciphersuite_kex ciphersuite)
   in
   match certificates with
-  | [] -> fail (`Impossible `NoCertificateReceived)
+  | [] -> fail (`Fatal `NoCertificateReceived)
   | cert :: _ ->
-    guard (validate_keytype cert keytype) (`Impossible `NotRSACertificate) >>= fun () ->
-    guard (validate_usage cert usage) (`Impossible `InvalidCertificateUsage) >>= fun () ->
-    guard (validate_ext_usage cert `Server_auth) (`Impossible `InvalidCertificateExtendedUsage)
+    guard (validate_keytype cert keytype) (`Fatal `NotRSACertificate) >>= fun () ->
+    guard (validate_usage cert usage) (`Fatal `InvalidCertificateUsage) >>= fun () ->
+    guard (validate_ext_usage cert `Server_auth) (`Fatal `InvalidCertificateExtendedUsage)
 
 let answer_certificate_RSA state session cs raw log =
   let cfg = state.config in
@@ -147,7 +147,7 @@ let answer_certificate_RSA state session cs raw log =
   let session = { session with peer_certificate ; trust_anchor } in
   ( match session.client_version with
     | Supported v -> return v
-    | x           -> fail (`Impossible (`NoVersion x)) (* TODO: get rid of this... *)
+    | x           -> fail (`Fatal (`NoVersion x)) (* TODO: get rid of this... *)
   ) >>= fun version ->
   let ver = Writer.assemble_protocol_version version in
   let premaster = ver <+> Rng.generate 46 in
@@ -177,19 +177,19 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
   let dh_params kex =
     match parse_dh_parameters kex with
     | Or_error.Ok data  -> return data
-    | Or_error.Error re -> fail (`Impossible (`ReaderError re))
+    | Or_error.Error re -> fail (`Fatal (`ReaderError re))
   in
 
   dh_params kex >>= fun (dh_params, raw_dh_params, leftover) ->
   let sigdata = session.client_random <+> session.server_random <+> raw_dh_params in
   verify_digitally_signed state.protocol_version leftover sigdata session.peer_certificate >>= fun () ->
   let group, shared = Crypto.dh_params_unpack dh_params in
-  guard (Dh.apparent_bit_size group >= Config.min_dh_size) (`Impossible `InvalidDH)
+  guard (Dh.apparent_bit_size group >= Config.min_dh_size) (`Fatal `InvalidDH)
   >>= fun () ->
 
   let secret, kex = Dh.gen_secret group in
   match Crypto.dh_shared group secret shared with
-  | None     -> fail (`Impossible `InvalidDH)
+  | None     -> fail (`Fatal `InvalidDH)
   | Some pms -> let machina =
                   AwaitCertificateRequestOrServerHelloDone
                     (session, kex, pms, log @ [raw])
@@ -203,11 +203,11 @@ let answer_certificate_request state session cr kex pms raw log =
     | TLS_1_0 | TLS_1_1 ->
        ( match parse_certificate_request cr with
          | Or_error.Ok (types, cas) -> return (types, None, cas)
-         | Or_error.Error re -> fail (`Impossible (`ReaderError re)) )
+         | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
     | TLS_1_2 ->
        ( match Reader.parse_certificate_request_1_2 cr with
          | Or_error.Ok (types, sigalgs, cas) -> return (types, Some sigalgs, cas)
-         | Or_error.Error re -> fail (`Impossible (`ReaderError re)) )
+         | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
   ) >|= fun (types, sigalgs, cas) ->
   (* TODO: respect cas, maybe multiple client certificates? *)
   let own_certificate, own_private_key =
@@ -279,8 +279,8 @@ let answer_server_finished state session client_verify fin log =
   let computed =
     Handshake_crypto.finished state.protocol_version session.master_secret "server finished" log
   in
-  guard (Cs.equal computed fin) (`Impossible `BadFinished) >>= fun () ->
-  guard (Cs.null state.hs_fragment) (`Impossible `HandshakeFragmentsNotEmpty) >|= fun () ->
+  guard (Cs.equal computed fin) (`Fatal `BadFinished) >>= fun () ->
+  guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
   let machina = Established
   and session = { session with renegotiation = (client_verify, computed) } in
   ({ state with machina = Client machina ; session = session :: state.session }, [])
@@ -299,7 +299,7 @@ let answer_hello_request state =
   | true , x :: _ ->
     let ext = SecureRenegotiation (fst x.renegotiation) in
     return (produce_client_hello x state.config [ext])
-  | true , _      -> fail (`Impossible `InvalidSession) (* I'm pretty sure this can be an assert false *)
+  | true , _      -> fail (`Fatal `InvalidSession) (* I'm pretty sure this can be an assert false *)
   | false, _      ->
     let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
     return (state, [`Record (Packet.ALERT, no_reneg)])
@@ -308,12 +308,12 @@ let handle_change_cipher_spec cs state packet =
   let open Reader in
   match parse_change_cipher_spec packet, cs with
   | Or_error.Ok (), AwaitServerChangeCipherSpec (session, server_ctx, client_verify, log) ->
-     guard (Cs.null state.hs_fragment) (`Impossible `HandshakeFragmentsNotEmpty) >|= fun () ->
+     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
      let machina = AwaitServerFinished (session, client_verify, log) in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      ({ state with machina = Client machina }, [], `Change_dec (Some server_ctx))
-  | Or_error.Error re, _ -> fail (`Impossible (`ReaderError re))
-  | _ -> fail (`Impossible `UnexpectedCCS)
+  | Or_error.Error re, _ -> fail (`Fatal (`ReaderError re))
+  | _ -> fail (`Fatal `UnexpectedCCS)
 
 let handle_handshake cs hs buf =
   let open Reader in
@@ -341,6 +341,6 @@ let handle_handshake cs hs buf =
           answer_server_finished hs session client_verify fin log
        | Established, HelloRequest ->
           answer_hello_request hs
-       | _, hs -> fail (`Impossible (`UnexpectedHandshake (Client cs, hs))) )
-  | Or_error.Error re -> fail (`Impossible (`ReaderError re))
+       | _, hs -> fail (`Fatal (`UnexpectedHandshake (Client cs, hs))) )
+  | Or_error.Error re -> fail (`Fatal (`ReaderError re))
 

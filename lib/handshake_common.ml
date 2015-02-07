@@ -158,12 +158,12 @@ let signature version data sig_algs hashes private_key =
     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
 
 let peer_rsa_key = function
-  | [] -> fail (`Impossible `NoCertificateReceived)
+  | [] -> fail (`Fatal `NoCertificateReceived)
   | cert::_ ->
     let open Asn_grammars in
     match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
     | PK.RSA key -> return key
-    | _          -> fail (`Impossible `NotRSACertificate)
+    | _          -> fail (`Fatal `NotRSACertificate)
 
 let verify_digitally_signed version data signature_data certificates =
   let signature_verifier version data =
@@ -174,27 +174,27 @@ let verify_digitally_signed version data signature_data certificates =
         | Or_error.Ok signature ->
           let compare_hashes should data =
             let computed_sig = Hash.MD5.digest data <+> Hash.SHA1.digest data in
-            guard (Cs.equal should computed_sig) (`Impossible `RSASignatureMismatch)
+            guard (Cs.equal should computed_sig) (`Fatal `RSASignatureMismatch)
           in
           return (signature, compare_hashes)
-        | Or_error.Error re -> fail (`Impossible (`ReaderError re)) )
+        | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
     | TLS_1_2 ->
       ( match parse_digitally_signed_1_2 data with
         | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
           let compare_hashes should data =
             match Asn_grammars.pkcs1_digest_info_of_cstruct should with
             | Some (hash_algo', target) when hash_algo = hash_algo' ->
-              guard (Crypto.digest_eq hash_algo ~target data) (`Impossible `RSASignatureMismatch)
-            | _ -> fail (`Impossible `HashAlgorithmMismatch)
+              guard (Crypto.digest_eq hash_algo ~target data) (`Fatal `RSASignatureMismatch)
+            | _ -> fail (`Fatal `HashAlgorithmMismatch)
           in
           return (signature, compare_hashes)
-        | Or_error.Ok _ -> fail (`Impossible `NotRSASignature)
-        | Or_error.Error re -> fail (`Impossible (`ReaderError re)) )
+        | Or_error.Ok _ -> fail (`Fatal `NotRSASignature)
+        | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
 
   and signature pubkey raw_signature =
     match Rsa.PKCS1.verify pubkey raw_signature with
     | Some signature -> return signature
-    | None -> fail (`Impossible `RSASignatureVerificationFailed)
+    | None -> fail (`Fatal `RSASignatureVerificationFailed)
   in
 
   signature_verifier version data >>= fun (raw_signature, verifier) ->
@@ -217,11 +217,11 @@ let validate_chain authenticator certificates hostname =
         | PK.RSA key when Rsa.pub_bits key >= min -> true
         | _                                       -> false )
     in
-    guard (List.for_all check cs) (`Impossible `KeyTooSmall)
+    guard (List.for_all check cs) (`Fatal `KeyTooSmall)
 
   and parse_certificates certs =
     let certificates = filter_map ~f:parse certs in
-    guard (List.length certs = List.length certificates) (`Impossible `BadCertificateChain) >|= fun () ->
+    guard (List.length certs = List.length certificates) (`Fatal `BadCertificateChain) >|= fun () ->
     certificates
 
   in

@@ -13,7 +13,7 @@ type problematic = [
 ]
 
 (** failures from received garbage or lack of features *)
-type impossible = [
+type fatal = [
   | `NoCiphersuite of Packet.any_ciphersuite list
   | `NoVersion of Core.tls_any_version
   | `ReaderError of Reader.error
@@ -52,7 +52,7 @@ type impossible = [
 (** type of failures *)
 type failure = [
   | `Problematic of problematic
-  | `Impossible of impossible
+  | `Fatal of fatal
 ] with sexp
 
 (** convert a failure to a tls alert *)
