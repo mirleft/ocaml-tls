@@ -3,8 +3,8 @@ open Nocrypto
 open Utils
 open Core
 
-open Sexplib
-open Sexplib.Conv
+open Sexplib.Std
+
 
 type certchain = Certificate.certificate list * Rsa.priv with sexp
 
@@ -25,7 +25,7 @@ type config = {
   authenticator     : X509.Authenticator.t option ;
   peer_name         : string option ;
   own_certificates  : own_cert ;
-}
+} with sexp
 
 module Ciphers = struct
 
@@ -194,63 +194,6 @@ let validate_server config =
     | `Multiple_default (_, cs) -> non_overlapping cs
     | _                         -> () )
   (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
-
-
-(* Config sexp. *)
-(* XXX don't do it manually. *)
-
-let config_of_sexp cfg =
-  let open Sexp in
-  match cfg with
-  | List l ->
-    List.fold_left (fun config sexp ->
-        match sexp with
-        | List [ Atom "ciphers" ; ciphers ] ->
-          let ciphers = list_of_sexp Ciphersuite.ciphersuite_of_sexp ciphers in
-          { config with ciphers }
-        | List [ Atom "version" ; versions ] ->
-          let protocol_versions = pair_of_sexp tls_version_of_sexp tls_version_of_sexp versions in
-          { config with protocol_versions }
-        | List [ Atom "hashes" ; hashes ] ->
-          let hashes = list_of_sexp Hash.hash_of_sexp hashes in
-          { config with hashes }
-        | List [ Atom "use_reneg" ; reneg ] ->
-          let use_reneg = bool_of_sexp reneg in
-          { config with use_reneg }
-        | List [ Atom "secure_reneg" ; reneg ] ->
-          let secure_reneg = bool_of_sexp reneg in
-          { config with secure_reneg }
-        | List [ Atom "authenticator" ; _ ]
-        | List [ Atom "certificates" ; _ ] ->
-          (* ignore, never marshalled to disk anyways *)
-          config
-        | List [ Atom "peer_name" ; name ] ->
-          let peer_name = option_of_sexp string_of_sexp name in
-          { config with peer_name }
-        | _ -> invalid_arg "error while parsing TLS configuration")
-      default_config l
-  | _ -> invalid_arg "error while parsing TLS configuration"
-
-let sexp_of_version =
-  sexp_of_pair sexp_of_tls_version sexp_of_tls_version
-
-let sexp_of_authenticator_o =
-  sexp_of_option (fun _ -> Sexp.Atom "<AUTHENTICATOR>")
-
-let sexp_of_config c =
-  let open Ciphersuite in
-  Sexp_ext.record [
-    "ciphers"        , sexp_of_list sexp_of_ciphersuite c.ciphers ;
-    "version"        , sexp_of_version c.protocol_versions ;
-    "hashes"         , sexp_of_list Hash.sexp_of_hash c.hashes ;
-    "use_reneg"      , sexp_of_bool c.use_reneg ;
-    "secure_reneg"   , sexp_of_bool c.secure_reneg ;
-    "authenticator"  , sexp_of_authenticator_o c.authenticator ;
-    "peer_name"      , (sexp_of_option sexp_of_string) c.peer_name ;
-    "certificates"   , sexp_of_own_cert c.own_certificates ;
-  ]
-
-(* ... *)
 
 
 type client = config with sexp
