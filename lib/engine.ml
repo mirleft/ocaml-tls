@@ -360,7 +360,7 @@ let assemble_records (version : tls_version) : record list -> Cstruct.t =
 (* main entry point *)
 let handle_tls state buf =
 
-  Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ;
+  (* Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ; *)
 
   let rec handle_records st = function
     | []    -> return (st, [], None, `No_err)
@@ -496,12 +496,11 @@ let client config =
       machina          = Client machina ;
       protocol_version = version
   } in
+  let state = { state with handshake } in
 
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
-
-  send_records
-      { state with handshake }
-      [(Packet.HANDSHAKE, raw)]
+  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ; *)
+  Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
+  send_records state [(Packet.HANDSHAKE, raw)]
 
 let server config = new_state Config.(of_server config) `Server
 

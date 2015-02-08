@@ -261,10 +261,10 @@ let answer_server_hello_done state session sigalgs kex premaster raw log =
   let machina = AwaitServerChangeCipherSpec (session, server_ctx, checksum, ps)
   and ccst, ccs = change_cipher_spec in
 
-  List.iter (Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake) msgs;
+  (* List.iter (Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake) msgs; *)
   Tracing.cs ~tag:"change-cipher-spec-out" ccs ;
-  Tracing.cs ~tag:"master-secret" master_secret;
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin;
+  (* Tracing.cs ~tag:"master-secret" master_secret; *)
+  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin; *)
 
   ({ state with machina = Client machina },
    List.map (fun x -> `Record (Packet.HANDSHAKE, x)) raw_msgs @
@@ -292,7 +292,7 @@ let answer_hello_request state =
      let ch = { dch with extensions = exts @ dch.extensions } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
      let machina = AwaitServerHelloRenegotiate (session, ch, [raw]) in
-     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ;
+     (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ; *)
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
   in
 
@@ -322,7 +322,7 @@ let handle_handshake cs hs buf =
   let open Reader in
   match parse_handshake buf with
   | Or_error.Ok handshake ->
-     Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake ;
+    (* Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake ; *)
      ( match cs, handshake with
        | AwaitServerHello (ch, log), ServerHello sh ->
           answer_server_hello hs ch sh buf log
