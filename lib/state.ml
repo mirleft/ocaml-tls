@@ -43,27 +43,21 @@ type cipher_st =
   | CBC    : 'k cbc_state -> cipher_st
   | CCM    : 'k ccm_state -> cipher_st
 
-(* context of a TLS connection (both in and out has each one of these) *)
-type crypto_context = {
-  sequence  : int64 ; (* sequence number *)
-  cipher_st : cipher_st ; (* cipher state *)
-}
-
 (* Sexplib stubs -- rethink how to play with crypto. *)
-
 let sexp_of_cipher_st = function
   | Stream _ -> Sexp.(Atom "<stream-state>")
   | CBC _    -> Sexp.(Atom "<cbc-state>")
   | CCM _    -> Sexp.(Atom "<ccm-state>")
 
-let crypto_context_of_sexp _ = failwith "can't parse crypto context from sexp"
-and sexp_of_crypto_context cc =
-  Sexp_ext.record [
-    "sequence" , sexp_of_int64 cc.sequence ;
-    "cipher_st", sexp_of_cipher_st cc.cipher_st
-  ]
-
+let cipher_st_of_sexp =
+  Conv.of_sexp_error "cipher_st_of_sexp: not implemented"
 (* *** *)
+
+(* context of a TLS connection (both in and out has each one of these) *)
+type crypto_context = {
+  sequence  : int64 ; (* sequence number *)
+  cipher_st : cipher_st ; (* cipher state *)
+} with sexp
 
 (* the raw handshake log we need to carry around *)
 type hs_log = Cstruct.t list with sexp
