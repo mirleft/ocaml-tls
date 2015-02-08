@@ -102,7 +102,7 @@ let new_state config role =
     fragment  = Cstruct.create 0 ;
   }
 
-type raw_record = tls_hdr * Cstruct_s.t with sexp
+type raw_record = tls_hdr * Cstruct.t with sexp
 
 (* well-behaved pure encryptor *)
 let encrypt (version : tls_version) (st : crypto_state) ty buf =

@@ -4,8 +4,6 @@ open Nocrypto
 open Packet
 open Ciphersuite
 
-module Cstruct_s = Sexp_ext.Cstruct_s
-
 type tls_version =
   | TLS_1_0
   | TLS_1_1
@@ -71,16 +69,16 @@ type extension =
   | MaxFragmentLength of max_fragment_length
   | EllipticCurves of named_curve_type list
   | ECPointFormats of ec_point_format list
-  | SecureRenegotiation of Cstruct_s.t
+  | SecureRenegotiation of Cstruct.t
   | Padding of int
   | SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
-  | UnknownExtension of (int * Cstruct_s.t)
+  | UnknownExtension of (int * Cstruct.t)
   with sexp
 
 type ('a, 'b) hello = {
   version      : 'b;
-  random       : Cstruct_s.t;
-  sessionid    : Cstruct_s.t option;
+  random       : Cstruct.t;
+  sessionid    : Cstruct.t option;
   ciphersuites : 'a;
   extensions   : extension list
 } with sexp
@@ -92,45 +90,45 @@ type server_hello = (ciphersuite, tls_version) hello
   with sexp
 
 type rsa_parameters = {
-  rsa_modulus  : Cstruct_s.t;
-  rsa_exponent : Cstruct_s.t;
+  rsa_modulus  : Cstruct.t;
+  rsa_exponent : Cstruct.t;
 } with sexp
 
 type dh_parameters = {
-  dh_p  : Cstruct_s.t;
-  dh_g  : Cstruct_s.t;
-  dh_Ys : Cstruct_s.t;
+  dh_p  : Cstruct.t;
+  dh_g  : Cstruct.t;
+  dh_Ys : Cstruct.t;
 } with sexp
 
 type ec_curve = {
-  a : Cstruct_s.t;
-  b : Cstruct_s.t
+  a : Cstruct.t;
+  b : Cstruct.t
 } with sexp
 
 type ec_prime_parameters = {
-  prime    : Cstruct_s.t;
+  prime    : Cstruct.t;
   curve    : ec_curve;
-  base     : Cstruct_s.t;
-  order    : Cstruct_s.t;
-  cofactor : Cstruct_s.t;
-  public   : Cstruct_s.t
+  base     : Cstruct.t;
+  order    : Cstruct.t;
+  cofactor : Cstruct.t;
+  public   : Cstruct.t
 } with sexp
 
 type ec_char_parameters = {
   m        : int;
   basis    : ec_basis_type;
-  ks       : Cstruct_s.t list;
+  ks       : Cstruct.t list;
   curve    : ec_curve;
-  base     : Cstruct_s.t;
-  order    : Cstruct_s.t;
-  cofactor : Cstruct_s.t;
-  public   : Cstruct_s.t
+  base     : Cstruct.t;
+  order    : Cstruct.t;
+  cofactor : Cstruct.t;
+  public   : Cstruct.t
 } with sexp
 
 type ec_parameters =
   | ExplicitPrimeParameters of ec_prime_parameters
   | ExplicitCharParameters of ec_char_parameters
-  | NamedCurveParameters of (named_curve_type * Cstruct_s.t)
+  | NamedCurveParameters of (named_curve_type * Cstruct.t)
   with sexp
 
 type tls_handshake =
@@ -138,12 +136,12 @@ type tls_handshake =
   | ServerHelloDone
   | ClientHello of client_hello
   | ServerHello of server_hello
-  | Certificate of Cstruct_s.t list
-  | ServerKeyExchange of Cstruct_s.t
-  | CertificateRequest of Cstruct_s.t
-  | ClientKeyExchange of Cstruct_s.t
-  | CertificateVerify of Cstruct_s.t
-  | Finished of Cstruct_s.t
+  | Certificate of Cstruct.t list
+  | ServerKeyExchange of Cstruct.t
+  | CertificateRequest of Cstruct.t
+  | ClientKeyExchange of Cstruct.t
+  | CertificateVerify of Cstruct.t
+  | Finished of Cstruct.t
   with sexp
 
 type tls_alert = alert_level * alert_type
