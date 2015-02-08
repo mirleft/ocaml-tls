@@ -7,7 +7,7 @@ open State
 
 type state = State.state
 
-type problematic = State.problematic
+type error = State.error
 type fatal = State.fatal
 type failure = State.failure with sexp
 
@@ -17,7 +17,7 @@ let alert_of_authentication_failure = function
   | Certificate.CertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
   | _ -> Packet.BAD_CERTIFICATE
 
-let alert_of_problematic = function
+let alert_of_error = function
   | `NoConfiguredVersion _ -> Packet.PROTOCOL_VERSION
   | `NoConfiguredCiphersuite _ -> Packet.HANDSHAKE_FAILURE
   | `NoSecureRenegotiation -> Packet.HANDSHAKE_FAILURE
@@ -63,7 +63,7 @@ let alert_of_fatal = function
   | `InappropriateFallback -> Packet.INAPPROPRIATE_FALLBACK
 
 let alert_of_failure = function
-  | `Problematic x -> alert_of_problematic x
+  | `Error x -> alert_of_error x
   | `Fatal x -> alert_of_fatal x
 
 let string_of_failure f =

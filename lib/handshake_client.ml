@@ -38,18 +38,18 @@ let default_client_hello config =
   (ch , version)
 
 let validate_cipher suites suite =
-  guard (List.mem suite suites) (`Problematic (`NoConfiguredCiphersuite [suite]))
+  guard (List.mem suite suites) (`Error (`NoConfiguredCiphersuite [suite]))
 
 let answer_server_hello state ch (sh : server_hello) raw log =
   let validate_version requested (lo, _) server_version =
     guard (version_ge requested server_version && server_version >= lo)
-      (`Problematic (`NoConfiguredVersion server_version))
+      (`Error (`NoConfiguredVersion server_version))
 
   and validate_reneg required data =
     match required, data with
     | _    , Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
     | false, _      -> return ()
-    | true , _      -> fail (`Problematic `NoSecureRenegotiation)
+    | true , _      -> fail (`Error `NoSecureRenegotiation)
   in
 
   let cfg = state.config in
@@ -81,7 +81,7 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
     match required, reneg, data with
     | _    , (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) (`Fatal `InvalidRenegotiation)
     | false, _         , _      -> return ()
-    | true , _         , _      -> fail (`Problematic `NoSecureRenegotiation)
+    | true , _         , _      -> fail (`Error `NoSecureRenegotiation)
   in
 
   let cfg = state.config in

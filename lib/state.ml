@@ -167,7 +167,7 @@ type state = {
   fragment  : Cstruct_s.t ; (* the leftover fragment from TCP fragmentation *)
 } with sexp
 
-type problematic = [
+type error = [
   | `AuthenticationFailure of Certificate.certificate_failure
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of tls_version
@@ -215,7 +215,7 @@ type fatal = [
 ] with sexp
 
 type failure = [
-  | `Problematic of problematic
+  | `Error of error
   | `Fatal of fatal
 ] with sexp
 

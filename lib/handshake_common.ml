@@ -150,7 +150,7 @@ let signature version data sig_algs hashes private_key =
           List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) client_algos)
         in
         match first_match client_hashes hashes with
-        | None      -> fail (`Problematic (`NoConfiguredHash client_hashes))
+        | None      -> fail (`Error (`NoConfiguredHash client_hashes))
         | Some hash -> return hash ) >|= fun hash_algo ->
     let hash = Hash.digest hash_algo data in
     let cs = Asn_grammars.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
@@ -207,7 +207,7 @@ let validate_chain authenticator certificates hostname =
 
   let authenticate authenticator host certificates =
     match authenticator ?host certificates with
-    | `Fail err  -> fail (`Problematic (`AuthenticationFailure err))
+    | `Fail err  -> fail (`Error (`AuthenticationFailure err))
     | `Ok anchor -> return anchor
 
   and key_size min cs =

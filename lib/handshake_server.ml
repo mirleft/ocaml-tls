@@ -139,15 +139,15 @@ let agreed_cert certs hostname =
                  | Some x -> return x
                  | None   -> match default with
                              | Some c -> return c
-                             | None   -> fail (`Problematic (`NoMatchingCertificateFound host))
+                             | None   -> fail (`Error (`NoMatchingCertificateFound host))
   in
   match certs, hostname with
-  | `None                    , _      -> fail (`Problematic `NoCertificateConfigured)
+  | `None                    , _      -> fail (`Error `NoCertificateConfigured)
   | `Single c                , _      -> return c
   | `Multiple_default (c, _) , None   -> return c
   | `Multiple cs             , Some h -> match_host h cs
   | `Multiple_default (c, cs), Some h -> match_host h cs ~default:c
-  | _                                 -> fail (`Problematic `CouldntSelectCertificate)
+  | _                                 -> fail (`Error `CouldntSelectCertificate)
 
 let agreed_cipher cert requested =
   let certtype, certusage = Certificate.(cert_type cert, cert_usage cert) in
@@ -176,7 +176,7 @@ let answer_client_hello_common state reneg ch raw =
     ( match first_match cciphers config.ciphers with
       | Some x -> return x
       | None   -> match first_match cciphers Config.Ciphers.supported with
-        | Some _ -> fail (`Problematic (`NoConfiguredCiphersuite cciphers))
+        | Some _ -> fail (`Error (`NoConfiguredCiphersuite cciphers))
         | None -> fail (`Fatal (`NoCiphersuite ch.ciphersuites)) ) >|= fun cipher ->
 
     (* Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ; *)
@@ -293,7 +293,7 @@ let agreed_version supported requested =
   match supported_protocol_version supported requested with
   | Some x -> return x
   | None   -> match requested with
-    | Supported v -> fail (`Problematic (`NoConfiguredVersion v))
+    | Supported v -> fail (`Error (`NoConfiguredVersion v))
     | v -> fail (`Fatal (`NoVersion v))
 
 let answer_client_hello state (ch : client_hello) raw =
@@ -303,7 +303,7 @@ let answer_client_hello state (ch : client_hello) raw =
     | _    , _   , Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
     | _    , true, _      -> return ()
     | false, _   , _      -> return ()
-    | _    , _   , _      -> fail (`Problematic `NoSecureRenegotiation)
+    | _    , _   , _      -> fail (`Error `NoSecureRenegotiation)
   in
 
   let process_client_hello config ch =
@@ -330,7 +330,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
     match require, our_data, their_data with
     | _    , (cvd, _), Some x -> guard (Cs.equal cvd x) (`Fatal `InvalidRenegotiation)
     | false, _       , _      -> return ()
-    | true , _       , _      -> fail (`Problematic `NoSecureRenegotiation)
+    | true , _       , _      -> fail (`Error `NoSecureRenegotiation)
   in
 
   let process_client_hello config oldversion ours ch =

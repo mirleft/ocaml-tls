@@ -1,7 +1,7 @@
 (** Core of pure library. This is the interface to effectful front-ends. *)
 
 (** failures which can be mitigated by reconfiguration *)
-type problematic = [
+type error = [
   | `AuthenticationFailure of Certificate.certificate_failure
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of Core.tls_version
@@ -51,7 +51,7 @@ type fatal = [
 
 (** type of failures *)
 type failure = [
-  | `Problematic of problematic
+  | `Error of error
   | `Fatal of fatal
 ] with sexp
 
