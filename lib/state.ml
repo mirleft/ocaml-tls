@@ -18,8 +18,8 @@ type 'k stream_state = {
 
 (* initialisation vector style, depending on TLS version *)
 type iv_mode =
-  | Iv of Cstruct_s.t  (* traditional CBC (reusing last cipherblock) *)
-  | Random_iv          (* TLS 1.1 and higher explicit IV (we use random) *)
+  | Iv of Cstruct.t  (* traditional CBC (reusing last cipherblock) *)
+  | Random_iv        (* TLS 1.1 and higher explicit IV (we use random) *)
   with sexp
 type 'k cbc_cipher    = (module Cipher_block.T.CBC with type key = 'k)
 type 'k cbc_state = {
@@ -66,19 +66,19 @@ and sexp_of_crypto_context cc =
 (* *** *)
 
 (* the raw handshake log we need to carry around *)
-type hs_log = Cstruct_s.t list with sexp
+type hs_log = Cstruct.t list with sexp
 (* the master secret of a TLS connection *)
-type master_secret = Cstruct_s.t with sexp
+type master_secret = Cstruct.t with sexp
 (* diffie hellman group and secret *)
 type dh_sent = Dh.group * Dh.secret with sexp
 
 (* a collection of client and server verify bytes for renegotiation *)
-type reneg_params = Cstruct_s.t * Cstruct_s.t
+type reneg_params = Cstruct.t * Cstruct.t
   with sexp
 
 type session_data = {
-  server_random    : Cstruct_s.t ; (* 32 bytes random from the server hello *)
-  client_random    : Cstruct_s.t ; (* 32 bytes random from the client hello *)
+  server_random    : Cstruct.t ; (* 32 bytes random from the server hello *)
+  client_random    : Cstruct.t ; (* 32 bytes random from the client hello *)
   client_version   : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
   ciphersuite      : Ciphersuite.ciphersuite ;
   peer_certificate : X509.t list ;
@@ -113,10 +113,10 @@ type client_handshake_state =
   | AwaitCertificate_RSA of session_data * hs_log (* certificate expected with RSA key exchange *)
   | AwaitCertificate_DHE_RSA of session_data * hs_log (* certificate expected with DHE_RSA key exchange *)
   | AwaitServerKeyExchange_DHE_RSA of session_data * hs_log (* server key exchange expected with DHE_RSA *)
-  | AwaitCertificateRequestOrServerHelloDone of session_data * Cstruct_s.t * Cstruct_s.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
-  | AwaitServerHelloDone of session_data * (Hash.hash * Packet.signature_algorithm_type) list option * Cstruct_s.t * Cstruct_s.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
-  | AwaitServerChangeCipherSpec of session_data * crypto_context * Cstruct_s.t * hs_log (* change cipher spec expected *)
-  | AwaitServerFinished of session_data * Cstruct_s.t * hs_log (* finished expected with a hmac over all handshake packets *)
+  | AwaitCertificateRequestOrServerHelloDone of session_data * Cstruct.t * Cstruct.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
+  | AwaitServerHelloDone of session_data * (Hash.hash * Packet.signature_algorithm_type) list option * Cstruct.t * Cstruct.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
+  | AwaitServerChangeCipherSpec of session_data * crypto_context * Cstruct.t * hs_log (* change cipher spec expected *)
+  | AwaitServerFinished of session_data * Cstruct.t * hs_log (* finished expected with a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
   with sexp
 
@@ -131,7 +131,7 @@ type handshake_state = {
   protocol_version : tls_version ;
   machina          : handshake_machina_state ; (* state machine state *)
   config           : Config.config ; (* given config *)
-  hs_fragment      : Cstruct_s.t (* handshake messages can be fragmented, leftover from before *)
+  hs_fragment      : Cstruct.t (* handshake messages can be fragmented, leftover from before *)
 } with sexp
 
 (* connection state: initially None, after handshake a crypto context *)
@@ -139,7 +139,7 @@ type crypto_state = crypto_context option
   with sexp
 
 (* record consisting of a content type and a byte vector *)
-type record = Packet.content_type * Cstruct_s.t with sexp
+type record = Packet.content_type * Cstruct.t with sexp
 
 (* response returned by a handler *)
 type rec_resp = [
@@ -164,7 +164,7 @@ type state = {
   handshake : handshake_state ; (* the current handshake state *)
   decryptor : crypto_state ; (* the current decryption state *)
   encryptor : crypto_state ; (* the current encryption state *)
-  fragment  : Cstruct_s.t ; (* the leftover fragment from TCP fragmentation *)
+  fragment  : Cstruct.t ; (* the leftover fragment from TCP fragmentation *)
 } with sexp
 
 type error = [
