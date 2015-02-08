@@ -45,6 +45,9 @@ module Ciphers : sig
   (** [pfs_of ciphers] selects all perfect forward secrecy ciphersuites from default. *)
 end
 
+(** [default_hashes] is a list of hash algorithms used by default *)
+val default_hashes  : Hash.hash list
+
 (** [supported_hashes] is a list of supported hash algorithms by this library *)
 val supported_hashes  : Hash.hash list
 

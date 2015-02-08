@@ -31,6 +31,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
 
   let tls_error e = `Error (`Tls e)
   let tls_alert a = `Error (`Tls (Tls.Packet.alert_type_to_string a))
+  let tls_fail f  = `Error (`Tls (Tls.Engine.string_of_failure f))
 
   let return_error e     = return (`Error e)
   let return_tls_error e = return (tls_error e)
@@ -73,8 +74,8 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
             | `Ok _ -> return_unit
             | _     -> FLOW.close flow.flow ) >>
           return (`Ok data)
-      | `Fail (alert, `Response resp) ->
-          let reason = tls_alert alert in
+      | `Fail (fail, `Response resp) ->
+          let reason = tls_fail fail in
           flow.state <- reason ;
           FLOW.(write flow.flow resp >> close flow.flow) >> return reason
     in

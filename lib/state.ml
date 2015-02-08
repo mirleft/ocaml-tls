@@ -167,3 +167,57 @@ type state = {
   fragment  : Cstruct_s.t ; (* the leftover fragment from TCP fragmentation *)
 } with sexp
 
+type error = [
+  | `AuthenticationFailure of Certificate.certificate_failure
+  | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
+  | `NoConfiguredVersion of tls_version
+  | `NoConfiguredHash of Hash.hash list
+  | `NoSecureRenegotiation
+  | `NoMatchingCertificateFound of string
+  | `NoCertificateConfigured
+  | `CouldntSelectCertificate
+] with sexp
+
+type fatal = [
+  | `NoCiphersuite of Packet.any_ciphersuite list
+  | `NoVersion of tls_any_version
+  | `ReaderError of Reader.error
+  | `NoCertificateReceived
+  | `NotRSACertificate
+  | `NotRSASignature
+  | `KeyTooSmall
+  | `RSASignatureMismatch
+  | `RSASignatureVerificationFailed
+  | `HashAlgorithmMismatch
+  | `BadCertificateChain
+  | `MACMismatch
+  | `MACUnderflow
+  | `RecordOverflow of int
+  | `UnknownRecordVersion of int * int
+  | `UnknownContentType of int
+  | `CannotHandleApplicationDataYet
+  | `NoHeartbeat
+  | `BadRecordVersion of tls_any_version
+  | `BadFinished
+  | `HandshakeFragmentsNotEmpty
+  | `InvalidDH
+  | `MixedCiphersuites
+  | `InvalidRenegotiation
+  | `InvalidClientHello
+  | `InvalidServerHello
+  | `InvalidRenegotiationVersion of tls_version
+  | `InappropriateFallback
+  | `UnexpectedCCS
+  | `UnexpectedHandshake of handshake_machina_state * tls_handshake
+  | `InvalidCertificateUsage
+  | `InvalidCertificateExtendedUsage
+  | `InvalidSession
+] with sexp
+
+type failure = [
+  | `Error of error
+  | `Fatal of fatal
+] with sexp
+
+(* Monadic control-flow core. *)
+include Control.Or_error_make (struct type err = failure end)

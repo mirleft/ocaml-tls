@@ -6,10 +6,6 @@ open Nocrypto
 
 let empty = function [] -> true | _ -> false
 
-let assure p = guard p Packet.HANDSHAKE_FAILURE
-
-let fail_handshake = fail Packet.HANDSHAKE_FAILURE
-
 let change_cipher_spec =
   (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
 
@@ -154,7 +150,7 @@ let signature version data sig_algs hashes private_key =
           List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) client_algos)
         in
         match first_match client_hashes hashes with
-        | None      -> fail_handshake
+        | None      -> fail (`Error (`NoConfiguredHash client_hashes))
         | Some hash -> return hash ) >|= fun hash_algo ->
     let hash = Hash.digest hash_algo data in
     let cs = Asn_grammars.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
@@ -162,12 +158,12 @@ let signature version data sig_algs hashes private_key =
     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
 
 let peer_rsa_key = function
-  | [] -> fail_handshake
+  | [] -> fail (`Fatal `NoCertificateReceived)
   | cert::_ ->
     let open Asn_grammars in
     match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
     | PK.RSA key -> return key
-    | _          -> fail_handshake
+    | _          -> fail (`Fatal `NotRSACertificate)
 
 let verify_digitally_signed version data signature_data certificates =
   let signature_verifier version data =
@@ -178,28 +174,27 @@ let verify_digitally_signed version data signature_data certificates =
         | Or_error.Ok signature ->
           let compare_hashes should data =
             let computed_sig = Hash.MD5.digest data <+> Hash.SHA1.digest data in
-            assure (Cs.equal should computed_sig)
+            guard (Cs.equal should computed_sig) (`Fatal `RSASignatureMismatch)
           in
           return (signature, compare_hashes)
-        | Or_error.Error _      -> fail_handshake )
+        | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
     | TLS_1_2 ->
       ( match parse_digitally_signed_1_2 data with
         | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
           let compare_hashes should data =
             match Asn_grammars.pkcs1_digest_info_of_cstruct should with
             | Some (hash_algo', target) when hash_algo = hash_algo' ->
-              ( match Crypto.digest_eq hash_algo ~target data with
-                | true  -> return ()
-                | false -> fail_handshake )
-            | _ -> fail_handshake
+              guard (Crypto.digest_eq hash_algo ~target data) (`Fatal `RSASignatureMismatch)
+            | _ -> fail (`Fatal `HashAlgorithmMismatch)
           in
           return (signature, compare_hashes)
-        | _ -> fail_handshake )
+        | Or_error.Ok _ -> fail (`Fatal `NotRSASignature)
+        | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
 
   and signature pubkey raw_signature =
     match Rsa.PKCS1.verify pubkey raw_signature with
     | Some signature -> return signature
-    | None -> fail_handshake
+    | None -> fail (`Fatal `RSASignatureVerificationFailed)
   in
 
   signature_verifier version data >>= fun (raw_signature, verifier) ->
@@ -212,11 +207,8 @@ let validate_chain authenticator certificates hostname =
 
   let authenticate authenticator host certificates =
     match authenticator ?host certificates with
-    | `Fail (SelfSigned _)         -> fail Packet.UNKNOWN_CA
-    | `Fail NoTrustAnchor          -> fail Packet.UNKNOWN_CA
-    | `Fail (CertificateExpired _) -> fail Packet.CERTIFICATE_EXPIRED
-    | `Fail _                      -> fail Packet.BAD_CERTIFICATE
-    | `Ok anchor                   -> return anchor
+    | `Fail err  -> fail (`Error (`AuthenticationFailure err))
+    | `Ok anchor -> return anchor
 
   and key_size min cs =
     let check c =
@@ -225,11 +217,11 @@ let validate_chain authenticator certificates hostname =
         | PK.RSA key when Rsa.pub_bits key >= min -> true
         | _                                       -> false )
     in
-    guard (List.for_all check cs) Packet.INSUFFICIENT_SECURITY
+    guard (List.for_all check cs) (`Fatal `KeyTooSmall)
 
   and parse_certificates certs =
     let certificates = filter_map ~f:parse certs in
-    guard (List.length certs = List.length certificates) Packet.BAD_CERTIFICATE >|= fun () ->
+    guard (List.length certs = List.length certificates) (`Fatal `BadCertificateChain) >|= fun () ->
     certificates
 
   in

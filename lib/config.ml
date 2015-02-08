@@ -59,8 +59,11 @@ module Ciphers = struct
 
 end
 
+let default_hashes =
+  [ `SHA512 ; `SHA384 ; `SHA256 ; `SHA224 ; `SHA1 ]
+
 let supported_hashes =
-  [ `SHA512 ; `SHA384 ; `SHA256 ; `SHA1 ; `MD5 ]
+  default_hashes @ [ `MD5 ]
 
 let min_dh_size = 512
 
@@ -69,7 +72,7 @@ let min_rsa_key_size = 1024
 let default_config = {
   ciphers           = Ciphers.default ;
   protocol_versions = (TLS_1_0, TLS_1_2) ;
-  hashes            = supported_hashes ;
+  hashes            = default_hashes ;
   use_reneg         = true ;
   secure_reneg      = true ;
   authenticator     = None ;

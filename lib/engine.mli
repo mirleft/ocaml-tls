@@ -1,7 +1,65 @@
 (** Core of pure library. This is the interface to effectful front-ends. *)
 
-(** type of alerts *)
-type alert = Packet.alert_type
+(** failures which can be mitigated by reconfiguration *)
+type error = [
+  | `AuthenticationFailure of Certificate.certificate_failure
+  | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
+  | `NoConfiguredVersion of Core.tls_version
+  | `NoConfiguredHash of Nocrypto.Hash.hash list
+  | `NoSecureRenegotiation
+  | `NoMatchingCertificateFound of string
+  | `NoCertificateConfigured
+  | `CouldntSelectCertificate
+]
+
+(** failures from received garbage or lack of features *)
+type fatal = [
+  | `NoCiphersuite of Packet.any_ciphersuite list
+  | `NoVersion of Core.tls_any_version
+  | `ReaderError of Reader.error
+  | `NoCertificateReceived
+  | `NotRSACertificate
+  | `NotRSASignature
+  | `KeyTooSmall
+  | `RSASignatureMismatch
+  | `RSASignatureVerificationFailed
+  | `HashAlgorithmMismatch
+  | `BadCertificateChain
+  | `MACMismatch
+  | `MACUnderflow
+  | `RecordOverflow of int
+  | `UnknownRecordVersion of int * int
+  | `UnknownContentType of int
+  | `CannotHandleApplicationDataYet
+  | `NoHeartbeat
+  | `BadRecordVersion of Core.tls_any_version
+  | `BadFinished
+  | `HandshakeFragmentsNotEmpty
+  | `InvalidDH
+  | `MixedCiphersuites
+  | `InvalidRenegotiation
+  | `InvalidClientHello
+  | `InvalidServerHello
+  | `InvalidRenegotiationVersion of Core.tls_version
+  | `InappropriateFallback
+  | `UnexpectedCCS
+  | `UnexpectedHandshake of State.handshake_machina_state * Core.tls_handshake
+  | `InvalidCertificateUsage
+  | `InvalidCertificateExtendedUsage
+  | `InvalidSession
+]
+
+(** type of failures *)
+type failure = [
+  | `Error of error
+  | `Fatal of fatal
+] with sexp
+
+(** convert a failure to a tls alert *)
+val alert_of_failure : failure -> Packet.alert_type
+
+(** convert a failure to a string *)
+val string_of_failure : failure -> string
 
 (** some abstract type a client gets *)
 type state
@@ -9,12 +67,12 @@ type state
 (** return type of handle_tls *)
 type ret = [
 
-  | `Ok of [ `Ok of state | `Eof | `Alert of alert ]
+  | `Ok of [ `Ok of state | `Eof | `Alert of Packet.alert_type ]
          * [ `Response of Cstruct.t option ]
          * [ `Data of Cstruct.t option ]
  (** success with either a new state, end of file, or an alert, a response to the communication partner and potential data for the application *)
 
-  | `Fail of alert * [ `Response of Cstruct.t ] (** failure with an alert, and a response to the other side *)
+  | `Fail of failure * [ `Response of Cstruct.t ] (** fail with a failure, and a response to the other side *)
 ]
 
 (** [handle_tls tls in] is [ret], depending on incoming [tls] state and cstruct, return appropriate [ret] *)

@@ -1,7 +1,7 @@
 
 module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) : sig
 
-  module FLOW    : V1_LWT.FLOW 
+  module FLOW    : V1_LWT.FLOW
   module ENTROPY : V1_LWT.ENTROPY
 
   type error  = [ `Tls of string | `Flow of FLOW.error ]

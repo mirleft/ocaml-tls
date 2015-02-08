@@ -23,7 +23,7 @@ module Flow = struct
     | `Ok _ -> assert false
     | `Fail (a, _) ->
         failwith @@ Printf.sprintf "[%s] %s error: %s"
-          tag descr (Tls.Packet.alert_type_to_string a)
+          tag descr (Sexplib.Sexp.to_string_hum (Tls.Engine.sexp_of_failure a))
     | `Ok _ -> failwith "decoded alert"
 end
 

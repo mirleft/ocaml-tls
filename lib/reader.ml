@@ -2,11 +2,14 @@ open Packet
 open Core
 open Cstruct
 
+open Sexplib.Conv
+
 type error =
   | TrailingBytes of string
   | WrongLength   of string
   | Unknown       of string
   | Underflow
+with sexp
 
 module Or_error =
   Control.Or_error_make (struct type err = error end)
