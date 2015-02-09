@@ -208,7 +208,7 @@ type fatal = [
   | `InvalidRenegotiationVersion of tls_version
   | `InappropriateFallback
   | `UnexpectedCCS
-  | `UnexpectedHandshake of handshake_machina_state * tls_handshake
+  | `UnexpectedHandshake of tls_handshake
   | `InvalidCertificateUsage
   | `InvalidCertificateExtendedUsage
   | `InvalidSession

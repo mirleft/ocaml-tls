@@ -43,7 +43,7 @@ type fatal = [
   | `InvalidRenegotiationVersion of Core.tls_version
   | `InappropriateFallback
   | `UnexpectedCCS
-  | `UnexpectedHandshake of State.handshake_machina_state * Core.tls_handshake
+  | `UnexpectedHandshake of Core.tls_handshake
   | `InvalidCertificateUsage
   | `InvalidCertificateExtendedUsage
   | `InvalidSession

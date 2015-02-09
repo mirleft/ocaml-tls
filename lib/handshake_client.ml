@@ -341,6 +341,6 @@ let handle_handshake cs hs buf =
           answer_server_finished hs session client_verify fin log
        | Established, HelloRequest ->
           answer_hello_request hs
-       | _, hs -> fail (`Fatal (`UnexpectedHandshake (Client cs, hs))) )
+       | _, hs -> fail (`Fatal (`UnexpectedHandshake hs)) )
   | Or_error.Error re -> fail (`Fatal (`ReaderError re))
 
