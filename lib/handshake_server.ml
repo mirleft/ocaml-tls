@@ -396,5 +396,5 @@ let handle_handshake ss hs buf =
           answer_client_hello_reneg hs ch buf
        | AwaitClientHelloRenegotiate, ClientHello ch -> (* hello-request send, renegotiation *)
           answer_client_hello_reneg hs ch buf
-       | _, hs -> fail (`Fatal (`UnexpectedHandshake (Server ss, hs))) )
+       | _, hs -> fail (`Fatal (`UnexpectedHandshake hs)) )
   | Or_error.Error re -> fail (`Fatal (`ReaderError re))
