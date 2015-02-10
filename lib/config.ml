@@ -25,7 +25,10 @@ type config = {
   authenticator     : X509.Authenticator.t option ;
   peer_name         : string option ;
   own_certificates  : own_cert ;
-} with sexp
+}
+
+let config_of_sexp _ = invalid_arg "I'm afraid I cannot do this"
+let sexp_of_config _ = Sexplib.Sexp.Atom "no config"
 
 module Ciphers = struct
 
