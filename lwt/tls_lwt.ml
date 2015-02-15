@@ -18,6 +18,8 @@ let resolve host service =
   | ai::_ -> return ai.ai_addr
 
 
+let gettimeofday = Unix.gettimeofday
+
 module Lwt_cs = struct
 
   let naked ~name f fd cs =
@@ -244,84 +246,42 @@ and connect ?trace authenticator addr =
   let config = Tls.Config.client ~authenticator ()
   in connect_ext ?trace config addr
 
-(*
- * XXX
- * Not completely wrong, but a more correct version would piggyback on
- * Lwt_engine events and fire only then, instead of setting up its own timer.
- * Needs patching the lwt, though.
- *)
+(* entropy *)
+
+let burst_size  = 32
+and reseed_size = 8
+and period      = 10
+and device      = "/dev/urandom"
 
 let seed fd =
-  let buf = Cstruct.create 32 in
+  let buf = Cstruct.create burst_size in
   Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
     Nocrypto.Rng.reseed buf
 
-let trickle period fd =
-  let buf = Cstruct.create 4 in
-  let _   =
-    Lwt_engine.on_timer (float period) true @@ fun _ ->
-      async @@ fun () ->
-        Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
-          Nocrypto.Rng.Accumulator.add_rr ~source:0 buf
-  in
-  return_unit
+let throttled sec f =
+  let time   = ref (gettimeofday ())
+  and active = ref false in
+  fun () ->
+    let t1 = !time
+    and t2 = gettimeofday () in
+    if (not !active) && (t2 -. t1 >= sec) then
+      ( time := t2 ; active := true ; f active )
 
-let rng_init ?(period = Some 10) ?(device = "/dev/urandom") () =
-  lwt dev = Lwt_unix.(openfile device [O_RDONLY] 0) in
-  seed dev
-  >>
-  match period with
-  | None     -> Lwt_unix.close dev
-  | Some sec -> trickle sec dev
-
-
-(*
- * XXX
- *
- * A sketch of what the real thing is supposed to look like. Not exported.
- *
- * Would much rather have hook-all-events support in Lwt_engine than have to
- * wrap an engine like this. Plus, breaks on engine swap and is generally
- * fragile.
- *)
-
-class hooked_engine (e : Lwt_engine.t) f = object
-  method destroy = e#destroy
-  method transfer x = e#transfer x
-  method iter b = e#iter b
-  method on_readable fd h = e#on_readable fd (fun x -> f(); h x)
-  method on_writable fd h = e#on_writable fd (fun x -> f(); h x)
-  method on_timer a b h = e#on_timer a b (fun x -> f(); h x)
-  method fake_io fd = e#fake_io fd
-  method readable_count = e#readable_count
-  method writable_count = e#writable_count
-  method timer_count    = e#timer_count
-end
-
-let throttled ~period ~engine (f : 'a -> unit) =
-  let silent = ref false in fun a ->
-    if not !silent then begin
-      silent := true ;
-      engine#on_timer period false (fun _ -> silent := false);
-      f a
-    end
-
-let try_reseed ~period ~engine fd =
-  let buf = Cstruct.create 4 in
-  throttled ~period ~engine @@ fun () ->
+let make_reseed_hook period fd =
+  let buf = Cstruct.create reseed_size in
+  throttled (float period) @@ fun active ->
     async @@ fun () ->
+      (* XXX Print exns? Propagate them? *)
       Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
+        active := false ;
         Nocrypto.Rng.Accumulator.add_rr ~source:0 buf
 
-let rng_init_exp ?(period = Some 10) ?(device = "/dev/urandom") () =
+let rng_init ?(period = Some period) ?(device = device) () =
   lwt dev = Lwt_unix.(openfile device [O_RDONLY] 0) in
   seed dev
   >>
   match period with
   | None     -> Lwt_unix.close dev
   | Some sec ->
-      let d  = float sec in
-      let e  = Lwt_engine.get () in
-      let e' = new hooked_engine e (try_reseed ~period:d ~engine:e dev) in
-      Lwt_engine.set ~transfer:false ~destroy:false e' ;
+      Lwt_sequence.add_r (make_reseed_hook sec dev) Lwt_main.enter_iter_hooks ;
       return_unit
