@@ -18,7 +18,7 @@ let resolve host service =
   | ai::_ -> return ai.ai_addr
 
 
-module Unix_ = Unix
+let gettimeofday = Unix.gettimeofday
 
 module Lwt_cs = struct
 
@@ -259,11 +259,11 @@ let seed fd =
     Nocrypto.Rng.reseed buf
 
 let throttled sec f =
-  let time   = ref (Unix_.gettimeofday ())
+  let time   = ref (gettimeofday ())
   and active = ref false in
   fun () ->
     let t1 = !time
-    and t2 = Unix_.gettimeofday () in
+    and t2 = gettimeofday () in
     if (not !active) && (t2 -. t1 >= sec) then
       ( time := t2 ; active := true ; f active )
 
