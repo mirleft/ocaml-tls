@@ -18,6 +18,8 @@ let resolve host service =
   | ai::_ -> return ai.ai_addr
 
 
+module Unix_ = Unix
+
 module Lwt_cs = struct
 
   let naked ~name f fd cs =
@@ -244,35 +246,45 @@ and connect ?trace authenticator addr =
   let config = Tls.Config.client ~authenticator ()
   in connect_ext ?trace config addr
 
-(*
- * XXX
- * Not completely wrong, but a more correct version would piggyback on
- * Lwt_engine events and fire only then, instead of setting up its own timer.
- * Needs patching the lwt, though.
- *)
+(* entropy *)
+
+let burst_size  = 32
+and reseed_size = 8
+and period      = 10
+and device      = "/dev/urandom"
 
 let seed fd =
-  let buf = Cstruct.create 32 in
+  let buf = Cstruct.create burst_size in
   Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
     Nocrypto.Rng.reseed buf
 
-let trickle period fd =
-  let buf = Cstruct.create 4 in
-  let _   =
-    Lwt_engine.on_timer (float period) true @@ fun _ ->
-      async @@ fun () ->
-        Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
-          Nocrypto.Rng.Accumulator.add_rr ~source:0 buf
-  in
-  return_unit
+let throttled sec f =
+  let time   = ref (Unix_.gettimeofday ())
+  and active = ref false in
+  fun () ->
+    let t1 = !time
+    and t2 = Unix_.gettimeofday () in
+    if (not !active) && (t2 -. t1 >= sec) then
+      ( time := t2 ; active := true ; f active )
 
-let rng_init ?(period = Some 10) ?(device = "/dev/urandom") () =
+let make_reseed_hook period fd =
+  let buf = Cstruct.create reseed_size in
+  throttled (float period) @@ fun active ->
+    async @@ fun () ->
+      (* XXX Print exns? Propagate them? *)
+      Lwt_cstruct.(complete (read fd) buf) >|= fun () ->
+        active := false ;
+        Nocrypto.Rng.Accumulator.add_rr ~source:0 buf
+
+let rng_init ?(period = Some period) ?(device = device) () =
   lwt dev = Lwt_unix.(openfile device [O_RDONLY] 0) in
   seed dev
   >>
   match period with
   | None     -> Lwt_unix.close dev
-  | Some sec -> trickle sec dev
+  | Some sec ->
+      Lwt_sequence.add_r (make_reseed_hook sec dev) Lwt_main.enter_iter_hooks ;
+      return_unit
 
 
 (*
