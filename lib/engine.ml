@@ -315,14 +315,13 @@ let hs_can_handle_appdata s =
     | _ -> true
 
 let rec separate_handshakes buf =
-  let open Cstruct in
-  if len buf < 4 then
+  if Cstruct.len buf < 4 then
     return ([], buf)
   else
     match Reader.parse_handshake_length buf with
-    | size when size > len buf -> return ([], buf)
-    | size                     ->
-       let hs, rest = split buf (size + 4) in
+    | size when (size + 4) > Cstruct.len buf -> return ([], buf)
+    | size ->
+       let hs, rest = Cstruct.split buf (size + 4) in
        separate_handshakes rest >|= fun (rt, frag) ->
        (hs :: rt, frag)
 
