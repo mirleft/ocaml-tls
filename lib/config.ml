@@ -21,7 +21,6 @@ type config = {
   hashes            : Hash.hash list ;
   (* signatures        : Packet.signature_algorithm_type list ; *)
   use_reneg         : bool ;
-  secure_reneg      : bool ;
   authenticator     : X509.Authenticator.t option ;
   peer_name         : string option ;
   own_certificates  : own_cert ;
@@ -77,7 +76,6 @@ let default_config = {
   protocol_versions = (TLS_1_0, TLS_1_2) ;
   hashes            = default_hashes ;
   use_reneg         = true ;
-  secure_reneg      = true ;
   authenticator     = None ;
   peer_name         = None ;
   own_certificates  = `None ;
@@ -207,7 +205,7 @@ let peer conf name = { conf with peer_name = Some name }
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
 let client
-  ~authenticator ?ciphers ?version ?hashes ?reneg ?certificates ?secure_reneg () =
+  ~authenticator ?ciphers ?version ?hashes ?reneg ?certificates () =
   let config =
     { default_config with
         authenticator     = Some authenticator ;
@@ -216,12 +214,11 @@ let client
         hashes            = hashes       <?> default_config.hashes ;
         use_reneg         = reneg        <?> default_config.use_reneg ;
         own_certificates  = certificates <?> default_config.own_certificates ;
-        secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
     } in
   ( validate_common config ; validate_client config ; config )
 
 let server
-  ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator ?secure_reneg () =
+  ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator () =
   let config =
     { default_config with
         ciphers           = ciphers      <?> default_config.ciphers ;
@@ -230,7 +227,6 @@ let server
         use_reneg         = reneg        <?> default_config.use_reneg ;
         own_certificates  = certificates <?> default_config.own_certificates ;
         authenticator     = authenticator ;
-        secure_reneg      = secure_reneg <?> default_config.secure_reneg ;
     } in
   ( validate_common config ; validate_server config ; config )
 

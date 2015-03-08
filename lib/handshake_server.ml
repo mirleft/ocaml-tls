@@ -297,13 +297,12 @@ let agreed_version supported requested =
     | v -> fail (`Fatal (`NoVersion v))
 
 let answer_client_hello state (ch : client_hello) raw =
-  let ensure_reneg require ciphers their_data  =
+  let ensure_reneg ciphers their_data  =
     let reneg_cs = List.mem Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
-    match require, reneg_cs, their_data with
-    | _    , _   , Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
-    | _    , true, _      -> return ()
-    | false, _   , _      -> return ()
-    | _    , _   , _      -> fail (`Error `NoSecureRenegotiation)
+    match reneg_cs, their_data with
+    | _, Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
+    | true, _ -> return ()
+    | _ -> fail (`Error `NoSecureRenegotiation)
   in
 
   let process_client_hello config ch =
@@ -314,7 +313,7 @@ let answer_client_hello state (ch : client_hello) raw =
            version = max_protocol_version config.protocol_versions)
       (`Fatal `InappropriateFallback) >>= fun () ->
     let theirs = get_secure_renegotiation ch.extensions in
-    ensure_reneg config.secure_reneg cciphers theirs >|= fun () ->
+    ensure_reneg cciphers theirs >|= fun () ->
 
     (* Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ; *)
 
@@ -326,11 +325,10 @@ let answer_client_hello state (ch : client_hello) raw =
 
 let answer_client_hello_reneg state (ch : client_hello) raw =
   (* ensure reneg allowed and supplied *)
-  let ensure_reneg require our_data their_data  =
-    match require, our_data, their_data with
-    | _    , (cvd, _), Some x -> guard (Cs.equal cvd x) (`Fatal `InvalidRenegotiation)
-    | false, _       , _      -> return ()
-    | true , _       , _      -> fail (`Error `NoSecureRenegotiation)
+  let ensure_reneg our_data their_data  =
+    match our_data, their_data with
+    | (cvd, _), Some x -> guard (Cs.equal cvd x) (`Fatal `InvalidRenegotiation)
+    | _ -> fail (`Error `NoSecureRenegotiation)
   in
 
   let process_client_hello config oldversion ours ch =
@@ -338,7 +336,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
     agreed_version config.protocol_versions ch.version >>= fun version ->
     guard (version = oldversion) (`Fatal (`InvalidRenegotiationVersion version)) >>= fun () ->
     let theirs = get_secure_renegotiation ch.extensions in
-    ensure_reneg config.secure_reneg ours theirs >|= fun () ->
+    ensure_reneg ours theirs >|= fun () ->
     (* Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ; *)
     version
   in

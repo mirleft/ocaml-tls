@@ -45,11 +45,10 @@ let answer_server_hello state ch (sh : server_hello) raw log =
     guard (version_ge requested server_version && server_version >= lo)
       (`Error (`NoConfiguredVersion server_version))
 
-  and validate_reneg required data =
-    match required, data with
-    | _    , Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
-    | false, _      -> return ()
-    | true , _      -> fail (`Error `NoSecureRenegotiation)
+  and validate_reneg data =
+    match data with
+    | Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
+    | None -> return ()
   in
 
   let cfg = state.config in
@@ -58,7 +57,7 @@ let answer_server_hello state ch (sh : server_hello) raw log =
   >>= fun () ->
   validate_version ch.version state.config.protocol_versions sh.version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
-  validate_reneg cfg.secure_reneg (get_secure_renegotiation sh.extensions) >|= fun () ->
+  validate_reneg (get_secure_renegotiation sh.extensions) >|= fun () ->
 
   let machina =
     let cipher = sh.ciphersuites in
@@ -77,11 +76,10 @@ let answer_server_hello state ch (sh : server_hello) raw log =
   ({ state with protocol_version = sh.version ; machina = Client machina }, [])
 
 let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log =
-  let validate_reneg required reneg data =
-    match required, reneg, data with
-    | _    , (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) (`Fatal `InvalidRenegotiation)
-    | false, _         , _      -> return ()
-    | true , _         , _      -> fail (`Error `NoSecureRenegotiation)
+  let validate_reneg reneg data =
+    match reneg, data with
+    | (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) (`Fatal `InvalidRenegotiation)
+    | _ -> fail (`Error `NoSecureRenegotiation)
   in
 
   let cfg = state.config in
@@ -93,7 +91,7 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
     (`Fatal (`InvalidRenegotiationVersion sh.version)) >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
   let theirs = get_secure_renegotiation sh.extensions in
-  validate_reneg cfg.secure_reneg session.renegotiation theirs >|= fun () ->
+  validate_reneg session.renegotiation theirs >|= fun () ->
 
   let machina =
     let cipher = sh.ciphersuites in
