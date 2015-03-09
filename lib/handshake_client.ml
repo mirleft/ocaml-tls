@@ -117,7 +117,10 @@ let validate_keytype_usage certificates ciphersuite =
   | cert :: _ ->
     guard (supports_keytype cert keytype) (`Fatal `NotRSACertificate) >>= fun () ->
     guard (supports_usage cert usage) (`Fatal `InvalidCertificateUsage) >>= fun () ->
-    guard (supports_extended_usage cert `Server_auth) (`Fatal `InvalidCertificateExtendedUsage)
+    guard
+      (supports_extended_usage cert `Server_auth ||
+       supports_extended_usage cert `Any)
+      (`Fatal `InvalidCertificateExtendedUsage)
 
 let answer_certificate_RSA state session cs raw log =
   let cfg = state.config in
