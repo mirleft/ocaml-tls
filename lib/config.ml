@@ -167,24 +167,18 @@ let validate_server config =
     | `Multiple_default (c, cs) -> c :: cs
     | `None                     -> []
   in
-  let certtypes =
-    let project_type c =
-      match Certificate.cert_type c with
-      | Some x -> x
-      | None -> invalid "unknown public key"
-    in
-    filter_map ~f:(function
-                    | (s::_, _) -> Some s
-                    | _         -> None)
-               certificate_chains |>
-      List.map (fun c -> (project_type c, Certificate.cert_usage c))
+  let server_certs =
+    List.map (function
+        | (s::_,_) -> s
+        | _ -> invalid "empty certificate chain")
+      certificate_chains
   in
   if
     not (CertTypeUsageSet.for_all
            (fun (t, u) ->
-              List.exists (fun (ct, cu) ->
-                  ct = t && option true (List.mem u) cu)
-                certtypes)
+              List.exists (fun c ->
+                  Certificate.supports_keytype c t && Certificate.supports_usage c u)
+                server_certs)
            typeusage)
   then
     invalid "certificate type or usage does not match" ;
