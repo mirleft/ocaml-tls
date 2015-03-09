@@ -132,10 +132,11 @@ module StringSet = Set.Make(String)
 
 let non_overlapping cs =
   let namessets =
-    let nameslists = filter_map cs ~f:(function
-                                        | (s :: _, _) -> Some s
-                                        | _           -> None)
-                     |> List.map Certificate.cert_hostnames
+    let nameslists =
+      filter_map cs ~f:(function
+          | (s :: _, _) -> Some s
+          | _           -> None)
+      |> List.map Certificate.cert_hostnames
     in
     List.map (fun xs -> List.fold_right StringSet.add xs StringSet.empty) nameslists
   in
