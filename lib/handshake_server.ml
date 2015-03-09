@@ -152,7 +152,7 @@ let agreed_cert certs hostname =
 let agreed_cipher cert requested =
   let type_usage_matches cipher =
     let cstyp, csusage = Ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher) in
-    Certificate.(supports_keytype cert cstyp && supports_usage cert csusage)
+    Certificate.(supports_keytype cert cstyp && supports_usage ~not_present:true cert csusage)
   in
   List.filter type_usage_matches requested
 

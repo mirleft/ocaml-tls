@@ -177,7 +177,8 @@ let validate_server config =
     not (CertTypeUsageSet.for_all
            (fun (t, u) ->
               List.exists (fun c ->
-                  Certificate.supports_keytype c t && Certificate.supports_usage c u)
+                  Certificate.supports_keytype c t &&
+                  Certificate.supports_usage ~not_present:true c u)
                 server_certs)
            typeusage)
   then
