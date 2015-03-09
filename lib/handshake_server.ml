@@ -110,32 +110,22 @@ let sig_algs client_hello =
            | SignatureAlgorithms xs -> Some xs
            | _                      -> None
 
-let cert_from_own_cert = function
-  | (s::_, _) -> Some s
-  | _         -> None
-
-let cert_names c =
-  option [] Certificate.cert_hostnames (cert_from_own_cert c)
-
-let wildcard_match host c =
-  option false (Certificate.wildcard_matches host) (cert_from_own_cert c)
-
-let rec find_matching host = function
-  | []                                     -> None
-  | c::_ when List.mem host (cert_names c) -> Some c
-  | _::xs                                  -> find_matching host xs
-
-let rec find_wildcard_matching host = function
-  | []                              -> None
-  | c::_ when wildcard_match host c -> Some c
-  | _::xs                           -> find_wildcard_matching host xs
+let rec find_matching host certs =
+  match certs with
+  | (s::_, _) as chain ::xs ->
+    if Certificate.validate_hostname s host then
+      Some chain
+    else
+      find_matching host xs
+  | _::xs -> find_matching host xs (* this should never happen! *)
+  | [] -> None
 
 let agreed_cert certs hostname =
   let match_host ?default host certs =
      let host = String.lowercase host in
-     match find_matching host certs with
+     match find_matching (`Strict host) certs with
      | Some x -> return x
-     | None   -> match find_wildcard_matching host certs with
+     | None   -> match find_matching (`Wildcard host) certs with
                  | Some x -> return x
                  | None   -> match default with
                              | Some c -> return c
