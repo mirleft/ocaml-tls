@@ -113,7 +113,7 @@ let sig_algs client_hello =
 let rec find_matching host certs =
   match certs with
   | (s::_, _) as chain ::xs ->
-    if Certificate.validate_hostname s host then
+    if Certificate.supports_hostname s host then
       Some chain
     else
       find_matching host xs
