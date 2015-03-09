@@ -51,8 +51,8 @@ let establish_master_secret state session premastersecret raw log =
 
 let private_key session =
   match session.own_private_key with
-    | Some priv -> priv
-    | None      -> assert false (* TODO: ensure via typing in config *)
+    | Some priv -> return priv
+    | None      -> fail (`Fatal `InvalidSession) (* TODO: assert false / ensure via typing in config *)
 
 let validate_certs certs authenticator session =
   validate_chain authenticator certs None >|= fun (peer_certificate, trust_anchor) ->
@@ -92,13 +92,13 @@ let answer_client_key_exchange_RSA state session kex raw log =
     | _                                                                  -> other
   in
 
-  let priv = private_key session in
+  private_key session >|= fun priv ->
 
   let pms = match Rsa.PKCS1.decrypt priv kex with
     | None   -> validate_premastersecret other
     | Some k -> validate_premastersecret k
   in
-  return (establish_master_secret state session pms raw log)
+  establish_master_secret state session pms raw log
 
 let answer_client_key_exchange_DHE_RSA state session (group, secret) kex raw log =
   match Crypto.dh_shared group secret kex with
@@ -242,10 +242,9 @@ let answer_client_hello_common state reneg ch raw =
       let dh_param = Crypto.dh_params_pack group msg in
       Writer.assemble_dh_parameters dh_param in
 
-    let data = session.client_random <+> session.server_random <+> written
-    and priv = private_key session
-    in
+    let data = session.client_random <+> session.server_random <+> written in
 
+    private_key session >>= fun priv ->
     signature version data sig_algs config.hashes priv >|= fun sgn ->
     let kex = ServerKeyExchange (written <+> sgn) in
     let hs = Writer.assemble_handshake kex in
