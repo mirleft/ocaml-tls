@@ -153,7 +153,7 @@ let agreed_cipher cert requested =
   let certtype, certusage = Certificate.(cert_type cert, cert_usage cert) in
   let type_usage_matches cipher =
     let cstyp, csusage = Ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher) in
-    certtype = cstyp && option true (List.mem csusage) certusage
+    option false ((=) cstyp) certtype && option true (List.mem csusage) certusage
   in
   List.filter type_usage_matches requested
 

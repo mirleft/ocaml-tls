@@ -109,12 +109,9 @@ let validate_certificate_chain = function
      let pub = Rsa.pub_of_priv priv in
      if Rsa.pub_bits pub < min_rsa_key_size then
        invalid "RSA key too short!" ;
-     let open Asn_grammars in
-     ( match Certificate.(asn_of_cert s).tbs_cert.pk_info with
-       | PK.RSA pub' when pub = pub' ->
-         ()
-       | _                           ->
-         invalid "public / private key combination" ) ;
+     ( match Certificate.cert_pubkey s with
+       | Some (`RSA pub') when pub = pub' -> ()
+       | _ -> invalid "public / private key combination" ) ;
      ( match init_and_last chain with
        | Some (ch, trust) ->
          (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
@@ -171,11 +168,16 @@ let validate_server config =
     | `None                     -> []
   in
   let certtypes =
+    let project_type c =
+      match Certificate.cert_type c with
+      | Some x -> x
+      | None -> invalid "unknown public key"
+    in
     filter_map ~f:(function
                     | (s::_, _) -> Some s
                     | _         -> None)
                certificate_chains |>
-      List.map (fun c -> Certificate.(cert_type c, cert_usage c))
+      List.map (fun c -> (project_type c, Certificate.cert_usage c))
   in
   if
     not (CertTypeUsageSet.for_all

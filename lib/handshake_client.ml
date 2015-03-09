@@ -111,7 +111,9 @@ let validate_keytype_usage certificates ciphersuite =
   let open Certificate in
 
   let validate_keytype cert ktype =
-    cert_type cert = ktype
+    match cert_type cert, ktype with
+    | Some `RSA, `RSA -> true
+    | _ -> false
 
   and validate_usage cert usage =
     match cert_usage cert with
