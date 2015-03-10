@@ -160,10 +160,9 @@ let signature version data sig_algs hashes private_key =
 let peer_rsa_key = function
   | [] -> fail (`Fatal `NoCertificateReceived)
   | cert::_ ->
-    let open Asn_grammars in
-    match Certificate.(asn_of_cert cert).tbs_cert.pk_info with
-    | PK.RSA key -> return key
-    | _          -> fail (`Fatal `NotRSACertificate)
+    match Certificate.cert_pubkey cert with
+    | Some (`RSA key) -> return key
+    | _               -> fail (`Fatal `NotRSACertificate)
 
 let verify_digitally_signed version data signature_data certificates =
   let signature_verifier version data =
@@ -212,10 +211,9 @@ let validate_chain authenticator certificates hostname =
 
   and key_size min cs =
     let check c =
-      let open Asn_grammars in
-      ( match Certificate.(asn_of_cert c).tbs_cert.pk_info with
-        | PK.RSA key when Rsa.pub_bits key >= min -> true
-        | _                                       -> false )
+      match Certificate.cert_pubkey c with
+      | Some (`RSA key) when Rsa.pub_bits key >= min -> true
+      | _                                            -> false
     in
     guard (List.for_all check cs) (`Fatal `KeyTooSmall)
 

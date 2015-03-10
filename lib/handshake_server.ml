@@ -51,8 +51,8 @@ let establish_master_secret state session premastersecret raw log =
 
 let private_key session =
   match session.own_private_key with
-    | Some priv -> priv
-    | None      -> assert false (* TODO: ensure via typing in config *)
+    | Some priv -> return priv
+    | None      -> fail (`Fatal `InvalidSession) (* TODO: assert false / ensure via typing in config *)
 
 let validate_certs certs authenticator session =
   validate_chain authenticator certs None >|= fun (peer_certificate, trust_anchor) ->
@@ -92,13 +92,13 @@ let answer_client_key_exchange_RSA state session kex raw log =
     | _                                                                  -> other
   in
 
-  let priv = private_key session in
+  private_key session >|= fun priv ->
 
   let pms = match Rsa.PKCS1.decrypt priv kex with
     | None   -> validate_premastersecret other
     | Some k -> validate_premastersecret k
   in
-  return (establish_master_secret state session pms raw log)
+  establish_master_secret state session pms raw log
 
 let answer_client_key_exchange_DHE_RSA state session (group, secret) kex raw log =
   match Crypto.dh_shared group secret kex with
@@ -110,32 +110,22 @@ let sig_algs client_hello =
            | SignatureAlgorithms xs -> Some xs
            | _                      -> None
 
-let cert_from_own_cert = function
-  | (s::_, _) -> Some s
-  | _         -> None
-
-let cert_names c =
-  option [] Certificate.cert_hostnames (cert_from_own_cert c)
-
-let wildcard_match host c =
-  option false (Certificate.wildcard_matches host) (cert_from_own_cert c)
-
-let rec find_matching host = function
-  | []                                     -> None
-  | c::_ when List.mem host (cert_names c) -> Some c
-  | _::xs                                  -> find_matching host xs
-
-let rec find_wildcard_matching host = function
-  | []                              -> None
-  | c::_ when wildcard_match host c -> Some c
-  | _::xs                           -> find_wildcard_matching host xs
+let rec find_matching host certs =
+  match certs with
+  | (s::_, _) as chain ::xs ->
+    if Certificate.supports_hostname s host then
+      Some chain
+    else
+      find_matching host xs
+  | _::xs -> find_matching host xs (* this should never happen! *)
+  | [] -> None
 
 let agreed_cert certs hostname =
   let match_host ?default host certs =
      let host = String.lowercase host in
-     match find_matching host certs with
+     match find_matching (`Strict host) certs with
      | Some x -> return x
-     | None   -> match find_wildcard_matching host certs with
+     | None   -> match find_matching (`Wildcard host) certs with
                  | Some x -> return x
                  | None   -> match default with
                              | Some c -> return c
@@ -150,10 +140,9 @@ let agreed_cert certs hostname =
   | _                                 -> fail (`Error `CouldntSelectCertificate)
 
 let agreed_cipher cert requested =
-  let certtype, certusage = Certificate.(cert_type cert, cert_usage cert) in
   let type_usage_matches cipher =
     let cstyp, csusage = Ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher) in
-    certtype = cstyp && option true (List.mem csusage) certusage
+    Certificate.(supports_keytype cert cstyp && supports_usage ~not_present:true cert csusage)
   in
   List.filter type_usage_matches requested
 
@@ -243,10 +232,9 @@ let answer_client_hello_common state reneg ch raw =
       let dh_param = Crypto.dh_params_pack group msg in
       Writer.assemble_dh_parameters dh_param in
 
-    let data = session.client_random <+> session.server_random <+> written
-    and priv = private_key session
-    in
+    let data = session.client_random <+> session.server_random <+> written in
 
+    private_key session >>= fun priv ->
     signature version data sig_algs config.hashes priv >|= fun sgn ->
     let kex = ServerKeyExchange (written <+> sgn) in
     let hs = Writer.assemble_handshake kex in

@@ -109,30 +109,18 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
 
 let validate_keytype_usage certificates ciphersuite =
   let open Certificate in
-
-  let validate_keytype cert ktype =
-    cert_type cert = ktype
-
-  and validate_usage cert usage =
-    match cert_usage cert with
-    | None        -> true
-    | Some usages -> List.mem usage usages
-
-  and validate_ext_usage cert ext_use =
-    match cert_extended_usage cert with
-    | None            -> true
-    | Some ext_usages -> List.mem ext_use ext_usages || List.mem `Any ext_usages
-  in
-
   let keytype, usage =
     Ciphersuite.(o required_keytype_and_usage ciphersuite_kex ciphersuite)
   in
   match certificates with
   | [] -> fail (`Fatal `NoCertificateReceived)
   | cert :: _ ->
-    guard (validate_keytype cert keytype) (`Fatal `NotRSACertificate) >>= fun () ->
-    guard (validate_usage cert usage) (`Fatal `InvalidCertificateUsage) >>= fun () ->
-    guard (validate_ext_usage cert `Server_auth) (`Fatal `InvalidCertificateExtendedUsage)
+    guard (supports_keytype cert keytype) (`Fatal `NotRSACertificate) >>= fun () ->
+    guard (supports_usage ~not_present:true cert usage) (`Fatal `InvalidCertificateUsage) >>= fun () ->
+    guard
+      (supports_extended_usage cert `Server_auth ||
+       supports_extended_usage ~not_present:true cert `Any)
+      (`Fatal `InvalidCertificateExtendedUsage)
 
 let answer_certificate_RSA state session cs raw log =
   let cfg = state.config in

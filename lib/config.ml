@@ -109,12 +109,9 @@ let validate_certificate_chain = function
      let pub = Rsa.pub_of_priv priv in
      if Rsa.pub_bits pub < min_rsa_key_size then
        invalid "RSA key too short!" ;
-     let open Asn_grammars in
-     ( match Certificate.(asn_of_cert s).tbs_cert.pk_info with
-       | PK.RSA pub' when pub = pub' ->
-         ()
-       | _                           ->
-         invalid "public / private key combination" ) ;
+     ( match Certificate.cert_pubkey s with
+       | Some (`RSA pub') when pub = pub' -> ()
+       | _ -> invalid "public / private key combination" ) ;
      ( match init_and_last chain with
        | Some (ch, trust) ->
          (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
@@ -135,10 +132,11 @@ module StringSet = Set.Make(String)
 
 let non_overlapping cs =
   let namessets =
-    let nameslists = filter_map cs ~f:(function
-                                        | (s :: _, _) -> Some s
-                                        | _           -> None)
-                     |> List.map Certificate.cert_hostnames
+    let nameslists =
+      filter_map cs ~f:(function
+          | (s :: _, _) -> Some s
+          | _           -> None)
+      |> List.map Certificate.cert_hostnames
     in
     List.map (fun xs -> List.fold_right StringSet.add xs StringSet.empty) nameslists
   in
@@ -170,19 +168,19 @@ let validate_server config =
     | `Multiple_default (c, cs) -> c :: cs
     | `None                     -> []
   in
-  let certtypes =
-    filter_map ~f:(function
-                    | (s::_, _) -> Some s
-                    | _         -> None)
-               certificate_chains |>
-      List.map (fun c -> Certificate.(cert_type c, cert_usage c))
+  let server_certs =
+    List.map (function
+        | (s::_,_) -> s
+        | _ -> invalid "empty certificate chain")
+      certificate_chains
   in
   if
     not (CertTypeUsageSet.for_all
            (fun (t, u) ->
-              List.exists (fun (ct, cu) ->
-                  ct = t && option true (List.mem u) cu)
-                certtypes)
+              List.exists (fun c ->
+                  Certificate.supports_keytype c t &&
+                  Certificate.supports_usage ~not_present:true c u)
+                server_certs)
            typeusage)
   then
     invalid "certificate type or usage does not match" ;
