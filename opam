@@ -35,3 +35,4 @@ conflicts: [
   "mirage-net-xen" {<"1.3.0"}
   "mirage-entropy-xen" {<"0.2.0"}
 ]
+ocaml-version: [>="4.01.0"]
