@@ -21,12 +21,6 @@ module Color = struct
 end
 
 
-let string_of_err = function
-  | `Flow `Timeout       -> "TIMEOUT"
-  | `Flow `Refused       -> "REFUSED"
-  | `Flow (`Unknown msg)
-  | `Tls msg             -> msg
-
 module Log (C: CONSOLE) = struct
 
   let log_trace c str = C.log_s c (Color.green "+ %s" str)
@@ -34,7 +28,7 @@ module Log (C: CONSOLE) = struct
   and log_data c str buf =
     let repr = String.escaped (Cstruct.to_string buf) in
     C.log_s c (Color.blue "  %s: " str ^ repr)
-  and log_error c e = C.log_s c (Color.red "+ err: %s" (string_of_err e))
+  and log_error c e = C.log_s c (Color.red "+ err: %s" e)
 
 end
 
@@ -73,7 +67,7 @@ struct
     >>== (fun tls -> L.log_trace c "shook hands" >> k c flush_trace tls)
     >>= function
       | `Ok _    -> assert false
-      | `Error e -> L.log_error c e
+      | `Error e -> L.log_error c (TLS.error_message e)
       | `Eof     -> L.log_trace c "eof."
 
   let start c stack e kv =
@@ -119,12 +113,12 @@ struct
     let conf          = Tls.Config.client ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer)
     >>= function
-    | `Error e -> L.log_error c (`Flow e)
+    | `Error e -> L.log_error c (S.TCPV4.error_message e)
     | `Ok tcp  ->
         TLS.client_of_flow conf (snd peer) tcp
         >>== chat c
         >>= function
-        | `Error e -> L.log_error c e
+        | `Error e -> L.log_error c (TLS.error_message e)
         | `Eof     -> L.log_trace c "eof."
         | `Ok _    -> assert false
 

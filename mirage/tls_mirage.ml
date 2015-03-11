@@ -5,9 +5,16 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
 
   module FLOW = F
 
-  type error  = [ `Tls of string | `Flow of FLOW.error ]
+  type error  = [ `Tls_alert   of Tls.Packet.alert_type
+                | `Tls_failure of Tls.Engine.failure
+                | `Flow        of FLOW.error ]
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
+
+  let error_message = function
+    | `Tls_failure f -> Tls.Engine.string_of_failure f
+    | `Tls_alert a -> Tls.Packet.alert_type_to_string a
+    | `Flow err -> F.error_message err
 
   module ENTROPY = E
   (*
@@ -29,12 +36,10 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
     mutable linger : Cstruct.t list ;
   }
 
-  let tls_error e = `Error (`Tls e)
-  let tls_alert a = `Error (`Tls (Tls.Packet.alert_type_to_string a))
-  let tls_fail f  = `Error (`Tls (Tls.Engine.string_of_failure f))
+  let tls_alert a = `Error (`Tls_alert a)
+  let tls_fail f  = `Error (`Tls_failure f)
 
   let return_error e     = return (`Error e)
-  let return_tls_error e = return (tls_error e)
   let return_ok          = return (`Ok ())
 
   let list_of_option = function None -> [] | Some x -> [x]
@@ -109,7 +114,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
             FLOW.write flow.flow answer >>= check_write flow
         | None ->
             (* "Impossible" due to handhake draining. *)
-            return_tls_error "write: flow not ready to send"
+            assert false
 
   let write flow buf = writev flow [buf]
 
@@ -131,14 +136,16 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
             flow.linger <- list_of_option mbuf @ flow.linger ;
             drain_handshake flow
         | `Error e -> return_error e
-        | `Eof     -> return_tls_error "tls: end_of_file in handshake"
+        | `Eof     -> return `Eof
 
   let reneg flow =
     match flow.state with
     | `Eof | `Error _ as e -> return e
     | `Active tls ->
         match tracing flow @@ fun () -> Tls.Engine.reneg tls with
-        | None             -> return_tls_error "renegotiation in progress"
+        | None             ->
+            (* XXX make this impossible to reach *)
+            invalid_arg "Renegotiation already in progress"
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
             FLOW.write flow.flow buf >|= lift_result

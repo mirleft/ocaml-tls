@@ -4,7 +4,9 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) : sig
   module FLOW    : V1_LWT.FLOW
   module ENTROPY : V1_LWT.ENTROPY
 
-  type error  = [ `Tls of string | `Flow of FLOW.error ]
+  type error  = [ `Tls_alert   of Tls.Packet.alert_type
+                | `Tls_failure of Tls.Engine.failure
+                | `Flow        of FLOW.error ]
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
 
@@ -21,11 +23,11 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) : sig
 
   val client_of_flow :
     ?trace:tracer -> Tls.Config.client -> string -> FLOW.flow ->
-    [> `Ok of flow | `Error of error ] Lwt.t
+    [> `Ok of flow | `Error of error | `Eof ] Lwt.t
 
   val server_of_flow :
     ?trace:tracer -> Tls.Config.server -> FLOW.flow ->
-    [> `Ok of flow | `Error of error ] Lwt.t
+    [> `Ok of flow | `Error of error | `Eof ] Lwt.t
 
   val epoch : flow -> [ `Ok of Tls.Engine.epoch_data | `Error ]
 
