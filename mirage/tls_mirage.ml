@@ -5,12 +5,13 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
 
   module FLOW = F
 
-  type error  = [ `Tls_alert of Tls.Packet.alert_type | `Tls_failure of Tls.Engine.failure | `NotReady | `Flow of FLOW.error ]
+  type error  = [ `Tls_alert   of Tls.Packet.alert_type
+                | `Tls_failure of Tls.Engine.failure
+                | `Flow        of FLOW.error ]
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
 
   let error_message = function
-    | `NotReady -> "TLS connection not yet ready"
     | `Tls_failure f -> Tls.Engine.string_of_failure f
     | `Tls_alert a -> Tls.Packet.alert_type_to_string a
     | `Flow err -> F.error_message err
@@ -113,7 +114,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
             FLOW.write flow.flow answer >>= check_write flow
         | None ->
             (* "Impossible" due to handhake draining. *)
-            return_error `NotReady
+            assert false
 
   let write flow buf = writev flow [buf]
 
@@ -142,7 +143,9 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
     | `Eof | `Error _ as e -> return e
     | `Active tls ->
         match tracing flow @@ fun () -> Tls.Engine.reneg tls with
-        | None             -> return_error `NotReady
+        | None             ->
+            (* XXX make this impossible to reach *)
+            invalid_arg "Renegotiation already in progress"
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
             FLOW.write flow.flow buf >|= lift_result
