@@ -2,7 +2,7 @@
 
 (** failures which can be mitigated by reconfiguration *)
 type error = [
-  | `AuthenticationFailure of Certificate.certificate_failure
+  | `AuthenticationFailure of X509.Certificate.certificate_failure
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of Core.tls_version
   | `NoConfiguredHash of Nocrypto.Hash.hash list
@@ -102,10 +102,10 @@ val server : Config.server -> state
 type epoch_data = {
   protocol_version : Core.tls_version ;
   ciphersuite      : Ciphersuite.ciphersuite ;
-  peer_certificate : Certificate.certificate list ;
+  peer_certificate : X509.Certificate.certificate list ;
   peer_name        : string option ;
-  trust_anchor     : Certificate.certificate option ;
-  own_certificate  : Certificate.certificate list ;
+  trust_anchor     : X509.Certificate.certificate option ;
+  own_certificate  : X509.Certificate.certificate list ;
   own_private_key  : Nocrypto.Rsa.priv option ;
   own_name         : string option ;
   master_secret    : State.master_secret ;

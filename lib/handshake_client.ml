@@ -108,18 +108,17 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
   ({ state with machina = Client machina }, [])
 
 let validate_keytype_usage certificates ciphersuite =
-  let open Certificate in
   let keytype, usage =
     Ciphersuite.(o required_keytype_and_usage ciphersuite_kex ciphersuite)
   in
   match certificates with
   | [] -> fail (`Fatal `NoCertificateReceived)
   | cert :: _ ->
-    guard (supports_keytype cert keytype) (`Fatal `NotRSACertificate) >>= fun () ->
-    guard (supports_usage ~not_present:true cert usage) (`Fatal `InvalidCertificateUsage) >>= fun () ->
+    guard (X509.Certificate.supports_keytype cert keytype) (`Fatal `NotRSACertificate) >>= fun () ->
+    guard (X509.Certificate.supports_usage ~not_present:true cert usage) (`Fatal `InvalidCertificateUsage) >>= fun () ->
     guard
-      (supports_extended_usage cert `Server_auth ||
-       supports_extended_usage ~not_present:true cert `Any)
+      (X509.Certificate.supports_extended_usage cert `Server_auth ||
+       X509.Certificate.supports_extended_usage ~not_present:true cert `Any)
       (`Fatal `InvalidCertificateExtendedUsage)
 
 let answer_certificate_RSA state session cs raw log =
@@ -221,7 +220,7 @@ let answer_server_hello_done state session sigalgs kex premaster raw log =
 
   ( match session.client_auth, session.own_private_key with
     | true, Some p ->
-       let cert = Certificate (List.map Certificate.cs_of_cert session.own_certificate) in
+       let cert = Certificate (List.map X509.Certificate.cs_of_cert session.own_certificate) in
        let ccert = Writer.assemble_handshake cert in
        let to_sign = log @ [ raw ; ccert ; ckex ] in
        let data = Cs.appends to_sign in
