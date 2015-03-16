@@ -4,7 +4,7 @@ open Core
 (** Configuration of the TLS stack *)
 
 (** certificate chain and private key of the first certificate *)
-type certchain = Certificate.certificate list * Nocrypto.Rsa.priv
+type certchain = X509.Certificate.certificate list * Nocrypto.Rsa.priv
 
 (** polymorphic variant of own certificates *)
 type own_cert = [

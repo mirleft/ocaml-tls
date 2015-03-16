@@ -6,7 +6,7 @@ open Core
 open Sexplib.Std
 
 
-type certchain = Certificate.certificate list * Rsa.priv with sexp
+type certchain = X509.Certificate.certificate list * Rsa.priv with sexp
 
 type own_cert = [
   | `None
@@ -99,7 +99,7 @@ let validate_common config =
     invalid "set of ciphers is empty"
 
 module CertTypeUsageOrdered = struct
-  type t = Certificate.key_type * Asn_grammars.Extension.key_usage
+  type t = X509.Certificate.key_type * X509.Certificate.key_usage
   let compare = compare
 end
 module CertTypeUsageSet = Set.Make(CertTypeUsageOrdered)
@@ -109,16 +109,16 @@ let validate_certificate_chain = function
      let pub = Rsa.pub_of_priv priv in
      if Rsa.pub_bits pub < min_rsa_key_size then
        invalid "RSA key too short!" ;
-     ( match Certificate.cert_pubkey s with
+     ( match X509.Certificate.cert_pubkey s with
        | Some (`RSA pub') when pub = pub' -> ()
        | _ -> invalid "public / private key combination" ) ;
      ( match init_and_last chain with
        | Some (ch, trust) ->
          (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
-         ( match Certificate.verify_chain_of_trust ~anchors:[trust] (s :: ch) with
+         ( match X509.Certificate.verify_chain_of_trust ~anchors:[trust] (s :: ch) with
            | `Ok _   -> ()
            | `Fail x -> invalid ("certificate chain does not validate: " ^
-                                 (Certificate.certificate_failure_to_string x)) )
+                                 (X509.Certificate.certificate_failure_to_string x)) )
        | None -> () )
   | _ -> invalid "certificate"
 
@@ -136,7 +136,7 @@ let non_overlapping cs =
       filter_map cs ~f:(function
           | (s :: _, _) -> Some s
           | _           -> None)
-      |> List.map Certificate.cert_hostnames
+      |> List.map X509.Certificate.cert_hostnames
     in
     List.map (fun xs -> List.fold_right StringSet.add xs StringSet.empty) nameslists
   in
@@ -178,8 +178,8 @@ let validate_server config =
     not (CertTypeUsageSet.for_all
            (fun (t, u) ->
               List.exists (fun c ->
-                  Certificate.supports_keytype c t &&
-                  Certificate.supports_usage ~not_present:true c u)
+                  X509.Certificate.supports_keytype c t &&
+                  X509.Certificate.supports_usage ~not_present:true c u)
                 server_certs)
            typeusage)
   then

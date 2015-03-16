@@ -1,7 +1,7 @@
 
 open Lwt
 
-type priv = X509.Cert.t list * X509.PK.t
+type priv = X509.Parser.Cert.t list * X509.Parser.PK.t
 
 type authenticator = X509.Authenticator.t
 
@@ -49,17 +49,17 @@ let extension str =
 let private_of_pems ~cert ~priv_key =
   lwt certs =
     catch_invalid_arg
-      (read_file cert >|= X509.Cert.of_pem_cstruct)
+      (read_file cert >|= X509.Parser.Cert.of_pem_cstruct)
       (o failure @@ Printf.sprintf "Private certificates (%s): %s" cert)
   and pk =
     catch_invalid_arg
-      (read_file priv_key >|= X509.PK.of_pem_cstruct1)
+      (read_file priv_key >|= X509.Parser.PK.of_pem_cstruct1)
       (o failure @@ Printf.sprintf "Private key (%s): %s" priv_key)
   in return (certs, pk)
 
 let certs_of_pem path =
   catch_invalid_arg
-    (read_file path >|= X509.Cert.of_pem_cstruct)
+    (read_file path >|= X509.Parser.Cert.of_pem_cstruct)
     (o failure @@ Printf.sprintf "Certificates in %s: %s" path)
 
 let certs_of_pem_dir path =
@@ -81,6 +81,6 @@ let authenticator param =
   | `Ca_dir path  -> certs_of_pem_dir path >|= of_cas
   | `Fingerprints (hash, fps) -> return (fingerp hash fps)
   | `Hex_fingerprints (hash, fps) ->
-    let fps = List.map (fun (n, v) -> (n, X509.Cs.dotted_hex_to_cs v)) fps in
+    let fps = List.map (fun (n, v) -> (n, X509.Parser.Cs.dotted_hex_to_cs v)) fps in
     return (fingerp hash fps)
   | `No_authentication_I'M_STUPID -> return X509.Authenticator.null

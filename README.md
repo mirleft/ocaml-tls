@@ -139,23 +139,6 @@ functional style, without any side effects.
 [CVE-2014-3466]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-3466
 [CVE-2014-0224]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-0224
 
-
-****
-
-Posts in the TLS series:
-
- - [Introducing transport layer security (TLS) in pure OCaml][tls-intro]
- - [OCaml-TLS: building the nocrypto library core][nocrypto-intro]
- - [OCaml-TLS: adventures in X.509 certificate parsing and validation][x509-intro]
- - [OCaml-TLS: ASN.1 and notation embedding][asn1-intro]
- - [OCaml-TLS: the protocol implementation and mitigations to known attacks][tls-api]
-
-[tls-intro]: http://openmirage.org/blog/introducing-ocaml-tls
-[nocrypto-intro]: http://openmirage.org/blog/introducing-nocrypto
-[x509-intro]: http://openmirage.org/blog/introducing-x509
-[asn1-intro]: http://openmirage.org/blog/introducing-asn1
-[tls-api]: http://openmirage.org/blog/ocaml-tls-api-internals-attacks-mitigation
-
 ### Implemented standards
 
 - RFC 2246 - TLS Protocol version 1.0
@@ -165,6 +148,7 @@ Posts in the TLS series:
 - RFC 4366 - TLS Extensions (notably Server Name Indication - SNI)
 - RFC 5246 - TLS Protocol version 1.2
 - RFC 5746 - TLS Renegotiation Indication Extension
+- RFC 7465 - Prohibiting RC4 Cipher Suites
 - draft-ietf-tls-padding-00 - A TLS padding extension
 - draft-mathewson-no-gmtunixtime - No UNIX time in client and server hello
 - draft-ietf-tls-downgrade-scsv - Reject client-flagged version downgrades

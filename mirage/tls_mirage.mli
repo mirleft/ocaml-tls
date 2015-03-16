@@ -39,5 +39,5 @@ end
 module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) : sig
   val authenticator : KV.t -> [< `Noop | `CAs ] -> X509.Authenticator.t Lwt.t
   val certificate   : KV.t -> [< `Default | `Name of string ]
-                         -> (X509.Cert.t list * X509.PK.t) Lwt.t
+                         -> (X509.Parser.Cert.t list * X509.Parser.PK.t) Lwt.t
 end
