@@ -4,7 +4,7 @@ open Core
 (** Configuration of the TLS stack *)
 
 (** certificate chain and private key of the first certificate *)
-type certchain = Certificate.certificate list * Nocrypto.Rsa.priv
+type certchain = X509.t list * Nocrypto.Rsa.priv
 
 (** polymorphic variant of own certificates *)
 type own_cert = [
@@ -20,7 +20,7 @@ type config = private {
   protocol_versions : tls_version * tls_version ; (** supported protocol versions (min, max) *)
   hashes            : Hash.hash list ; (** ordered list of supported hash algorithms (regarding preference) *)
   use_reneg         : bool ; (** endpoint should accept renegotiation requests *)
-  authenticator     : X509.Authenticator.t option ; (** optional X509 authenticator *)
+  authenticator     : X509.Authenticator.a option ; (** optional X509 authenticator *)
   peer_name         : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
   own_certificates  : own_cert ; (** optional default certificate chain and other certificate chains *)
 } with sexp
@@ -74,7 +74,7 @@ val of_server : server -> config
 (** [client authenticator ?ciphers ?version ?hashes ?reneg ?certificates] is [client] configuration with the given parameters *)
 (** @raise Invalid_argument if the configuration is invalid *)
 val client :
-  authenticator  : X509.Authenticator.t ->
+  authenticator  : X509.Authenticator.a ->
   ?ciphers       : Ciphersuite.ciphersuite list ->
   ?version       : tls_version * tls_version ->
   ?hashes        : Hash.hash list ->
@@ -90,5 +90,5 @@ val server :
   ?hashes        : Hash.hash list ->
   ?reneg         : bool ->
   ?certificates  : own_cert ->
-  ?authenticator : X509.Authenticator.t ->
+  ?authenticator : X509.Authenticator.a ->
   unit -> server

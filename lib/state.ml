@@ -81,9 +81,9 @@ type session_data = {
   client_random    : Cstruct_s.t ; (* 32 bytes random from the client hello *)
   client_version   : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
   ciphersuite      : Ciphersuite.ciphersuite ;
-  peer_certificate : Certificate.certificate list ;
-  trust_anchor     : Certificate.certificate option ;
-  own_certificate  : Certificate.certificate list ;
+  peer_certificate : X509.t list ;
+  trust_anchor     : X509.t option ;
+  own_certificate  : X509.t list ;
   own_private_key  : Nocrypto.Rsa.priv option ;
   master_secret    : master_secret ;
   renegotiation    : reneg_params ; (* renegotiation data *)
@@ -168,7 +168,7 @@ type state = {
 } with sexp
 
 type error = [
-  | `AuthenticationFailure of Certificate.certificate_failure
+  | `AuthenticationFailure of X509.Validation.certificate_failure
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of tls_version
   | `NoConfiguredHash of Hash.hash list

@@ -12,9 +12,9 @@ type fatal = State.fatal
 type failure = State.failure with sexp
 
 let alert_of_authentication_failure = function
-  | Certificate.SelfSigned _ -> Packet.UNKNOWN_CA
-  | Certificate.NoTrustAnchor -> Packet.UNKNOWN_CA
-  | Certificate.CertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
+  | X509.Validation.SelfSigned _ -> Packet.UNKNOWN_CA
+  | X509.Validation.NoTrustAnchor -> Packet.UNKNOWN_CA
+  | X509.Validation.CertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
   | _ -> Packet.BAD_CERTIFICATE
 
 let alert_of_error = function
@@ -571,10 +571,10 @@ open Sexplib.Conv
 type epoch_data = {
   protocol_version : tls_version ;
   ciphersuite      : Ciphersuite.ciphersuite ;
-  peer_certificate : Certificate.certificate list ;
+  peer_certificate : X509.t list ;
   peer_name        : string option ;
-  trust_anchor     : Certificate.certificate option ;
-  own_certificate  : Certificate.certificate list ;
+  trust_anchor     : X509.t option ;
+  own_certificate  : X509.t list ;
   own_private_key  : Nocrypto.Rsa.priv option ;
   own_name         : string option ;
   master_secret    : master_secret ;

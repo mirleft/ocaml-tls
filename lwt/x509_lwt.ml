@@ -1,9 +1,9 @@
 
 open Lwt
 
-type priv = X509.Cert.t list * X509.PK.t
+type priv = X509.t list * X509.Encoding.Pem.PK.t
 
-type authenticator = X509.Authenticator.t
+type authenticator = X509.Authenticator.a
 
 
 let failure msg = fail @@ Failure msg
@@ -47,19 +47,20 @@ let extension str =
 
 
 let private_of_pems ~cert ~priv_key =
+  let open X509.Encoding.Pem in
   lwt certs =
     catch_invalid_arg
-      (read_file cert >|= X509.Cert.of_pem_cstruct)
+      (read_file cert >|= Cert.of_pem_cstruct)
       (o failure @@ Printf.sprintf "Private certificates (%s): %s" cert)
   and pk =
     catch_invalid_arg
-      (read_file priv_key >|= X509.PK.of_pem_cstruct1)
+      (read_file priv_key >|= PK.of_pem_cstruct1)
       (o failure @@ Printf.sprintf "Private key (%s): %s" priv_key)
   in return (certs, pk)
 
 let certs_of_pem path =
   catch_invalid_arg
-    (read_file path >|= X509.Cert.of_pem_cstruct)
+    (read_file path >|= X509.Encoding.Pem.Cert.of_pem_cstruct)
     (o failure @@ Printf.sprintf "Certificates in %s: %s" path)
 
 let certs_of_pem_dir path =
@@ -73,6 +74,10 @@ let authenticator param =
   let of_cas cas =
     X509.Authenticator.chain_of_trust ~time:now cas
   in
+  let dotted_hex_to_cs hex =
+    Nocrypto.Uncommon.Cs.of_hex
+      (String.map (function ':' -> ' ' | x -> x) hex)
+  in
   let fingerp hash fingerprints =
     X509.Authenticator.server_fingerprint ~time:now ~hash ~fingerprints
   in
@@ -81,6 +86,6 @@ let authenticator param =
   | `Ca_dir path  -> certs_of_pem_dir path >|= of_cas
   | `Fingerprints (hash, fps) -> return (fingerp hash fps)
   | `Hex_fingerprints (hash, fps) ->
-    let fps = List.map (fun (n, v) -> (n, X509.Cs.dotted_hex_to_cs v)) fps in
+    let fps = List.map (fun (n, v) -> (n, dotted_hex_to_cs v)) fps in
     return (fingerp hash fps)
   | `No_authentication_I'M_STUPID -> return X509.Authenticator.null
