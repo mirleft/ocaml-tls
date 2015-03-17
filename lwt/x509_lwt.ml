@@ -1,7 +1,7 @@
 
 open Lwt
 
-type priv = X509.t list * X509.Encoding.Pem.PK.t
+type priv = X509.t list * Nocrypto.Rsa.priv
 
 type authenticator = X509.Authenticator.a
 

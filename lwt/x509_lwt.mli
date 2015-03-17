@@ -1,5 +1,5 @@
 
-type priv          = X509.t list * X509.Encoding.Pem.PK.t
+type priv          = X509.t list * Nocrypto.Rsa.priv
 type authenticator = X509.Authenticator.a
 
 val private_of_pems : cert:Lwt_io.file_name -> priv_key:Lwt_io.file_name -> priv Lwt.t
