@@ -1,6 +1,6 @@
 opam-version: "1.2"
 name:         "tls"
-version:      "0.3.0"
+version:      "0.4.0"
 homepage:     "https://github.com/mirleft/ocaml-tls"
 dev-repo:     "https://github.com/mirleft/ocaml-tls.git"
 bug-reports:  "https://github.com/mirleft/ocaml-tls/issues"
@@ -23,7 +23,7 @@ depends: [
   "type_conv"
   "sexplib"
   "nocrypto" {>= "0.3.0"}
-  "x509" {>= "0.2.1"}
+  "x509" {>= "0.3.0"}
   "camlp4"
 ]
 depopts: [
