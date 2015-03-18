@@ -1,14 +1,15 @@
-(trunk):
+0.4.0 (2015-03-19):
 * client authentication (both client and server side)
-* server side SNI configuration possible (see sni.md)
+* server side SNI configuration (see sni.md)
 * SCSV server-side downgrade prevention (contributed by Gabriel de Perthuis @g2p #5)
 * remove RC4 ciphers from default config #8
 * support for AEAD ciphers, currently CCM #191
 * proper bounds checking of handshake fragments #255
 * disable application data between CCS and Finished #237
 * remove secure renegotiation configuration option #256
-* expose epoch in mirage interface
-* error reporting #246
+* expose epoch in mirage interface, implement 2.3.0 API (error_message)
+* error reporting (type failure in engine.mli) #246
+* hook into Lwt event loop to feed RNG #254
 
 0.3.0 (2014-12-21):
 * X509_lwt provides `Fingerprints and `Hex_fingerprints constructor for
