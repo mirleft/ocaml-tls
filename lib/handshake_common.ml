@@ -153,14 +153,14 @@ let signature version data sig_algs hashes private_key =
         | None      -> fail (`Error (`NoConfiguredHash client_hashes))
         | Some hash -> return hash ) >|= fun hash_algo ->
     let hash = Hash.digest hash_algo data in
-    let cs = Asn_grammars.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
+    let cs = X509.Encoding.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
     let sign = Rsa.PKCS1.sign private_key cs in
     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
 
 let peer_rsa_key = function
   | [] -> fail (`Fatal `NoCertificateReceived)
   | cert::_ ->
-    match Certificate.cert_pubkey cert with
+    match X509.cert_pubkey cert with
     | Some (`RSA key) -> return key
     | _               -> fail (`Fatal `NotRSACertificate)
 
@@ -181,7 +181,7 @@ let verify_digitally_signed version data signature_data certificates =
       ( match parse_digitally_signed_1_2 data with
         | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
           let compare_hashes should data =
-            match Asn_grammars.pkcs1_digest_info_of_cstruct should with
+            match X509.Encoding.pkcs1_digest_info_of_cstruct should with
             | Some (hash_algo', target) when hash_algo = hash_algo' ->
               guard (Crypto.digest_eq hash_algo ~target data) (`Fatal `RSASignatureMismatch)
             | _ -> fail (`Fatal `HashAlgorithmMismatch)
@@ -202,8 +202,6 @@ let verify_digitally_signed version data signature_data certificates =
   verifier signature signature_data
 
 let validate_chain authenticator certificates hostname =
-  let open Certificate in
-
   let authenticate authenticator host certificates =
     match authenticator ?host certificates with
     | `Fail err  -> fail (`Error (`AuthenticationFailure err))
@@ -211,14 +209,14 @@ let validate_chain authenticator certificates hostname =
 
   and key_size min cs =
     let check c =
-      match Certificate.cert_pubkey c with
+      match X509.cert_pubkey c with
       | Some (`RSA key) when Rsa.pub_bits key >= min -> true
       | _                                            -> false
     in
     guard (List.for_all check cs) (`Fatal `KeyTooSmall)
 
   and parse_certificates certs =
-    let certificates = filter_map ~f:parse certs in
+    let certificates = filter_map ~f:X509.Encoding.parse certs in
     guard (List.length certs = List.length certificates) (`Fatal `BadCertificateChain) >|= fun () ->
     certificates
 
