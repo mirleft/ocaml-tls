@@ -20,7 +20,6 @@ let alert_of_authentication_failure = function
 let alert_of_error = function
   | `NoConfiguredVersion _ -> Packet.PROTOCOL_VERSION
   | `NoConfiguredCiphersuite _ -> Packet.HANDSHAKE_FAILURE
-  | `NoSecureRenegotiation -> Packet.HANDSHAKE_FAILURE
   | `NoConfiguredHash _ -> Packet.HANDSHAKE_FAILURE
   | `AuthenticationFailure err -> alert_of_authentication_failure err
   | `NoMatchingCertificateFound _ -> Packet.HANDSHAKE_FAILURE
@@ -28,6 +27,7 @@ let alert_of_error = function
   | `CouldntSelectCertificate -> Packet.HANDSHAKE_FAILURE
 
 let alert_of_fatal = function
+  | `NoSecureRenegotiation -> Packet.HANDSHAKE_FAILURE
   | `MACUnderflow -> Packet.BAD_RECORD_MAC
   | `MACMismatch -> Packet.BAD_RECORD_MAC
   | `RecordOverflow _ -> Packet.RECORD_OVERFLOW

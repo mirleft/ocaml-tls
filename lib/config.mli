@@ -3,6 +3,8 @@ open Core
 
 (** Configuration of the TLS stack *)
 
+(** {1 Config type} *)
+
 (** certificate chain and private key of the first certificate *)
 type certchain = X509.t list * Nocrypto.Rsa.priv
 
@@ -23,53 +25,24 @@ type config = private {
   authenticator     : X509.Authenticator.a option ; (** optional X509 authenticator *)
   peer_name         : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
   own_certificates  : own_cert ; (** optional default certificate chain and other certificate chains *)
-} with sexp
+}
 
-module Ciphers : sig
-
-  open Ciphersuite
-
-  (** Cipher selection related utilities. *)
-
-  val default : ciphersuite list
-  (** All ciphersuites this library uses by default. *)
-
-  val supported : ciphersuite list
-  (** All ciphersuites this library implements. *)
-
-  val pfs : ciphersuite list
-  (** All perfect forward secrecy ciphersuites this library supports. *)
-
-  val pfs_of : ciphersuite list -> ciphersuite list
-  (** [pfs_of ciphers] selects all perfect forward secrecy ciphersuites from default. *)
-end
-
-(** [default_hashes] is a list of hash algorithms used by default *)
-val default_hashes  : Hash.hash list
-
-(** [supported_hashes] is a list of supported hash algorithms by this library *)
-val supported_hashes  : Hash.hash list
-
-(** [min_dh_size] is minimal diffie hellman group size in bits (currently 512) *)
-val min_dh_size : int
-
-(** [min_rsa_key_size] is minimal RSA modulus key size in bits (currently 1024) *)
-val min_rsa_key_size : int
+val config_of_sexp : Sexplib.Sexp.t -> config
+val sexp_of_config : config -> Sexplib.Sexp.t
 
 (** opaque type of a client configuration *)
-type client with sexp
+type client
+
+val client_of_sexp : Sexplib.Sexp.t -> client
+val sexp_of_client : client -> Sexplib.Sexp.t
 
 (** opaque type of a server configuration *)
-type server with sexp
+type server
 
-(** [peer client name] is [client] with [name] as [peer_name] *)
-val peer : client -> string -> client
+val server_of_sexp : Sexplib.Sexp.t -> server
+val sexp_of_server : server -> Sexplib.Sexp.t
 
-(** [of_client client] is a client configuration for [client] *)
-val of_client : client -> config
-
-(** [of_server server] is a server configuration for [server] *)
-val of_server : server -> config
+(** {1 Constructors} *)
 
 (** [client authenticator ?ciphers ?version ?hashes ?reneg ?certificates] is [client] configuration with the given parameters *)
 (** @raise Invalid_argument if the configuration is invalid *)
@@ -92,3 +65,51 @@ val server :
   ?certificates  : own_cert ->
   ?authenticator : X509.Authenticator.a ->
   unit -> server
+
+(** [peer client name] is [client] with [name] as [peer_name] *)
+val peer : client -> string -> client
+
+(** {1 Utility functions} *)
+
+(** [default_hashes] is a list of hash algorithms used by default *)
+val default_hashes  : Hash.hash list
+
+(** [supported_hashes] is a list of supported hash algorithms by this library *)
+val supported_hashes  : Hash.hash list
+
+(** [min_dh_size] is minimal diffie hellman group size in bits (currently 512) *)
+val min_dh_size : int
+
+(** [min_rsa_key_size] is minimal RSA modulus key size in bits (currently 1024) *)
+val min_rsa_key_size : int
+
+(** Cipher selection *)
+module Ciphers : sig
+
+  open Ciphersuite
+
+  (** Cipher selection related utilities. *)
+
+  (** {1 Cipher selection} *)
+
+  val default : ciphersuite list
+  (** All ciphersuites this library uses by default. *)
+
+  val supported : ciphersuite list
+  (** All ciphersuites this library implements. *)
+
+  val pfs : ciphersuite list
+  (** All perfect forward secrecy ciphersuites this library supports. *)
+
+  val pfs_of : ciphersuite list -> ciphersuite list
+  (** [pfs_of ciphers] selects all perfect forward secrecy ciphersuites from default. *)
+end
+
+(** {1 Internal use only} *)
+
+(** [of_client client] is a client configuration for [client] *)
+val of_client : client -> config
+
+(** [of_server server] is a server configuration for [server] *)
+val of_server : server -> config
+

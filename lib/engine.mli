@@ -1,4 +1,33 @@
-(** Core of pure library. This is the interface to effectful front-ends. *)
+(** Transport layer security core.
+
+    [TLS] implements the transport layer security protocol entirely in
+    OCaml.  TLS is used to secure a session between two endpoints, a
+    client and a server.  This session can either be not authenticated
+    at all, or either, or both endpoints can be authenticated.  Most
+    common is that the server is authenticated using X.509
+    certificates.
+
+    TLS is algorithmically agile: protocol version, key exchange
+    algorithm, symmetric cipher, and message authentication code are
+    negotiated upon connection.
+
+    This module [Engine] provides the pure core of the protocol
+    handling, and is used by the effectful front-ends. *)
+
+(** {1 Constructors} *)
+
+(** The abstract [state] type. *)
+type state
+
+(** [client client] is [tls * out] where [tls] is the initial state,
+    and [out] the initial client hello *)
+val client : Config.client -> (state * Cstruct.t)
+
+(** [server server] is [tls] where [tls] is the initial server
+    state *)
+val server : Config.server -> state
+
+(** {1 Protocol failures} *)
 
 (** failures which can be mitigated by reconfiguration *)
 type error = [
@@ -6,7 +35,6 @@ type error = [
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of Core.tls_version
   | `NoConfiguredHash of Nocrypto.Hash.hash list
-  | `NoSecureRenegotiation
   | `NoMatchingCertificateFound of string
   | `NoCertificateConfigured
   | `CouldntSelectCertificate
@@ -14,6 +42,7 @@ type error = [
 
 (** failures from received garbage or lack of features *)
 type fatal = [
+  | `NoSecureRenegotiation
   | `NoCiphersuite of Packet.any_ciphersuite list
   | `NoVersion of Core.tls_any_version
   | `ReaderError of Reader.error
@@ -53,52 +82,64 @@ type fatal = [
 type failure = [
   | `Error of error
   | `Fatal of fatal
-] with sexp
+]
 
-(** convert a failure to a tls alert *)
+(** [alert_of_failure failure] is [alert], the TLS alert type for this failure. *)
 val alert_of_failure : failure -> Packet.alert_type
 
-(** convert a failure to a string *)
+(** [string_of_failure failure] is [string], the string representation of the [failure]. *)
 val string_of_failure : failure -> string
 
-(** some abstract type a client gets *)
-type state
+(** [failure_of_sexp sexp] is [failure], the unmarshalled [sexp]. *)
+val failure_of_sexp : Sexplib.Sexp.t -> failure
 
-(** return type of handle_tls *)
+(** [sexp_of_failure failure] is [sexp], the marshalled [failure]. *)
+val sexp_of_failure : failure -> Sexplib.Sexp.t
+
+(** {1 Protocol handling} *)
+
+(** return type of {!handle_tls}: either failed to handle the incoming
+    buffer ([`Fail]) with {!failure} and potentially a message to send
+    to the other endpoint, or sucessful operation ([`Ok]) with a new
+    {!state}, an end of file ([`Eof]), or an incoming ([`Alert]).
+    Possibly some [`Response] to the other endpoint is needed, and
+    potentially some [`Data] for the application was received. *)
 type ret = [
-
   | `Ok of [ `Ok of state | `Eof | `Alert of Packet.alert_type ]
          * [ `Response of Cstruct.t option ]
          * [ `Data of Cstruct.t option ]
- (** success with either a new state, end of file, or an alert, a response to the communication partner and potential data for the application *)
-
-  | `Fail of failure * [ `Response of Cstruct.t ] (** fail with a failure, and a response to the other side *)
+  | `Fail of failure * [ `Response of Cstruct.t ]
 ]
 
-(** [handle_tls tls in] is [ret], depending on incoming [tls] state and cstruct, return appropriate [ret] *)
-val handle_tls : state -> Cstruct.t -> ret
+(** [handle_tls state buffer] is [ret], depending on incoming [state]
+    and [buffer], return appropriate {!ret} *)
+val handle_tls           : state -> Cstruct.t -> ret
 
-(** [can_handle_appdata tls] is a predicate which indicates when the connection has already completed a handshake *)
+(** [can_handle_appdata state] is a predicate which indicates when the
+    connection has already completed a handshake. *)
 val can_handle_appdata    : state -> bool
 
-(** [handshake_in_progress tls] is a predicate which indicates whether a handshake is in progress *)
+(** [handshake_in_progress tls] is a predicate which indicates whether
+    a handshake is in progress. *)
 val handshake_in_progress : state -> bool
 
-(** [send_application_data tls outs] is [(tls' * out) option] where [tls'] is the new tls state, and [out] the cstruct to send over the wire (encrypted and wrapped [outs]) *)
+(** [send_application_data tls outs] is [(tls' * out) option] where
+    [tls'] is the new tls state, and [out] the cstruct to send over the
+    wire (encrypted and wrapped [outs]) *)
 val send_application_data : state -> Cstruct.t list -> (state * Cstruct.t) option
 
-(** [send_close_notify tls] is [tls' * out] where [tls'] is the new tls state, and out the (possible encrypted) close notify alert *)
+(** [send_close_notify tls] is [tls' * out] where [tls'] is the new
+    tls state, and out the (possible encrypted) close notify alert *)
 val send_close_notify     : state -> state * Cstruct.t
 
-(** [reneg tls] is [(tls' * out) option] where [tls'] is the new tls state, and out either a client hello or hello request (depending on the communication endpoint we are) *)
+(** [reneg tls] is [(tls' * out) option] where [tls'] is the new tls
+    state, and out either a client hello or hello request (depending on
+    the communication endpoint we are) *)
 val reneg                 : state -> (state * Cstruct.t) option
 
-(** [client client] is [tls * out] where [tls] is the initial state, and [out] the initial client hello *)
-val client : Config.client -> (state * Cstruct.t)
+(** {1 Session information} *)
 
-(** [server server] is [tls] where [tls] is the initial server state *)
-val server : Config.server -> state
-
+(** information about an open session *)
 type epoch_data = {
   protocol_version : Core.tls_version ;
   ciphersuite      : Ciphersuite.ciphersuite ;
@@ -109,11 +150,27 @@ type epoch_data = {
   own_private_key  : Nocrypto.Rsa.priv option ;
   own_name         : string option ;
   master_secret    : State.master_secret ;
-} with sexp
+}
 
+(** [epoch_data_of_sexp sexp] is [epoch_data], the unmarshalled [sexp]. *)
+val epoch_data_of_sexp : Sexplib.Sexp.t -> epoch_data
+
+(** [sexp_of_epoch_data epoch_data] is [sexp], the marshalled [epoch_data]. *)
+val sexp_of_epoch_data : epoch_data -> Sexplib.Sexp.t
+
+(** polymorphic variant, only the second should ever be visible to an
+    application. *)
 type epoch = [
   | `InitialEpoch
   | `Epoch of epoch_data
-] with sexp
+]
 
+(** [epoch_of_sexp sexp] is [epoch], the unmarshalled [sexp]. *)
+val epoch_of_sexp : Sexplib.Sexp.t -> epoch
+
+(** [sexp_of_epoch epoch] is [sexp], the marshalled [epoch]. *)
+val sexp_of_epoch : epoch -> Sexplib.Sexp.t
+
+(** [epoch state] is [epoch], which contains the session
+    information. *)
 val epoch : state -> epoch

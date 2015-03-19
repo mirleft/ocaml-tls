@@ -172,13 +172,13 @@ type error = [
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of tls_version
   | `NoConfiguredHash of Hash.hash list
-  | `NoSecureRenegotiation
   | `NoMatchingCertificateFound of string
   | `NoCertificateConfigured
   | `CouldntSelectCertificate
 ] with sexp
 
 type fatal = [
+  | `NoSecureRenegotiation
   | `NoCiphersuite of Packet.any_ciphersuite list
   | `NoVersion of tls_any_version
   | `ReaderError of Reader.error
