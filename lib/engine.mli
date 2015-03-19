@@ -2,7 +2,7 @@
 
 (** failures which can be mitigated by reconfiguration *)
 type error = [
-  | `AuthenticationFailure of X509.Validation.certificate_failure
+  | `AuthenticationFailure of X509.Validation.validation_error
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of Core.tls_version
   | `NoConfiguredHash of Nocrypto.Hash.hash list

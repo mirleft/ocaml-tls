@@ -12,9 +12,9 @@ type fatal = State.fatal
 type failure = State.failure with sexp
 
 let alert_of_authentication_failure = function
-  | X509.Validation.SelfSigned _ -> Packet.UNKNOWN_CA
-  | X509.Validation.NoTrustAnchor -> Packet.UNKNOWN_CA
-  | X509.Validation.CertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
+  | `SelfSigned _ -> Packet.UNKNOWN_CA
+  | `NoTrustAnchor -> Packet.UNKNOWN_CA
+  | `CertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
   | _ -> Packet.BAD_CERTIFICATE
 
 let alert_of_error = function

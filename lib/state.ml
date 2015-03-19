@@ -168,7 +168,7 @@ type state = {
 } with sexp
 
 type error = [
-  | `AuthenticationFailure of X509.Validation.certificate_failure
+  | `AuthenticationFailure of X509.Validation.validation_error
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of tls_version
   | `NoConfiguredHash of Hash.hash list
