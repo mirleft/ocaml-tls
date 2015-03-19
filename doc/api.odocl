@@ -1,8 +1,10 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8495b8e4b14c12a167ebcc8f7d8b2433)
+# DO NOT EDIT (digest: 1fba321817ef3920b4184453a147f975)
 lib/Engine
 lib/Config
 lib/Packet
+lib/Ciphersuite
+lib/Core
 lwt/Tls_lwt
 lwt/X509_lwt
 mirage/Tls_mirage
