@@ -118,7 +118,7 @@ let validate_certificate_chain = function
          ( match X509.Validation.verify_chain_of_trust ~anchors:[trust] (s :: ch) with
            | `Ok _   -> ()
            | `Fail x -> invalid ("certificate chain does not validate: " ^
-                                 (X509.Validation.certificate_failure_to_string x)) )
+                                 (X509.Validation.validation_error_to_string x)) )
        | None -> () )
   | _ -> invalid "certificate"
 

@@ -79,7 +79,7 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
   let validate_reneg reneg data =
     match reneg, data with
     | (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) (`Fatal `InvalidRenegotiation)
-    | _ -> fail (`Error `NoSecureRenegotiation)
+    | _ -> fail (`Fatal `NoSecureRenegotiation)
   in
 
   let cfg = state.config in

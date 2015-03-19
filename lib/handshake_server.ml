@@ -293,7 +293,7 @@ let answer_client_hello state (ch : client_hello) raw =
     match reneg_cs, their_data with
     | _, Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
     | true, _ -> return ()
-    | _ -> fail (`Error `NoSecureRenegotiation)
+    | _ -> fail (`Fatal `NoSecureRenegotiation)
   in
 
   let process_client_hello config ch =
@@ -319,7 +319,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
   let ensure_reneg our_data their_data  =
     match our_data, their_data with
     | (cvd, _), Some x -> guard (Cs.equal cvd x) (`Fatal `InvalidRenegotiation)
-    | _ -> fail (`Error `NoSecureRenegotiation)
+    | _ -> fail (`Fatal `NoSecureRenegotiation)
   in
 
   let process_client_hello config oldversion ours ch =

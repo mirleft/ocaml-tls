@@ -1,4 +1,4 @@
-(** Ciphersuite helper functions and definitions. Including mapping to reserved numbers and dissecting into key exchange, encryption, and hash algorithm. *)
+(** Ciphersuite definitions and some helper functions. *)
 
 (** sum type of all possible key exchange methods *)
 type key_exchange_algorithm =

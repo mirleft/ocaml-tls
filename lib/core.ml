@@ -1,3 +1,5 @@
+(** Core type definitions *)
+
 open Sexplib.Conv
 open Nocrypto
 

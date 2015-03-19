@@ -12,15 +12,14 @@ type fatal = State.fatal
 type failure = State.failure with sexp
 
 let alert_of_authentication_failure = function
-  | X509.Validation.SelfSigned _ -> Packet.UNKNOWN_CA
-  | X509.Validation.NoTrustAnchor -> Packet.UNKNOWN_CA
-  | X509.Validation.CertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
+  | `SelfSigned _ -> Packet.UNKNOWN_CA
+  | `NoTrustAnchor -> Packet.UNKNOWN_CA
+  | `CertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
   | _ -> Packet.BAD_CERTIFICATE
 
 let alert_of_error = function
   | `NoConfiguredVersion _ -> Packet.PROTOCOL_VERSION
   | `NoConfiguredCiphersuite _ -> Packet.HANDSHAKE_FAILURE
-  | `NoSecureRenegotiation -> Packet.HANDSHAKE_FAILURE
   | `NoConfiguredHash _ -> Packet.HANDSHAKE_FAILURE
   | `AuthenticationFailure err -> alert_of_authentication_failure err
   | `NoMatchingCertificateFound _ -> Packet.HANDSHAKE_FAILURE
@@ -28,6 +27,7 @@ let alert_of_error = function
   | `CouldntSelectCertificate -> Packet.HANDSHAKE_FAILURE
 
 let alert_of_fatal = function
+  | `NoSecureRenegotiation -> Packet.HANDSHAKE_FAILURE
   | `MACUnderflow -> Packet.BAD_RECORD_MAC
   | `MACMismatch -> Packet.BAD_RECORD_MAC
   | `RecordOverflow _ -> Packet.RECORD_OVERFLOW

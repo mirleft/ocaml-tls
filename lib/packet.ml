@@ -1,3 +1,5 @@
+(** Magic numbers of the TLS protocol. *)
+
 open Cstruct
 
 (* HACK: 24 bits type not in cstruct *)
