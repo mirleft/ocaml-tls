@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.org/mirleft/ocaml-tls.svg?branch=master)](https://travis-ci.org/mirleft/ocaml-tls)
 
+[API documentation](https://mirleft.github.io/ocaml-tls/)
+
 ### What is TLS?
 
 Transport Layer Security (TLS) is probably the most widely deployed
