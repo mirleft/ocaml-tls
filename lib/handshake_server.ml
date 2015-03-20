@@ -149,7 +149,7 @@ let agreed_cipher cert requested =
   in
   List.filter type_usage_matches requested
 
-let answer_client_hello_common state reneg ch raw =
+let answer_client_hello_common choices state reneg ch raw =
   let process_client_hello ch config =
     let host = hostname ch
     and cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites
@@ -162,11 +162,7 @@ let answer_client_hello_common state reneg ch raw =
       else
         return (cciphers, [], None) ) >>= fun (cciphers, chain, priv) ->
 
-    ( match first_match cciphers config.ciphers with
-      | Some x -> return x
-      | None   -> match first_match cciphers Config.Ciphers.supported with
-        | Some _ -> fail (`Error (`NoConfiguredCiphersuite cciphers))
-        | None -> fail (`Fatal (`NoCiphersuite ch.ciphersuites)) ) >|= fun cipher ->
+    choices.cipher (List.map Ciphersuite.ciphersuite_to_any_ciphersuite cciphers) >|= fun cipher ->
 
     (* Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ; *)
 
@@ -182,15 +178,16 @@ let answer_client_hello_common state reneg ch raw =
     let server_hello =
       (* RFC 4366: server shall reply with an empty hostname extension *)
       let host = option [] (fun _ -> [Hostname None]) session.own_name
-      and random = Rng.generate 32
+      and random = choices.random ()
       and secren =
         match reneg with
         | None            -> SecureRenegotiation (Cstruct.create 0)
         | Some (cvd, svd) -> SecureRenegotiation (cvd <+> svd)
+      and sessionid = choices.session_id ()
       in
       { version      = state.protocol_version ;
         random       = random ;
-        sessionid    = None ;
+        sessionid ;
         ciphersuites = session.ciphersuite ;
         extensions   = secren :: host }
     in
@@ -225,21 +222,23 @@ let answer_client_hello_common state reneg ch raw =
        ([ assemble_handshake certreq ], { session with client_auth = true })
 
   and kex_dhe_rsa config session version sig_algs =
-    let group         = Config.dh_group in
-    let (secret, msg) = Dh.gen_key group in
-    let dh_state      = group, secret in
-    let written =
-      let dh_param = Crypto.dh_params_pack group msg in
-      Writer.assemble_dh_parameters dh_param in
+    match choices.dh_secret () with
+    | None -> assert false
+    | Some (group, secret, msg) ->
+      let dh_state = group, secret in
+      let written =
+        let dh_param = Crypto.dh_params_pack group msg in
+        Writer.assemble_dh_parameters dh_param in
 
-    let data = session.client_random <+> session.server_random <+> written in
+      let data = session.client_random <+> session.server_random <+> written in
 
-    private_key session >>= fun priv ->
-    signature version data sig_algs config.hashes priv >|= fun sgn ->
-    let kex = ServerKeyExchange (written <+> sgn) in
-    let hs = Writer.assemble_handshake kex in
-    (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ; *)
-    (hs, dh_state) in
+      private_key session >>= fun priv ->
+      signature version data sig_algs config.hashes priv >|= fun sgn ->
+      let kex = ServerKeyExchange (written <+> sgn) in
+      let hs = Writer.assemble_handshake kex in
+      (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ; *)
+      (hs, dh_state)
+  in
 
   process_client_hello ch state.config >>= fun session ->
   let sh, session = server_hello session reneg in
@@ -277,14 +276,7 @@ let answer_client_hello_common state reneg ch raw =
   ({ state with machina = Server machina },
    [`Record (Packet.HANDSHAKE, Cs.appends out_recs)])
 
-let agreed_version supported requested =
-  match supported_protocol_version supported requested with
-  | Some x -> return x
-  | None   -> match requested with
-    | Supported v -> fail (`Error (`NoConfiguredVersion v))
-    | v -> fail (`Fatal (`NoVersion v))
-
-let answer_client_hello state (ch : client_hello) raw =
+let answer_client_hello choices state (ch : client_hello) raw =
   let ensure_reneg ciphers their_data  =
     let reneg_cs = List.mem Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
     match reneg_cs, their_data with
@@ -296,10 +288,8 @@ let answer_client_hello state (ch : client_hello) raw =
   let process_client_hello config ch =
     let cciphers = ch.ciphersuites in
     guard (client_hello_valid ch) (`Fatal `InvalidClientHello) >>= fun () ->
-    agreed_version config.protocol_versions ch.version >>= fun version ->
-    guard (not (List.mem Packet.TLS_FALLBACK_SCSV cciphers) ||
-           version = max_protocol_version config.protocol_versions)
-      (`Fatal `InappropriateFallback) >>= fun () ->
+    choices.version ch.version >>= fun version ->
+    choices.fallback cciphers version >>= fun () ->
     let theirs = get_secure_renegotiation ch.extensions in
     ensure_reneg cciphers theirs >|= fun () ->
 
@@ -309,9 +299,9 @@ let answer_client_hello state (ch : client_hello) raw =
   in
 
   process_client_hello state.config ch >>= fun protocol_version ->
-  answer_client_hello_common { state with protocol_version } None ch raw
+  answer_client_hello_common choices { state with protocol_version } None ch raw
 
-let answer_client_hello_reneg state (ch : client_hello) raw =
+let answer_client_hello_reneg choices state (ch : client_hello) raw =
   (* ensure reneg allowed and supplied *)
   let ensure_reneg our_data their_data  =
     match our_data, their_data with
@@ -321,7 +311,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
 
   let process_client_hello config oldversion ours ch =
     guard (client_hello_valid ch) (`Fatal `InvalidClientHello) >>= fun () ->
-    agreed_version config.protocol_versions ch.version >>= fun version ->
+    choices.version ch.version >>= fun version ->
     guard (version = oldversion) (`Fatal (`InvalidRenegotiationVersion version)) >>= fun () ->
     let theirs = get_secure_renegotiation ch.extensions in
     ensure_reneg ours theirs >|= fun () ->
@@ -334,7 +324,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
   | true , session :: _  ->
      let reneg = session.renegotiation in
      process_client_hello config state.protocol_version reneg ch >>= fun version ->
-     answer_client_hello_common state (Some reneg) ch raw
+     answer_client_hello_common choices state (Some reneg) ch raw
   | false, _             ->
     let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
     return (state, [`Record (Packet.ALERT, no_reneg)])
@@ -358,14 +348,14 @@ let handle_change_cipher_spec ss state packet =
   | Or_error.Error er, _ -> fail (`Fatal (`ReaderError er))
   | _ -> fail (`Fatal `UnexpectedCCS)
 
-let handle_handshake ss hs buf =
+let handle_handshake choices ss hs buf =
   let open Reader in
   match parse_handshake buf with
   | Or_error.Ok handshake ->
     (* Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake; *)
      ( match ss, handshake with
        | AwaitClientHello, ClientHello ch ->
-          answer_client_hello hs ch buf
+          answer_client_hello choices hs ch buf
        | AwaitClientCertificate_RSA (session, log), Certificate cs ->
           answer_client_certificate_RSA hs session cs buf log
        | AwaitClientCertificate_DHE_RSA (session, dh_sent, log), Certificate cs ->
@@ -379,8 +369,8 @@ let handle_handshake ss hs buf =
        | AwaitClientFinished (session, log), Finished fin ->
           answer_client_finished hs session fin buf log
        | Established, ClientHello ch -> (* client-initiated renegotiation *)
-          answer_client_hello_reneg hs ch buf
+          answer_client_hello_reneg choices hs ch buf
        | AwaitClientHelloRenegotiate, ClientHello ch -> (* hello-request send, renegotiation *)
-          answer_client_hello_reneg hs ch buf
+          answer_client_hello_reneg choices hs ch buf
        | _, hs -> fail (`Fatal (`UnexpectedHandshake hs)) )
   | Or_error.Error re -> fail (`Fatal (`ReaderError re))
