@@ -45,6 +45,37 @@ let supported_protocol_version (min, max) v =
     | true, _    -> any_version_to_version v
     | _   , _    -> None
 
+let agreed_version configured requested =
+  match supported_protocol_version configured requested with
+  | Some x -> return x
+  | None   -> match requested with
+    | Supported v -> fail (`Error (`NoConfiguredVersion v))
+    | v -> fail (`Fatal (`NoVersion v))
+
+let agreed_cipher configured requested =
+  let ciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite requested in
+  match first_match ciphers configured with
+  | Some x -> return x
+  | None   ->  match first_match ciphers Config.Ciphers.supported with
+    | Some _ -> fail (`Error (`NoConfiguredCiphersuite ciphers))
+    | None -> fail (`Fatal (`NoCiphersuite requested))
+
+let fallback_check configured cciphers version =
+  guard (not (List.mem Packet.TLS_FALLBACK_SCSV cciphers) ||
+         version = max_protocol_version configured)
+    (`Fatal `InappropriateFallback)
+
+let implementation_choices (config : Config.config) = {
+  version = agreed_version config.Config.protocol_versions ;
+  cipher = agreed_cipher config.Config.ciphers ;
+  fallback = fallback_check config.Config.protocol_versions ;
+  random = (fun () -> Rng.generate 32) ;
+  dh_secret = (fun () ->
+      let sec, msg = Dh.gen_key Config.dh_group in
+      Some (Config.dh_group, sec, msg)) ;
+  session_id = (fun () -> None) ;
+}
+
 let to_ext_type = function
   | Hostname _            -> `Hostname
   | MaxFragmentLength _   -> `MaxFragmentLength

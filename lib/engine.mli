@@ -17,7 +17,7 @@
 (** {1 Constructors} *)
 
 (** The abstract [state] type. *)
-type state
+type state = State.state
 
 (** [client client] is [tls * out] where [tls] is the initial state,
     and [out] the initial client hello *)
@@ -112,11 +112,15 @@ type ret = [
 
 (** [handle_tls state buffer] is [ret], depending on incoming [state]
     and [buffer], return appropriate {!ret} *)
-val handle_tls           : state -> Cstruct.t -> ret
+val handle_tls           : ?choices:State.choices -> state -> Cstruct.t -> ret
 
 (** [can_handle_appdata state] is a predicate which indicates when the
     connection has already completed a handshake. *)
 val can_handle_appdata    : state -> bool
+
+val separate_records : Cstruct.t ->  ((Core.tls_hdr * Cstruct.t) list * Cstruct.t) State.t
+val separate_handshakes : Cstruct.t ->  (Cstruct.t list * Cstruct.t) State.t
+val decrypt : Core.tls_version -> State.crypto_state -> Packet.content_type -> Cstruct.t -> (State.crypto_state * Cstruct.t) State.t
 
 (** [handshake_in_progress tls] is a predicate which indicates whether
     a handshake is in progress. *)
