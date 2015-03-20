@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 47d5d21431a063285291bc3d1c8f0b34)
+# DO NOT EDIT (digest: a87d6c135ac16ff43e814703e201b18c)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -198,6 +198,16 @@ true: annot, bin_annot
 "tracer/trace_checker.native": pkg_x509
 "tracer/trace_checker.native": use_tls
 "tracer/trace_checker.native": use_tracing
+# Executable read_pinata_trace
+"tracer/read_pinata_trace.native": pkg_cstruct.syntax
+"tracer/read_pinata_trace.native": pkg_cstruct.unix
+"tracer/read_pinata_trace.native": pkg_nocrypto
+"tracer/read_pinata_trace.native": pkg_sexplib
+"tracer/read_pinata_trace.native": pkg_sexplib.syntax
+"tracer/read_pinata_trace.native": pkg_stringext
+"tracer/read_pinata_trace.native": pkg_x509
+"tracer/read_pinata_trace.native": use_tls
+"tracer/read_pinata_trace.native": use_tracing
 <tracer/*.ml{,i,y}>: pkg_cstruct.syntax
 <tracer/*.ml{,i,y}>: pkg_cstruct.unix
 <tracer/*.ml{,i,y}>: pkg_nocrypto
