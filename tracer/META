@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: aecf11ba02e7b5623ec9c4af2a42904f)
+version = "0.6.0"
+description = "TLS support for OCaml"
+requires = "sexplib sexplib.syntax tls cstruct.unix stringext"
+archive(byte) = "tracing.cma"
+archive(byte, plugin) = "tracing.cma"
+archive(native) = "tracing.cmxa"
+archive(native, plugin) = "tracing.cmxs"
+exists_if = "tracing.cma"
+# OASIS_STOP
+

@@ -145,7 +145,7 @@ Executable "test_client"
 Library "tracing"
   Build          $: flag(tracer)
   Path            : tracer/
-  Modules         : Tracer_common, Read_trace, Tracer_comparison
+  Modules         : Tracer_common, Read_trace, Tracer_comparison, Tracer_replay
   Install         : false
   BuildDepends    : sexplib, sexplib.syntax, tls, cstruct.unix, stringext
 

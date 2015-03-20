@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 23e4e9c6084252c78d7e3c085c6f050c)
+# DO NOT EDIT (digest: 47d5d21431a063285291bc3d1c8f0b34)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -176,4 +176,35 @@ true: annot, bin_annot
 <lwt/examples/*.ml{,i,y}>: pkg_x509
 <lwt/examples/*.ml{,i,y}>: use_tls
 <lwt/examples/*.ml{,i,y}>: use_tls-lwt
+# Library tracing
+"tracer/tracing.cmxs": use_tracing
+# Executable trace_reader
+"tracer/trace_reader.native": pkg_cstruct.syntax
+"tracer/trace_reader.native": pkg_cstruct.unix
+"tracer/trace_reader.native": pkg_nocrypto
+"tracer/trace_reader.native": pkg_sexplib
+"tracer/trace_reader.native": pkg_sexplib.syntax
+"tracer/trace_reader.native": pkg_stringext
+"tracer/trace_reader.native": pkg_x509
+"tracer/trace_reader.native": use_tls
+"tracer/trace_reader.native": use_tracing
+# Executable trace_checker
+"tracer/trace_checker.native": pkg_cstruct.syntax
+"tracer/trace_checker.native": pkg_cstruct.unix
+"tracer/trace_checker.native": pkg_nocrypto
+"tracer/trace_checker.native": pkg_sexplib
+"tracer/trace_checker.native": pkg_sexplib.syntax
+"tracer/trace_checker.native": pkg_stringext
+"tracer/trace_checker.native": pkg_x509
+"tracer/trace_checker.native": use_tls
+"tracer/trace_checker.native": use_tracing
+<tracer/*.ml{,i,y}>: pkg_cstruct.syntax
+<tracer/*.ml{,i,y}>: pkg_cstruct.unix
+<tracer/*.ml{,i,y}>: pkg_nocrypto
+<tracer/*.ml{,i,y}>: pkg_sexplib
+<tracer/*.ml{,i,y}>: pkg_sexplib.syntax
+<tracer/*.ml{,i,y}>: pkg_stringext
+<tracer/*.ml{,i,y}>: pkg_x509
+<tracer/*.ml{,i,y}>: use_tls
+<tracer/*.ml{,i,y}>: use_tracing
 # OASIS_STOP
