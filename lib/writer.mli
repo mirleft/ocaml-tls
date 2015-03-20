@@ -3,6 +3,8 @@ val assemble_protocol_version : Core.tls_version -> Cstruct.t
 
 val assemble_handshake : Core.tls_handshake -> Cstruct.t
 
+val assemble_any_hdr : Core.tls_any_version -> (Packet.content_type * Cstruct.t) -> Cstruct.t
+
 val assemble_hdr : Core.tls_version -> (Packet.content_type * Cstruct.t) -> Cstruct.t
 
 val assemble_alert : ?level:Packet.alert_level -> Packet.alert_type -> Cstruct.t

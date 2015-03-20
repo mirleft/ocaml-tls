@@ -4,10 +4,12 @@ open Cstruct
 
 let (<+>) = Utils.Cs.(<+>)
 
-let assemble_protocol_version_int buf version =
-  let major, minor = pair_of_tls_version version in
+let assemble_protocol_version_int_int buf (major, minor) =
   set_uint8 buf 0 major;
   set_uint8 buf 1 minor
+
+let assemble_protocol_version_int buf version =
+  assemble_protocol_version_int_int buf (pair_of_tls_version version)
 
 let assemble_protocol_version version =
   let buf = create 2 in
@@ -16,17 +18,21 @@ let assemble_protocol_version version =
 
 let assemble_any_protocol_version version =
   let buf = create 2 in
-  let major, minor = pair_of_tls_any_version version in
-  set_uint8 buf 0 major ;
-  set_uint8 buf 1 minor ;
+  assemble_protocol_version_int_int buf (pair_of_tls_any_version version) ;
   buf
 
-let assemble_hdr version (content_type, payload) =
+let assemble_hdr_int version (content_type, payload) =
   let buf = create 5 in
   set_uint8 buf 0 (content_type_to_int content_type);
-  assemble_protocol_version_int (shift buf 1) version;
+  assemble_protocol_version_int_int (shift buf 1) version;
   BE.set_uint16 buf 3 (len payload);
   buf <+> payload
+
+let assemble_any_hdr version =
+  assemble_hdr_int (pair_of_tls_any_version version)
+
+let assemble_hdr version =
+  assemble_hdr_int (pair_of_tls_version version)
 
 type len = One | Two | Three
 
