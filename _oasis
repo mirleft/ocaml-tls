@@ -20,6 +20,10 @@ Flag "mirage"
   Description : Mirage backend
   Default     : true
 
+Flag "tracer"
+  Description : Tracing tools
+  Default     : true
+
 Library "tls"
   Path            : lib/
   Modules         : Tracing, Ciphersuite, Packet, Core,
@@ -136,6 +140,30 @@ Executable "test_client"
   CompiledObject  : native
   MainIs          : test_client.ml
   BuildDepends    : tls.lwt
+
+# Tracing tools
+Library "tracing"
+  Build          $: flag(tracer)
+  Path            : tracer/
+  Modules         : Tracer_common, Read_trace, Tracer_comparison
+  Install         : false
+  BuildDepends    : sexplib, sexplib.syntax, tls, cstruct.unix, stringext
+
+Executable "trace_reader"
+  Build          $: flag(tracer)
+  Path            : tracer
+  Install         : false
+  CompiledObject  : native
+  MainIs          : trace_reader.ml
+  BuildDepends    : sexplib, tls, tracing
+
+Executable "trace_checker"
+  Build          $: flag(tracer)
+  Path            : tracer
+  Install         : false
+  CompiledObject  : native
+  MainIs          : trace_checker.ml
+  BuildDepends    : sexplib, tls, tracing
 
 Document api
   Title: Documentation and API reference
