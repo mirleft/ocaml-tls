@@ -33,13 +33,13 @@ val sexp_of_config : config -> Sexplib.Sexp.t
 val default_config : config
 
 (** opaque type of a client configuration *)
-type client
+type client = config
 
 val client_of_sexp : Sexplib.Sexp.t -> client
 val sexp_of_client : client -> Sexplib.Sexp.t
 
 (** opaque type of a server configuration *)
-type server
+type server = config
 
 val server_of_sexp : Sexplib.Sexp.t -> server
 val sexp_of_server : server -> Sexplib.Sexp.t
