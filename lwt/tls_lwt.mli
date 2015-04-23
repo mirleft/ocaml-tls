@@ -104,8 +104,3 @@ val connect :
 
 (** [of_t t] is [ic, oc], the input and output channel. *)
 val of_t : Unix.t -> ic * oc
-
-(** [rng_init ?period device ()] initialises feeding of the random
-    number generator every [period] seconds from the [device] (by default
-    every 10 seconds 8 bytes are fed from [/dev/urandom]. *)
-val rng_init : ?period:int option -> ?device:string -> unit -> unit Lwt.t
