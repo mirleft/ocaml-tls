@@ -101,7 +101,7 @@ cenum compression_method {
   LZS     = 64;
 } as uint8_t (sexp)
 
-(* TLS extensions in hello packets from RFC 4366 *)
+(* TLS extensions in hello packets from RFC 6066, formerly RFC 4366 *)
 cenum extension_type {
   SERVER_NAME                            = 0;
   MAX_FRAGMENT_LENGTH                    = 1;
@@ -109,23 +109,24 @@ cenum extension_type {
   TRUSTED_CA_KEYS                        = 3;
   TRUNCATED_HMAC                         = 4;
   STATUS_REQUEST                         = 5;
-  USER_MAPPING                           = 6; (*RFC4681*)
-  CLIENT_AUTHZ                           = 7; (*RFC5878*)
-  SERVER_AUTHZ                           = 8; (*RFC5878*)
-  CERT_TYPE                              = 9; (*RFC6091*)
-  (* from RFC 4492 *)
-  ELLIPTIC_CURVES                        = 0x000A;
-  EC_POINT_FORMATS                       = 0x000B;
+  USER_MAPPING                           = 6;  (*RFC4681*)
+  CLIENT_AUTHZ                           = 7;  (*RFC5878*)
+  SERVER_AUTHZ                           = 8;  (*RFC5878*)
+  CERT_TYPE                              = 9;  (*RFC6091*)
+  ELLIPTIC_CURVES                        = 10; (*RFC4492*)
+  EC_POINT_FORMATS                       = 11; (*RFC4492*)
   SRP                                    = 12; (*RFC5054*)
   SIGNATURE_ALGORITHMS                   = 13; (*RFC5246*)
   USE_SRP                                = 14; (*RFC5764*)
   HEARTBEAT                              = 15; (*RFC6520*)
-  APPLICATION_LAYER_PROTOCOL_NEGOTIATION = 16; (*draft-friedl-tls-applayerprotoneg*)
+  APPLICATION_LAYER_PROTOCOL_NEGOTIATION = 16; (*RFC7301*)
   STATUS_REQUEST_V2                      = 17; (*RFC6961*)
   SIGNED_CERTIFICATE_TIMESTAMP           = 18; (*RFC6962*)
-  CLIENT_CERTIFICATE_TYPE                = 19; (*RFC-ietf-tls-oob-pubkey-11*)
-  SERVER_CERTIFICATE_TYPE                = 20; (*RFC-ietf-tls-oob-pubkey-11*)
+  CLIENT_CERTIFICATE_TYPE                = 19; (*RFC7250*)
+  SERVER_CERTIFICATE_TYPE                = 20; (*RFC7250*)
   PADDING                                = 21; (*draft-ietf-tls-padding*)
+  ENCRYPT_THEN_MAC                       = 22; (*RFC7366*)
+  EXTENDED_MASTER_SECRET                 = 23; (*draft-ietf-tls-session-hash*)
   SESSIONTICKET_TLS                      = 35; (*RFC4507*)
   RENEGOTIATION_INFO                     = 0xFF01; (*RFC5746*)
 } as uint16_t (sexp)
