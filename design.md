@@ -233,7 +233,8 @@ number of bytes read. The surrounding module, `Tls_lwt`, provides a simpler,
 
 ```OCaml
 let main host port =
-  Tls_lwt.rng_init () >>= fun () ->
+  Nocrypto_entropy_lwt.initialize ()
+  >>
   lwt authenticator = X509_lwt.authenticator (`Ca_dir nss_trusted_ca_dir) in
   lwt (ic, oc)      = Tls_lwt.connect ~authenticator (host, port) in
   let req = String.concat "\r\n" [
