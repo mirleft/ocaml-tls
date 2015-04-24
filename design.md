@@ -200,10 +200,10 @@ needs to be applied to an underlying TCP module, to obtain a TLS transport on
 top. For example:
 
 ```OCaml
-module Server (Stack: STACKV4) (Entropy: ENTROPY) (KV: KV_RO) =
+module Server (Stack: STACKV4) (KV: KV_RO) =
 struct
 
-  module TLS  = Tls_mirage.Make (Stack.TCPV4) (Entropy)
+  module TLS  = Tls_mirage.Make (Stack.TCPV4)
   module X509 = Tls_mirage.X509 (KV) (Clock)
 
   let accept conf flow =
@@ -214,7 +214,6 @@ struct
         TLS.write tls buf >>= fun () -> TLS.close buf
 
   let start stack e kv =
-    TLS.attach_entropy e >>= fun () ->
     lwt authenticator = X509.authenticator kv `Default in
     let conf          = Tls.Config.server_exn ~authenticator () in
     Stack.listen_tcpv4 stack 4433 (accept conf) ;

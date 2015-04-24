@@ -44,7 +44,6 @@ let make_tracer dump =
 
 module Server (C  : CONSOLE)
               (S  : STACKV4)
-              (E  : ENTROPY)
               (KV : KV_RO) =
 struct
 
@@ -71,7 +70,6 @@ struct
       | `Eof     -> L.log_trace c "eof."
 
   let start c stack e kv =
-    TLS.attach_entropy e >>
     lwt cert = X509.certificate kv `Default in
     let conf = Tls.Config.server ~certificates:(`Single cert) () in
     S.listen_tcpv4 stack 4433 (accept c conf handle) ;
@@ -81,7 +79,6 @@ end
 
 module Client (C  : CONSOLE)
               (S  : STACKV4)
-              (E  : ENTROPY)
               (KV : KV_RO) =
 struct
 
@@ -108,7 +105,6 @@ struct
     TLS.write tls initial >> dump ()
 
   let start c stack e kv =
-    TLS.attach_entropy e >>
     lwt authenticator = X509.authenticator kv `CAs in
     let conf          = Tls.Config.client ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer)
