@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c79c812799f3937fe16f29e5e4744ab0)
+# DO NOT EDIT (digest: 5eb87f1a9699084a7ce0fa5335b76193)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -47,6 +47,7 @@ true: annot, bin_annot
 <lwt/*.ml{,i,y}>: pkg_lwt.syntax
 <lwt/*.ml{,i,y}>: pkg_lwt.unix
 <lwt/*.ml{,i,y}>: pkg_nocrypto
+<lwt/*.ml{,i,y}>: pkg_nocrypto.lwt
 <lwt/*.ml{,i,y}>: pkg_sexplib.syntax
 <lwt/*.ml{,i,y}>: pkg_x509
 <lwt/*.ml{,i,y}>: use_tls
@@ -93,6 +94,7 @@ true: annot, bin_annot
 "lwt/examples/starttls_server.native": pkg_lwt.syntax
 "lwt/examples/starttls_server.native": pkg_lwt.unix
 "lwt/examples/starttls_server.native": pkg_nocrypto
+"lwt/examples/starttls_server.native": pkg_nocrypto.lwt
 "lwt/examples/starttls_server.native": pkg_sexplib.syntax
 "lwt/examples/starttls_server.native": pkg_str
 "lwt/examples/starttls_server.native": pkg_x509
@@ -105,6 +107,7 @@ true: annot, bin_annot
 "lwt/examples/echo_server.native": pkg_lwt.syntax
 "lwt/examples/echo_server.native": pkg_lwt.unix
 "lwt/examples/echo_server.native": pkg_nocrypto
+"lwt/examples/echo_server.native": pkg_nocrypto.lwt
 "lwt/examples/echo_server.native": pkg_sexplib.syntax
 "lwt/examples/echo_server.native": pkg_x509
 "lwt/examples/echo_server.native": use_tls
@@ -115,6 +118,7 @@ true: annot, bin_annot
 "lwt/examples/echo_server_sni.native": pkg_lwt.syntax
 "lwt/examples/echo_server_sni.native": pkg_lwt.unix
 "lwt/examples/echo_server_sni.native": pkg_nocrypto
+"lwt/examples/echo_server_sni.native": pkg_nocrypto.lwt
 "lwt/examples/echo_server_sni.native": pkg_sexplib.syntax
 "lwt/examples/echo_server_sni.native": pkg_x509
 "lwt/examples/echo_server_sni.native": use_tls
@@ -125,6 +129,7 @@ true: annot, bin_annot
 "lwt/examples/echo_client.native": pkg_lwt.syntax
 "lwt/examples/echo_client.native": pkg_lwt.unix
 "lwt/examples/echo_client.native": pkg_nocrypto
+"lwt/examples/echo_client.native": pkg_nocrypto.lwt
 "lwt/examples/echo_client.native": pkg_sexplib.syntax
 "lwt/examples/echo_client.native": pkg_x509
 "lwt/examples/echo_client.native": use_tls
@@ -135,6 +140,7 @@ true: annot, bin_annot
 "lwt/examples/http_client.native": pkg_lwt.syntax
 "lwt/examples/http_client.native": pkg_lwt.unix
 "lwt/examples/http_client.native": pkg_nocrypto
+"lwt/examples/http_client.native": pkg_nocrypto.lwt
 "lwt/examples/http_client.native": pkg_sexplib.syntax
 "lwt/examples/http_client.native": pkg_x509
 "lwt/examples/http_client.native": use_tls
@@ -145,6 +151,7 @@ true: annot, bin_annot
 "lwt/examples/test_server.native": pkg_lwt.syntax
 "lwt/examples/test_server.native": pkg_lwt.unix
 "lwt/examples/test_server.native": pkg_nocrypto
+"lwt/examples/test_server.native": pkg_nocrypto.lwt
 "lwt/examples/test_server.native": pkg_sexplib.syntax
 "lwt/examples/test_server.native": pkg_x509
 "lwt/examples/test_server.native": use_tls
@@ -155,6 +162,7 @@ true: annot, bin_annot
 "lwt/examples/test_client.native": pkg_lwt.syntax
 "lwt/examples/test_client.native": pkg_lwt.unix
 "lwt/examples/test_client.native": pkg_nocrypto
+"lwt/examples/test_client.native": pkg_nocrypto.lwt
 "lwt/examples/test_client.native": pkg_sexplib.syntax
 "lwt/examples/test_client.native": pkg_x509
 "lwt/examples/test_client.native": use_tls
@@ -164,6 +172,7 @@ true: annot, bin_annot
 <lwt/examples/*.ml{,i,y}>: pkg_lwt.syntax
 <lwt/examples/*.ml{,i,y}>: pkg_lwt.unix
 <lwt/examples/*.ml{,i,y}>: pkg_nocrypto
+<lwt/examples/*.ml{,i,y}>: pkg_nocrypto.lwt
 <lwt/examples/*.ml{,i,y}>: pkg_sexplib.syntax
 <lwt/examples/*.ml{,i,y}>: pkg_x509
 <lwt/examples/*.ml{,i,y}>: use_tls

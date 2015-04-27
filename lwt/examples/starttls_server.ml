@@ -54,7 +54,7 @@ let start_server () =
       write oc (tag ^ ok_starttls) >>
       Lwt_io.close ic >>= fun () ->
       Lwt_io.close oc >>= fun () ->
-      Tls_lwt.rng_init () >>= fun () ->
+      Nocrypto_entropy_lwt.initialize () >>= fun () ->
       cert () >>= fun cert ->
       Tls_lwt.Unix.server_of_fd 
        (Tls.Config.server ~certificates:(`Single cert) ()) sock_cl >>= fun s ->

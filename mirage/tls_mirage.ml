@@ -1,7 +1,7 @@
 open Lwt
 open Nocrypto
 
-module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
+module Make (F : V1_LWT.FLOW) = struct
 
   module FLOW = F
 
@@ -15,14 +15,6 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) = struct
     | `Tls_failure f -> Tls.Engine.string_of_failure f
     | `Tls_alert a -> Tls.Packet.alert_type_to_string a
     | `Flow err -> F.error_message err
-
-  module ENTROPY = E
-  (*
-   * XXX 1: Would be nice if this happened behind the scenes.
-   * XXX 2: Would be even nicer if nocrypto did this on its own.
-   *)
-  let attach_entropy e =
-    ENTROPY.handler e Nocrypto.Rng.Accumulator.add_rr
 
   type tracer = Sexplib.Sexp.t -> unit
 

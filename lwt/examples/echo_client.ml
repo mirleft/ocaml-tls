@@ -3,8 +3,9 @@ open Ex_common
 open Lwt
 
 let echo_client ?ca host port =
+  Nocrypto_entropy_lwt.initialize () >>
+
   let open Lwt_io in
-  lwt () = Tls_lwt.rng_init () in
 
   let port          = int_of_string port in
   lwt authenticator = X509_lwt.authenticator

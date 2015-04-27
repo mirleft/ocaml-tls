@@ -3,7 +3,7 @@ open Lwt
 open Ex_common
 
 let test_client _ =
-  lwt () = Tls_lwt.rng_init () in
+  Nocrypto_entropy_lwt.initialize () >>
   let port = 4433 in
   let host = "127.0.0.1" in
   lwt authenticator = X509_lwt.authenticator `No_authentication_I'M_STUPID in

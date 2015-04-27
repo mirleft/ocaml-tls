@@ -4,7 +4,6 @@ open V1_LWT
 
 module Main (C  : CONSOLE)
             (S  : STACKV4)
-            (E  : ENTROPY)
             (KV : KV_RO) =
 struct
 
@@ -39,7 +38,6 @@ struct
           listen { callback = handle c ; conn_closed = fun _ () -> () } tls
 
   let start c stack e kv =
-    TLS.attach_entropy e >>
     lwt cert = X509.certificate kv `Default in
     let conf = Tls.Config.server_exn ~certificates:(`Single cert) () in
     S.listen_tcpv4 stack 4433 (upgrade c conf) ;

@@ -1,10 +1,9 @@
 (** Effectful operations usign mirage for pure TLS. *)
 
-(** TLS module given a flow and entropy *)
-module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) : sig
+(** TLS module given a flow*)
+module Make (F : V1_LWT.FLOW) : sig
 
   module FLOW    : V1_LWT.FLOW
-  module ENTROPY : V1_LWT.ENTROPY
 
   (** possible errors: incoming alert, processing failure, or a
       problem in the underlying flow. *)
@@ -21,10 +20,6 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) : sig
     with type error  := error
      and type 'a io  := 'a io
      and type buffer := buffer
-
-  (** [attach_entropy entropy] attaches the entropy source to the
-      random number generator. *)
-  val attach_entropy : ENTROPY.t -> unit Lwt.t
 
   (** [reneg flow] renegotiates the session. *)
   val reneg  : flow -> [ `Ok of unit | `Eof | `Error of error ] Lwt.t
@@ -46,8 +41,7 @@ module Make (F : V1_LWT.FLOW) (E : V1_LWT.ENTROPY) : sig
   val epoch : flow -> [ `Ok of Tls.Engine.epoch_data | `Error ]
 
 end
-  with module FLOW    = F
-   and module ENTROPY = E
+  with module FLOW = F
 
 
 (** X.509 handling given a key value store and a clock *)
