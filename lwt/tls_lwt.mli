@@ -20,6 +20,9 @@ module Unix : sig
 
   (** {1 Unix API} *)
 
+  (** It is the responsibility of the client to handle error
+      conditions.  The underlying file descriptors are not closed. *)
+
   (** Abstract type of a session *)
   type t
 
@@ -60,7 +63,10 @@ module Unix : sig
       [bytes] starting at [offset] to the session. *)
   val write_bytes : t -> Lwt_bytes.t -> int -> int -> unit Lwt.t
 
-  (** [close t] closes the session. *)
+  (** [close t] closes the TLS session by sending a close notify to the peer. *)
+  val close_tls : t -> unit Lwt.t
+
+  (** [close t] closes the TLS session and the underlying file descriptor. *)
   val close : t -> unit Lwt.t
 
   (** [reneg t] renegotiates the keys of the session. *)
@@ -102,5 +108,6 @@ val connect_ext :
 val connect :
   ?trace:tracer -> X509_lwt.authenticator -> string * int -> (ic * oc) Lwt.t
 
-(** [of_t t] is [ic, oc], the input and output channel. *)
-val of_t : Unix.t -> ic * oc
+(** [of_t t] is [ic, oc], the input and output channel.  [close]
+    defaults to [!Unix.close]. *)
+val of_t : ?close:(unit -> unit Lwt.t) -> Unix.t -> ic * oc
