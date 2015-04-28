@@ -54,12 +54,9 @@ module Unix = struct
     let recording_errors op t cs =
       try_lwt op t.fd cs with exn ->
         t.state <- `Error exn ;
-        safely (Lwt_unix.close t.fd) >> fail exn
+        fail exn
     in
     (recording_errors Lwt_cs.read, recording_errors Lwt_cs.write_full)
-
-  let send_and_close_no_exn fd buf =
-    safely (Lwt_cs.write_full fd buf >> Lwt_unix.close fd)
 
   let when_some f = function None -> return_unit | Some x -> f x
 
@@ -76,20 +73,18 @@ module Unix = struct
       match
         tracing t @@ fun () -> Tls.Engine.handle_tls tls buf
       with
-      | `Ok (`Ok tls, `Response resp, `Data data) ->
-          t.state <- `Active tls ;
-          (resp |> when_some (write_t t)) >> return (`Ok data)
-
-      | `Ok ((`Eof | `Alert _ as err), `Response resp, `Data data) ->
-          let e_res = match err with
+      | `Ok (state', `Response resp, `Data data) ->
+          let state' = match state' with
+            | `Ok tls  -> `Active tls
             | `Eof     -> `Eof
-            | `Alert a -> `Error (Tls_alert a) in
-          t.state <- e_res ;
-          (resp |> when_some (send_and_close_no_exn t.fd)) >> return (`Ok data)
+            | `Alert a -> `Error (Tls_alert a)
+          in
+          t.state <- state' ;
+          (resp |> when_some (write_t t)) >> return (`Ok data)
 
       | `Fail (alert, `Response resp) ->
           t.state <- `Error (Tls_failure alert) ;
-          send_and_close_no_exn t.fd resp >> read_react t
+          write_t t resp >> read_react t
     in
 
     match t.state with
@@ -166,14 +161,17 @@ module Unix = struct
         | None -> fail @@ Invalid_argument "tls: can't rekey: handshake in progress"
         | Some (tls', buf) -> t.state <- `Active tls' ; write_t t buf
 
-  let close t =
+  let close_tls t =
     match t.state with
     | `Active tls ->
         let (_, buf) = tracing t @@ fun () ->
           Tls.Engine.send_close_notify tls in
         t.state <- `Eof ;
-        send_and_close_no_exn t.fd buf
+        write_t t buf
     | _ -> return_unit
+
+  let close t =
+    safely (close_tls t) >> Lwt_unix.close t.fd
 
   let server_of_fd ?trace config fd =
     drain_handshake {
@@ -192,19 +190,19 @@ module Unix = struct
       linger = None ;
       tracer = trace ;
     } in
-    Lwt_cs.write_full fd init >> drain_handshake t
+    write_t t init >> drain_handshake t
 
 
   let accept ?trace conf fd =
     lwt (fd', addr) = Lwt_unix.accept fd in
-    lwt t = server_of_fd conf ?trace fd' in
-    return (t, addr)
+    try_lwt (server_of_fd conf ?trace fd' >|= fun t -> (t, addr))
+    with exn -> safely (Lwt_unix.close fd') >> fail exn
 
   let connect ?trace conf (host, port) =
     lwt addr = resolve host (string_of_int port) in
     let fd   = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
-    Lwt_unix.connect fd addr >> client_of_fd ?trace conf ~host fd
-
+    try_lwt (Lwt_unix.connect fd addr >> client_of_fd ?trace conf ~host fd)
+    with exn -> safely (Lwt_unix.close fd) >> fail exn
 
   let read_bytes t bs off len =
     read t (Cstruct.of_bigarray ~off ~len bs)
@@ -225,11 +223,13 @@ end
 type ic = Lwt_io.input_channel
 type oc = Lwt_io.output_channel
 
-let of_t t =
-  let open Lwt_io in
-  let close () = Unix.close t in
-  (make ~close ~mode:Input (Unix.read_bytes t)),
-  (make ~close ~mode:Output @@
+let of_t ?close t =
+  let close = match close with
+    | None   -> (fun () -> Unix.close t)
+    | Some f -> f
+  in
+  (Lwt_io.make ~close ~mode:Lwt_io.Input (Unix.read_bytes t)),
+  (Lwt_io.make ~close ~mode:Lwt_io.Output @@
     fun a b c -> Unix.write_bytes t a b c >> return c)
 
 let accept_ext ?trace conf fd =
