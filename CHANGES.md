@@ -1,3 +1,8 @@
+0.4.1 (master):
+* updates to extension enum
+* removed entropy feeding (done by nocrypto)
+* Tls_lwt file descriptor lifecycle: not eagerly close file descriptors
+
 0.4.0 (2015-03-19):
 * client authentication (both client and server side)
 * server side SNI configuration (see sni.md)
