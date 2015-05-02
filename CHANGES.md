@@ -1,7 +1,7 @@
-0.4.1 (master):
-* updates to extension enum
-* removed entropy feeding (done by nocrypto)
-* Tls_lwt file descriptor lifecycle: not eagerly close file descriptors
+0.5.0 (2015-05-02):
+* updates to extension enum (contributed by Dave Garrett #264)
+* removed entropy feeding (done by nocrypto) #265
+* Tls_lwt file descriptor lifecycle: not eagerly close file descriptors #266
 
 0.4.0 (2015-03-19):
 * client authentication (both client and server side)
