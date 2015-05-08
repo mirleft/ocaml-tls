@@ -7,7 +7,7 @@ module Main (C  : CONSOLE)
             (KV : KV_RO) =
 struct
 
-  module TLS  = Tls_mirage.Make (S.TCPV4) (E)
+  module TLS  = Tls_mirage.Make (S.TCPV4)
   module X509 = Tls_mirage.X509 (KV) (Clock)
   module Chan = Channel.Make (TLS)
   module Http = HTTP.Make (Chan)
@@ -31,15 +31,15 @@ struct
     return (resp, body)
 
   let upgrade c conf tcp =
-    TLS.server_of_tcp_flow conf tcp >>= function
-      | `Error _ -> fail (Failure "tls init")
+    TLS.server_of_flow conf tcp >>= function
+      | `Error _  | `Eof -> fail (Failure "tls init")
       | `Ok tls  ->
           let open Http.Server in
           listen { callback = handle c ; conn_closed = fun _ () -> () } tls
 
-  let start c stack e kv =
+  let start c stack kv =
     lwt cert = X509.certificate kv `Default in
-    let conf = Tls.Config.server_exn ~certificates:(`Single cert) () in
+    let conf = Tls.Config.server ~certificates:(`Single cert) () in
     S.listen_tcpv4 stack 4433 (upgrade c conf) ;
     S.listen stack
 
