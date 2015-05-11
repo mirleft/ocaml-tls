@@ -110,7 +110,7 @@ let validate_certificate_chain = function
      if Rsa.pub_bits pub < min_rsa_key_size then
        invalid "RSA key too short!" ;
      ( match X509.cert_pubkey s with
-       | Some (`RSA pub') when pub = pub' -> ()
+       | `RSA pub' when pub = pub' -> ()
        | _ -> invalid "public / private key combination" ) ;
      ( match init_and_last chain with
        | Some (ch, trust) ->

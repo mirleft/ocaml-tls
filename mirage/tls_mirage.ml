@@ -227,7 +227,7 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) = struct
       lwt certs =
         read_full kv (path </> name ^ ".pem") >|= Cert.of_pem_cstruct
       and pk =
-        read_full kv (path </> name ^ ".key") >|= PK.of_pem_cstruct1 in
+        read_full kv (path </> name ^ ".key") >|= PrivateKey.of_pem_cstruct1 in
       return (certs, pk)
     in function | `Default   -> read default_cert
                 | `Name name -> read name

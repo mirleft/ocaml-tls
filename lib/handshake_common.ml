@@ -161,8 +161,8 @@ let peer_rsa_key = function
   | [] -> fail (`Fatal `NoCertificateReceived)
   | cert::_ ->
     match X509.cert_pubkey cert with
-    | Some (`RSA key) -> return key
-    | _               -> fail (`Fatal `NotRSACertificate)
+    | `RSA key -> return key
+    | _        -> fail (`Fatal `NotRSACertificate)
 
 let verify_digitally_signed version data signature_data certificates =
   let signature_verifier version data =
@@ -210,8 +210,8 @@ let validate_chain authenticator certificates hostname =
   and key_size min cs =
     let check c =
       match X509.cert_pubkey c with
-      | Some (`RSA key) when Rsa.pub_bits key >= min -> true
-      | _                                            -> false
+      | `RSA key when Rsa.pub_bits key >= min -> true
+      | _                                     -> false
     in
     guard (List.for_all check cs) (`Fatal `KeyTooSmall)
 
