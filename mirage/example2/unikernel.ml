@@ -9,16 +9,14 @@ struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
   module X509 = Tls_mirage.X509 (KV) (Clock)
-  module Chan = Channel.Make (TLS)
-  module Http = HTTP.Make (Chan)
+  module Http = Cohttp_mirage.Server (TLS)
 
-  open Http
   module Body = Cohttp_lwt_body
 
   let handle c conn req body =
     let resp = Http.Response.make ~status:`OK () in
     lwt body =
-      lwt inlet = match req.Http.Request.meth with
+      lwt inlet = match Http.Request.meth req with
         | `POST ->
             lwt contents = Body.to_string body in
             return @@ "<pre>" ^ contents ^ "</pre>"
@@ -34,8 +32,8 @@ struct
     TLS.server_of_flow conf tcp >>= function
       | `Error _  | `Eof -> fail (Failure "tls init")
       | `Ok tls  ->
-          let open Http.Server in
-          listen { callback = handle c ; conn_closed = fun _ () -> () } tls
+        let t = Http.make (handle c) () in
+        Http.listen t tls () ()
 
   let start c stack kv =
     lwt cert = X509.certificate kv `Default in
