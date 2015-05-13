@@ -93,13 +93,8 @@ Low-level API
     default configuration and the <code class="code">authenticator</code>.<br>
 </div>
 
-<pre><span id="VALof_t"><span class="keyword">val</span> of_t</span> : <code class="type"><a href="Tls_lwt.Unix.html#TYPEt">Unix.t</a> -> <a href="Tls_lwt.html#TYPEic">ic</a> * <a href="Tls_lwt.html#TYPEoc">oc</a></code></pre><div class="info ">
-<code class="code">of_t t</code> is <code class="code">ic, oc</code>, the input and output channel.<br>
-</div>
-
-<pre><span id="VALrng_init"><span class="keyword">val</span> rng_init</span> : <code class="type">?period:int option -> ?device:string -> unit -> unit Lwt.t</code></pre><div class="info ">
-<code class="code">rng_init ?period device ()</code> initialises feeding of the random
-    number generator every <code class="code">period</code> seconds from the <code class="code">device</code> (by default
-    every 10 seconds 8 bytes are fed from <code class="code">/dev/urandom</code>.<br>
+<pre><span id="VALof_t"><span class="keyword">val</span> of_t</span> : <code class="type">?close:(unit -> unit Lwt.t) -> <a href="Tls_lwt.Unix.html#TYPEt">Unix.t</a> -> <a href="Tls_lwt.html#TYPEic">ic</a> * <a href="Tls_lwt.html#TYPEoc">oc</a></code></pre><div class="info ">
+<code class="code">of_t t</code> is <code class="code">ic, oc</code>, the input and output channel.  <code class="code">close</code>
+    defaults to <code class="code">!Unix.close</code>.<br>
 </div>
 </body></html>

@@ -25,10 +25,9 @@
 </div>
 <h1>Functor <a href="type_Tls_mirage.Make.html">Tls_mirage.Make</a></h1>
 
-<pre><span class="keyword">module</span> Make: <div class="sig_block"><code class="code">functor (</code><code class="code">F</code><code class="code"> : </code><code class="type">V1_LWT.FLOW</code><code class="code">) -&gt; </code><div class="sig_block"><code class="code">functor (</code><code class="code">E</code><code class="code"> : </code><code class="type">V1_LWT.ENTROPY</code><code class="code">) -&gt; </code><code class="code">sig</code> <a href="Tls_mirage.Make.html">..</a> <code class="code">end</code><code class="type"> 
-  with module FLOW    = F
-   and module ENTROPY = E</code></div></div></pre><div class="info module top">
-TLS module given a flow and entropy<br>
+<pre><span class="keyword">module</span> Make: <div class="sig_block"><code class="code">functor (</code><code class="code">F</code><code class="code"> : </code><code class="type">V1_LWT.FLOW</code><code class="code">) -&gt; </code><code class="code">sig</code> <a href="Tls_mirage.Make.html">..</a> <code class="code">end</code><code class="type"> 
+  with module FLOW = F</code></div></pre><div class="info module top">
+TLS module given a flow<br>
 </div>
 <table border="0" cellpadding="3" width="100%">
 <tr>
@@ -40,11 +39,6 @@ TLS module given a flow and entropy<br>
 <code>F</code></td>
 <td align="center" valign="top">:</td>
 <td><code class="type">V1_LWT.FLOW</code>
-<tr>
-<td align="center" valign="top" width="15%">
-<code>E</code></td>
-<td align="center" valign="top">:</td>
-<td><code class="type">V1_LWT.ENTROPY</code>
 </table>
 </td>
 </tr>
@@ -52,7 +46,6 @@ TLS module given a flow and entropy<br>
 <hr width="100%">
 
 <pre><span class="keyword">module</span> <a href="Tls_mirage.Make.FLOW.html">FLOW</a>: <code class="type">V1_LWT.FLOW</code><code class="type"> </code></pre>
-<pre><span class="keyword">module</span> <a href="Tls_mirage.Make.ENTROPY.html">ENTROPY</a>: <code class="type">V1_LWT.ENTROPY</code><code class="type"> </code></pre>
 <pre><span id="TYPEerror"><span class="keyword">type</span> <code class="type"></code>error</span> = <code class="type">[ `Flow of FLOW.error<br>       | `Tls_alert of Tls.Packet.alert_type<br>       | `Tls_failure of Tls.Engine.failure ]</code> </pre>
 <div class="info ">
 possible errors: incoming alert, processing failure, or a
@@ -72,11 +65,6 @@ possible errors: incoming alert, processing failure, or a
 <pre><span class="keyword">include</span> V1_LWT.FLOW</pre>
 <div class="info ">
 we provide the FLOW interface<br>
-</div>
-
-<pre><span id="VALattach_entropy"><span class="keyword">val</span> attach_entropy</span> : <code class="type">ENTROPY.t -> unit Lwt.t</code></pre><div class="info ">
-<code class="code">attach_entropy entropy</code> attaches the entropy source to the
-      random number generator.<br>
 </div>
 
 <pre><span id="VALreneg"><span class="keyword">val</span> reneg</span> : <code class="type">flow -> [ `Eof | `Error of <a href="Tls_mirage.Make.html#TYPEerror">error</a> | `Ok of unit ] Lwt.t</code></pre><div class="info ">

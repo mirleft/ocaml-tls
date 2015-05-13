@@ -32,6 +32,9 @@ Low-level API<br>
 <hr width="100%">
 <br>
 <h1 id="1_UnixAPI">Unix API</h1><br>
+<br>
+It is the responsibility of the client to handle error
+      conditions.  The underlying file descriptors are not closed.<br>
 
 <pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> </pre>
 <div class="info ">
@@ -86,8 +89,12 @@ Abstract type of a session<br>
       <code class="code">bytes</code> starting at <code class="code">offset</code> to the session.<br>
 </div>
 
+<pre><span id="VALclose_tls"><span class="keyword">val</span> close_tls</span> : <code class="type"><a href="Tls_lwt.Unix.html#TYPEt">t</a> -> unit Lwt.t</code></pre><div class="info ">
+<code class="code">close t</code> closes the TLS session by sending a close notify to the peer.<br>
+</div>
+
 <pre><span id="VALclose"><span class="keyword">val</span> close</span> : <code class="type"><a href="Tls_lwt.Unix.html#TYPEt">t</a> -> unit Lwt.t</code></pre><div class="info ">
-<code class="code">close t</code> closes the session.<br>
+<code class="code">close t</code> closes the TLS session and the underlying file descriptor.<br>
 </div>
 
 <pre><span id="VALreneg"><span class="keyword">val</span> reneg</span> : <code class="type"><a href="Tls_lwt.Unix.html#TYPEt">t</a> -> unit Lwt.t</code></pre><div class="info ">

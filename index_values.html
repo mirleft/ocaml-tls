@@ -114,12 +114,6 @@
 <td></td></tr>
 <tr><td><a href="Core.html#VALany_version_to_version">any_version_to_version</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
-<tr><td><a href="Tls_mirage.Make.html#VALattach_entropy">attach_entropy</a> [<a href="Tls_mirage.Make.html">Tls_mirage.Make</a>]</td>
-<td><div class="info">
-<code class="code">attach_entropy entropy</code> attaches the entropy source to the
-      random number generator.
-</div>
-</td></tr>
 <tr><td><a href="Tls_mirage.X509.html#VALauthenticator">authenticator</a> [<a href="Tls_mirage.X509.html">Tls_mirage.X509</a>]</td>
 <td><div class="info">
 <code class="code">authenticator store typ</code> creates an <code class="code">authenticator</code>, either
@@ -216,7 +210,12 @@
 <td></td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALclose">close</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">close t</code> closes the session.
+<code class="code">close t</code> closes the TLS session and the underlying file descriptor.
+</div>
+</td></tr>
+<tr><td><a href="Tls_lwt.Unix.html#VALclose_tls">close_tls</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
+<td><div class="info">
+<code class="code">close t</code> closes the TLS session by sending a close notify to the peer.
 </div>
 </td></tr>
 <tr><td><a href="Packet.html#VALcompression_method_of_sexp">compression_method_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
@@ -527,13 +526,6 @@ All perfect forward secrecy ciphersuites this library supports.
 <tr><td><a href="Ciphersuite.html#VALrequired_keytype_and_usage">required_keytype_and_usage</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td><div class="info">
 <code class="code">required_keytype_and_usage kex</code> is <code class="code">(keytype, usage)</code> which a certificate must have if it is used in the given <code class="code">kex</code> method
-</div>
-</td></tr>
-<tr><td><a href="Tls_lwt.html#VALrng_init">rng_init</a> [<a href="Tls_lwt.html">Tls_lwt</a>]</td>
-<td><div class="info">
-<code class="code">rng_init ?period device ()</code> initialises feeding of the random
-    number generator every <code class="code">period</code> seconds from the <code class="code">device</code> (by default
-    every 10 seconds 8 bytes are fed from <code class="code">/dev/urandom</code>.
 </div>
 </td></tr>
 <tr><td><a href="Core.html#VALrsa_parameters_of_sexp">rsa_parameters_of_sexp</a> [<a href="Core.html">Core</a>]</td>

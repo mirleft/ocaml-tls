@@ -30,10 +30,9 @@ Effectful operations usign mirage for pure TLS.<br>
 </div>
 <hr width="100%">
 
-<pre><span class="keyword">module</span> <a href="Tls_mirage.Make.html">Make</a>: <div class="sig_block"><code class="code">functor (</code><code class="code">F</code><code class="code"> : </code><code class="type">V1_LWT.FLOW</code><code class="code">) -&gt; </code><div class="sig_block"><code class="code">functor (</code><code class="code">E</code><code class="code"> : </code><code class="type">V1_LWT.ENTROPY</code><code class="code">) -&gt; </code><code class="code">sig</code> <a href="Tls_mirage.Make.html">..</a> <code class="code">end</code><code class="type"> 
-  with module FLOW    = F
-   and module ENTROPY = E</code></div></div></pre><div class="info">
-TLS module given a flow and entropy
+<pre><span class="keyword">module</span> <a href="Tls_mirage.Make.html">Make</a>: <div class="sig_block"><code class="code">functor (</code><code class="code">F</code><code class="code"> : </code><code class="type">V1_LWT.FLOW</code><code class="code">) -&gt; </code><code class="code">sig</code> <a href="Tls_mirage.Make.html">..</a> <code class="code">end</code><code class="type"> 
+  with module FLOW = F</code></div></pre><div class="info">
+TLS module given a flow
 </div>
 
 <pre><span class="keyword">module</span> <a href="Tls_mirage.X509.html">X509</a>: <div class="sig_block"><code class="code">functor (</code><code class="code">KV</code><code class="code"> : </code><code class="type">V1_LWT.KV_RO</code><code class="code">) -&gt; </code><div class="sig_block"><code class="code">functor (</code><code class="code">C</code><code class="code"> : </code><code class="type">V1.CLOCK</code><code class="code">) -&gt; </code><code class="code">sig</code> <a href="Tls_mirage.X509.html">..</a> <code class="code">end</code></div></div></pre><div class="info">
