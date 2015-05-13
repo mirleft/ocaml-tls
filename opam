@@ -37,7 +37,7 @@ conflicts: [
 ]
 
 build-test: [
-  [ "./configure" "--%{ounit:enable}-tests" ]
+  [ "./configure" "--%{ounit:enable}%-tests" ]
   [ make "test" ]
 ]
 
