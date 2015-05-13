@@ -47,7 +47,7 @@ module Server (C  : CONSOLE)
               (KV : KV_RO) =
 struct
 
-  module TLS  = Tls_mirage.Make (S.TCPV4) (E)
+  module TLS  = Tls_mirage.Make (S.TCPV4)
   module X509 = Tls_mirage.X509 (KV) (Clock)
   module L    = Log (C)
 
@@ -69,7 +69,7 @@ struct
       | `Error e -> L.log_error c (TLS.error_message e)
       | `Eof     -> L.log_trace c "eof."
 
-  let start c stack e kv =
+  let start c stack kv =
     lwt cert = X509.certificate kv `Default in
     let conf = Tls.Config.server ~certificates:(`Single cert) () in
     S.listen_tcpv4 stack 4433 (accept c conf handle) ;
@@ -82,7 +82,7 @@ module Client (C  : CONSOLE)
               (KV : KV_RO) =
 struct
 
-  module TLS  = Tls_mirage.Make (S.TCPV4) (E)
+  module TLS  = Tls_mirage.Make (S.TCPV4)
   module X509 = Tls_mirage.X509 (KV) (Clock)
   module L    = Log (C)
 
@@ -104,7 +104,7 @@ struct
         L.log_data c "recv" buf >> dump () in
     TLS.write tls initial >> dump ()
 
-  let start c stack e kv =
+  let start c stack kv =
     lwt authenticator = X509.authenticator kv `CAs in
     let conf          = Tls.Config.client ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer)
