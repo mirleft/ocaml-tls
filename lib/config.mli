@@ -98,11 +98,11 @@ module Ciphers : sig
   val supported : ciphersuite list
   (** All ciphersuites this library implements. *)
 
-  val pfs : ciphersuite list
-  (** All perfect forward secrecy ciphersuites this library supports. *)
+  val fs : ciphersuite list
+  (** All forward secrecy ciphersuites this library supports. *)
 
-  val pfs_of : ciphersuite list -> ciphersuite list
-  (** [pfs_of ciphers] selects all perfect forward secrecy ciphersuites from default. *)
+  val fs_of : ciphersuite list -> ciphersuite list
+  (** [pfs_of ciphers] selects all forward secrecy ciphersuites from default. *)
 end
 
 (** {1 Internal use only} *)
