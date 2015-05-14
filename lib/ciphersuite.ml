@@ -141,7 +141,7 @@ let ciphersuite_kex c = fst (get_kex_privprot c)
 (** [ciphersuite_privprot ciphersuite] is [privprot], second projection of [get_kex_privprot] *)
 let ciphersuite_privprot c = snd (get_kex_privprot c)
 
-let ciphersuite_pfs cs =
+let ciphersuite_fs cs =
   match ciphersuite_kex cs with
   | DHE_RSA -> true
   | RSA     -> false

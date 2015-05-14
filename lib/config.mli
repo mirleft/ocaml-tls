@@ -93,16 +93,18 @@ module Ciphers : sig
   (** {1 Cipher selection} *)
 
   val default : ciphersuite list
-  (** All ciphersuites this library uses by default. *)
+  (** [default] is a list of ciphersuites this library uses by default. *)
 
   val supported : ciphersuite list
-  (** All ciphersuites this library implements. *)
+  (** [supported] is a list of ciphersuites this library supports
+      (larger than [default]). *)
 
-  val pfs : ciphersuite list
-  (** All perfect forward secrecy ciphersuites this library supports. *)
+  val fs : ciphersuite list
+  (** [fs] is a list of ciphersuites which are forward secure (sublist
+      of [default]). *)
 
-  val pfs_of : ciphersuite list -> ciphersuite list
-  (** [pfs_of ciphers] selects all perfect forward secrecy ciphersuites from default. *)
+  val fs_of : ciphersuite list -> ciphersuite list
+  (** [fs_of ciphers] selects all forward secrecy ciphersuites from ciphers. *)
 end
 
 (** {1 Internal use only} *)
