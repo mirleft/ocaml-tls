@@ -55,7 +55,7 @@ module Ciphers = struct
     `TLS_RSA_WITH_RC4_128_MD5
     ]
 
-  let fs_of = List.filter Ciphersuite.ciphersuite_pfs
+  let fs_of = List.filter Ciphersuite.ciphersuite_fs
 
   let fs = fs_of default
 
