@@ -1,3 +1,7 @@
+master:
+* dropped 'perfect' from forward secrecy in Config.Ciphers:
+  fs instead of pfs, fs_of instead of pfs_of
+
 0.5.0 (2015-05-02):
 * updates to extension enum (contributed by Dave Garrett #264)
 * removed entropy feeding (done by nocrypto) #265
