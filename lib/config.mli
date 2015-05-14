@@ -100,11 +100,12 @@ module Ciphers : sig
       (larger than [default]). *)
 
   val fs : ciphersuite list
-  (** [fs] is a list of ciphersuites which are forward secure (sublist
-      of [default]). *)
+  (** [fs] is a list of ciphersuites which provide forward secrecy
+      (sublist of [default]). *)
 
   val fs_of : ciphersuite list -> ciphersuite list
-  (** [fs_of ciphers] selects all forward secrecy ciphersuites from ciphers. *)
+  (** [fs_of ciphers] selects all ciphersuites which provide forward
+      secrecy from [ciphers]. *)
 end
 
 (** {1 Internal use only} *)
