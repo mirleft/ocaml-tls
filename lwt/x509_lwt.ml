@@ -54,7 +54,7 @@ let private_of_pems ~cert ~priv_key =
       (o failure @@ Printf.sprintf "Private certificates (%s): %s" cert)
   and pk =
     catch_invalid_arg
-      (read_file priv_key >|= PK.of_pem_cstruct1)
+      (read_file priv_key >|= PrivateKey.of_pem_cstruct1)
       (o failure @@ Printf.sprintf "Private key (%s): %s" priv_key)
   in return (certs, pk)
 
