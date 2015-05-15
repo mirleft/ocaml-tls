@@ -28,6 +28,6 @@ let sexpf ~tag ~f x = sexp ~tag @@ lazy (f x)
 
 let sexpfs ~tag ~f xs = if is_tracing () then List.iter (sexpf ~tag ~f) xs
 
-let cs ~tag = sexpf ~tag ~f:Sexp_ext.Cstruct_s.sexp_of_t
+let cs ~tag = sexpf ~tag ~f:Cstruct.sexp_of_t
 
 let css ~tag css = if is_tracing () then List.iter (cs ~tag) css

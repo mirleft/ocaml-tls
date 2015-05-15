@@ -25,7 +25,7 @@ Library "tls"
   Modules         : Tracing, Ciphersuite, Packet, Core,
                     Printer, Reader, Writer, Config,
                     Engine
-  InternalModules : Control, Sexp_ext, Crypto, Utils,
+  InternalModules : Control, Crypto, Utils,
                     State, Handshake_common, Handshake_crypto,
                     Handshake_server, Handshake_client
   Pack            : true
