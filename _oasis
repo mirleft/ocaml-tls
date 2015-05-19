@@ -165,6 +165,14 @@ Executable "trace_checker"
   MainIs          : trace_checker.ml
   BuildDepends    : sexplib, tls, tracing
 
+Executable "read_pinata_trace"
+  Build          $: flag(tracer)
+  Path            : tracer
+  Install         : false
+  CompiledObject  : native
+  MainIs          : read_pinata_trace.ml
+  BuildDepends    : sexplib, tls, tracing, cstruct.unix
+
 Document api
   Title: Documentation and API reference
   Abstract: OCaml-TLS implements transport layer security in OCaml. It consists

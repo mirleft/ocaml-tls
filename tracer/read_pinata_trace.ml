@@ -233,9 +233,12 @@ module Cfg = struct
     let priv = cs_mmap (name ^ ".key")
     and cert = cs_mmap (name ^ ".pem")
     in
-    X509.Encoding.Pem.(PrivateKey.of_pem_cstruct1 priv, Cert.of_pem_cstruct1 cert)
+    let priv = match X509.Encoding.Pem.Private_key.of_pem_cstruct1 priv with `RSA k -> k
+    and cert = X509.Encoding.Pem.Certificate.of_pem_cstruct1 cert
+    in
+    (priv, cert)
 
-  let ca = X509.Encoding.Pem.Cert.of_pem_cstruct1 (cs_mmap "cacert.pem")
+  let ca = X509.Encoding.Pem.Certificate.of_pem_cstruct1 (cs_mmap "cacert.pem")
 
   let authenticator =
     X509.Authenticator.chain_of_trust ~time:(Unix.gettimeofday ()) [ca]
@@ -322,7 +325,7 @@ let print_stats statistics =
     vals
 
 let maybe_pem c =
-  try Some (X509.Encoding.Pem.Cert.to_pem_cstruct1 c)
+  try Some (X509.Encoding.Pem.Certificate.to_pem_cstruct1 c)
   with _ -> None
 
 (* shouldn't be here, stolen from sexp_ext *)
