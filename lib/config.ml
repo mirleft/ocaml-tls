@@ -67,7 +67,7 @@ let default_hashes =
 let supported_hashes =
   default_hashes @ [ `MD5 ]
 
-let min_dh_size = 512
+let min_dh_size = 1024
 
 let min_rsa_key_size = 1024
 
