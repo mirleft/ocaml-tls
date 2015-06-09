@@ -144,9 +144,10 @@ Executable "test_client"
 # Tracing tools
 Library "tracing"
   Build          $: flag(tracer)
+  Findlibparent   : tls
   Path            : tracer/
   Modules         : Tracer_common, Read_trace, Tracer_comparison, Tracer_replay
-  Install         : false
+  Install         : true
   BuildDepends    : sexplib, sexplib.syntax, tls, cstruct.unix, stringext
 
 Executable "trace_reader"
@@ -155,7 +156,7 @@ Executable "trace_reader"
   Install         : false
   CompiledObject  : native
   MainIs          : trace_reader.ml
-  BuildDepends    : sexplib, tls, tracing
+  BuildDepends    : sexplib, tls, tls.tracing
 
 Executable "trace_checker"
   Build          $: flag(tracer)
@@ -163,7 +164,7 @@ Executable "trace_checker"
   Install         : false
   CompiledObject  : native
   MainIs          : trace_checker.ml
-  BuildDepends    : sexplib, tls, tracing
+  BuildDepends    : sexplib, tls, tls.tracing
 
 Executable "read_pinata_trace"
   Build          $: flag(tracer)
@@ -171,7 +172,7 @@ Executable "read_pinata_trace"
   Install         : false
   CompiledObject  : native
   MainIs          : read_pinata_trace.ml
-  BuildDepends    : sexplib, tls, tracing, cstruct.unix
+  BuildDepends    : sexplib, tls, tls.tracing, cstruct.unix
 
 Document api
   Title: Documentation and API reference
