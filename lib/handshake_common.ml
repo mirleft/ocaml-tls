@@ -70,6 +70,7 @@ let implementation_choices (config : Config.config) = {
   cipher = agreed_cipher config.Config.ciphers ;
   fallback = fallback_check config.Config.protocol_versions ;
   random = (fun () -> Rng.generate 32) ;
+  hostname = (fun name -> option None (fun _ -> Some (Hostname None)) name) ;
   dh_secret = (fun () ->
       let sec, msg = Dh.gen_key Config.dh_group in
       Some (Config.dh_group, sec, msg)) ;

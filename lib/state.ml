@@ -218,6 +218,7 @@ type choices = {
   cipher     : Packet.any_ciphersuite list -> Ciphersuite.ciphersuite or_error ; (* should be: string option -> cs list -> (cipher * cert list * priv) or_error *)
   fallback   : Packet.any_ciphersuite list -> tls_version -> unit or_error ;
   random     : unit -> Cstruct.t ;
+  hostname   : string option -> extension option ;
   dh_secret  : unit -> (Dh.group * Dh.secret * Cstruct.t) option ;
   session_id : unit -> Cstruct.t option ;
 }

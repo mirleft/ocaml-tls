@@ -108,6 +108,9 @@ let fixup_initial_state state raw next =
       cipher = cipher_agreed config.Config.own_certificates config.Config.ciphers server_hello.Core.ciphersuites ;
       fallback = (fun _ _ -> return ()) ;
       random = (fun () -> server_hello.Core.random) ;
+      hostname = (fun _ -> match Handshake_common.hostname server_hello with
+          | Some x -> Some (Hostname None)
+          | None -> None) ;
       session_id = (fun () -> server_hello.Core.sessionid) ;
       dh_secret = (fun () -> dh_sent)
     }
@@ -264,7 +267,9 @@ let rec replay ?choices prev_state state pending_out t ccs alert_out check =
            assert false) ; *)
         (match Tracer_comparison.record_equal exp rcv with
          | (false, _) ->
-           Printf.printf "mismatched records!\n";
+           Printf.printf "mismatched records! expected:";
+           Cstruct.hexdump (snd exp) ;
+           Printf.printf "received" ; Cstruct.hexdump (snd rcv) ;
            Comparison_failed
          | (true, None) -> cmp_data xs ys k
          | (true, Some left) -> cmp_data (left @ xs) ys k )

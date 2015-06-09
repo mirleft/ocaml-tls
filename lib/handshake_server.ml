@@ -177,7 +177,7 @@ let answer_client_hello_common choices state reneg ch raw =
   and server_hello session reneg =
     let server_hello =
       (* RFC 4366: server shall reply with an empty hostname extension *)
-      let host = option [] (fun _ -> [Hostname None]) session.own_name
+      let host = match choices.hostname session.own_name with None -> [] | Some x -> [x]
       and random = choices.random ()
       and secren =
         match reneg with
