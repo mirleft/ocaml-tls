@@ -65,7 +65,6 @@ type fatal = [
   | `BadFinished
   | `HandshakeFragmentsNotEmpty
   | `InvalidDH
-  | `MixedCiphersuites
   | `InvalidRenegotiation
   | `InvalidClientHello
   | `InvalidServerHello
