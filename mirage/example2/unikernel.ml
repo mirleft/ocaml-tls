@@ -33,7 +33,7 @@ struct
       | `Error _  | `Eof -> fail (Failure "tls init")
       | `Ok tls  ->
         let t = Http.make (handle c) () in
-        Http.listen t tls () ()
+        Http.listen t tls
 
   let start c stack kv =
     lwt cert = X509.certificate kv `Default in
