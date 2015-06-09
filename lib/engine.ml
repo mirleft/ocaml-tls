@@ -22,7 +22,7 @@ let alert_of_error = function
   | `NoConfiguredCiphersuite _ -> Packet.HANDSHAKE_FAILURE
   | `NoConfiguredHash _ -> Packet.HANDSHAKE_FAILURE
   | `AuthenticationFailure err -> alert_of_authentication_failure err
-  | `NoMatchingCertificateFound _ -> Packet.HANDSHAKE_FAILURE
+  | `NoMatchingCertificateFound _ -> Packet.UNRECOGNIZED_NAME
   | `NoCertificateConfigured -> Packet.HANDSHAKE_FAILURE
   | `CouldntSelectCertificate -> Packet.HANDSHAKE_FAILURE
 
