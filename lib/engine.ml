@@ -33,7 +33,7 @@ let alert_of_fatal = function
   | `RecordOverflow _ -> Packet.RECORD_OVERFLOW
   | `UnknownRecordVersion _ -> Packet.PROTOCOL_VERSION
   | `UnknownContentType _ -> Packet.UNEXPECTED_MESSAGE
-  | `ReaderError _ -> Packet.UNEXPECTED_MESSAGE
+  | `ReaderError _ -> Packet.ILLEGAL_PARAMETER
   | `CannotHandleApplicationDataYet -> Packet.UNEXPECTED_MESSAGE
   | `NoHeartbeat -> Packet.UNEXPECTED_MESSAGE
   | `BadRecordVersion _ -> Packet.PROTOCOL_VERSION
