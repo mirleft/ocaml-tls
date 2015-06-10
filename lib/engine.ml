@@ -22,7 +22,7 @@ let alert_of_error = function
   | `NoConfiguredCiphersuite _ -> Packet.HANDSHAKE_FAILURE
   | `NoConfiguredHash _ -> Packet.HANDSHAKE_FAILURE
   | `AuthenticationFailure err -> alert_of_authentication_failure err
-  | `NoMatchingCertificateFound _ -> Packet.HANDSHAKE_FAILURE
+  | `NoMatchingCertificateFound _ -> Packet.UNRECOGNIZED_NAME
   | `NoCertificateConfigured -> Packet.HANDSHAKE_FAILURE
   | `CouldntSelectCertificate -> Packet.HANDSHAKE_FAILURE
 
@@ -33,12 +33,12 @@ let alert_of_fatal = function
   | `RecordOverflow _ -> Packet.RECORD_OVERFLOW
   | `UnknownRecordVersion _ -> Packet.PROTOCOL_VERSION
   | `UnknownContentType _ -> Packet.UNEXPECTED_MESSAGE
-  | `ReaderError _ -> Packet.UNEXPECTED_MESSAGE
+  | `ReaderError _ -> Packet.ILLEGAL_PARAMETER
   | `CannotHandleApplicationDataYet -> Packet.UNEXPECTED_MESSAGE
   | `NoHeartbeat -> Packet.UNEXPECTED_MESSAGE
   | `BadRecordVersion _ -> Packet.PROTOCOL_VERSION
   | `InvalidRenegotiation -> Packet.HANDSHAKE_FAILURE
-  | `InvalidServerHello -> Packet.HANDSHAKE_FAILURE
+  | `InvalidServerHello -> Packet.UNSUPPORTED_EXTENSION
   | `InvalidRenegotiationVersion _ -> Packet.HANDSHAKE_FAILURE
   | `NoCertificateReceived -> Packet.HANDSHAKE_FAILURE
   | `NotRSACertificate -> Packet.BAD_CERTIFICATE
@@ -57,7 +57,6 @@ let alert_of_fatal = function
   | `RSASignatureVerificationFailed -> Packet.HANDSHAKE_FAILURE
   | `KeyTooSmall -> Packet.INSUFFICIENT_SECURITY
   | `BadCertificateChain -> Packet.BAD_CERTIFICATE
-  | `MixedCiphersuites -> Packet.HANDSHAKE_FAILURE
   | `NoCiphersuite _ -> Packet.HANDSHAKE_FAILURE
   | `InvalidClientHello -> Packet.HANDSHAKE_FAILURE
   | `InappropriateFallback -> Packet.INAPPROPRIATE_FALLBACK
@@ -286,9 +285,9 @@ module Alert = struct
 
   open Packet
 
-  let make typ = (ALERT, Writer.assemble_alert typ)
+  let make ?level typ = (ALERT, Writer.assemble_alert ?level typ)
 
-  let close_notify = make CLOSE_NOTIFY
+  let close_notify = make ~level:WARNING CLOSE_NOTIFY
 
   let handle buf =
     match Reader.parse_alert buf with
@@ -447,7 +446,7 @@ let handle_tls state buf =
           Tracing.sexpf ~tag:"eof-out" ~f:Sexplib.Conv.sexp_of_unit () ;
           `Eof
         | `Alert al ->
-          Tracing.sexpf ~tag:"ok-alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, al) ;
+          Tracing.sexpf ~tag:"ok-alert-out" ~f:Packet.sexp_of_alert_type al ;
           `Alert al
         | `No_err ->
           Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;

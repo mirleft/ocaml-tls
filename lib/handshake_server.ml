@@ -155,13 +155,10 @@ let answer_client_hello_common state reneg ch raw =
     and cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites
     and tst = Ciphersuite.(o needs_certificate ciphersuite_kex) in
     ( if List.for_all tst cciphers then
-        agreed_cert config.own_certificates host >>= fun cert ->
-        match cert with
+        agreed_cert config.own_certificates host >>= function
         | (c::cs, priv) -> let cciphers = agreed_cipher c cciphers in
                            return (cciphers, c::cs, Some priv)
         | _ -> fail (`Fatal `InvalidSession) (* TODO: assert false / remove by types in config *)
-      else if List.exists tst cciphers then (* TODO: remove this *)
-        fail (`Fatal `MixedCiphersuites)
       else
         return (cciphers, [], None) ) >>= fun (cciphers, chain, priv) ->
 

@@ -285,12 +285,10 @@ let assemble_handshake hs =
   set_uint24_len (shift buf 1) pay_len;
   buf <+> payload
 
-let assemble_alert ?level typ =
+let assemble_alert ?(level = Packet.FATAL) typ =
   let buf = create 2 in
   set_uint8 buf 1 (alert_type_to_int typ);
-  (match level with
-   | None -> set_uint8 buf 0 (alert_level_to_int Packet.FATAL)
-   | Some x -> set_uint8 buf 0 (alert_level_to_int x));
+  set_uint8 buf 0 (alert_level_to_int level) ;
   buf
 
 let assemble_change_cipher_spec =
