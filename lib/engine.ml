@@ -446,7 +446,7 @@ let handle_tls state buf =
           Tracing.sexpf ~tag:"eof-out" ~f:Sexplib.Conv.sexp_of_unit () ;
           `Eof
         | `Alert al ->
-          Tracing.sexpf ~tag:"ok-alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, al) ;
+          Tracing.sexpf ~tag:"ok-alert-out" ~f:Packet.sexp_of_alert_type al ;
           `Alert al
         | `No_err ->
           Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
