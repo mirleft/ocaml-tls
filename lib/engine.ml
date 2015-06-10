@@ -285,9 +285,9 @@ module Alert = struct
 
   open Packet
 
-  let make typ = (ALERT, Writer.assemble_alert typ)
+  let make ?level typ = (ALERT, Writer.assemble_alert ?level typ)
 
-  let close_notify = make CLOSE_NOTIFY
+  let close_notify = make ~level:WARNING CLOSE_NOTIFY
 
   let handle buf =
     match Reader.parse_alert buf with
