@@ -38,7 +38,7 @@ let alert_of_fatal = function
   | `NoHeartbeat -> Packet.UNEXPECTED_MESSAGE
   | `BadRecordVersion _ -> Packet.PROTOCOL_VERSION
   | `InvalidRenegotiation -> Packet.HANDSHAKE_FAILURE
-  | `InvalidServerHello -> Packet.HANDSHAKE_FAILURE
+  | `InvalidServerHello -> Packet.UNSUPPORTED_EXTENSION
   | `InvalidRenegotiationVersion _ -> Packet.HANDSHAKE_FAILURE
   | `NoCertificateReceived -> Packet.HANDSHAKE_FAILURE
   | `NotRSACertificate -> Packet.BAD_CERTIFICATE
