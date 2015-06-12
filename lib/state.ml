@@ -10,7 +10,7 @@ open Nocrypto
 type hmac_key = Cstruct.t
 
 type 'k stream_state = {
-  cipher         : (module Cipher_stream.T    with type key = 'k) ;
+  cipher         : (module Cipher_stream.S with type key = 'k) ;
   cipher_secret  : 'k ;
   hmac           : Hash.hash ;
   hmac_secret    : hmac_key
@@ -21,7 +21,7 @@ type iv_mode =
   | Iv of Cstruct.t  (* traditional CBC (reusing last cipherblock) *)
   | Random_iv        (* TLS 1.1 and higher explicit IV (we use random) *)
   with sexp
-type 'k cbc_cipher    = (module Cipher_block.T.CBC with type key = 'k)
+type 'k cbc_cipher    = (module Cipher_block.S.CBC with type key = 'k)
 type 'k cbc_state = {
   cipher         : 'k cbc_cipher ;
   cipher_secret  : 'k ;
@@ -32,7 +32,7 @@ type 'k cbc_state = {
 
 type nonce = Cstruct.t
 type 'k ccm_state = {
-  cipher         : (module Cipher_block.T.CCM with type key = 'k) ;
+  cipher         : (module Cipher_block.S.CCM with type key = 'k) ;
   cipher_secret  : 'k ;
   nonce          : nonce
 }
