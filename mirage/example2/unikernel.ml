@@ -14,9 +14,9 @@ struct
   module Body = Cohttp_lwt_body
 
   let handle c conn req body =
-    let resp = Http.Response.make ~status:`OK () in
+    let resp = Cohttp.Response.make ~status:`OK () in
     lwt body =
-      lwt inlet = match Http.Request.meth req with
+      lwt inlet = match Cohttp.Request.meth req with
         | `POST ->
             lwt contents = Body.to_string body in
             return @@ "<pre>" ^ contents ^ "</pre>"
