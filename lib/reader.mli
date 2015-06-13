@@ -1,19 +1,24 @@
 
 type error =
-  | TrailingBytes of string
-  | WrongLength   of string
-  | Unknown       of string
+  | TrailingBytes  of string
+  | WrongLength    of string
+  | Unknown        of string
   | Underflow
+  | Overflow       of int
+  | UnknownVersion of (int * int)
+  | UnknownContent of int
 with sexp
 
 module Or_error :
   Control.Or_error with type err = error
 open Or_error
 
-val parse_version_int : Cstruct.t -> int * int
 val parse_version     : Cstruct.t -> Core.tls_version or_error
 val parse_any_version : Cstruct.t -> Core.tls_any_version or_error
-val parse_hdr         : Cstruct.t -> Packet.content_type option * Core.tls_any_version option * int
+val parse_record      : Cstruct.t ->
+  [ `Record of (Core.tls_hdr * Cstruct.t) * Cstruct.t
+  | `Fragment of Cstruct.t
+  ] or_error
 
 val parse_handshake_length : Cstruct.t -> int
 val parse_handshake : Cstruct.t -> Core.tls_handshake or_error
