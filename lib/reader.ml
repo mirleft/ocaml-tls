@@ -416,8 +416,17 @@ let parse_client_key_exchange buf =
   else
     ClientKeyExchange (sub buf 2 length)
 
-let parse_handshake_length buf =
-  get_uint24_len (shift buf 1)
+let parse_handshake_frame buf =
+  if len buf < 4 then
+    (None, buf)
+  else
+    let l = get_uint24_len (shift buf 1) in
+    let hslen = l + 4 in
+    if len buf >= hslen then
+      let hs, rest = split buf hslen in
+      (Some hs, rest)
+    else
+      (None, buf)
 
 let parse_handshake = catch @@ fun buf ->
   let typ = get_uint8 buf 0 in

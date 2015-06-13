@@ -307,15 +307,11 @@ let hs_can_handle_appdata s =
     | _ -> true
 
 let rec separate_handshakes buf =
-  if Cstruct.len buf < 4 then
-    return ([], buf)
-  else
-    match Reader.parse_handshake_length buf with
-    | size when (size + 4) > Cstruct.len buf -> return ([], buf)
-    | size ->
-       let hs, rest = Cstruct.split buf (size + 4) in
-       separate_handshakes rest >|= fun (rt, frag) ->
-       (hs :: rt, frag)
+  match Reader.parse_handshake_frame buf with
+  | None, rest   -> return ([], rest)
+  | Some hs, rest ->
+    separate_handshakes rest >|= fun (rt, frag) ->
+    (hs :: rt, frag)
 
 let handle_change_cipher_spec = function
   | Client cs -> Handshake_client.handle_change_cipher_spec cs

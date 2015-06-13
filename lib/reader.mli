@@ -20,7 +20,7 @@ val parse_record      : Cstruct.t ->
   | `Fragment of Cstruct.t
   ] or_error
 
-val parse_handshake_length : Cstruct.t -> int
+val parse_handshake_frame : Cstruct.t -> (Cstruct.t option * Cstruct.t)
 val parse_handshake : Cstruct.t -> Core.tls_handshake or_error
 
 val parse_alert     : Cstruct.t -> Core.tls_alert or_error
