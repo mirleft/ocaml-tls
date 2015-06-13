@@ -14,6 +14,7 @@ let serve_ssl port callback =
   let server_s =
     let open Lwt_unix in
     let s = socket PF_INET SOCK_STREAM 0 in
+    setsockopt s Unix.SO_REUSEADDR true ;
     bind s (ADDR_INET (Unix.inet_addr_any, port)) ;
     listen s 10 ;
     s in
