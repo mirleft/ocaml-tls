@@ -652,24 +652,25 @@ let bad_digitally_signed_tests =
 
 let good_handshake_hdrs =
   let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
+  let empty = Cstruct.create 0 in
   [
-  ([0; 0; 0; 0], 0) ;
-  ([0; 0; 0; 0xFF], 255) ;
-  ([0; 0; 1; 0], 256) ;
-  ([0; 0; 0xFF; 0], 65280) ;
-  ([0; 0; 0xFF; 0xFF], 65535) ;
-  ([16; 0; 0; 14; 0; 12] @ data , 14) ;
-  ([16; 0; 0; 14] , 14) ;
-  ([3; 0x10; 0x10; 0x10] , 1052688) ;
-  ([3; 1; 0; 0] , 65536) ;
-  ([3; 0xFF; 0; 0] , 16711680) ;
-  ([3; 0xFF; 0xFF; 0xFF], 16777215)
+  ([0; 0; 0], (None, list_to_cstruct [0;0;0])) ;
+  ([0; 0; 0; 0], (Some (list_to_cstruct [0;0;0;0]), empty)) ;
+  ([0; 0; 0; 0xFF], (None, list_to_cstruct [0;0;0;255])) ;
+  ([0; 0; 1; 0], (None, list_to_cstruct [0;0;1;0])) ;
+  ([16; 0; 0; 12] @ data , (Some (list_to_cstruct ([16;0;0;12] @ data)), empty)) ;
+  ([16; 0; 0; 14] @ data , (None, list_to_cstruct ([16;0;0;14] @ data)))
   ]
 
-let good_handshake_hdr_parser (xs, res) _ =
+let good_handshake_hdr_parser (xs, (hs, rest)) _ =
   let buf = list_to_cstruct xs in
-  let value = Reader.parse_handshake_length buf in
-  assert_equal value res
+  match Reader.parse_handshake_frame buf, hs with
+  | (Some x, rest'), Some y ->
+    assert_cs_eq y x ;
+    assert_cs_eq rest rest' ;
+  | (None, rest'), None ->
+    assert_cs_eq rest rest' ;
+  | _ -> assert_failure "handshake_frame parser broken"
 
 let good_handshake_hdr_tests =
   List.mapi
