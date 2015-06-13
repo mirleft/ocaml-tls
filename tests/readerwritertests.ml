@@ -21,18 +21,25 @@ let version_tests =
 
 let readerwriter_header (v, ct, cs) _ =
   let buf = Writer.assemble_hdr v (ct, cs) in
-  match Reader.parse_hdr buf with
-  | (Some ct', Some (Core.Supported v'), l) ->
-     assert_equal v v' ;
-     assert_equal ct ct' ;
-     assert_equal (Cstruct.len cs) l ;
-     let buf' = Writer.assemble_hdr v' (ct', cs) in
-     (match Reader.parse_hdr buf' with
-      | (Some ct'', Some (Core.Supported v''), l') ->
-         assert_equal v v'' ;
-         assert_equal ct ct'' ;
-         assert_equal (Cstruct.len cs) l' ;
-      | _ -> assert_failure "inner header broken")
+  let open Reader in
+  match parse_record buf with
+  | Or_error.Ok (`Record ((hdr, payload), f)) ->
+    let open Core in
+    assert_equal 0 (Cstruct.len f) ;
+    assert_equal (Supported v) hdr.version ;
+    assert_equal ct hdr.content_type ;
+    assert_cs_eq cs payload ;
+    (match hdr.version with
+     | Supported v' ->
+       let buf' = Writer.assemble_hdr v' (hdr.content_type, payload) in
+       (match Reader.parse_record buf' with
+        | Or_error.Ok (`Record ((hdr, payload), f)) ->
+          assert_equal 0 (Cstruct.len f) ;
+          assert_equal (Supported v) hdr.version ;
+          assert_equal ct hdr.content_type ;
+          assert_cs_eq cs payload ;
+        | _ -> assert_failure "inner header broken")
+     | _ -> assert_failure "broken version")
   | _ -> assert_failure "header broken"
 
 let header_tests =

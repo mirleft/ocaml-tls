@@ -79,52 +79,45 @@ let version_tests =
     version_parser_tests
 
 
-let good_header_parser (ct, (major, minor), l, (resct, resv)) _ =
-  let buf =
-    let pre = list_to_cstruct [ ct ; major ; minor ] in
-    pre <+> uint16_to_cstruct l
-  in
-  match Reader.parse_hdr buf with
-  | (Some c, Some v, l') -> assert_equal c resct ;
-                            assert_equal v resv ;
-                            assert_equal l' l
-  | _                    -> assert_failure "header parser broken"
+let good_record_parser (bytes, result) _ =
+  let buf = list_to_cstruct bytes in
+  let open Reader in
+  match parse_record buf, result with
+  | Or_error.Ok (`Record ((hdr, x), f)), `Record ((rhdr, y), g) ->
+    assert_equal rhdr hdr ;
+    assert_cs_eq y x ;
+    assert_cs_eq g f
+  | Or_error.Ok (`Fragment x), `Fragment y -> assert_cs_eq y x
+  | Or_error.Error (Overflow x), `Overflow y -> assert_equal y x
+  | Or_error.Error (UnknownVersion x), `UnknownVersion y -> assert_equal y x
+  | Or_error.Error (UnknownContent x), `UnknownContent y -> assert_equal y x
+  | _ -> assert_failure "record parser broken"
 
-let good_headers = [
-  ( 20 , (3, 1), 100,  ( Packet.CHANGE_CIPHER_SPEC , Core.(Supported TLS_1_0)) ) ;
-  ( 21 , (3, 2), 10,   ( Packet.ALERT , Core.(Supported TLS_1_1)) ) ;
-  ( 22 , (3, 3), 1000, ( Packet.HANDSHAKE , Core.(Supported TLS_1_2)) ) ;
-  ( 23 , (3, 0), 1,    ( Packet.APPLICATION_DATA , Core.SSL_3) ) ;
-  ( 24 , (3, 4), 20,   ( Packet.HEARTBEAT , Core.TLS_1_X 4) ) ;
+let good_records =
+  let open Core in
+  let open Packet in
+  let empty = Cstruct.create 0 in
+  [
+    ([ 20 ; 3 ; 1 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = Supported TLS_1_0 }, empty), empty) ) ;
+    ([ 21 ; 3 ; 2 ; 0 ; 0 ], `Record (({ content_type = ALERT ; version = Supported TLS_1_1 }, empty), empty) ) ;
+    ([ 22 ; 3 ; 3 ; 0 ; 0 ], `Record (({ content_type = HANDSHAKE ; version = Supported TLS_1_2 }, empty), empty) ) ;
+    ([ 23 ; 3 ; 0 ; 0 ; 0 ], `Record (({ content_type = APPLICATION_DATA ; version = SSL_3 }, empty), empty) ) ;
+    ([ 24 ; 3 ; 4 ; 0 ; 0 ], `Record (({ content_type = HEARTBEAT ; version = TLS_1_X 4 }, empty), empty) ) ;
+    ([ 16 ; 3 ; 1 ; 0 ; 0 ], `UnknownContent 16 ) ;
+    ([ 19 ; 3 ; 1 ; 0 ; 0 ], `UnknownContent 19 ) ;
+    ([ 20 ; 5 ; 1 ; 0 ; 0 ], `UnknownVersion (5, 1) ) ;
+    ([ 20 ; 3 ; 1 ; 0 ; 100 ], `Fragment (list_to_cstruct [ 20 ; 3 ; 1 ; 0 ; 100 ] )) ;
+    ([ 0 ], `Fragment (list_to_cstruct [ 0 ])) ;
+    ([ ], `Fragment empty) ;
+    ([ 20 ; 3 ; 1 ; 0 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = Supported TLS_1_0 }, empty), list_to_cstruct [ 0 ]) ) ;
+    ([ 0 ; 0 ; 0 ; 255 ; 255 ], `Overflow 65535) ;
+    ([ 0 ; 0 ; 0 ; 72 ; 1 ], `Overflow 18433)
 ]
 
-let good_headers_tests =
+let good_records_tests =
   List.mapi
-    (fun i args -> "Good header " ^ string_of_int i >:: good_header_parser args)
-    good_headers
-
-let bad_header_parser (ct, (major, minor), l) _ =
-  let buf =
-    let pre = list_to_cstruct [ ct ; major ; minor ] in
-    pre <+> uint16_to_cstruct l
-  in
-  match Reader.parse_hdr buf with
-  | (Some c, Some v, l') -> assert_failure "header parser broken"
-  | _                    -> ()
-
-let bad_headers = [
-  ( 19 , (3, 1), 100 ) ;
-  ( 20 , (5, 1), 100 ) ;
-  ( 16 , (3, 1), 100 ) ;
-  ( 30 , (3, 1), 100 ) ;
-  ( 20 , (0, 1), 100 ) ;
-  ( 25 , (3, 3), 100 ) ;
-]
-
-let bad_headers_tests =
-  List.mapi
-    (fun i args -> "Bad header " ^ string_of_int i >:: bad_header_parser args)
-    bad_headers
+    (fun i args -> "Good record " ^ string_of_int i >:: good_record_parser args)
+    good_records
 
 let good_alert_parser (lvl, typ, expected) _ =
   let buf = list_to_cstruct [ lvl ; typ ] in
@@ -1589,7 +1582,7 @@ let bad_server_hellos_tests =
 
 let reader_tests =
   any_version_tests @ version_tests @
-  good_headers_tests @ bad_headers_tests @
+  good_records_tests @
   good_alert_tests @ bad_alerts_tests @
   good_dh_params_tests @ bad_dh_params_tests @
   good_digitally_signed_1_2_tests @ bad_digitally_signed_1_2_tests @
