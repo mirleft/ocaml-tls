@@ -30,23 +30,23 @@ module Ciphers = struct
   let get_block = function
     | TRIPLE_DES_EDE_CBC ->
         let open Cipher_block.DES in
-        K_CBC ( (module CBC : Cipher_block.T.CBC with type key = CBC.key),
+        K_CBC ( (module CBC : Cipher_block.S.CBC with type key = CBC.key),
                 CBC.of_secret )
 
     | AES_128_CBC ->
         let open Cipher_block.AES in
-        K_CBC ( (module CBC : Cipher_block.T.CBC with type key = CBC.key),
+        K_CBC ( (module CBC : Cipher_block.S.CBC with type key = CBC.key),
                 CBC.of_secret )
 
     | AES_256_CBC ->
         let open Cipher_block.AES in
-        K_CBC ( (module CBC : Cipher_block.T.CBC with type key = CBC.key),
+        K_CBC ( (module CBC : Cipher_block.S.CBC with type key = CBC.key),
                 CBC.of_secret )
 
   let get_cipher ~secret ~hmac_secret ~iv_mode ~nonce = function
     | Stream (RC4_128, hmac) ->
         let open Cipher_stream in
-        let cipher = (module ARC4 : Cipher_stream.T with type key = ARC4.key) in
+        let cipher = (module ARC4 : Cipher_stream.S with type key = ARC4.key) in
         let cipher_secret = ARC4.of_secret secret in
         State.(Stream { cipher ; cipher_secret ; hmac ; hmac_secret })
 
@@ -59,7 +59,7 @@ module Ciphers = struct
 
     | AEAD cipher ->
        let open Cipher_block.AES in
-       let cipher = (module CCM : Cipher_block.T.CCM with type key = CCM.key) in
+       let cipher = (module CCM : Cipher_block.S.CCM with type key = CCM.key) in
        let cipher_secret = CCM.of_secret ~maclen:16 secret in
        State.(CCM { cipher ; cipher_secret ; nonce })
 end
@@ -87,15 +87,15 @@ let mac hash key pseudo_hdr data =
   Hash.mac hash ~key (pseudo_hdr <+> data)
 
 let cbc_block (type a) cipher =
-  let module C = (val cipher : Cipher_block.T.CBC with type key = a) in C.block_size
+  let module C = (val cipher : Cipher_block.S.CBC with type key = a) in C.block_size
 
 let encrypt_stream (type a) ~cipher ~key data =
-  let module C = (val cipher : Cipher_stream.T with type key = a) in
+  let module C = (val cipher : Cipher_stream.S with type key = a) in
   let { C.message ; key } = C.encrypt ~key data in
   (message, key)
 
 let decrypt_stream (type a) ~cipher ~key data =
-  let module C = (val cipher : Cipher_stream.T with type key = a) in
+  let module C = (val cipher : Cipher_stream.S with type key = a) in
   let { C.message ; key } = C.decrypt ~key data in
   (message, key)
 
@@ -132,21 +132,21 @@ let cbc_unpad ~block data =
   with Invalid_argument _ -> None
 
 let encrypt_ccm (type a) ~cipher ~key ~nonce ~adata data =
-  let module C = (val cipher : Cipher_block.T.CCM with type key = a) in
+  let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
   C.encrypt ~key ~nonce ~adata data
 
 let decrypt_ccm (type a) ~cipher ~key ~nonce ~adata data =
-  let module C = (val cipher : Cipher_block.T.CCM with type key = a) in
+  let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
   C.decrypt ~key ~nonce ~adata data
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
-  let module C = (val cipher : Cipher_block.T.CBC with type key = a) in
+  let module C = (val cipher : Cipher_block.S.CBC with type key = a) in
   let { C.message ; iv } =
     C.encrypt ~key ~iv (data <+> cbc_pad C.block_size data) in
   (message, iv)
 
 let decrypt_cbc (type a) ~cipher ~key ~iv data =
-  let module C = (val cipher : Cipher_block.T.CBC with type key = a) in
+  let module C = (val cipher : Cipher_block.S.CBC with type key = a) in
   try
     let { C.message ; iv } = C.decrypt ~key ~iv data in
     match cbc_unpad C.block_size message with
