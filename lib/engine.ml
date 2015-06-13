@@ -456,7 +456,9 @@ let handle_tls state buf =
   | Error x ->
       let version = state.handshake.protocol_version in
       let alert   = alert_of_failure x in
-      let resp    = assemble_records version [Alert.make alert] in
+      let record  = Alert.make alert in
+      let _, enc  = encrypt_records state.encryptor version [record] in
+      let resp    = assemble_records version enc in
       Tracing.sexpf ~tag:"fail-alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, alert) ;
       Tracing.sexpf ~tag:"failure" ~f:sexp_of_failure x ;
       `Fail (x, `Response resp)
