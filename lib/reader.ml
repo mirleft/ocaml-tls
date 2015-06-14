@@ -5,10 +5,13 @@ open Cstruct
 open Sexplib.Conv
 
 type error =
-  | TrailingBytes of string
-  | WrongLength   of string
-  | Unknown       of string
+  | TrailingBytes  of string
+  | WrongLength    of string
+  | Unknown        of string
   | Underflow
+  | Overflow       of int
+  | UnknownVersion of (int * int)
+  | UnknownContent of int
 with sexp
 
 module Or_error =
@@ -51,12 +54,30 @@ let parse_version = catch parse_version_exn
 
 let parse_any_version = catch parse_any_version_exn
 
-(* calling convention is that the buffer length is >= 5! *)
-let parse_hdr buf =
-  let typ = get_uint8 buf 0 in
-  let version = parse_version_int (shift buf 1) in
-  let len = BE.get_uint16 buf 3 in
-  (int_to_content_type typ, tls_any_version_of_pair version, len)
+let parse_record buf =
+  if len buf < 5 then
+    return (`Fragment buf)
+  else
+    let typ = get_uint8 buf 0
+    and version = parse_version_int (shift buf 1)
+    in
+    match BE.get_uint16 buf 3 with
+    | x when x > (1 lsl 14 + 2048) ->
+      (* 2 ^ 14 + 2048 for TLSCiphertext
+         2 ^ 14 + 1024 for TLSCompressed
+         2 ^ 14 for TLSPlaintext *)
+      fail (Overflow x)
+    | x when 5 + x > len buf -> return (`Fragment buf)
+    | x ->
+      match
+        tls_any_version_of_pair version,
+        int_to_content_type typ
+      with
+      | None, _ -> fail (UnknownVersion version)
+      | _, None -> fail (UnknownContent typ)
+      | Some version, Some content_type ->
+        let payload, rest = split ~start:5 buf x in
+        return (`Record (({ content_type ; version }, payload), rest))
 
 let validate_alert (lvl, typ) =
   let open Packet in
@@ -395,8 +416,17 @@ let parse_client_key_exchange buf =
   else
     ClientKeyExchange (sub buf 2 length)
 
-let parse_handshake_length buf =
-  get_uint24_len (shift buf 1)
+let parse_handshake_frame buf =
+  if len buf < 4 then
+    (None, buf)
+  else
+    let l = get_uint24_len (shift buf 1) in
+    let hslen = l + 4 in
+    if len buf >= hslen then
+      let hs, rest = split buf hslen in
+      (Some hs, rest)
+    else
+      (None, buf)
 
 let parse_handshake = catch @@ fun buf ->
   let typ = get_uint8 buf 0 in

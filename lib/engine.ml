@@ -237,31 +237,24 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
 (* party time *)
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) or_error
 = fun buf ->
-  let open Cstruct in
-  if len buf <= 5 then
-    return ([], buf)
-  else
-    let open Reader in
-    let payload = shift buf 5 in
-    match parse_hdr buf with
-    | (Some _, Some _, size) when size > (1 lsl 14 + 2048) ->
-       (* 2 ^ 14 + 2048 for TLSCiphertext
-          2 ^ 14 + 1024 for TLSCompressed
-          2 ^ 14 for TLSPlaintext *)
-       Tracing.cs ~tag:"buf-in" buf ;
-       fail (`Fatal (`RecordOverflow size))
-    | (Some _, Some _, size) when size > len payload       ->
-       return ([], buf)
-    | (Some content_type, Some version, size)              ->
-       separate_records (shift payload size) >|= fun (tl, frag) ->
-       let packet = ({ content_type ; version }, sub payload 0 size) in
-       (packet :: tl, frag)
-    | (_, None, _)                                         ->
-       Tracing.cs ~tag:"buf-in" buf ;
-       fail (`Fatal (`UnknownRecordVersion (Reader.parse_version_int (shift buf 1))))
-    | (None, _, _)                                         ->
-       Tracing.cs ~tag:"buf-in" buf ;
-       fail (`Fatal (`UnknownContentType (get_uint8 buf 0)))
+  let open Reader in
+  match parse_record buf with
+  | Or_error.Ok (`Fragment b) -> return ([], b)
+  | Or_error.Ok (`Record (packet, fragment)) ->
+    separate_records fragment >|= fun (tl, frag) ->
+    (packet :: tl, frag)
+  | Or_error.Error (Overflow x) ->
+    Tracing.cs ~tag:"buf-in" buf ;
+    fail (`Fatal (`RecordOverflow x))
+  | Or_error.Error (UnknownVersion v) ->
+    Tracing.cs ~tag:"buf-in" buf ;
+    fail (`Fatal (`UnknownRecordVersion v))
+  | Or_error.Error (UnknownContent c) ->
+    Tracing.cs ~tag:"buf-in" buf ;
+    fail (`Fatal (`UnknownContentType c))
+  | Or_error.Error e ->
+    Tracing.cs ~tag:"buf-in" buf ;
+    fail (`Fatal (`ReaderError e))
 
 
 let encrypt_records encryptor version records =
@@ -314,15 +307,11 @@ let hs_can_handle_appdata s =
     | _ -> true
 
 let rec separate_handshakes buf =
-  if Cstruct.len buf < 4 then
-    return ([], buf)
-  else
-    match Reader.parse_handshake_length buf with
-    | size when (size + 4) > Cstruct.len buf -> return ([], buf)
-    | size ->
-       let hs, rest = Cstruct.split buf (size + 4) in
-       separate_handshakes rest >|= fun (rt, frag) ->
-       (hs :: rt, frag)
+  match Reader.parse_handshake_frame buf with
+  | None, rest   -> return ([], rest)
+  | Some hs, rest ->
+    separate_handshakes rest >|= fun (rt, frag) ->
+    (hs :: rt, frag)
 
 let handle_change_cipher_spec = function
   | Client cs -> Handshake_client.handle_change_cipher_spec cs
