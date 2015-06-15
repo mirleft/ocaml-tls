@@ -126,7 +126,7 @@ let validate_client config =
   match config.own_certificates with
   | `None -> ()
   | `Single c -> validate_certificate_chain c
-  | _ -> invalid_arg "multiple client certificates not supported in client config"
+  | _ -> invalid "multiple client certificates not supported in client config"
 
 module StringSet = Set.Make(String)
 
@@ -146,7 +146,7 @@ let non_overlapping cs =
                          (fun ss' -> StringSet.is_empty (StringSet.inter s ss'))
                          ss)
                then
-                 invalid_arg "overlapping names in certificates"
+                 invalid "overlapping names in certificates"
                else
                  check ss
   in
@@ -200,6 +200,28 @@ and of_client conf = conf
 
 let peer conf name = { conf with peer_name = Some name }
 
+let sort_chain (certs, priv) =
+  let own_cert =
+    let pub = Rsa.pub_of_priv priv in
+    try
+      List.find (fun c ->
+          match X509.cert_pubkey c with
+          | `RSA x when x = pub -> true
+          | _ -> false) certs
+    with
+      Not_found -> invalid "couldn't find certificate for private key"
+  in
+  match X509.sort_certificates own_cert certs with
+  | Some x when succ (List.length x) = List.length certs -> (own_cert :: x, priv)
+  | Some _ -> invalid "couldn't fully linearise certificates into a connected chain"
+  | None -> invalid "you didn't present a connected chain of certificates"
+
+let cert_sorter = function
+  | `None -> `None
+  | `Single x -> `Single (sort_chain x)
+  | `Multiple xs -> `Multiple (List.map sort_chain xs)
+  | `Multiple_default (x, xs) -> `Multiple_default (sort_chain x, List.map sort_chain xs)
+
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
 let client
@@ -211,7 +233,7 @@ let client
         protocol_versions = version      <?> default_config.protocol_versions ;
         hashes            = hashes       <?> default_config.hashes ;
         use_reneg         = reneg        <?> default_config.use_reneg ;
-        own_certificates  = certificates <?> default_config.own_certificates ;
+        own_certificates  = cert_sorter (certificates <?> default_config.own_certificates) ;
     } in
   ( validate_common config ; validate_client config ; config )
 
@@ -223,7 +245,7 @@ let server
         protocol_versions = version      <?> default_config.protocol_versions ;
         hashes            = hashes       <?> default_config.hashes ;
         use_reneg         = reneg        <?> default_config.use_reneg ;
-        own_certificates  = certificates <?> default_config.own_certificates ;
+        own_certificates  = cert_sorter (certificates <?> default_config.own_certificates) ;
         authenticator     = authenticator ;
     } in
   ( validate_common config ; validate_server config ; config )
