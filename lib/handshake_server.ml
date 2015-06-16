@@ -37,10 +37,13 @@ let answer_client_finished state session client_fin raw log =
    [`Record (Packet.HANDSHAKE, fin_raw)])
 
 let establish_master_secret state session premastersecret raw log =
-  let client_ctx, server_ctx, master_secret =
-    Handshake_crypto.initialise_crypto_ctx state.protocol_version session premastersecret
+  let master_secret = Handshake_crypto.derive_master_secret
+      state.protocol_version session premastersecret
   in
   let session = { session with master_secret = master_secret } in
+  let client_ctx, server_ctx =
+    Handshake_crypto.initialise_crypto_ctx state.protocol_version session
+  in
   let machina =
     match session.peer_certificate with
     | [] -> AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log @ [raw])

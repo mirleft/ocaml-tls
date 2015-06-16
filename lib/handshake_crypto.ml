@@ -58,16 +58,19 @@ let divide_keyblock key mac iv buf =
   in
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
+let derive_master_secret version session premaster =
+  let client_random = session.client_random
+  and server_random = session.server_random
+  in
+  generate_master_secret version premaster (client_random <+> server_random)
 
-let initialise_crypto_ctx version session premaster =
+let initialise_crypto_ctx version session =
   let open Ciphersuite in
   let client_random = session.client_random
   and server_random = session.server_random
+  and master = session.master_secret
   and cipher = session.ciphersuite
   in
-
-  let master = generate_master_secret version premaster
-                (client_random <+> server_random) in
 
   let pp = ciphersuite_privprot cipher in
 
@@ -99,4 +102,4 @@ let initialise_crypto_ctx version session premaster =
   let c_context = context c_key c_iv c_mac
   and s_context = context s_key s_iv s_mac in
 
-  (c_context, s_context, master)
+  (c_context, s_context)

@@ -218,8 +218,13 @@ let answer_certificate_request state session cr kex pms raw log =
 let answer_server_hello_done state session sigalgs kex premaster raw log =
   let kex = ClientKeyExchange kex in
   let ckex = Writer.assemble_handshake kex in
-  let client_ctx, server_ctx, master_secret =
-    Handshake_crypto.initialise_crypto_ctx state.protocol_version session premaster in
+  let master_secret =
+    Handshake_crypto.derive_master_secret state.protocol_version session premaster
+  in
+  let session = { session with master_secret } in
+  let client_ctx, server_ctx =
+    Handshake_crypto.initialise_crypto_ctx state.protocol_version session
+  in
 
   ( match session.client_auth, session.own_private_key with
     | true, Some p ->
