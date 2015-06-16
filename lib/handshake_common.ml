@@ -37,6 +37,7 @@ let empty_session = {
   master_secret    = Cstruct.create 0 ;
   renegotiation    = Cstruct.(create 0, create 0) ;
   client_auth      = false ;
+  session_id       = Cstruct.create 0 ;
 }
 
 let supported_protocol_version (min, max) v =

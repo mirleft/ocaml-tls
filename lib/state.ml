@@ -81,6 +81,7 @@ type session_data = {
   renegotiation    : reneg_params ; (* renegotiation data *)
   own_name         : string option ;
   client_auth      : bool ;
+  session_id       : Cstruct.t ;
 } with sexp
 
 (* state machine of the server *)

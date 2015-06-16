@@ -170,4 +170,5 @@ type epoch_data = {
   own_private_key  : Nocrypto.Rsa.priv option ;
   own_name         : string option ;
   master_secret    : master_secret ;
+  session_id       : Cstruct.t ;
 } with sexp

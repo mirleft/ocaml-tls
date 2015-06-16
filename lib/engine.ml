@@ -578,4 +578,5 @@ let epoch state =
         own_private_key  = session.own_private_key ;
         own_name         = session.own_name ;
         master_secret    = session.master_secret ;
+        session_id       = session.session_id ;
       }
