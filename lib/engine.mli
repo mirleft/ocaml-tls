@@ -138,30 +138,11 @@ val reneg                 : state -> (state * Cstruct.t) option
 
 (** {1 Session information} *)
 
-(** information about an open session *)
-type epoch_data = {
-  protocol_version : Core.tls_version ;
-  ciphersuite      : Ciphersuite.ciphersuite ;
-  peer_certificate : X509.t list ;
-  peer_name        : string option ;
-  trust_anchor     : X509.t option ;
-  own_certificate  : X509.t list ;
-  own_private_key  : Nocrypto.Rsa.priv option ;
-  own_name         : string option ;
-  master_secret    : State.master_secret ;
-}
-
-(** [epoch_data_of_sexp sexp] is [epoch_data], the unmarshalled [sexp]. *)
-val epoch_data_of_sexp : Sexplib.Sexp.t -> epoch_data
-
-(** [sexp_of_epoch_data epoch_data] is [sexp], the marshalled [epoch_data]. *)
-val sexp_of_epoch_data : epoch_data -> Sexplib.Sexp.t
-
 (** polymorphic variant, only the second should ever be visible to an
     application. *)
 type epoch = [
   | `InitialEpoch
-  | `Epoch of epoch_data
+  | `Epoch of Core.epoch_data
 ]
 
 (** [epoch_of_sexp sexp] is [epoch], the unmarshalled [sexp]. *)

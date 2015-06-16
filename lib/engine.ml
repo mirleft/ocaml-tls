@@ -558,18 +558,6 @@ let server config = new_state Config.(of_server config) `Server
 open Sexplib
 open Sexplib.Conv
 
-type epoch_data = {
-  protocol_version : tls_version ;
-  ciphersuite      : Ciphersuite.ciphersuite ;
-  peer_certificate : X509.t list ;
-  peer_name        : string option ;
-  trust_anchor     : X509.t option ;
-  own_certificate  : X509.t list ;
-  own_private_key  : Nocrypto.Rsa.priv option ;
-  own_name         : string option ;
-  master_secret    : master_secret ;
-} with sexp
-
 type epoch = [
   | `InitialEpoch
   | `Epoch of epoch_data

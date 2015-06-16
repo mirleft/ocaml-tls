@@ -61,8 +61,6 @@ type crypto_context = {
 
 (* the raw handshake log we need to carry around *)
 type hs_log = Cstruct.t list with sexp
-(* the master secret of a TLS connection *)
-type master_secret = Cstruct.t with sexp
 (* diffie hellman group and secret *)
 type dh_sent = Dh.group * Dh.secret with sexp
 
