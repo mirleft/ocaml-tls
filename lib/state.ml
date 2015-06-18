@@ -94,7 +94,9 @@ type server_handshake_state =
   | AwaitClientKeyExchange_DHE_RSA of session_data * dh_sent * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
   | AwaitClientCertificateVerify of session_data * crypto_context * crypto_context * hs_log
   | AwaitClientChangeCipherSpec of session_data * crypto_context * crypto_context * hs_log (* client key exchange received, next should be change cipher spec *)
+  | AwaitClientChangeCipherSpecResume of session_data * crypto_context * Cstruct.t * hs_log (* resumption: next should be change cipher spec *)
   | AwaitClientFinished of session_data * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
+  | AwaitClientFinishedResume of session_data * Cstruct.t * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
   with sexp
 
@@ -109,7 +111,9 @@ type client_handshake_state =
   | AwaitCertificateRequestOrServerHelloDone of session_data * Cstruct.t * Cstruct.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
   | AwaitServerHelloDone of session_data * (Hash.hash * Packet.signature_algorithm_type) list option * Cstruct.t * Cstruct.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
   | AwaitServerChangeCipherSpec of session_data * crypto_context * Cstruct.t * hs_log (* change cipher spec expected *)
+  | AwaitServerChangeCipherSpecResume of session_data * crypto_context * crypto_context * hs_log (* change cipher spec expected *)
   | AwaitServerFinished of session_data * Cstruct.t * hs_log (* finished expected with a hmac over all handshake packets *)
+  | AwaitServerFinishedResume of session_data * hs_log (* finished expected with a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
   with sexp
 
