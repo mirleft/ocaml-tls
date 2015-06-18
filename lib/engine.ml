@@ -303,7 +303,9 @@ let hs_can_handle_appdata s =
        new crypto context, not authenticated by Finished, is in use *)
     match s.machina with
     | Server (AwaitClientFinished _)
-    | Client (AwaitServerFinished _) -> false
+    | Server (AwaitClientFinishedResume _)
+    | Client (AwaitServerFinished _)
+    | Client (AwaitServerFinishedResume _) -> false
     | _ -> true
 
 let rec separate_handshakes buf =
