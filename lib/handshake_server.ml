@@ -36,6 +36,19 @@ let answer_client_finished state session client_fin raw log =
   ({ state with machina ; session = session :: state.session },
    [`Record (Packet.HANDSHAKE, fin_raw)])
 
+let answer_client_finished_resume state session server_verify client_fin raw log =
+  let client_verify =
+    Handshake_crypto.finished state.protocol_version session.master_secret "client finished" log
+  in
+  guard (Cs.equal client_verify client_fin) (`Fatal `BadFinished) >>= fun () ->
+  (* we really do not want to have any leftover handshake fragments *)
+  guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+  let session = { session with renegotiation = (client_verify, server_verify) }
+  and machina = Server Established
+  in
+  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ; *)
+  ({ state with machina ; session = session :: state.session }, [])
+
 let establish_master_secret state session premastersecret raw log =
   let master_secret = Handshake_crypto.derive_master_secret
       state.protocol_version session premastersecret
@@ -152,6 +165,29 @@ let agreed_cipher cert requested =
   in
   List.filter type_usage_matches requested
 
+let server_hello session version reneg =
+  (* RFC 4366: server shall reply with an empty hostname extension *)
+  let host = option [] (fun _ -> [Hostname None]) session.own_name
+  and server_random = Rng.generate 32
+  and secren = match reneg with
+    | None            -> SecureRenegotiation (Cstruct.create 0)
+    | Some (cvd, svd) -> SecureRenegotiation (cvd <+> svd)
+  and session_id =
+    match Cstruct.len session.session_id with
+    | 0 -> Rng.generate 32
+    | _ -> session.session_id
+  in
+  let sh = ServerHello
+      { version      = version ;
+        random       = server_random ;
+        sessionid    = Some session_id ;
+        ciphersuites = session.ciphersuite ;
+        extensions   = secren :: host }
+  in
+  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ; *)
+  (Writer.assemble_handshake sh,
+   { session with server_random ; session_id })
+
 let answer_client_hello_common state reneg ch raw =
   let process_client_hello ch config =
     let host = hostname ch
@@ -180,26 +216,6 @@ let answer_client_hello_common state reneg ch raw =
       own_certificate  = chain ;
       own_private_key  = priv ;
       own_name         = host }
-
-  and server_hello session reneg =
-    let server_hello =
-      (* RFC 4366: server shall reply with an empty hostname extension *)
-      let host = option [] (fun _ -> [Hostname None]) session.own_name
-      and random = Rng.generate 32
-      and secren =
-        match reneg with
-        | None            -> SecureRenegotiation (Cstruct.create 0)
-        | Some (cvd, svd) -> SecureRenegotiation (cvd <+> svd)
-      in
-      { version      = state.protocol_version ;
-        random       = random ;
-        sessionid    = None ;
-        ciphersuites = session.ciphersuite ;
-        extensions   = secren :: host }
-    in
-    let sh = ServerHello server_hello in
-    (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ; *)
-    (Writer.assemble_handshake sh, { session with server_random = server_hello.random })
 
   and server_cert session =
     match session.own_certificate with
@@ -245,7 +261,7 @@ let answer_client_hello_common state reneg ch raw =
     (hs, dh_state) in
 
   process_client_hello ch state.config >>= fun session ->
-  let sh, session = server_hello session reneg in
+  let sh, session = server_hello session state.protocol_version reneg in
   let certificates = server_cert session
   and cert_req, session = cert_request state.protocol_version state.config session
   and hello_done = Writer.assemble_handshake ServerHelloDone
@@ -294,6 +310,46 @@ let answer_client_hello state (ch : client_hello) raw =
     | _, Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
     | true, _ -> return ()
     | _ -> fail (`Fatal `NoSecureRenegotiation)
+
+
+  and resume ch state =
+    let epoch_matches (epoch : Core.epoch_data) version ciphers =
+      let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ciphers in
+      List.mem epoch.ciphersuite cciphers &&
+      version = epoch.protocol_version
+    in
+
+    match state.config.session_cache ch.sessionid with
+    | Some epoch when epoch_matches epoch state.protocol_version ch.ciphersuites ->
+      Some { session_of_epoch epoch with
+             client_random = ch.random ;
+             client_version = ch.version ;
+             client_auth = List.length epoch.peer_certificate > 0 ;
+           }
+    | _ -> None
+
+  and answer_resumption session state =
+    let version = state.protocol_version in
+    let sh, session = server_hello session version None in
+    (* we really do not want to have any leftover handshake fragments *)
+    guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+    let client_ctx, server_ctx =
+      Handshake_crypto.initialise_crypto_ctx version session
+    in
+    let ccs = change_cipher_spec in
+    let log = [ raw ; sh ] in
+    let server =
+      Handshake_crypto.finished
+        version session.master_secret "server finished" log
+    in
+    let fin = Finished server in
+    let fin_raw = Writer.assemble_handshake fin in
+    let machina = AwaitClientChangeCipherSpecResume (session, client_ctx, server, log @ [fin_raw]) in
+    ({ state with machina = Server machina },
+     [ `Record (Packet.HANDSHAKE, sh) ;
+       `Record ccs ;
+       `Change_enc (Some server_ctx) ;
+       `Record (Packet.HANDSHAKE, fin_raw)])
   in
 
   let process_client_hello config ch =
@@ -312,7 +368,10 @@ let answer_client_hello state (ch : client_hello) raw =
   in
 
   process_client_hello state.config ch >>= fun protocol_version ->
-  answer_client_hello_common { state with protocol_version } None ch raw
+  let state = { state with protocol_version } in
+  match resume ch state with
+  | None -> answer_client_hello_common state None ch raw
+  | Some session -> answer_resumption session state
 
 let answer_client_hello_reneg state (ch : client_hello) raw =
   (* ensure reneg allowed and supplied *)
@@ -358,6 +417,15 @@ let handle_change_cipher_spec ss state packet =
      return ({ state with machina = Server machina },
              [`Record ccs; `Change_enc (Some server_ctx)],
              `Change_dec (Some client_ctx))
+  | Or_error.Ok (), AwaitClientChangeCipherSpecResume (session, client_ctx, server_verify, log) ->
+     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+     let machina = AwaitClientFinishedResume (session, server_verify, log)
+     in
+     Tracing.cs ~tag:"change-cipher-spec-in" packet ;
+     Tracing.cs ~tag:"change-cipher-spec-out" packet ;
+
+     ({ state with machina = Server machina },
+      [], `Change_dec (Some client_ctx))
   | Or_error.Error er, _ -> fail (`Fatal (`ReaderError er))
   | _ -> fail (`Fatal `UnexpectedCCS)
 
@@ -381,6 +449,8 @@ let handle_handshake ss hs buf =
           answer_client_certificate_verify hs session sctx cctx ver buf log
        | AwaitClientFinished (session, log), Finished fin ->
           answer_client_finished hs session fin buf log
+       | AwaitClientFinishedResume (session, server_verify, log), Finished fin ->
+          answer_client_finished_resume hs session server_verify fin buf log
        | Established, ClientHello ch -> (* client-initiated renegotiation *)
           answer_client_hello_reneg hs ch buf
        | AwaitClientHelloRenegotiate, ClientHello ch -> (* hello-request send, renegotiation *)
