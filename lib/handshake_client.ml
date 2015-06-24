@@ -117,11 +117,11 @@ let validate_keytype_usage certificates ciphersuite =
     let open X509 in
     guard (supports_keytype cert keytype)
       (`Fatal `NotRSACertificate) >>= fun () ->
-    guard (supports_usage ~not_present:true cert usage)
+    guard (Extension.supports_usage ~not_present:true cert usage)
       (`Fatal `InvalidCertificateUsage) >>= fun () ->
     guard
-      (supports_extended_usage cert `Server_auth ||
-       supports_extended_usage ~not_present:true cert `Any)
+      (Extension.supports_extended_usage cert `Server_auth ||
+       Extension.supports_extended_usage ~not_present:true cert `Any)
       (`Fatal `InvalidCertificateExtendedUsage)
 
 let answer_certificate_RSA state session cs raw log =

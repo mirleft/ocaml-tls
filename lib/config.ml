@@ -99,7 +99,7 @@ let validate_common config =
     invalid "set of ciphers is empty"
 
 module CertTypeUsageOrdered = struct
-  type t = X509.key_type * X509.key_usage
+  type t = X509.key_type * X509.Extension.key_usage
   let compare = compare
 end
 module CertTypeUsageSet = Set.Make(CertTypeUsageOrdered)
@@ -179,7 +179,7 @@ let validate_server config =
            (fun (t, u) ->
               List.exists (fun c ->
                   X509.supports_keytype c t &&
-                  X509.supports_usage ~not_present:true c u)
+                  X509.Extension.supports_usage ~not_present:true c u)
                 server_certs)
            typeusage)
   then

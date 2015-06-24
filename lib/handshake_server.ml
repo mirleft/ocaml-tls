@@ -145,7 +145,7 @@ let agreed_cipher cert requested =
       Ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher)
     in
     X509.(supports_keytype cert cstyp &&
-          supports_usage ~not_present:true cert csusage)
+          Extension.supports_usage ~not_present:true cert csusage)
   in
   List.filter type_usage_matches requested
 
