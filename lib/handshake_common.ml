@@ -160,7 +160,7 @@ let signature version data sig_algs hashes private_key =
 let peer_rsa_key = function
   | [] -> fail (`Fatal `NoCertificateReceived)
   | cert::_ ->
-    match X509.cert_pubkey cert with
+    match X509.public_key cert with
     | `RSA key -> return key
     | _        -> fail (`Fatal `NotRSACertificate)
 
@@ -209,7 +209,7 @@ let validate_chain authenticator certificates hostname =
 
   and key_size min cs =
     let check c =
-      match X509.cert_pubkey c with
+      match X509.public_key c with
       | `RSA key when Rsa.pub_bits key >= min -> true
       | _                                     -> false
     in
