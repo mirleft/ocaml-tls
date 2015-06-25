@@ -109,7 +109,7 @@ let validate_certificate_chain = function
      let pub = Rsa.pub_of_priv priv in
      if Rsa.pub_bits pub < min_rsa_key_size then
        invalid "RSA key too short!" ;
-     ( match X509.cert_pubkey s with
+     ( match X509.public_key s with
        | `RSA pub' when pub = pub' -> ()
        | _ -> invalid "public / private key combination" ) ;
      ( match init_and_last chain with
@@ -136,7 +136,7 @@ let non_overlapping cs =
       filter_map cs ~f:(function
           | (s :: _, _) -> Some s
           | _           -> None)
-      |> List.map X509.cert_hostnames
+      |> List.map X509.hostnames
     in
     List.map (fun xs -> List.fold_right StringSet.add xs StringSet.empty) nameslists
   in

@@ -219,13 +219,13 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) = struct
     | `CAs  ->
         let time = C.time () in
         read_full kv ca_roots_file
-        >|= Cert.of_pem_cstruct
+        >|= Certificate.of_pem_cstruct
         >|= X509.Authenticator.chain_of_trust ~time
 
   let certificate kv =
     let read name =
       lwt certs =
-        read_full kv (path </> name ^ ".pem") >|= Cert.of_pem_cstruct
+        read_full kv (path </> name ^ ".pem") >|= Certificate.of_pem_cstruct
       and pk =
         read_full kv (path </> name ^ ".key") >|= fun pem ->
         match Private_key.of_pem_cstruct1 pem with

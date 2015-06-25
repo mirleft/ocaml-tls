@@ -50,7 +50,7 @@ let private_of_pems ~cert ~priv_key =
   let open X509.Encoding.Pem in
   lwt certs =
     catch_invalid_arg
-      (read_file cert >|= Cert.of_pem_cstruct)
+      (read_file cert >|= Certificate.of_pem_cstruct)
       (o failure @@ Printf.sprintf "Private certificates (%s): %s" cert)
   and pk =
     catch_invalid_arg
@@ -62,7 +62,7 @@ let private_of_pems ~cert ~priv_key =
 
 let certs_of_pem path =
   catch_invalid_arg
-    (read_file path >|= X509.Encoding.Pem.Cert.of_pem_cstruct)
+    (read_file path >|= X509.Encoding.Pem.Certificate.of_pem_cstruct)
     (o failure @@ Printf.sprintf "Certificates in %s: %s" path)
 
 let certs_of_pem_dir path =
