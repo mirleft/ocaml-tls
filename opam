@@ -24,6 +24,7 @@ depends: [
   "nocrypto" {>= "0.5.0"}
   "x509" {>= "0.4.0"}
   "camlp4"
+  "stringext"
   "ounit" {test}
 ]
 depopts: [
