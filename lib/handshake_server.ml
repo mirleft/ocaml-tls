@@ -50,8 +50,9 @@ let answer_client_finished_resume state session server_verify client_fin raw log
   ({ state with machina ; session = session :: state.session }, [])
 
 let establish_master_secret state session premastersecret raw log =
+  let log = log @ [raw] in
   let master_secret = Handshake_crypto.derive_master_secret
-      state.protocol_version session premastersecret
+      state.protocol_version session premastersecret log
   in
   let session = { session with master_secret = master_secret } in
   let client_ctx, server_ctx =
@@ -59,8 +60,8 @@ let establish_master_secret state session premastersecret raw log =
   in
   let machina =
     match session.peer_certificate with
-    | [] -> AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log @ [raw])
-    | _ -> AwaitClientCertificateVerify (session, server_ctx, client_ctx, log @ [raw])
+    | [] -> AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log)
+    | _ -> AwaitClientCertificateVerify (session, server_ctx, client_ctx, log)
   in
   (* Tracing.cs ~tag:"master-secret" master_secret ; *)
   ({ state with machina = Server machina }, [])
