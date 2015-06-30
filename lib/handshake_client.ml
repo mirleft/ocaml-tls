@@ -28,15 +28,15 @@ let default_client_hello config =
     | TLS_1_2           -> cs
   and sessionid =
     match config.cached_session with
-    | None -> None
-    | Some { session_id ; _ } -> Some session_id
+    | Some { session_id ; extended_ms ; _ } when extended_ms = true -> Some session_id
+    | _ -> None
   in
   let ch = {
     version      = Supported version ;
     random       = Rng.generate 32 ;
     sessionid    = sessionid ;
     ciphersuites = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
-    extensions   = host @ signature_algos
+    extensions   = host @ signature_algos @ [ExtendedMasterSecret]
   }
   in
   (ch , version)
@@ -66,7 +66,9 @@ let answer_server_hello state ch (sh : server_hello) raw log =
   let epoch_matches (epoch : epoch_data) =
     epoch.ciphersuite = sh.ciphersuites &&
       epoch.protocol_version = sh.version &&
-        option false ((=) epoch.session_id) sh.sessionid
+        option false ((=) epoch.session_id) sh.sessionid &&
+          List.mem ExtendedMasterSecret sh.extensions &&
+            epoch.extended_ms
   in
 
   match state.config.cached_session with
@@ -87,12 +89,17 @@ let answer_server_hello state ch (sh : server_hello) raw log =
     let machina =
       let cipher = sh.ciphersuites in
       let session_id = match sh.sessionid with None -> Cstruct.create 0 | Some x -> x in
+      let extended_ms =
+        let ems = List.mem ExtendedMasterSecret in
+        ems ch.extensions && ems sh.extensions
+      in
       let session = { empty_session with
                       client_random    = ch.random ;
                       client_version   = ch.version ;
                       server_random    = sh.random ;
                       ciphersuite      = cipher ;
                       session_id ;
+                      extended_ms ;
                     }
       in
       Ciphersuite.(match ciphersuite_kex cipher with
