@@ -179,4 +179,5 @@ type epoch_data = {
   own_name         : string option ;
   master_secret    : master_secret ;
   session_id       : SessionID.t ;
+  extended_ms      : bool ;
 } with sexp
