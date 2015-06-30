@@ -67,6 +67,7 @@ let to_ext_type = function
   | Padding _             -> `Padding
   | SignatureAlgorithms _ -> `SignatureAlgorithms
   | UnknownExtension _    -> `UnknownExtension
+  | ExtendedMasterSecret  -> `ExtendedMasterSecret
 
 let extension_types exts = List.(
   exts |> map to_ext_type
