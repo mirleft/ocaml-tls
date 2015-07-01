@@ -1,6 +1,19 @@
 master:
 * dropped 'perfect' from forward secrecy in Config.Ciphers:
   fs instead of pfs, fs_of instead of pfs_of
+* removed Cstruct_s now that cstruct (since 1.6.0) provides
+  s-expression marshalling
+* require at least 1024 bit DH group, use FFDHE 2048 bit DH group
+  by default instead of oakley2 (logjam)
+* more specific alerts:
+  - UNRECOGNIZED_NAME: if hostname in SNI does not match
+  - UNSUPPORTED_EXTENSION: if server hello has an extension not present in
+    client hello
+  - ILLEGAL_PARAMETER: if a parse error occured
+* encrypt outgoing alerts
+* fix off-by-one in handling empty TLS records: if a record is less than 5
+  bytes, treat as a fragment. exactly 5 bytes might already be a valid
+  application data frame
 
 0.5.0 (2015-05-02):
 * updates to extension enum (contributed by Dave Garrett #264)
@@ -10,7 +23,7 @@ master:
 0.4.0 (2015-03-19):
 * client authentication (both client and server side)
 * server side SNI configuration (see sni.md)
-* SCSV server-side downgrade prevention (contributed by Gabriel de Perthuis @g2p #5)
+* SCSV server-side downgrade prevention (by Gabriel de Perthuis @g2p #5)
 * remove RC4 ciphers from default config #8
 * support for AEAD ciphers, currently CCM #191
 * proper bounds checking of handshake fragments #255
@@ -34,7 +47,7 @@ master:
 0.2.0 (2014-10-30):
 * distinguish between supported hash and mac algorithms (using Nocrypto.Hash)
   and those which may occur on the wire #189
-* expose trust anchor when authenticating the certificate (requires x509 >= 0.2) #178
+* expose trust anchor when authenticating certificate (requires x509 >=0.2) #178
 * information about the active session is exposed via epoch : state -> epoch
 * distinguish between supported ciphersuites (type ciphersuite) and
   known ciphersuites (type any_ciphersuite) #173
