@@ -138,7 +138,7 @@ let signature version data sig_algs hashes private_key =
   match version with
   | TLS_1_0 | TLS_1_1 ->
     let data = Hash.MD5.digest data <+> Hash.SHA1.digest data in
-    let signed = Rsa.PKCS1.sign private_key data in
+    let signed = Rsa.PKCS1.sig_encode private_key data in
     return (Writer.assemble_digitally_signed signed)
   | TLS_1_2 ->
     (* if no signature_algorithms extension is sent by the client,
@@ -154,7 +154,7 @@ let signature version data sig_algs hashes private_key =
         | Some hash -> return hash ) >|= fun hash_algo ->
     let hash = Hash.digest hash_algo data in
     let cs = X509.Encoding.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
-    let sign = Rsa.PKCS1.sign private_key cs in
+    let sign = Rsa.PKCS1.sig_encode private_key cs in
     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
 
 let peer_rsa_key = function
@@ -191,7 +191,7 @@ let verify_digitally_signed version data signature_data certificates =
         | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
 
   and signature pubkey raw_signature =
-    match Rsa.PKCS1.verify pubkey raw_signature with
+    match Rsa.PKCS1.sig_decode pubkey raw_signature with
     | Some signature -> return signature
     | None -> fail (`Fatal `RSASignatureVerificationFailed)
   in
