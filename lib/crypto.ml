@@ -149,7 +149,7 @@ let decrypt_cbc (type a) ~cipher ~key ~iv data =
   try
     let message = C.decrypt ~key ~iv data in
     match cbc_unpad C.block_size message with
-    | Some res -> Some (res, C.next_iv ~iv message)
+    | Some res -> Some (res, C.next_iv ~iv data)
     | None     -> None
   with
   (* This bails out immediately on mis-alignment, making it very timeable.
