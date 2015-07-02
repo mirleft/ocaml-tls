@@ -1,6 +1,7 @@
-master:
-* dropped 'perfect' from forward secrecy in Config.Ciphers:
+0.6.0 (2015-07-02):
+* API: dropped 'perfect' from forward secrecy in Config.Ciphers:
   fs instead of pfs, fs_of instead of pfs_of
+* API: type epoch_data moved from Engine to Core
 * removed Cstruct_s now that cstruct (since 1.6.0) provides
   s-expression marshalling
 * require at least 1024 bit DH group, use FFDHE 2048 bit DH group
