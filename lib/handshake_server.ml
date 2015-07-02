@@ -226,7 +226,7 @@ let answer_client_hello_common state reneg ch raw =
 
   and kex_dhe_rsa config session version sig_algs =
     let group         = Dh.Group.ffdhe2048 in (* ff-dhe draft 2048-bit group *)
-    let (secret, msg) = Dh.gen_secret group in
+    let (secret, msg) = Dh.gen_key group in
     let dh_state      = group, secret in
     let written =
       let dh_param = Crypto.dh_params_pack group msg in

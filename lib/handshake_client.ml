@@ -172,10 +172,10 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
   let sigdata = session.client_random <+> session.server_random <+> raw_dh_params in
   verify_digitally_signed state.protocol_version leftover sigdata session.peer_certificate >>= fun () ->
   let group, shared = Crypto.dh_params_unpack dh_params in
-  guard (Dh.apparent_bit_size group >= Config.min_dh_size) (`Fatal `InvalidDH)
+  guard (Dh.modulus_size group >= Config.min_dh_size) (`Fatal `InvalidDH)
   >>= fun () ->
 
-  let secret, kex = Dh.gen_secret group in
+  let secret, kex = Dh.gen_key group in
   match Crypto.dh_shared group secret shared with
   | None     -> fail (`Fatal `InvalidDH)
   | Some pms -> let machina =
