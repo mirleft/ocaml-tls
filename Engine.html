@@ -77,7 +77,7 @@ failures which can be mitigated by reconfiguration<br>
 </div>
 
 
-<pre><span id="TYPEfatal"><span class="keyword">type</span> <code class="type"></code>fatal</span> = <code class="type">[ `BadCertificateChain<br>       | `BadFinished<br>       | `BadRecordVersion of <a href="Core.html#TYPEtls_any_version">Core.tls_any_version</a><br>       | `CannotHandleApplicationDataYet<br>       | `HandshakeFragmentsNotEmpty<br>       | `HashAlgorithmMismatch<br>       | `InappropriateFallback<br>       | `InvalidCertificateExtendedUsage<br>       | `InvalidCertificateUsage<br>       | `InvalidClientHello<br>       | `InvalidDH<br>       | `InvalidRenegotiation<br>       | `InvalidRenegotiationVersion of <a href="Core.html#TYPEtls_version">Core.tls_version</a><br>       | `InvalidServerHello<br>       | `InvalidSession<br>       | `KeyTooSmall<br>       | `MACMismatch<br>       | `MACUnderflow<br>       | `MixedCiphersuites<br>       | `NoCertificateReceived<br>       | `NoCiphersuite of <a href="Packet.html#TYPEany_ciphersuite">Packet.any_ciphersuite</a> list<br>       | `NoHeartbeat<br>       | `NoSecureRenegotiation<br>       | `NoVersion of <a href="Core.html#TYPEtls_any_version">Core.tls_any_version</a><br>       | `NotRSACertificate<br>       | `NotRSASignature<br>       | `RSASignatureMismatch<br>       | `RSASignatureVerificationFailed<br>       | `ReaderError of Reader.error<br>       | `RecordOverflow of int<br>       | `UnexpectedCCS<br>       | `UnexpectedHandshake of <a href="Core.html#TYPEtls_handshake">Core.tls_handshake</a><br>       | `UnknownContentType of int<br>       | `UnknownRecordVersion of int * int ]</code> </pre>
+<pre><span id="TYPEfatal"><span class="keyword">type</span> <code class="type"></code>fatal</span> = <code class="type">[ `BadCertificateChain<br>       | `BadFinished<br>       | `BadRecordVersion of <a href="Core.html#TYPEtls_any_version">Core.tls_any_version</a><br>       | `CannotHandleApplicationDataYet<br>       | `HandshakeFragmentsNotEmpty<br>       | `HashAlgorithmMismatch<br>       | `InappropriateFallback<br>       | `InvalidCertificateExtendedUsage<br>       | `InvalidCertificateUsage<br>       | `InvalidClientHello<br>       | `InvalidDH<br>       | `InvalidRenegotiation<br>       | `InvalidRenegotiationVersion of <a href="Core.html#TYPEtls_version">Core.tls_version</a><br>       | `InvalidServerHello<br>       | `InvalidSession<br>       | `KeyTooSmall<br>       | `MACMismatch<br>       | `MACUnderflow<br>       | `NoCertificateReceived<br>       | `NoCiphersuite of <a href="Packet.html#TYPEany_ciphersuite">Packet.any_ciphersuite</a> list<br>       | `NoHeartbeat<br>       | `NoSecureRenegotiation<br>       | `NoVersion of <a href="Core.html#TYPEtls_any_version">Core.tls_any_version</a><br>       | `NotRSACertificate<br>       | `NotRSASignature<br>       | `RSASignatureMismatch<br>       | `RSASignatureVerificationFailed<br>       | `ReaderError of Reader.error<br>       | `RecordOverflow of int<br>       | `UnexpectedCCS<br>       | `UnexpectedHandshake of <a href="Core.html#TYPEtls_handshake">Core.tls_handshake</a><br>       | `UnknownContentType of int<br>       | `UnknownRecordVersion of int * int ]</code> </pre>
 <div class="info ">
 failures from received garbage or lack of features<br>
 </div>
@@ -152,86 +152,7 @@ return type of <a href="Engine.html#VALhandle_tls"><code class="code">Engine.han
 <br>
 <h1 id="1_Sessioninformation">Session information</h1><br>
 
-<pre><code><span id="TYPEepoch_data"><span class="keyword">type</span> <code class="type"></code>epoch_data</span> = {</code></pre><table class="typetable">
-<tr>
-<td align="left" valign="top" >
-<code>&nbsp;&nbsp;</code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.protocol_version">protocol_version</span>&nbsp;: <code class="type"><a href="Core.html#TYPEtls_version">Core.tls_version</a></code>;</code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code>&nbsp;&nbsp;</code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.ciphersuite">ciphersuite</span>&nbsp;: <code class="type"><a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a></code>;</code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code>&nbsp;&nbsp;</code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.peer_certificate">peer_certificate</span>&nbsp;: <code class="type">X509.t list</code>;</code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code>&nbsp;&nbsp;</code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.peer_name">peer_name</span>&nbsp;: <code class="type">string option</code>;</code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code>&nbsp;&nbsp;</code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.trust_anchor">trust_anchor</span>&nbsp;: <code class="type">X509.t option</code>;</code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code>&nbsp;&nbsp;</code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.own_certificate">own_certificate</span>&nbsp;: <code class="type">X509.t list</code>;</code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code>&nbsp;&nbsp;</code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.own_private_key">own_private_key</span>&nbsp;: <code class="type">Nocrypto.Rsa.priv option</code>;</code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code>&nbsp;&nbsp;</code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.own_name">own_name</span>&nbsp;: <code class="type">string option</code>;</code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code>&nbsp;&nbsp;</code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.master_secret">master_secret</span>&nbsp;: <code class="type">State.master_secret</code>;</code></td>
-
-</tr></table>
-}
-
-<div class="info ">
-information about an open session<br>
-</div>
-
-
-<pre><span id="VALepoch_data_of_sexp"><span class="keyword">val</span> epoch_data_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Engine.html#TYPEepoch_data">epoch_data</a></code></pre><div class="info ">
-<code class="code">epoch_data_of_sexp sexp</code> is <code class="code">epoch_data</code>, the unmarshalled <code class="code">sexp</code>.<br>
-</div>
-
-<pre><span id="VALsexp_of_epoch_data"><span class="keyword">val</span> sexp_of_epoch_data</span> : <code class="type"><a href="Engine.html#TYPEepoch_data">epoch_data</a> -> Sexplib.Sexp.t</code></pre><div class="info ">
-<code class="code">sexp_of_epoch_data epoch_data</code> is <code class="code">sexp</code>, the marshalled <code class="code">epoch_data</code>.<br>
-</div>
-
-<pre><span id="TYPEepoch"><span class="keyword">type</span> <code class="type"></code>epoch</span> = <code class="type">[ `Epoch of <a href="Engine.html#TYPEepoch_data">epoch_data</a> | `InitialEpoch ]</code> </pre>
+<pre><span id="TYPEepoch"><span class="keyword">type</span> <code class="type"></code>epoch</span> = <code class="type">[ `Epoch of <a href="Core.html#TYPEepoch_data">Core.epoch_data</a> | `InitialEpoch ]</code> </pre>
 <div class="info ">
 polymorphic variant, only the second should ever be visible to an
     application.<br>

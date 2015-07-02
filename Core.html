@@ -32,7 +32,6 @@ Core type definitions<br>
 </div>
 <hr width="100%">
 
-<pre><span class="keyword">module</span> <a href="Core.Cstruct_s.html">Cstruct_s</a>: <code class="type">Sexp_ext.Cstruct_s</code></pre>
 <pre><code><span id="TYPEtls_version"><span class="keyword">type</span> <code class="type"></code>tls_version</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -153,7 +152,7 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTextension.SecureRenegotiation"><span class="constructor">SecureRenegotiation</span></span> <span class="keyword">of</span> <code class="type">Cstruct_s.t</code></code></td>
+<code><span id="TYPEELTextension.SecureRenegotiation"><span class="constructor">SecureRenegotiation</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
 
 </tr>
 <tr>
@@ -174,7 +173,7 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTextension.UnknownExtension"><span class="constructor">UnknownExtension</span></span> <span class="keyword">of</span> <code class="type">(int * Cstruct_s.t)</code></code></td>
+<code><span id="TYPEELTextension.UnknownExtension"><span class="constructor">UnknownExtension</span></span> <span class="keyword">of</span> <code class="type">(int * Cstruct.t)</code></code></td>
 
 </tr></table>
 
@@ -195,14 +194,14 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELThello.random">random</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELThello.random">random</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELThello.sessionid">sessionid</span>&nbsp;: <code class="type">Cstruct_s.t option</code>;</code></td>
+<code><span id="TYPEELThello.sessionid">sessionid</span>&nbsp;: <code class="type">Cstruct.t option</code>;</code></td>
 
 </tr>
 <tr>
@@ -243,14 +242,14 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTrsa_parameters.rsa_modulus">rsa_modulus</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTrsa_parameters.rsa_modulus">rsa_modulus</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTrsa_parameters.rsa_exponent">rsa_exponent</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTrsa_parameters.rsa_exponent">rsa_exponent</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr></table>
 }
@@ -265,21 +264,21 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTdh_parameters.dh_p">dh_p</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTdh_parameters.dh_p">dh_p</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTdh_parameters.dh_g">dh_g</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTdh_parameters.dh_g">dh_g</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTdh_parameters.dh_Ys">dh_Ys</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTdh_parameters.dh_Ys">dh_Ys</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr></table>
 }
@@ -294,14 +293,14 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_curve.a">a</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_curve.a">a</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_curve.b">b</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_curve.b">b</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr></table>
 }
@@ -316,7 +315,7 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_prime_parameters.prime">prime</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_prime_parameters.prime">prime</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
@@ -330,28 +329,28 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_prime_parameters.base">base</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_prime_parameters.base">base</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_prime_parameters.order">order</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_prime_parameters.order">order</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_prime_parameters.cofactor">cofactor</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_prime_parameters.cofactor">cofactor</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_prime_parameters.public">public</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_prime_parameters.public">public</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr></table>
 }
@@ -380,7 +379,7 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_char_parameters.ks">ks</span>&nbsp;: <code class="type">Cstruct_s.t list</code>;</code></td>
+<code><span id="TYPEELTec_char_parameters.ks">ks</span>&nbsp;: <code class="type">Cstruct.t list</code>;</code></td>
 
 </tr>
 <tr>
@@ -394,28 +393,28 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_char_parameters.base">base</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_char_parameters.base">base</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_char_parameters.order">order</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_char_parameters.order">order</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_char_parameters.cofactor">cofactor</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_char_parameters.cofactor">cofactor</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_char_parameters.public">public</span>&nbsp;: <code class="type">Cstruct_s.t</code>;</code></td>
+<code><span id="TYPEELTec_char_parameters.public">public</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr></table>
 }
@@ -444,7 +443,7 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_parameters.NamedCurveParameters"><span class="constructor">NamedCurveParameters</span></span> <span class="keyword">of</span> <code class="type">(<a href="Packet.html#TYPEnamed_curve_type">Packet.named_curve_type</a> * Cstruct_s.t)</code></code></td>
+<code><span id="TYPEELTec_parameters.NamedCurveParameters"><span class="constructor">NamedCurveParameters</span></span> <span class="keyword">of</span> <code class="type">(<a href="Packet.html#TYPEnamed_curve_type">Packet.named_curve_type</a> * Cstruct.t)</code></code></td>
 
 </tr></table>
 
@@ -486,42 +485,42 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.Certificate"><span class="constructor">Certificate</span></span> <span class="keyword">of</span> <code class="type">Cstruct_s.t list</code></code></td>
+<code><span id="TYPEELTtls_handshake.Certificate"><span class="constructor">Certificate</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t list</code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.ServerKeyExchange"><span class="constructor">ServerKeyExchange</span></span> <span class="keyword">of</span> <code class="type">Cstruct_s.t</code></code></td>
+<code><span id="TYPEELTtls_handshake.ServerKeyExchange"><span class="constructor">ServerKeyExchange</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.CertificateRequest"><span class="constructor">CertificateRequest</span></span> <span class="keyword">of</span> <code class="type">Cstruct_s.t</code></code></td>
+<code><span id="TYPEELTtls_handshake.CertificateRequest"><span class="constructor">CertificateRequest</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.ClientKeyExchange"><span class="constructor">ClientKeyExchange</span></span> <span class="keyword">of</span> <code class="type">Cstruct_s.t</code></code></td>
+<code><span id="TYPEELTtls_handshake.ClientKeyExchange"><span class="constructor">ClientKeyExchange</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.CertificateVerify"><span class="constructor">CertificateVerify</span></span> <span class="keyword">of</span> <code class="type">Cstruct_s.t</code></code></td>
+<code><span id="TYPEELTtls_handshake.CertificateVerify"><span class="constructor">CertificateVerify</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.Finished"><span class="constructor">Finished</span></span> <span class="keyword">of</span> <code class="type">Cstruct_s.t</code></code></td>
+<code><span id="TYPEELTtls_handshake.Finished"><span class="constructor">Finished</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
 
 </tr></table>
 
@@ -570,4 +569,87 @@ Core type definitions<br>
 
 <pre><span id="VAL__tls_body_of_sexp__"><span class="keyword">val</span> __tls_body_of_sexp__</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEtls_body">tls_body</a></code></pre>
 <pre><span id="VALtls_body_of_sexp"><span class="keyword">val</span> tls_body_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEtls_body">tls_body</a></code></pre>
-<pre><span id="VALsexp_of_tls_body"><span class="keyword">val</span> sexp_of_tls_body</span> : <code class="type"><a href="Core.html#TYPEtls_body">tls_body</a> -> Sexplib.Sexp.t</code></pre></body></html>
+<pre><span id="VALsexp_of_tls_body"><span class="keyword">val</span> sexp_of_tls_body</span> : <code class="type"><a href="Core.html#TYPEtls_body">tls_body</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="TYPEmaster_secret"><span class="keyword">type</span> <code class="type"></code>master_secret</span> = <code class="type">Cstruct.t</code> </pre>
+<div class="info ">
+the master secret of a TLS connection<br>
+</div>
+
+
+<pre><span id="VAL__master_secret_of_sexp__"><span class="keyword">val</span> __master_secret_of_sexp__</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEmaster_secret">master_secret</a></code></pre>
+<pre><span id="VALmaster_secret_of_sexp"><span class="keyword">val</span> master_secret_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEmaster_secret">master_secret</a></code></pre>
+<pre><span id="VALsexp_of_master_secret"><span class="keyword">val</span> sexp_of_master_secret</span> : <code class="type"><a href="Core.html#TYPEmaster_secret">master_secret</a> -> Sexplib.Sexp.t</code></pre>
+<pre><code><span id="TYPEepoch_data"><span class="keyword">type</span> <code class="type"></code>epoch_data</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.protocol_version">protocol_version</span>&nbsp;: <code class="type"><a href="Core.html#TYPEtls_version">tls_version</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.ciphersuite">ciphersuite</span>&nbsp;: <code class="type"><a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.peer_certificate">peer_certificate</span>&nbsp;: <code class="type">X509.t list</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.peer_name">peer_name</span>&nbsp;: <code class="type">string option</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.trust_anchor">trust_anchor</span>&nbsp;: <code class="type">X509.t option</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.own_certificate">own_certificate</span>&nbsp;: <code class="type">X509.t list</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.own_private_key">own_private_key</span>&nbsp;: <code class="type">Nocrypto.Rsa.priv option</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.own_name">own_name</span>&nbsp;: <code class="type">string option</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.master_secret">master_secret</span>&nbsp;: <code class="type"><a href="Core.html#TYPEmaster_secret">master_secret</a></code>;</code></td>
+
+</tr></table>
+}
+
+<div class="info ">
+information about an open session<br>
+</div>
+
+
+<pre><span id="VAL__epoch_data_of_sexp__"><span class="keyword">val</span> __epoch_data_of_sexp__</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEepoch_data">epoch_data</a></code></pre>
+<pre><span id="VALepoch_data_of_sexp"><span class="keyword">val</span> epoch_data_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEepoch_data">epoch_data</a></code></pre>
+<pre><span id="VALsexp_of_epoch_data"><span class="keyword">val</span> sexp_of_epoch_data</span> : <code class="type"><a href="Core.html#TYPEepoch_data">epoch_data</a> -> Sexplib.Sexp.t</code></pre></body></html>

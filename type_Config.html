@@ -57,13 +57,14 @@
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;default_hashes&nbsp;:&nbsp;<span class="constructor">Nocrypto</span>.<span class="constructor">Hash</span>.hash&nbsp;list<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;supported_hashes&nbsp;:&nbsp;<span class="constructor">Nocrypto</span>.<span class="constructor">Hash</span>.hash&nbsp;list<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;min_dh_size&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dh_group&nbsp;:&nbsp;<span class="constructor">Nocrypto</span>.<span class="constructor">Dh</span>.group<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;min_rsa_key_size&nbsp;:&nbsp;int<br>
 &nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Ciphers</span>&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;default&nbsp;:&nbsp;<span class="constructor">Ciphersuite</span>.ciphersuite&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;supported&nbsp;:&nbsp;<span class="constructor">Ciphersuite</span>.ciphersuite&nbsp;list<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pfs&nbsp;:&nbsp;<span class="constructor">Ciphersuite</span>.ciphersuite&nbsp;list<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pfs_of&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;fs&nbsp;:&nbsp;<span class="constructor">Ciphersuite</span>.ciphersuite&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;fs_of&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Ciphersuite</span>.ciphersuite&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Ciphersuite</span>.ciphersuite&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;of_client&nbsp;:&nbsp;<span class="constructor">Config</span>.client&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Config</span>.config<br>

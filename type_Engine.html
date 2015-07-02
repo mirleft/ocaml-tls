@@ -47,7 +47,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">KeyTooSmall</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">MACMismatch</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">MACUnderflow</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">MixedCiphersuites</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">NoCertificateReceived</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">NoCiphersuite</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Packet</span>.any_ciphersuite&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">NoHeartbeat</span><br>
@@ -80,20 +79,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Engine</span>.state&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(<span class="constructor">Engine</span>.state&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)&nbsp;option<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;send_close_notify&nbsp;:&nbsp;<span class="constructor">Engine</span>.state&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Engine</span>.state&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;reneg&nbsp;:&nbsp;<span class="constructor">Engine</span>.state&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(<span class="constructor">Engine</span>.state&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)&nbsp;option<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;epoch_data&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;protocol_version&nbsp;:&nbsp;<span class="constructor">Core</span>.tls_version;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;ciphersuite&nbsp;:&nbsp;<span class="constructor">Ciphersuite</span>.ciphersuite;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;peer_certificate&nbsp;:&nbsp;<span class="constructor">X509</span>.t&nbsp;list;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;peer_name&nbsp;:&nbsp;string&nbsp;option;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;trust_anchor&nbsp;:&nbsp;<span class="constructor">X509</span>.t&nbsp;option;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;own_certificate&nbsp;:&nbsp;<span class="constructor">X509</span>.t&nbsp;list;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;own_private_key&nbsp;:&nbsp;<span class="constructor">Nocrypto</span>.<span class="constructor">Rsa</span>.priv&nbsp;option;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;own_name&nbsp;:&nbsp;string&nbsp;option;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;master_secret&nbsp;:&nbsp;<span class="constructor">State</span>.master_secret;<br>
-&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;epoch_data_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Engine</span>.epoch_data<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_epoch_data&nbsp;:&nbsp;<span class="constructor">Engine</span>.epoch_data&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;epoch&nbsp;=&nbsp;[&nbsp;<span class="keywordsign">`</span><span class="constructor">Epoch</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Engine</span>.epoch_data&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">InitialEpoch</span>&nbsp;]<br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;epoch&nbsp;=&nbsp;[&nbsp;<span class="keywordsign">`</span><span class="constructor">Epoch</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Core</span>.epoch_data&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">InitialEpoch</span>&nbsp;]<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;epoch_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Engine</span>.epoch<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_epoch&nbsp;:&nbsp;<span class="constructor">Engine</span>.epoch&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;epoch&nbsp;:&nbsp;<span class="constructor">Engine</span>.state&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Engine</span>.epoch<br>

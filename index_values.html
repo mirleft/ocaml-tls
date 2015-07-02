@@ -40,11 +40,15 @@
 <td></td></tr>
 <tr><td><a href="Core.html#VAL__ec_prime_parameters_of_sexp__">__ec_prime_parameters_of_sexp__</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
+<tr><td><a href="Core.html#VAL__epoch_data_of_sexp__">__epoch_data_of_sexp__</a> [<a href="Core.html">Core</a>]</td>
+<td></td></tr>
 <tr><td><a href="Core.html#VAL__extension_of_sexp__">__extension_of_sexp__</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Core.html#VAL__hello_of_sexp__">__hello_of_sexp__</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Ciphersuite.html#VAL__key_exchange_algorithm_of_sexp__">__key_exchange_algorithm_of_sexp__</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
+<td></td></tr>
+<tr><td><a href="Core.html#VAL__master_secret_of_sexp__">__master_secret_of_sexp__</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Core.html#VAL__rsa_parameters_of_sexp__">__rsa_parameters_of_sexp__</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
@@ -155,14 +159,14 @@
     PEM-encoded files in <code class="code">dir</code>.
 </div>
 </td></tr>
+<tr><td><a href="Ciphersuite.html#VALciphersuite_fs">ciphersuite_fs</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
+<td></td></tr>
 <tr><td><a href="Ciphersuite.html#VALciphersuite_kex">ciphersuite_kex</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td><div class="info">
 <code class="code">ciphersuite_kex ciphersuite</code> is <code class="code">kex</code>, first projection of <code class="code">get_kex_privprot</code>
 </div>
 </td></tr>
 <tr><td><a href="Ciphersuite.html#VALciphersuite_of_sexp">ciphersuite_of_sexp</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
-<td></td></tr>
-<tr><td><a href="Ciphersuite.html#VALciphersuite_pfs">ciphersuite_pfs</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td></td></tr>
 <tr><td><a href="Ciphersuite.html#VALciphersuite_privprot">ciphersuite_privprot</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td><div class="info">
@@ -255,12 +259,17 @@
 <tr><td align="left"><br>D</td></tr>
 <tr><td><a href="Config.Ciphers.html#VALdefault">default</a> [<a href="Config.Ciphers.html">Config.Ciphers</a>]</td>
 <td><div class="info">
-All ciphersuites this library uses by default.
+<code class="code">default</code> is a list of ciphersuites this library uses by default.
 </div>
 </td></tr>
 <tr><td><a href="Config.html#VALdefault_hashes">default_hashes</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
 <code class="code">default_hashes</code> is a list of hash algorithms used by default
+</div>
+</td></tr>
+<tr><td><a href="Config.html#VALdh_group">dh_group</a> [<a href="Config.html">Config</a>]</td>
+<td><div class="info">
+<code class="code">dh_group</code> is the default diffie hellman group (currently FFDHE-DRAFT-2084)
 </div>
 </td></tr>
 <tr><td><a href="Core.html#VALdh_parameters_of_sexp">dh_parameters_of_sexp</a> [<a href="Core.html">Core</a>]</td>
@@ -309,11 +318,8 @@ All ciphersuites this library uses by default.
     information.
 </div>
 </td></tr>
-<tr><td><a href="Engine.html#VALepoch_data_of_sexp">epoch_data_of_sexp</a> [<a href="Engine.html">Engine</a>]</td>
-<td><div class="info">
-<code class="code">epoch_data_of_sexp sexp</code> is <code class="code">epoch_data</code>, the unmarshalled <code class="code">sexp</code>.
-</div>
-</td></tr>
+<tr><td><a href="Core.html#VALepoch_data_of_sexp">epoch_data_of_sexp</a> [<a href="Core.html">Core</a>]</td>
+<td></td></tr>
 <tr><td><a href="Engine.html#VALepoch_of_sexp">epoch_of_sexp</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
 <code class="code">epoch_of_sexp sexp</code> is <code class="code">epoch</code>, the unmarshalled <code class="code">sexp</code>.
@@ -331,6 +337,18 @@ All ciphersuites this library uses by default.
 <tr><td><a href="Engine.html#VALfailure_of_sexp">failure_of_sexp</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
 <code class="code">failure_of_sexp sexp</code> is <code class="code">failure</code>, the unmarshalled <code class="code">sexp</code>.
+</div>
+</td></tr>
+<tr><td><a href="Config.Ciphers.html#VALfs">fs</a> [<a href="Config.Ciphers.html">Config.Ciphers</a>]</td>
+<td><div class="info">
+<code class="code">fs</code> is a list of ciphersuites which provide forward secrecy
+      (sublist of <code class="code">default</code>).
+</div>
+</td></tr>
+<tr><td><a href="Config.Ciphers.html#VALfs_of">fs_of</a> [<a href="Config.Ciphers.html">Config.Ciphers</a>]</td>
+<td><div class="info">
+<code class="code">fs_of ciphers</code> selects all ciphersuites which provide forward
+      secrecy from <code class="code">ciphers</code>.
 </div>
 </td></tr>
 <tr><td align="left"><br>G</td></tr>
@@ -413,6 +431,8 @@ All ciphersuites this library uses by default.
 </div>
 </td></tr>
 <tr><td align="left"><br>M</td></tr>
+<tr><td><a href="Core.html#VALmaster_secret_of_sexp">master_secret_of_sexp</a> [<a href="Core.html">Core</a>]</td>
+<td></td></tr>
 <tr><td><a href="Packet.html#VALmax_fragment_length_of_sexp">max_fragment_length_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALmax_fragment_length_to_int">max_fragment_length_to_int</a> [<a href="Packet.html">Packet</a>]</td>
@@ -474,16 +494,6 @@ All ciphersuites this library uses by default.
 <tr><td><a href="Config.html#VALpeer">peer</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
 <code class="code">peer client name</code> is <code class="code">client</code> with <code class="code">name</code> as <code class="code">peer_name</code>
-</div>
-</td></tr>
-<tr><td><a href="Config.Ciphers.html#VALpfs">pfs</a> [<a href="Config.Ciphers.html">Config.Ciphers</a>]</td>
-<td><div class="info">
-All perfect forward secrecy ciphersuites this library supports.
-</div>
-</td></tr>
-<tr><td><a href="Config.Ciphers.html#VALpfs_of">pfs_of</a> [<a href="Config.Ciphers.html">Config.Ciphers</a>]</td>
-<td><div class="info">
-<code class="code">pfs_of ciphers</code> selects all perfect forward secrecy ciphersuites from default.
 </div>
 </td></tr>
 <tr><td><a href="X509_lwt.html#VALprivate_of_pems">private_of_pems</a> [<a href="X509_lwt.html">X509_lwt</a>]</td>
@@ -617,11 +627,8 @@ All perfect forward secrecy ciphersuites this library supports.
 <code class="code">sexp_of_epoch epoch</code> is <code class="code">sexp</code>, the marshalled <code class="code">epoch</code>.
 </div>
 </td></tr>
-<tr><td><a href="Engine.html#VALsexp_of_epoch_data">sexp_of_epoch_data</a> [<a href="Engine.html">Engine</a>]</td>
-<td><div class="info">
-<code class="code">sexp_of_epoch_data epoch_data</code> is <code class="code">sexp</code>, the marshalled <code class="code">epoch_data</code>.
-</div>
-</td></tr>
+<tr><td><a href="Core.html#VALsexp_of_epoch_data">sexp_of_epoch_data</a> [<a href="Core.html">Core</a>]</td>
+<td></td></tr>
 <tr><td><a href="Core.html#VALsexp_of_extension">sexp_of_extension</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALsexp_of_extension_type">sexp_of_extension_type</a> [<a href="Packet.html">Packet</a>]</td>
@@ -638,6 +645,8 @@ All perfect forward secrecy ciphersuites this library supports.
 <tr><td><a href="Core.html#VALsexp_of_hello">sexp_of_hello</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Ciphersuite.html#VALsexp_of_key_exchange_algorithm">sexp_of_key_exchange_algorithm</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
+<td></td></tr>
+<tr><td><a href="Core.html#VALsexp_of_master_secret">sexp_of_master_secret</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALsexp_of_max_fragment_length">sexp_of_max_fragment_length</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
@@ -710,7 +719,8 @@ All perfect forward secrecy ciphersuites this library supports.
 <td></td></tr>
 <tr><td><a href="Config.Ciphers.html#VALsupported">supported</a> [<a href="Config.Ciphers.html">Config.Ciphers</a>]</td>
 <td><div class="info">
-All ciphersuites this library implements.
+<code class="code">supported</code> is a list of ciphersuites this library supports
+      (larger than <code class="code">default</code>).
 </div>
 </td></tr>
 <tr><td><a href="Config.html#VALsupported_hashes">supported_hashes</a> [<a href="Config.html">Config</a>]</td>

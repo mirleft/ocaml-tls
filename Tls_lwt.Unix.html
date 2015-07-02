@@ -101,7 +101,7 @@ Abstract type of a session<br>
 <code class="code">reneg t</code> renegotiates the keys of the session.<br>
 </div>
 
-<pre><span id="VALepoch"><span class="keyword">val</span> epoch</span> : <code class="type"><a href="Tls_lwt.Unix.html#TYPEt">t</a> -> [ `Error | `Ok of Tls.Engine.epoch_data ]</code></pre><div class="info ">
+<pre><span id="VALepoch"><span class="keyword">val</span> epoch</span> : <code class="type"><a href="Tls_lwt.Unix.html#TYPEt">t</a> -> [ `Error | `Ok of Tls.Core.epoch_data ]</code></pre><div class="info ">
 <code class="code">epoch t</code> returns <code class="code">epoch</code>, which contains information of the
       active session.<br>
 </div>
