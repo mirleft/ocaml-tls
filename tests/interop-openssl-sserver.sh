@@ -1,6 +1,6 @@
 #!/bin/sh
 
-s_server_args="s_server -no_tmp_rsa -quiet -key ../certificates/server.key -cert ../certificates/server.pem -www"
+s_server_args="s_server -no_tmp_rsa -quiet -key ../certificates/server.key -cert ../certificates/server.pem -www -dhparam dh.pem "
 
 pidfile='/tmp/openssl.pid'
 
