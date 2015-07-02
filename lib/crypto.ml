@@ -141,19 +141,18 @@ let decrypt_ccm (type a) ~cipher ~key ~nonce ~adata data =
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
   let module C = (val cipher : Cipher_block.S.CBC with type key = a) in
-  let { C.message ; iv } =
-    C.encrypt ~key ~iv (data <+> cbc_pad C.block_size data) in
-  (message, iv)
+  let message = C.encrypt ~key ~iv (data <+> cbc_pad C.block_size data) in
+  (message, C.next_iv ~iv message)
 
 let decrypt_cbc (type a) ~cipher ~key ~iv data =
   let module C = (val cipher : Cipher_block.S.CBC with type key = a) in
   try
-    let { C.message ; iv } = C.decrypt ~key ~iv data in
+    let message = C.decrypt ~key ~iv data in
     match cbc_unpad C.block_size message with
-    | Some res -> Some (res, iv)
+    | Some res -> Some (res, C.next_iv ~iv data)
     | None     -> None
   with
-  (* XXX Catches data mis-alignment. Get a more specific exn from nocrypto. *)
-  (* We _don't_ leak block size now because we catch misalignment only while
-   * decrypting the last block. *)
+  (* This bails out immediately on mis-alignment, making it very timeable.
+   * However, decryption belongs to the outermost level and this operation's
+   * timing does not leak information ala padding oracle and friends. *)
   | Invalid_argument _ -> None

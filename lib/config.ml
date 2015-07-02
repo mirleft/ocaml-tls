@@ -71,6 +71,8 @@ let min_dh_size = 1024
 
 let min_rsa_key_size = 1024
 
+let dh_group = Dh.Group.ffdhe2048 (* ff-dhe draft 2048-bit group *)
+
 let default_config = {
   ciphers           = Ciphers.default ;
   protocol_versions = (TLS_1_0, TLS_1_2) ;
