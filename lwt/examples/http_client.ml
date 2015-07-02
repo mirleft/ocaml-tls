@@ -3,7 +3,6 @@ open Lwt
 open Ex_common
 
 let http_client ?ca ?fp host port =
-  Nocrypto_entropy_lwt.initialize () >>
   let port          = int_of_string port in
   lwt authenticator = X509_lwt.authenticator
     ( match ca, fp with
