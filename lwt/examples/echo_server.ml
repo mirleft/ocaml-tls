@@ -58,7 +58,6 @@ let serve_ssl port callback =
     loop (server_s ())
 
 let echo_server port =
-  Nocrypto_entropy_lwt.initialize () >>
   serve_ssl port @@ fun (ic, oc) addr ->
     lines ic |> Lwt_stream.iter_s (fun line ->
       yap "handler" ("+ " ^ line) >> Lwt_io.write_line oc line)

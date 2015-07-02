@@ -245,3 +245,7 @@ let accept ?trace certificate =
 and connect ?trace authenticator addr =
   let config = Tls.Config.client ~authenticator ()
   in connect_ext ?trace config addr
+
+
+(* Boot the entropy loop at module init time. *)
+let () = ignore @@ Nocrypto_entropy_lwt.initialize ()
