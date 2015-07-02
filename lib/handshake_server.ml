@@ -225,7 +225,7 @@ let answer_client_hello_common state reneg ch raw =
        ([ assemble_handshake certreq ], { session with client_auth = true })
 
   and kex_dhe_rsa config session version sig_algs =
-    let group         = Dh.Group.ffdhe2048 in (* ff-dhe draft 2048-bit group *)
+    let group         = Config.dh_group in
     let (secret, msg) = Dh.gen_key group in
     let dh_state      = group, secret in
     let written =
