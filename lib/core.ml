@@ -155,3 +155,19 @@ type tls_body =
   | TLS_Alert of tls_alert
   | TLS_Handshake of tls_handshake
   with sexp
+
+(** the master secret of a TLS connection *)
+type master_secret = Cstruct.t with sexp
+
+(** information about an open session *)
+type epoch_data = {
+  protocol_version : tls_version ;
+  ciphersuite      : Ciphersuite.ciphersuite ;
+  peer_certificate : X509.t list ;
+  peer_name        : string option ;
+  trust_anchor     : X509.t option ;
+  own_certificate  : X509.t list ;
+  own_private_key  : Nocrypto.Rsa.priv option ;
+  own_name         : string option ;
+  master_secret    : master_secret ;
+} with sexp

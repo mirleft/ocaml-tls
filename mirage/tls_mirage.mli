@@ -38,7 +38,7 @@ module Make (F : V1_LWT.FLOW) : sig
     [> `Ok of flow | `Error of error | `Eof ] Lwt.t
 
   (** [epoch flow] extracts information of the established session. *)
-  val epoch : flow -> [ `Ok of Tls.Engine.epoch_data | `Error ]
+  val epoch : flow -> [ `Ok of Tls.Core.epoch_data | `Error ]
 
 end
   with module FLOW = F
