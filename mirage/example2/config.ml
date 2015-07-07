@@ -15,7 +15,7 @@ let () =
   add_to_ocamlfind_libraries [
     "mirage-clock-unix" ;
     "tls"; "tls.mirage" ;
-    "tcpip.channel" ;
+    "tcpip" ; "channel" ;
     "cohttp.lwt-core" ;
     "mirage-http"
   ] ;
