@@ -194,7 +194,7 @@ let rec replay ?choices prev_state state pending_out t ccs alert_out check =
       ( match data with
         | None -> replay ?choices prev state' pending xs ccs alert_out check
         | Some x ->
-          (* Printf.printf "received data %s\n" (Cstruct.to_string x); *)
+          Printf.printf "received data %s\n" (Cstruct.to_string x);
           if check_stream state.encryptor then
             Stream_enc
           else
