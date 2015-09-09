@@ -163,9 +163,11 @@ type master_secret = Cstruct.t with sexp
 type epoch_data = {
   protocol_version : tls_version ;
   ciphersuite      : Ciphersuite.ciphersuite ;
+  peer_random      : Cstruct.t ;
   peer_certificate : X509.t list ;
   peer_name        : string option ;
   trust_anchor     : X509.t option ;
+  own_random       : Cstruct.t ;
   own_certificate  : X509.t list ;
   own_private_key  : Nocrypto.Rsa.priv option ;
   own_name         : string option ;
