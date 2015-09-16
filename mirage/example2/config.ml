@@ -11,12 +11,13 @@ let () =
   add_to_opam_packages [
     "mirage-clock-unix" ;
     "mirage-http" ;
+    "tcpip" ;
     "channel"
   ] ;
   add_to_ocamlfind_libraries [
     "mirage-clock-unix" ;
     "tls"; "tls.mirage" ;
-    "tcpip" ; "channel" ;
+    "tcpip"; "channel" ;
     "cohttp.lwt-core" ;
     "mirage-http"
   ] ;
