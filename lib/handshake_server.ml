@@ -319,7 +319,7 @@ let answer_client_hello state (ch : client_hello) raw =
       version = epoch.protocol_version
     in
 
-    match state.config.session_cache ch.sessionid with
+    match option None state.config.session_cache ch.sessionid with
     | Some epoch when epoch_matches epoch state.protocol_version ch.ciphersuites ->
       Some { session_of_epoch epoch with
              client_random = ch.random ;

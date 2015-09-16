@@ -16,7 +16,7 @@ type own_cert = [
   | `Multiple_default of certchain * certchain list
 ]
 
-type session_cache = Cstruct.t option -> epoch_data option
+type session_cache = Cstruct.t -> epoch_data option
 
 (** configuration parameters *)
 type config = private {
@@ -28,6 +28,7 @@ type config = private {
   peer_name         : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
   own_certificates  : own_cert ; (** optional default certificate chain and other certificate chains *)
   session_cache     : session_cache ;
+  cached_session    : epoch_data option ;
 }
 
 val config_of_sexp : Sexplib.Sexp.t -> config
@@ -50,13 +51,13 @@ val sexp_of_server : server -> Sexplib.Sexp.t
 (** [client authenticator ?ciphers ?version ?hashes ?reneg ?certificates] is [client] configuration with the given parameters *)
 (** @raise Invalid_argument if the configuration is invalid *)
 val client :
-  authenticator  : X509.Authenticator.a ->
-  ?ciphers       : Ciphersuite.ciphersuite list ->
-  ?version       : tls_version * tls_version ->
-  ?hashes        : Hash.hash list ->
-  ?reneg         : bool ->
-  ?certificates  : own_cert ->
-  ?session_cache : session_cache ->
+  authenticator   : X509.Authenticator.a ->
+  ?ciphers        : Ciphersuite.ciphersuite list ->
+  ?version        : tls_version * tls_version ->
+  ?hashes         : Hash.hash list ->
+  ?reneg          : bool ->
+  ?certificates   : own_cert ->
+  ?cached_session : epoch_data ->
   unit -> client
 
 (** [server ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator] is [server] configuration with the given parameters *)

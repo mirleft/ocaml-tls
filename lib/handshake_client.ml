@@ -27,7 +27,7 @@ let default_client_hello config =
     | TLS_1_0 | TLS_1_1 -> List.filter (o not Ciphersuite.ciphersuite_tls12_only) cs
     | TLS_1_2           -> cs
   and sessionid =
-    match config.session_cache None with
+    match config.cached_session with
     | None -> None
     | Some { session_id ; _ } -> Some session_id
   in
@@ -64,10 +64,12 @@ let answer_server_hello state ch (sh : server_hello) raw log =
   validate_reneg (get_secure_renegotiation sh.extensions) >|= fun () ->
 
   let epoch_matches (epoch : epoch_data) =
-    epoch.ciphersuite = sh.ciphersuites && epoch.protocol_version = sh.version
+    epoch.ciphersuite = sh.ciphersuites &&
+      epoch.protocol_version = sh.version &&
+        option false ((=) epoch.session_id) sh.sessionid
   in
 
-  match state.config.session_cache sh.sessionid with
+  match state.config.cached_session with
   | Some epoch when epoch_matches epoch ->
     let session = { session_of_epoch epoch with
                     client_random = ch.random ;
