@@ -69,7 +69,7 @@ type tls_hdr = {
 module SessionID = struct
   type t = Cstruct.t with sexp
   let compare = Cstruct.compare
-  let hash = Hashtbl.hash
+  let hash t = Hashtbl.hash (Cstruct.to_bigarray t)
   let equal = Cstruct.equal
 end
 
