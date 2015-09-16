@@ -66,6 +66,13 @@ type tls_hdr = {
   version      : tls_any_version;
 } with sexp
 
+module SessionID = struct
+  type t = Cstruct.t with sexp
+  let compare = Cstruct.compare
+  let hash = Hashtbl.hash
+  let equal = Cstruct.equal
+end
+
 type extension =
   | Hostname of string option
   | MaxFragmentLength of max_fragment_length
@@ -80,7 +87,7 @@ type extension =
 type ('a, 'b) hello = {
   version      : 'b;
   random       : Cstruct.t;
-  sessionid    : Cstruct.t option;
+  sessionid    : SessionID.t option;
   ciphersuites : 'a;
   extensions   : extension list
 } with sexp
@@ -170,5 +177,5 @@ type epoch_data = {
   own_private_key  : Nocrypto.Rsa.priv option ;
   own_name         : string option ;
   master_secret    : master_secret ;
-  session_id       : Cstruct.t ;
+  session_id       : SessionID.t ;
 } with sexp

@@ -15,7 +15,7 @@ type own_cert = [
   | `Multiple_default of certchain * certchain list
 ] with sexp
 
-type session_cache = Cstruct.t -> epoch_data option
+type session_cache = SessionID.t -> epoch_data option
 let session_cache_of_sexp _ = fun _ -> None
 let sexp_of_session_cache _ = Sexplib.Sexp.Atom "SESSION_CACHE"
 

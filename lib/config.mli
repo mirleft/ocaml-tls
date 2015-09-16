@@ -16,7 +16,7 @@ type own_cert = [
   | `Multiple_default of certchain * certchain list
 ]
 
-type session_cache = Cstruct.t -> epoch_data option
+type session_cache = SessionID.t -> epoch_data option
 
 (** configuration parameters *)
 type config = private {
