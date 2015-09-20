@@ -15,6 +15,10 @@ type own_cert = [
   | `Multiple_default of certchain * certchain list
 ] with sexp
 
+type session_cache = SessionID.t -> epoch_data option
+let session_cache_of_sexp _ = fun _ -> None
+let sexp_of_session_cache _ = Sexplib.Sexp.Atom "SESSION_CACHE"
+
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
   protocol_versions : tls_version * tls_version ;
@@ -24,6 +28,8 @@ type config = {
   authenticator     : X509.Authenticator.a option ;
   peer_name         : string option ;
   own_certificates  : own_cert ;
+  session_cache     : session_cache ;
+  cached_session    : epoch_data option ;
 } with sexp
 
 module Ciphers = struct
@@ -81,6 +87,8 @@ let default_config = {
   authenticator     = None ;
   peer_name         = None ;
   own_certificates  = `None ;
+  session_cache     = (fun _ -> None) ;
+  cached_session    = None ;
 }
 
 let invalid msg = invalid_arg ("Tls.Config: invalid configuration: " ^ msg)
@@ -205,28 +213,30 @@ let peer conf name = { conf with peer_name = Some name }
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
 let client
-  ~authenticator ?ciphers ?version ?hashes ?reneg ?certificates () =
+  ~authenticator ?ciphers ?version ?hashes ?reneg ?certificates ?cached_session () =
   let config =
     { default_config with
         authenticator     = Some authenticator ;
-        ciphers           = ciphers      <?> default_config.ciphers ;
-        protocol_versions = version      <?> default_config.protocol_versions ;
-        hashes            = hashes       <?> default_config.hashes ;
-        use_reneg         = reneg        <?> default_config.use_reneg ;
-        own_certificates  = certificates <?> default_config.own_certificates ;
+        ciphers           = ciphers       <?> default_config.ciphers ;
+        protocol_versions = version       <?> default_config.protocol_versions ;
+        hashes            = hashes        <?> default_config.hashes ;
+        use_reneg         = reneg         <?> default_config.use_reneg ;
+        own_certificates  = certificates  <?> default_config.own_certificates ;
+        cached_session    = cached_session ;
     } in
   ( validate_common config ; validate_client config ; config )
 
 let server
-  ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator () =
+  ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator ?session_cache () =
   let config =
     { default_config with
-        ciphers           = ciphers      <?> default_config.ciphers ;
-        protocol_versions = version      <?> default_config.protocol_versions ;
-        hashes            = hashes       <?> default_config.hashes ;
-        use_reneg         = reneg        <?> default_config.use_reneg ;
-        own_certificates  = certificates <?> default_config.own_certificates ;
+        ciphers           = ciphers       <?> default_config.ciphers ;
+        protocol_versions = version       <?> default_config.protocol_versions ;
+        hashes            = hashes        <?> default_config.hashes ;
+        use_reneg         = reneg         <?> default_config.use_reneg ;
+        own_certificates  = certificates  <?> default_config.own_certificates ;
         authenticator     = authenticator ;
+        session_cache     = session_cache <?> default_config.session_cache ;
     } in
   ( validate_common config ; validate_server config ; config )
 

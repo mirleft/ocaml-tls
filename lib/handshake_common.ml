@@ -37,6 +37,19 @@ let empty_session = {
   master_secret    = Cstruct.create 0 ;
   renegotiation    = Cstruct.(create 0, create 0) ;
   client_auth      = false ;
+  session_id       = Cstruct.create 0 ;
+}
+
+let session_of_epoch (epoch : epoch_data) : session_data = {
+  empty_session with
+  ciphersuite = epoch.ciphersuite ;
+  peer_certificate = epoch.peer_certificate ;
+  trust_anchor = epoch.trust_anchor ;
+  own_certificate = epoch.own_certificate ;
+  own_private_key = epoch.own_private_key ;
+  master_secret = epoch.master_secret ;
+  own_name = epoch.own_name ;
+  session_id = epoch.session_id
 }
 
 let supported_protocol_version (min, max) v =
