@@ -275,6 +275,11 @@ let parse_extension raw =
          raise_trailing_bytes "signature algorithms"
        else
          SignatureAlgorithms algos
+    | Some EXTENDED_MASTER_SECRET ->
+      if len buf > 0 then
+         raise_trailing_bytes "extended master secret"
+       else
+         ExtendedMasterSecret
     | _ ->
        UnknownExtension (etype, buf)
   in

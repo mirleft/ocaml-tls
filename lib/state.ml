@@ -82,6 +82,7 @@ type session_data = {
   own_name         : string option ;
   client_auth      : bool ;
   session_id       : Cstruct.t ;
+  extended_ms      : bool ;
 } with sexp
 
 (* state machine of the server *)

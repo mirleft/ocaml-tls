@@ -82,6 +82,7 @@ type extension =
   | Padding of int
   | SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
   | UnknownExtension of (int * Cstruct.t)
+  | ExtendedMasterSecret
   with sexp
 
 type ('a, 'b) hello = {
@@ -178,4 +179,5 @@ type epoch_data = {
   own_name         : string option ;
   master_secret    : master_secret ;
   session_id       : SessionID.t ;
+  extended_ms      : bool ;
 } with sexp

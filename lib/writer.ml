@@ -168,6 +168,7 @@ let assemble_extension e =
        (buf, PADDING)
     | SignatureAlgorithms s ->
        (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
+    | ExtendedMasterSecret -> (Cstruct.create 0, EXTENDED_MASTER_SECRET)
   in
   let buf = create 4 in
   BE.set_uint16 buf 0 (extension_type_to_int typ);

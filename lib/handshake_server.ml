@@ -50,8 +50,9 @@ let answer_client_finished_resume state session server_verify client_fin raw log
   ({ state with machina ; session = session :: state.session }, [])
 
 let establish_master_secret state session premastersecret raw log =
+  let log = log @ [raw] in
   let master_secret = Handshake_crypto.derive_master_secret
-      state.protocol_version session premastersecret
+      state.protocol_version session premastersecret log
   in
   let session = { session with master_secret = master_secret } in
   let client_ctx, server_ctx =
@@ -59,8 +60,8 @@ let establish_master_secret state session premastersecret raw log =
   in
   let machina =
     match session.peer_certificate with
-    | [] -> AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log @ [raw])
-    | _ -> AwaitClientCertificateVerify (session, server_ctx, client_ctx, log @ [raw])
+    | [] -> AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log)
+    | _ -> AwaitClientCertificateVerify (session, server_ctx, client_ctx, log)
   in
   (* Tracing.cs ~tag:"master-secret" master_secret ; *)
   ({ state with machina = Server machina }, [])
@@ -172,6 +173,10 @@ let server_hello session version reneg =
   and secren = match reneg with
     | None            -> SecureRenegotiation (Cstruct.create 0)
     | Some (cvd, svd) -> SecureRenegotiation (cvd <+> svd)
+  and ems = if session.extended_ms then
+      [ExtendedMasterSecret]
+    else
+      []
   and session_id =
     match Cstruct.len session.session_id with
     | 0 -> Rng.generate 32
@@ -182,7 +187,7 @@ let server_hello session version reneg =
         random       = server_random ;
         sessionid    = Some session_id ;
         ciphersuites = session.ciphersuite ;
-        extensions   = secren :: host }
+        extensions   = secren :: host @ ems }
   in
   (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ; *)
   (Writer.assemble_handshake sh,
@@ -207,6 +212,8 @@ let answer_client_hello_common state reneg ch raw =
         | Some _ -> fail (`Error (`NoConfiguredCiphersuite cciphers))
         | None -> fail (`Fatal (`NoCiphersuite ch.ciphersuites)) ) >|= fun cipher ->
 
+    let extended_ms = List.mem ExtendedMasterSecret ch.extensions in
+
     (* Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ; *)
 
     { empty_session with
@@ -215,7 +222,8 @@ let answer_client_hello_common state reneg ch raw =
       ciphersuite      = cipher ;
       own_certificate  = chain ;
       own_private_key  = priv ;
-      own_name         = host }
+      own_name         = host ;
+      extended_ms      = extended_ms }
 
   and server_cert session =
     match session.own_certificate with
@@ -313,14 +321,16 @@ let answer_client_hello state (ch : client_hello) raw =
 
 
   and resume ch state =
-    let epoch_matches (epoch : Core.epoch_data) version ciphers =
+    let epoch_matches (epoch : Core.epoch_data) version ciphers extensions =
       let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ciphers in
       List.mem epoch.ciphersuite cciphers &&
-      version = epoch.protocol_version
+        version = epoch.protocol_version &&
+          List.mem ExtendedMasterSecret extensions &&
+            epoch.extended_ms
     in
 
     match option None state.config.session_cache ch.sessionid with
-    | Some epoch when epoch_matches epoch state.protocol_version ch.ciphersuites ->
+    | Some epoch when epoch_matches epoch state.protocol_version ch.ciphersuites ch.extensions ->
       Some { session_of_epoch epoch with
              client_random = ch.random ;
              client_version = ch.version ;

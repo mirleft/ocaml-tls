@@ -581,4 +581,5 @@ let epoch state =
         own_name         = session.own_name ;
         master_secret    = session.master_secret ;
         session_id       = session.session_id ;
+        extended_ms      = session.extended_ms ;
       }

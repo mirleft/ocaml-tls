@@ -32,9 +32,6 @@ let pseudo_random_function version len secret label seed =
      and sha = p_hash (SHA1.hmac, 20) s2 labelled len in
      Cs.xor md5 sha
 
-let generate_master_secret version pre_master_secret seed =
-  pseudo_random_function version 48 pre_master_secret "master secret" seed
-
 let key_block version len master_secret seed =
   pseudo_random_function version len master_secret "key expansion" seed
 
@@ -58,11 +55,18 @@ let divide_keyblock key mac iv buf =
   in
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
-let derive_master_secret version session premaster =
-  let client_random = session.client_random
-  and server_random = session.server_random
-  in
-  generate_master_secret version premaster (client_random <+> server_random)
+let derive_master_secret version session premaster log =
+  let prf = pseudo_random_function version 48 premaster in
+  if session.extended_ms then
+    let session_hash =
+      let data = Utils.Cs.appends log in
+      match version with
+      | TLS_1_0 | TLS_1_1 -> MD5.digest data <+> SHA1.digest data
+      | TLS_1_2 -> SHA256.digest data
+    in
+    prf "extended master secret" session_hash
+  else
+    prf "master secret" (session.client_random <+> session.server_random)
 
 let initialise_crypto_ctx version session =
   let open Ciphersuite in

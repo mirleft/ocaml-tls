@@ -28,15 +28,15 @@ let default_client_hello config =
     | TLS_1_2           -> cs
   and sessionid =
     match config.cached_session with
-    | None -> None
-    | Some { session_id ; _ } -> Some session_id
+    | Some { session_id ; extended_ms ; _ } when extended_ms = true -> Some session_id
+    | _ -> None
   in
   let ch = {
     version      = Supported version ;
     random       = Rng.generate 32 ;
     sessionid    = sessionid ;
     ciphersuites = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
-    extensions   = host @ signature_algos
+    extensions   = host @ signature_algos @ [ExtendedMasterSecret]
   }
   in
   (ch , version)
@@ -66,7 +66,9 @@ let answer_server_hello state ch (sh : server_hello) raw log =
   let epoch_matches (epoch : epoch_data) =
     epoch.ciphersuite = sh.ciphersuites &&
       epoch.protocol_version = sh.version &&
-        option false ((=) epoch.session_id) sh.sessionid
+        option false ((=) epoch.session_id) sh.sessionid &&
+          List.mem ExtendedMasterSecret sh.extensions &&
+            epoch.extended_ms
   in
 
   match state.config.cached_session with
@@ -87,12 +89,17 @@ let answer_server_hello state ch (sh : server_hello) raw log =
     let machina =
       let cipher = sh.ciphersuites in
       let session_id = match sh.sessionid with None -> Cstruct.create 0 | Some x -> x in
+      let extended_ms =
+        let ems = List.mem ExtendedMasterSecret in
+        ems ch.extensions && ems sh.extensions
+      in
       let session = { empty_session with
                       client_random    = ch.random ;
                       client_version   = ch.version ;
                       server_random    = sh.random ;
                       ciphersuite      = cipher ;
                       session_id ;
+                      extended_ms ;
                     }
       in
       Ciphersuite.(match ciphersuite_kex cipher with
@@ -244,13 +251,6 @@ let answer_certificate_request state session cr kex pms raw log =
 let answer_server_hello_done state session sigalgs kex premaster raw log =
   let kex = ClientKeyExchange kex in
   let ckex = Writer.assemble_handshake kex in
-  let master_secret =
-    Handshake_crypto.derive_master_secret state.protocol_version session premaster
-  in
-  let session = { session with master_secret } in
-  let client_ctx, server_ctx =
-    Handshake_crypto.initialise_crypto_ctx state.protocol_version session
-  in
 
   ( match session.client_auth, session.own_private_key with
     | true, Some p ->
@@ -265,14 +265,24 @@ let answer_server_hello_done state session sigalgs kex premaster raw log =
        let ccert_verify = Writer.assemble_handshake cert_verify in
        ([ cert ; kex ; cert_verify ],
         [ ccert ; ckex ; ccert_verify ],
-        to_sign @ [ ccert_verify ])
+        to_sign, Some ccert_verify)
     | true, None ->
        let cert = Certificate [] in
        let ccert = Writer.assemble_handshake cert in
-       return ([cert ; kex], [ccert ; ckex], log @ [ raw ; ccert ; ckex ])
+       return ([cert ; kex], [ccert ; ckex], log @ [ raw ; ccert ; ckex ], None)
     | false, _ ->
-       return ([kex], [ckex], log @ [ raw ; ckex ]) )
-  >|= fun (msgs, raw_msgs, to_fin) ->
+       return ([kex], [ckex], log @ [ raw ; ckex ], None) )
+  >|= fun (msgs, raw_msgs, raws, cert_verify) ->
+
+  let to_fin = raws @ option [] (fun x -> [x]) cert_verify in
+
+  let master_secret =
+    Handshake_crypto.derive_master_secret state.protocol_version session premaster raws
+  in
+  let session = { session with master_secret } in
+  let client_ctx, server_ctx =
+    Handshake_crypto.initialise_crypto_ctx state.protocol_version session
+  in
 
   let checksum = Handshake_crypto.finished state.protocol_version master_secret "client finished" to_fin in
   let fin = Finished checksum in

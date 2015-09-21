@@ -38,6 +38,7 @@ let empty_session = {
   renegotiation    = Cstruct.(create 0, create 0) ;
   client_auth      = false ;
   session_id       = Cstruct.create 0 ;
+  extended_ms      = false ;
 }
 
 let session_of_epoch (epoch : epoch_data) : session_data = {
@@ -49,7 +50,8 @@ let session_of_epoch (epoch : epoch_data) : session_data = {
   own_private_key = epoch.own_private_key ;
   master_secret = epoch.master_secret ;
   own_name = epoch.own_name ;
-  session_id = epoch.session_id
+  session_id = epoch.session_id ;
+  extended_ms = epoch.extended_ms ;
 }
 
 let supported_protocol_version (min, max) v =
@@ -67,6 +69,7 @@ let to_ext_type = function
   | Padding _             -> `Padding
   | SignatureAlgorithms _ -> `SignatureAlgorithms
   | UnknownExtension _    -> `UnknownExtension
+  | ExtendedMasterSecret  -> `ExtendedMasterSecret
 
 let extension_types exts = List.(
   exts |> map to_ext_type
