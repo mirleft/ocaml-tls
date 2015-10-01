@@ -570,12 +570,19 @@ let epoch state =
   match hs.session with
   | []           -> `InitialEpoch
   | session :: _ ->
+     let own_random , peer_random =
+       match hs.machina with
+       | Client _ -> session.client_random , session.server_random
+       | Server _ -> session.server_random , session.client_random
+     in
      `Epoch {
         protocol_version = hs.protocol_version ;
         ciphersuite      = session.ciphersuite ;
+        peer_random ;
         peer_certificate = session.peer_certificate ;
         peer_name        = Config.(hs.config.peer_name) ;
         trust_anchor     = session.trust_anchor ;
+        own_random ;
         own_certificate  = session.own_certificate ;
         own_private_key  = session.own_private_key ;
         own_name         = session.own_name ;
