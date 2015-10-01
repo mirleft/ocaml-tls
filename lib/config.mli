@@ -83,7 +83,7 @@ val default_hashes  : Hash.hash list
 (** [supported_hashes] is a list of supported hash algorithms by this library *)
 val supported_hashes  : Hash.hash list
 
-(** [min_dh_size] is minimal diffie hellman group size in bits (currently 512) *)
+(** [min_dh_size] is minimal diffie hellman group size in bits (currently 1024) *)
 val min_dh_size : int
 
 (** [dh_group] is the default diffie hellman group (currently FFDHE-DRAFT-2084) *)
