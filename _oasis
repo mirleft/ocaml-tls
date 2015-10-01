@@ -139,7 +139,7 @@ Executable "test_client"
 
 Document api
   Title: Documentation and API reference
-  Abstract: OCaml-TLS implements transport layer security in OCaml. It consists
+  Abstract: TLS implements transport layer security in OCaml. It consists
             of a pure core (Engine), and several effectful frontends (tls-lwt,
             tls-mirage). Application developers who want to use TLS in OCaml
             should read the frontend documentation, frontend developers the

@@ -1,23 +1,43 @@
-(** Transport layer security core.
+(** Transport layer security
 
-    [TLS] implements the transport layer security protocol entirely in
-    OCaml.  TLS is used to secure a session between two endpoints, a
-    client and a server.  This session can either be not authenticated
-    at all, or either, or both endpoints can be authenticated.  Most
-    common is that the server is authenticated using X.509
-    certificates.
+    [TLS] is an implementation of
+    {{:https://en.wikipedia.org/wiki/Transport_Layer_Security}transport
+    layer security} in OCaml.  TLS is a widely used security protocol
+    which establishes an end-to-end secure channel (with optional
+    (mutual) authentication) between two endpoints.  It uses TCP/IP as
+    transport.  This library supports all three versions of TLS:
+    {{:https://tools.ietf.org/html/rfc5246}1.2, RFC5246},
+    {{:https://tools.ietf.org/html/rfc4346}1.1, RFC4346}, and
+    {{:https://tools.ietf.org/html/rfc2246}1.0, RFC2246}.  SSL, the
+    previous protocol definition, is not supported.
 
     TLS is algorithmically agile: protocol version, key exchange
     algorithm, symmetric cipher, and message authentication code are
     negotiated upon connection.
 
-    This module [Engine] provides the pure core of the protocol
-    handling, and is used by the effectful front-ends. *)
+    This library implements several extensions of TLS,
+    {{:https://tools.ietf.org/html/rfc3268}AES ciphers},
+    {{:https://tools.ietf.org/html/rfc4366}TLS extensions} (such as
+    server name indication, SNI),
+    {{:https://tools.ietf.org/html/rfc5746}Renegotiation extension},
+    {{:https://tools.ietf.org/html/rfc7627}Session Hash and Extended
+    Master Secret Extension}.
+
+    This library does not contain insecure cipher suites (such as
+    single DES, export ciphers, ...).  It does not expose the server
+    time in the server random, requires secure renegotiation.
+
+    This library consists of a core, implemented in a purely
+    functional matter ({!Engine}, this module), and effectful parts:
+    {!Tls_lwt} and {!Tls_mirage}. *)
+
+(** {1 Abstract state type} *)
+
+(** The abstract type of a TLS state, with
+    {{!Encoding.Pem.Certificate}encoding and decoding to PEM}. *)
+type state
 
 (** {1 Constructors} *)
-
-(** The abstract [state] type. *)
-type state
 
 (** [client client] is [tls * out] where [tls] is the initial state,
     and [out] the initial client hello *)
@@ -97,7 +117,7 @@ val sexp_of_failure : failure -> Sexplib.Sexp.t
 
 (** {1 Protocol handling} *)
 
-(** return type of {!handle_tls}: either failed to handle the incoming
+(** result type of {!handle_tls}: either failed to handle the incoming
     buffer ([`Fail]) with {!failure} and potentially a message to send
     to the other endpoint, or sucessful operation ([`Ok]) with a new
     {!state}, an end of file ([`Eof]), or an incoming ([`Alert]).
@@ -111,7 +131,7 @@ type ret = [
 ]
 
 (** [handle_tls state buffer] is [ret], depending on incoming [state]
-    and [buffer], return appropriate {!ret} *)
+    and [buffer], the result is the appropriate {!ret} *)
 val handle_tls           : state -> Cstruct.t -> ret
 
 (** [can_handle_appdata state] is a predicate which indicates when the
@@ -124,22 +144,25 @@ val handshake_in_progress : state -> bool
 
 (** [send_application_data tls outs] is [(tls' * out) option] where
     [tls'] is the new tls state, and [out] the cstruct to send over the
-    wire (encrypted and wrapped [outs]) *)
+    wire (encrypted [outs]). *)
 val send_application_data : state -> Cstruct.t list -> (state * Cstruct.t) option
 
 (** [send_close_notify tls] is [tls' * out] where [tls'] is the new
-    tls state, and out the (possible encrypted) close notify alert *)
+    tls state, and out the (possible encrypted) close notify alert. *)
 val send_close_notify     : state -> state * Cstruct.t
 
-(** [reneg tls] is [(tls' * out) option] where [tls'] is the new tls
-    state, and out either a client hello or hello request (depending on
-    the communication endpoint we are) *)
+(** [reneg tls] initiates a renegotation on [tls]. It is [tls' * out]
+    where [tls'] is the new tls state, and [out] either a client hello
+    or hello request (depending on which communication endpoint [tls]
+    is). *)
 val reneg                 : state -> (state * Cstruct.t) option
 
 (** {1 Session information} *)
 
-(** polymorphic variant, only the second should ever be visible to an
-    application. *)
+(** polymorphic variant of session information.  The first variant
+    [`InitialEpoch] will only be used for TLS states without completed
+    handshake.  The second variant, [`Epoch], contains actual session
+    data. *)
 type epoch = [
   | `InitialEpoch
   | `Epoch of Core.epoch_data
