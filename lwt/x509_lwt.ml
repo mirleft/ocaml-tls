@@ -75,19 +75,17 @@ let authenticator param =
   let now = Unix.gettimeofday () in
   let of_cas cas =
     X509.Authenticator.chain_of_trust ~time:now cas
-  in
-  let dotted_hex_to_cs hex =
+  and dotted_hex_to_cs hex =
     Nocrypto.Uncommon.Cs.of_hex
       (String.map (function ':' -> ' ' | x -> x) hex)
-  in
-  let fingerp hash fingerprints =
-    X509.Authenticator.server_fingerprint ~time:now ~hash ~fingerprints
+  and fingerp hash fingerprints =
+    X509.Authenticator.server_key_fingerprint ~time:now ~hash ~fingerprints
   in
   match param with
   | `Ca_file path -> certs_of_pem path >|= of_cas
   | `Ca_dir path  -> certs_of_pem_dir path >|= of_cas
-  | `Fingerprints (hash, fps) -> return (fingerp hash fps)
-  | `Hex_fingerprints (hash, fps) ->
+  | `Key_fingerprints (hash, fps) -> return (fingerp hash fps)
+  | `Hex_key_fingerprints (hash, fps) ->
     let fps = List.map (fun (n, v) -> (n, dotted_hex_to_cs v)) fps in
     return (fingerp hash fps)
   | `No_authentication_I'M_STUPID -> return X509.Authenticator.null
