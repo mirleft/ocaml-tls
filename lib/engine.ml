@@ -12,9 +12,7 @@ type fatal = State.fatal
 type failure = State.failure with sexp
 
 let alert_of_authentication_failure = function
-  | `SelfSigned _ -> Packet.UNKNOWN_CA
-  | `NoTrustAnchor -> Packet.UNKNOWN_CA
-  | `CertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
+  | `Leaf (`LeafCertificateExpired _) -> Packet.CERTIFICATE_EXPIRED
   | _ -> Packet.BAD_CERTIFICATE
 
 let alert_of_error = function
@@ -569,17 +567,19 @@ let epoch state =
        | Server _ -> session.server_random , session.client_random
      in
      `Epoch {
-        protocol_version = hs.protocol_version ;
-        ciphersuite      = session.ciphersuite ;
+        protocol_version       = hs.protocol_version ;
+        ciphersuite            = session.ciphersuite ;
         peer_random ;
-        peer_certificate = session.peer_certificate ;
-        peer_name        = Config.(hs.config.peer_name) ;
-        trust_anchor     = session.trust_anchor ;
+        peer_certificate       = session.peer_certificate ;
+        peer_certificate_chain = session.peer_certificate_chain ;
+        peer_name              = Config.(hs.config.peer_name) ;
+        trust_anchor           = session.trust_anchor ;
         own_random ;
-        own_certificate  = session.own_certificate ;
-        own_private_key  = session.own_private_key ;
-        own_name         = session.own_name ;
-        master_secret    = session.master_secret ;
-        session_id       = session.session_id ;
-        extended_ms      = session.extended_ms ;
+        own_certificate        = session.own_certificate ;
+        own_private_key        = session.own_private_key ;
+        own_name               = session.own_name ;
+        received_certificates  = session.received_certificates ;
+        master_secret          = session.master_secret ;
+        session_id             = session.session_id ;
+        extended_ms            = session.extended_ms ;
       }

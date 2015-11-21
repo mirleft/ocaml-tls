@@ -69,20 +69,22 @@ type reneg_params = Cstruct.t * Cstruct.t
   with sexp
 
 type session_data = {
-  server_random    : Cstruct.t ; (* 32 bytes random from the server hello *)
-  client_random    : Cstruct.t ; (* 32 bytes random from the client hello *)
-  client_version   : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
-  ciphersuite      : Ciphersuite.ciphersuite ;
-  peer_certificate : X509.t list ;
-  trust_anchor     : X509.t option ;
-  own_certificate  : X509.t list ;
-  own_private_key  : Nocrypto.Rsa.priv option ;
-  master_secret    : master_secret ;
-  renegotiation    : reneg_params ; (* renegotiation data *)
-  own_name         : string option ;
-  client_auth      : bool ;
-  session_id       : Cstruct.t ;
-  extended_ms      : bool ;
+  server_random          : Cstruct.t ; (* 32 bytes random from the server hello *)
+  client_random          : Cstruct.t ; (* 32 bytes random from the client hello *)
+  client_version         : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
+  ciphersuite            : Ciphersuite.ciphersuite ;
+  peer_certificate_chain : X509.t list ;
+  peer_certificate       : X509.t option ;
+  trust_anchor           : X509.t option ;
+  received_certificates  : X509.t list ;
+  own_certificate        : X509.t list ;
+  own_private_key        : Nocrypto.Rsa.priv option ;
+  master_secret          : master_secret ;
+  renegotiation          : reneg_params ; (* renegotiation data *)
+  own_name               : string option ;
+  client_auth            : bool ;
+  session_id             : Cstruct.t ;
+  extended_ms            : bool ;
 } with sexp
 
 (* state machine of the server *)

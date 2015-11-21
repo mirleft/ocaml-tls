@@ -60,8 +60,8 @@ let establish_master_secret state session premastersecret raw log =
   in
   let machina =
     match session.peer_certificate with
-    | [] -> AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log)
-    | _ -> AwaitClientCertificateVerify (session, server_ctx, client_ctx, log)
+    | None -> AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log)
+    | Some _ -> AwaitClientCertificateVerify (session, server_ctx, client_ctx, log)
   in
   (* Tracing.cs ~tag:"master-secret" master_secret ; *)
   ({ state with machina = Server machina }, [])
@@ -72,8 +72,8 @@ let private_key session =
     | None      -> fail (`Fatal `InvalidSession) (* TODO: assert false / ensure via typing in config *)
 
 let validate_certs certs authenticator session =
-  validate_chain authenticator certs None >|= fun (peer_certificate, trust_anchor) ->
-  { session with peer_certificate ; trust_anchor }
+  validate_chain authenticator certs None >|= fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
+  { session with received_certificates ; peer_certificate ; peer_certificate_chain ; trust_anchor }
 
 let answer_client_certificate_RSA state session certs raw log =
   validate_certs certs state.config.authenticator session >|= fun session ->
@@ -334,7 +334,7 @@ let answer_client_hello state (ch : client_hello) raw =
       Some { session_of_epoch epoch with
              client_random = ch.random ;
              client_version = ch.version ;
-             client_auth = List.length epoch.peer_certificate > 0 ;
+             client_auth = (epoch.peer_certificate <> None) ;
            }
     | _ -> None
 
