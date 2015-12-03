@@ -142,7 +142,9 @@ module Make (F : V1_LWT.FLOW) = struct
             invalid_arg "Renegotiation already in progress"
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
-            FLOW.write flow.flow buf >|= lift_result
+            match_lwt FLOW.write flow.flow buf >> drain_handshake flow with
+            | `Ok _                -> return (`Ok ())
+            | `Error _ | `Eof as e -> return e
 
   let close flow =
     match flow.state with

@@ -301,13 +301,12 @@ let hs_can_handle_appdata s =
     (* if there is a renegotiation going on -
        specifically ChangeCipherSuite was transmitted, waiting for Finished -
        we should not allow any application data (since the
-       new crypto context, not authenticated by Finished, is in use *)
+       new crypto context, not authenticated by Finished, is in use).
+
+       We are slightly conservative and only allow application data in established state. *)
     match s.machina with
-    | Server (AwaitClientFinished _)
-    | Server (AwaitClientFinishedResume _)
-    | Client (AwaitServerFinished _)
-    | Client (AwaitServerFinishedResume _) -> false
-    | _ -> true
+    | Server Established | Client Established -> true
+    | _ -> false
 
 let rec separate_handshakes buf =
   match Reader.parse_handshake_frame buf with
@@ -464,13 +463,6 @@ let send_records (st : state) records =
 
 (* utility for user *)
 let can_handle_appdata s = hs_can_handle_appdata s.handshake
-
-let handshake_in_progress s =
-  match s.handshake.machina with
-  | Server Established
-  | Client ClientInitial
-  | Client Established -> false
-  | _                  -> true
 
 (* another entry for user data *)
 let send_application_data st css =
