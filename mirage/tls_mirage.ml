@@ -78,10 +78,12 @@ module Make (F : V1_LWT.FLOW) = struct
     in
     match flow.state with
     | `Eof | `Error _ as e -> return e
-    | `Active tls          ->
+    | `Active _            ->
         FLOW.read flow.flow >|= lift_result >>= function
           | `Eof | `Error _ as e -> flow.state <- e ; return e
-          | `Ok buf              -> handle tls buf
+          | `Ok buf              -> match flow.state with
+                                    | `Active tls          -> handle tls buf
+                                    | `Eof | `Error _ as e -> return e
 
   let rec read flow =
     match flow.linger with
