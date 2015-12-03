@@ -158,8 +158,10 @@ module Unix = struct
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
         match tracing t @@ fun () -> Tls.Engine.reneg tls with
-        | None -> fail @@ Invalid_argument "tls: can't rekey: handshake in progress"
-        | Some (tls', buf) -> t.state <- `Active tls' ; write_t t buf
+        | None -> fail @@ Invalid_argument "tls: can't renegotiate"
+        | Some (tls', buf) ->
+           t.state <- `Active tls' ;
+           write_t t buf >> drain_handshake t >> return_unit
 
   let close_tls t =
     match t.state with
