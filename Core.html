@@ -119,6 +119,7 @@ Core type definitions<br>
 <pre><span id="VAL__tls_hdr_of_sexp__"><span class="keyword">val</span> __tls_hdr_of_sexp__</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEtls_hdr">tls_hdr</a></code></pre>
 <pre><span id="VALtls_hdr_of_sexp"><span class="keyword">val</span> tls_hdr_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEtls_hdr">tls_hdr</a></code></pre>
 <pre><span id="VALsexp_of_tls_hdr"><span class="keyword">val</span> sexp_of_tls_hdr</span> : <code class="type"><a href="Core.html#TYPEtls_hdr">tls_hdr</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span class="keyword">module</span> <a href="Core.SessionID.html">SessionID</a>: <code class="code">sig</code> <a href="Core.SessionID.html">..</a> <code class="code">end</code></pre>
 <pre><code><span id="TYPEextension"><span class="keyword">type</span> <code class="type"></code>extension</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -175,6 +176,13 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code><span id="TYPEELTextension.UnknownExtension"><span class="constructor">UnknownExtension</span></span> <span class="keyword">of</span> <code class="type">(int * Cstruct.t)</code></code></td>
 
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTextension.ExtendedMasterSecret"><span class="constructor">ExtendedMasterSecret</span></span></code></td>
+
 </tr></table>
 
 
@@ -201,7 +209,7 @@ Core type definitions<br>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELThello.sessionid">sessionid</span>&nbsp;: <code class="type">Cstruct.t option</code>;</code></td>
+<code><span id="TYPEELThello.sessionid">sessionid</span>&nbsp;: <code class="type"><a href="Core.SessionID.html#TYPEt">SessionID.t</a> option</code>;</code></td>
 
 </tr>
 <tr>
@@ -598,7 +606,21 @@ the master secret of a TLS connection<br>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.peer_certificate">peer_certificate</span>&nbsp;: <code class="type">X509.t list</code>;</code></td>
+<code><span id="TYPEELTepoch_data.peer_random">peer_random</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.peer_certificate_chain">peer_certificate_chain</span>&nbsp;: <code class="type">X509.t list</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.peer_certificate">peer_certificate</span>&nbsp;: <code class="type">X509.t option</code>;</code></td>
 
 </tr>
 <tr>
@@ -613,6 +635,20 @@ the master secret of a TLS connection<br>
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
 <code><span id="TYPEELTepoch_data.trust_anchor">trust_anchor</span>&nbsp;: <code class="type">X509.t option</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.received_certificates">received_certificates</span>&nbsp;: <code class="type">X509.t list</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.own_random">own_random</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
 
 </tr>
 <tr>
@@ -641,6 +677,20 @@ the master secret of a TLS connection<br>
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
 <code><span id="TYPEELTepoch_data.master_secret">master_secret</span>&nbsp;: <code class="type"><a href="Core.html#TYPEmaster_secret">master_secret</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.session_id">session_id</span>&nbsp;: <code class="type"><a href="Core.SessionID.html#TYPEt">SessionID.t</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTepoch_data.extended_ms">extended_ms</span>&nbsp;: <code class="type">bool</code>;</code></td>
 
 </tr></table>
 }

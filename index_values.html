@@ -56,6 +56,8 @@
 <td></td></tr>
 <tr><td><a href="Ciphersuite.html#VAL__stream_cipher_of_sexp__">__stream_cipher_of_sexp__</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td></td></tr>
+<tr><td><a href="Core.SessionID.html#VAL__t_of_sexp__">__t_of_sexp__</a> [<a href="Core.SessionID.html">Core.SessionID</a>]</td>
+<td></td></tr>
 <tr><td><a href="Core.html#VAL__tls_alert_of_sexp__">__tls_alert_of_sexp__</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Core.html#VAL__tls_any_version_of_sexp__">__tls_any_version_of_sexp__</a> [<a href="Core.html">Core</a>]</td>
@@ -222,6 +224,8 @@
 <code class="code">close t</code> closes the TLS session by sending a close notify to the peer.
 </div>
 </td></tr>
+<tr><td><a href="Core.SessionID.html#VALcompare">compare</a> [<a href="Core.SessionID.html">Core.SessionID</a>]</td>
+<td></td></tr>
 <tr><td><a href="Packet.html#VALcompression_method_of_sexp">compression_method_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALcompression_method_to_int">compression_method_to_int</a> [<a href="Packet.html">Packet</a>]</td>
@@ -269,7 +273,10 @@
 </td></tr>
 <tr><td><a href="Config.html#VALdh_group">dh_group</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">dh_group</code> is the default diffie hellman group (currently FFDHE-DRAFT-2084)
+<code class="code">dh_group</code> is the default Diffie-Hellman group (currently the
+ffdhe2048 group from
+<a href="https://www.ietf.org/id/draft-ietf-tls-negotiated-ff-dhe-10.txt">Negotiated
+Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 </div>
 </td></tr>
 <tr><td><a href="Core.html#VALdh_parameters_of_sexp">dh_parameters_of_sexp</a> [<a href="Core.html">Core</a>]</td>
@@ -325,6 +332,8 @@
 <code class="code">epoch_of_sexp sexp</code> is <code class="code">epoch</code>, the unmarshalled <code class="code">sexp</code>.
 </div>
 </td></tr>
+<tr><td><a href="Core.SessionID.html#VALequal">equal</a> [<a href="Core.SessionID.html">Core.SessionID</a>]</td>
+<td></td></tr>
 <tr><td><a href="Core.html#VALextension_of_sexp">extension_of_sexp</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALextension_type_of_sexp">extension_type_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
@@ -363,13 +372,7 @@
 <tr><td><a href="Engine.html#VALhandle_tls">handle_tls</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
 <code class="code">handle_tls state buffer</code> is <code class="code">ret</code>, depending on incoming <code class="code">state</code>
-    and <code class="code">buffer</code>, return appropriate <a href="Engine.html#TYPEret"><code class="code">Engine.ret</code></a>
-</div>
-</td></tr>
-<tr><td><a href="Engine.html#VALhandshake_in_progress">handshake_in_progress</a> [<a href="Engine.html">Engine</a>]</td>
-<td><div class="info">
-<code class="code">handshake_in_progress tls</code> is a predicate which indicates whether
-    a handshake is in progress.
+    and <code class="code">buffer</code>, the result is the appropriate <a href="Engine.html#TYPEret"><code class="code">Engine.ret</code></a>
 </div>
 </td></tr>
 <tr><td><a href="Packet.html#VALhandshake_type_of_sexp">handshake_type_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
@@ -377,6 +380,8 @@
 <tr><td><a href="Packet.html#VALhandshake_type_to_int">handshake_type_to_int</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALhandshake_type_to_string">handshake_type_to_string</a> [<a href="Packet.html">Packet</a>]</td>
+<td></td></tr>
+<tr><td><a href="Core.SessionID.html#VALhash">hash</a> [<a href="Core.SessionID.html">Core.SessionID</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALhash_algorithm_of_sexp">hash_algorithm_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
@@ -443,7 +448,7 @@
 <td></td></tr>
 <tr><td><a href="Config.html#VALmin_dh_size">min_dh_size</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">min_dh_size</code> is minimal diffie hellman group size in bits (currently 512)
+<code class="code">min_dh_size</code> is minimal diffie hellman group size in bits (currently 1024)
 </div>
 </td></tr>
 <tr><td><a href="Core.html#VALmin_protocol_version">min_protocol_version</a> [<a href="Core.html">Core</a>]</td>
@@ -528,9 +533,7 @@
 </td></tr>
 <tr><td><a href="Engine.html#VALreneg">reneg</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">reneg tls</code> is <code class="code">(tls' * out) option</code> where <code class="code">tls'</code> is the new tls
-    state, and out either a client hello or hello request (depending on
-    the communication endpoint we are)
+<code class="code">reneg tls</code> initiates a renegotation on <code class="code">tls</code>.
 </div>
 </td></tr>
 <tr><td><a href="Ciphersuite.html#VALrequired_keytype_and_usage">required_keytype_and_usage</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
@@ -545,13 +548,13 @@
 <td><div class="info">
 <code class="code">send_application_data tls outs</code> is <code class="code">(tls' * out) option</code> where
     <code class="code">tls'</code> is the new tls state, and <code class="code">out</code> the cstruct to send over the
-    wire (encrypted and wrapped <code class="code">outs</code>)
+    wire (encrypted <code class="code">outs</code>).
 </div>
 </td></tr>
 <tr><td><a href="Engine.html#VALsend_close_notify">send_close_notify</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
 <code class="code">send_close_notify tls</code> is <code class="code">tls' * out</code> where <code class="code">tls'</code> is the new
-    tls state, and out the (possible encrypted) close notify alert
+    tls state, and out the (possible encrypted) close notify alert.
 </div>
 </td></tr>
 <tr><td><a href="Config.html#VALserver">server</a> [<a href="Config.html">Config</a>]</td>
@@ -662,6 +665,8 @@
 <td></td></tr>
 <tr><td><a href="Ciphersuite.html#VALsexp_of_stream_cipher">sexp_of_stream_cipher</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td></td></tr>
+<tr><td><a href="Core.SessionID.html#VALsexp_of_t">sexp_of_t</a> [<a href="Core.SessionID.html">Core.SessionID</a>]</td>
+<td></td></tr>
 <tr><td><a href="Core.html#VALsexp_of_tls_alert">sexp_of_tls_alert</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Core.html#VALsexp_of_tls_any_version">sexp_of_tls_any_version</a> [<a href="Core.html">Core</a>]</td>
@@ -729,6 +734,8 @@
 </div>
 </td></tr>
 <tr><td align="left"><br>T</td></tr>
+<tr><td><a href="Core.SessionID.html#VALt_of_sexp">t_of_sexp</a> [<a href="Core.SessionID.html">Core.SessionID</a>]</td>
+<td></td></tr>
 <tr><td><a href="Packet.html#VALtag_of_hash_algorithm">tag_of_hash_algorithm</a> [<a href="Packet.html">Packet</a>]</td>
 <td><div class="info">
 <code class="code">tag_of_hash_algorithm hash_algorithm</code> is <code class="code">tag</code> for the given <code class="code">hash_algorithm</code>

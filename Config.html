@@ -52,6 +52,9 @@ polymorphic variant of own certificates<br>
 </div>
 
 
+<pre><span id="TYPEsession_cache"><span class="keyword">type</span> <code class="type"></code>session_cache</span> = <code class="type"><a href="Core.SessionID.html#TYPEt">Core.SessionID.t</a> -> <a href="Core.html#TYPEepoch_data">Core.epoch_data</a> option</code> </pre>
+
+
 <pre><code><span id="TYPEconfig"><span class="keyword">type</span> <code class="type"></code>config</span> = private {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -122,6 +125,20 @@ optional name of other endpoint (used for SNI RFC4366)<br>
 optional default certificate chain and other certificate chains<br>
 </div>
 </td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconfig.session_cache">session_cache</span>&nbsp;: <code class="type"><a href="Config.html#TYPEsession_cache">session_cache</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconfig.cached_session">cached_session</span>&nbsp;: <code class="type"><a href="Core.html#TYPEepoch_data">Core.epoch_data</a> option</code>;</code></td>
+
 </tr></table>
 }
 
@@ -152,13 +169,13 @@ opaque type of a server configuration<br>
 <br>
 <code class="code">client authenticator ?ciphers ?version ?hashes ?reneg ?certificates</code> is <code class="code">client</code> configuration with the given parameters<br>
 
-<pre><span id="VALclient"><span class="keyword">val</span> client</span> : <code class="type">authenticator:X509.Authenticator.a -><br>       ?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -> ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -> unit -> <a href="Config.html#TYPEclient">client</a></code></pre><div class="info ">
+<pre><span id="VALclient"><span class="keyword">val</span> client</span> : <code class="type">authenticator:X509.Authenticator.a -><br>       ?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?cached_session:<a href="Core.html#TYPEepoch_data">Core.epoch_data</a> -> unit -> <a href="Config.html#TYPEclient">client</a></code></pre><div class="info ">
 <b>Raises</b> <code>Invalid_argument</code> if the configuration is invalid<br>
 </div>
 <br>
 <code class="code">server ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator</code> is <code class="code">server</code> configuration with the given parameters<br>
 
-<pre><span id="VALserver"><span class="keyword">val</span> server</span> : <code class="type">?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?authenticator:X509.Authenticator.a -> unit -> <a href="Config.html#TYPEserver">server</a></code></pre><div class="info ">
+<pre><span id="VALserver"><span class="keyword">val</span> server</span> : <code class="type">?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?authenticator:X509.Authenticator.a -><br>       ?session_cache:<a href="Config.html#TYPEsession_cache">session_cache</a> -> unit -> <a href="Config.html#TYPEserver">server</a></code></pre><div class="info ">
 <b>Raises</b> <code>Invalid_argument</code> if the configuration is invalid<br>
 </div>
 
@@ -177,11 +194,14 @@ opaque type of a server configuration<br>
 </div>
 
 <pre><span id="VALmin_dh_size"><span class="keyword">val</span> min_dh_size</span> : <code class="type">int</code></pre><div class="info ">
-<code class="code">min_dh_size</code> is minimal diffie hellman group size in bits (currently 512)<br>
+<code class="code">min_dh_size</code> is minimal diffie hellman group size in bits (currently 1024)<br>
 </div>
 
 <pre><span id="VALdh_group"><span class="keyword">val</span> dh_group</span> : <code class="type">Nocrypto.Dh.group</code></pre><div class="info ">
-<code class="code">dh_group</code> is the default diffie hellman group (currently FFDHE-DRAFT-2084)<br>
+<code class="code">dh_group</code> is the default Diffie-Hellman group (currently the
+ffdhe2048 group from
+<a href="https://www.ietf.org/id/draft-ietf-tls-negotiated-ff-dhe-10.txt">Negotiated
+Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)<br>
 </div>
 
 <pre><span id="VALmin_rsa_key_size"><span class="keyword">val</span> min_rsa_key_size</span> : <code class="type">int</code></pre><div class="info ">

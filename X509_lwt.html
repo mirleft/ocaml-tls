@@ -60,7 +60,7 @@ authenticator<br>
     PEM-encoded files in <code class="code">dir</code>.<br>
 </div>
 
-<pre><span id="VALauthenticator"><span class="keyword">val</span> authenticator</span> : <code class="type">[ `Ca_dir of Lwt_io.file_name<br>       | `Ca_file of Lwt_io.file_name<br>       | `Fingerprints of Nocrypto.Hash.hash * (string * Cstruct.t) list<br>       | `Hex_fingerprints of Nocrypto.Hash.hash * (string * string) list<br>       | `No_authentication_I'M_STUPID ] -> <a href="X509_lwt.html#TYPEauthenticator">authenticator</a> Lwt.t</code></pre><div class="info ">
+<pre><span id="VALauthenticator"><span class="keyword">val</span> authenticator</span> : <code class="type">[ `Ca_dir of Lwt_io.file_name<br>       | `Ca_file of Lwt_io.file_name<br>       | `Hex_key_fingerprints of Nocrypto.Hash.hash * (string * string) list<br>       | `Key_fingerprints of Nocrypto.Hash.hash * (string * Cstruct.t) list<br>       | `No_authentication_I'M_STUPID ] -> <a href="X509_lwt.html#TYPEauthenticator">authenticator</a> Lwt.t</code></pre><div class="info ">
 <code class="code">authenticator methods</code> constructs an <code class="code">authenticator</code> using the
     specified method and data.<br>
 </div>

@@ -89,8 +89,7 @@ configuration parameters
 <td></td></tr>
 <tr><td><a href="Engine.html#TYPEepoch">epoch</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-polymorphic variant, only the second should ever be visible to an
-    application.
+polymorphic variant of session information.
 </div>
 </td></tr>
 <tr><td><a href="Core.html#TYPEepoch_data">epoch_data</a> [<a href="Core.html">Core</a>]</td>
@@ -172,7 +171,7 @@ private material: a certificate chain and a RSA private key
 <tr><td align="left"><br>R</td></tr>
 <tr><td><a href="Engine.html#TYPEret">ret</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-return type of <a href="Engine.html#VALhandle_tls"><code class="code">Engine.handle_tls</code></a>: either failed to handle the incoming
+result type of <a href="Engine.html#VALhandle_tls"><code class="code">Engine.handle_tls</code></a>: either failed to handle the incoming
     buffer (<code class="code">`Fail</code>) with <a href="Engine.html#TYPEfailure"><code class="code">Engine.failure</code></a> and potentially a message to send
     to the other endpoint, or sucessful operation (<code class="code">`Ok</code>) with a new
     <a href="Engine.html#TYPEstate"><code class="code">Engine.state</code></a>, an end of file (<code class="code">`Eof</code>), or an incoming (<code class="code">`Alert</code>).
@@ -188,11 +187,14 @@ opaque type of a server configuration
 </td></tr>
 <tr><td><a href="Core.html#TYPEserver_hello">server_hello</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
+<tr><td><a href="Config.html#TYPEsession_cache">session_cache</a> [<a href="Config.html">Config</a>]</td>
+<td></td></tr>
 <tr><td><a href="Packet.html#TYPEsignature_algorithm_type">signature_algorithm_type</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
 <tr><td><a href="Engine.html#TYPEstate">state</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-The abstract <code class="code">state</code> type.
+The abstract type of a TLS state, with
+    encoding and decoding to PEM.
 </div>
 </td></tr>
 <tr><td><a href="Ciphersuite.html#TYPEstream_cipher">stream_cipher</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
@@ -203,6 +205,8 @@ The abstract <code class="code">state</code> type.
 Abstract type of a session
 </div>
 </td></tr>
+<tr><td><a href="Core.SessionID.html#TYPEt">t</a> [<a href="Core.SessionID.html">Core.SessionID</a>]</td>
+<td></td></tr>
 <tr><td><a href="Core.html#TYPEtls_alert">tls_alert</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Core.html#TYPEtls_any_version">tls_any_version</a> [<a href="Core.html">Core</a>]</td>
