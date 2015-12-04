@@ -4,6 +4,6 @@ script: bash -ex .travis-opam.sh
 env:
   - PACKAGE="tls" OCAML_VERSION=4.01 PINS="nocrypto asn1-combinators x509"
   - PACKAGE="tls" OCAML_VERSION=latest DEPOPTS=lwt PINS="nocrypto asn1-combinators x509"
-  - PACKAGE="tls" OCAML_VERSION=latest UPDATE_GCC_BINUTILS=1 DEPOPTS=mirage-types-lwt PINS="nocrypto asn1-combinators x509" POST_INSTALL_HOOK="./.travis-test-mirage.sh"
+  - PACKAGE="tls" OCAML_VERSION=latest DEPOPTS=mirage-types-lwt PINS="nocrypto asn1-combinators x509" POST_INSTALL_HOOK="./.travis-test-mirage.sh"
 notifications:
   email: false
