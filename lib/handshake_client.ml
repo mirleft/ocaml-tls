@@ -27,8 +27,9 @@ let default_client_hello config =
     | TLS_1_0 | TLS_1_1 -> List.filter (o not Ciphersuite.ciphersuite_tls12_only) cs
     | TLS_1_2           -> cs
   and sessionid =
-    match config.cached_session with
-    | Some { session_id ; extended_ms ; _ } when extended_ms = true -> Some session_id
+    match config.use_reneg, config.cached_session with
+    | _, Some { session_id ; extended_ms ; _ } when extended_ms = true -> Some session_id
+    | false, Some { session_id ; _ } -> Some session_id
     | _ -> None
   in
   let ch = {
@@ -67,8 +68,8 @@ let answer_server_hello state ch (sh : server_hello) raw log =
     epoch.ciphersuite = sh.ciphersuites &&
       epoch.protocol_version = sh.version &&
         option false ((=) epoch.session_id) sh.sessionid &&
-          List.mem ExtendedMasterSecret sh.extensions &&
-            epoch.extended_ms
+          (not cfg.use_reneg ||
+             (List.mem ExtendedMasterSecret sh.extensions && epoch.extended_ms))
   in
 
   match state.config.cached_session with
