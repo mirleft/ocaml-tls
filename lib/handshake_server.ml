@@ -325,8 +325,8 @@ let answer_client_hello state (ch : client_hello) raw =
       let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ciphers in
       List.mem epoch.ciphersuite cciphers &&
         version = epoch.protocol_version &&
-          List.mem ExtendedMasterSecret extensions &&
-            epoch.extended_ms
+          (not state.config.use_reneg ||
+             (List.mem ExtendedMasterSecret extensions && epoch.extended_ms))
     in
 
     match option None state.config.session_cache ch.sessionid with

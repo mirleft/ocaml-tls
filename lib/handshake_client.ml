@@ -27,8 +27,9 @@ let default_client_hello config =
     | TLS_1_0 | TLS_1_1 -> List.filter (o not Ciphersuite.ciphersuite_tls12_only) cs
     | TLS_1_2           -> cs
   and sessionid =
-    match config.cached_session with
-    | Some { session_id ; extended_ms ; _ } when extended_ms = true -> Some session_id
+    match config.use_reneg, config.cached_session with
+    | _, Some { session_id ; extended_ms ; _ } when extended_ms = true -> Some session_id
+    | false, Some { session_id ; _ } -> Some session_id
     | _ -> None
   in
   let ch = {
@@ -66,9 +67,9 @@ let answer_server_hello state ch (sh : server_hello) raw log =
   let epoch_matches (epoch : epoch_data) =
     epoch.ciphersuite = sh.ciphersuites &&
       epoch.protocol_version = sh.version &&
-        option false ((=) epoch.session_id) sh.sessionid &&
-          List.mem ExtendedMasterSecret sh.extensions &&
-            epoch.extended_ms
+        option false (SessionID.equal epoch.session_id) sh.sessionid &&
+          (not cfg.use_reneg ||
+             (List.mem ExtendedMasterSecret sh.extensions && epoch.extended_ms))
   in
 
   match state.config.cached_session with
@@ -81,7 +82,7 @@ let answer_server_hello state ch (sh : server_hello) raw log =
                   }
     in
     let client_ctx, server_ctx =
-      Handshake_crypto.initialise_crypto_ctx state.protocol_version session
+      Handshake_crypto.initialise_crypto_ctx sh.version session
     in
     let machina = AwaitServerChangeCipherSpecResume (session, client_ctx, server_ctx, log @ [raw]) in
     ({ state with protocol_version = sh.version ; machina = Client machina }, [])
