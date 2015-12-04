@@ -169,17 +169,19 @@ type master_secret = Cstruct.t with sexp
 
 (** information about an open session *)
 type epoch_data = {
-  protocol_version : tls_version ;
-  ciphersuite      : Ciphersuite.ciphersuite ;
-  peer_random      : Cstruct.t ;
-  peer_certificate : X509.t list ;
-  peer_name        : string option ;
-  trust_anchor     : X509.t option ;
-  own_random       : Cstruct.t ;
-  own_certificate  : X509.t list ;
-  own_private_key  : Nocrypto.Rsa.priv option ;
-  own_name         : string option ;
-  master_secret    : master_secret ;
-  session_id       : SessionID.t ;
-  extended_ms      : bool ;
+  protocol_version       : tls_version ;
+  ciphersuite            : Ciphersuite.ciphersuite ;
+  peer_random            : Cstruct.t ;
+  peer_certificate_chain : X509.t list ;
+  peer_certificate       : X509.t option ;
+  peer_name              : string option ;
+  trust_anchor           : X509.t option ;
+  received_certificates  : X509.t list ;
+  own_random             : Cstruct.t ;
+  own_certificate        : X509.t list ;
+  own_private_key        : Nocrypto.Rsa.priv option ;
+  own_name               : string option ;
+  master_secret          : master_secret ;
+  session_id             : SessionID.t ;
+  extended_ms            : bool ;
 } with sexp

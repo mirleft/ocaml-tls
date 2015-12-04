@@ -25,20 +25,22 @@ let get_secure_renegotiation exts =
     ~f:(function SecureRenegotiation data -> Some data | _ -> None)
 
 let empty_session = {
-  server_random    = Cstruct.create 0 ;
-  client_random    = Cstruct.create 0 ;
-  client_version   = Supported TLS_1_2 ;
-  ciphersuite      = `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
-  peer_certificate = [] ;
-  trust_anchor     = None ;
-  own_certificate  = [] ;
-  own_private_key  = None ;
-  own_name         = None ;
-  master_secret    = Cstruct.create 0 ;
-  renegotiation    = Cstruct.(create 0, create 0) ;
-  client_auth      = false ;
-  session_id       = Cstruct.create 0 ;
-  extended_ms      = false ;
+  server_random          = Cstruct.create 0 ;
+  client_random          = Cstruct.create 0 ;
+  client_version         = Supported TLS_1_2 ;
+  ciphersuite            = `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
+  peer_certificate_chain = [] ;
+  peer_certificate       = None ;
+  trust_anchor           = None ;
+  received_certificates  = [] ;
+  own_certificate        = [] ;
+  own_private_key        = None ;
+  own_name               = None ;
+  master_secret          = Cstruct.create 0 ;
+  renegotiation          = Cstruct.(create 0, create 0) ;
+  client_auth            = false ;
+  session_id             = Cstruct.create 0 ;
+  extended_ms            = false ;
 }
 
 let session_of_epoch (epoch : epoch_data) : session_data = {
@@ -48,6 +50,8 @@ let session_of_epoch (epoch : epoch_data) : session_data = {
   trust_anchor = epoch.trust_anchor ;
   own_certificate = epoch.own_certificate ;
   own_private_key = epoch.own_private_key ;
+  received_certificates = epoch.received_certificates ;
+  peer_certificate_chain = epoch.peer_certificate_chain ;
   master_secret = epoch.master_secret ;
   own_name = epoch.own_name ;
   session_id = epoch.session_id ;
@@ -174,13 +178,13 @@ let signature version data sig_algs hashes private_key =
     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
 
 let peer_rsa_key = function
-  | [] -> fail (`Fatal `NoCertificateReceived)
-  | cert::_ ->
+  | None -> fail (`Fatal `NoCertificateReceived)
+  | Some cert ->
     match X509.public_key cert with
     | `RSA key -> return key
     | _        -> fail (`Fatal `NotRSACertificate)
 
-let verify_digitally_signed version data signature_data certificates =
+let verify_digitally_signed version data signature_data certificate =
   let signature_verifier version data =
     let open Reader in
     match version with
@@ -213,7 +217,7 @@ let verify_digitally_signed version data signature_data certificates =
   in
 
   signature_verifier version data >>= fun (raw_signature, verifier) ->
-  peer_rsa_key certificates >>= fun pubkey ->
+  peer_rsa_key certificate >>= fun pubkey ->
   signature pubkey raw_signature >>= fun signature ->
   verifier signature signature_data
 
@@ -241,10 +245,16 @@ let validate_chain authenticator certificates hostname =
   (* RFC5246: must be x509v3, take signaturealgorithms into account! *)
   (* RFC2246/4346: is generally x509v3, signing algorithm for certificate _must_ be same as algorithm for certificate key *)
   parse_certificates certificates >>= fun certs ->
+  let server = match certs with
+    | s::_ -> Some s
+    | [] -> None
+  in
   match authenticator with
-  | None ->
-    return (certs, None)
+  | None -> return (server, certs, [], None)
   | Some authenticator ->
     authenticate authenticator hostname certs >>= fun anchor ->
     key_size Config.min_rsa_key_size certs >|= fun () ->
-    (certs, anchor)
+    Utils.option
+      (server, certs, [], None)
+      (fun (chain, anchor) -> (server, certs, chain, Some anchor))
+      anchor
