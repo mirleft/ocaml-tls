@@ -199,10 +199,7 @@ end
 
 module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) = struct
 
-  let (</>) p1 p2 = p1 ^ "/" ^ p2
-
-  let path          = "tls"
-  let ca_roots_file = path </> "ca-roots.crt"
+  let ca_roots_file = "ca-roots.crt"
   let default_cert  = "server"
 
   let (>>==) a f =
@@ -229,9 +226,9 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) = struct
   let certificate kv =
     let read name =
       lwt certs =
-        read_full kv (path </> name ^ ".pem") >|= Certificate.of_pem_cstruct
+        read_full kv (name ^ ".pem") >|= Certificate.of_pem_cstruct
       and pk =
-        read_full kv (path </> name ^ ".key") >|= fun pem ->
+        read_full kv (name ^ ".key") >|= fun pem ->
         match Private_key.of_pem_cstruct1 pem with
         | `RSA key -> key
       in
