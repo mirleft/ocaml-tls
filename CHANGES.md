@@ -1,3 +1,22 @@
+0.7.0 (2015-12-04):
+* session resumption (via session ID) support (#283)
+  Config contains `session_cache : SessionID.t -> epoch_data option`
+  and `cached_session : epoch_data option`
+* session hash and extended master secret (RFC 7627) support (#287)
+
+semantic changes
+* disable renegotiation by default (#300)
+* stack blocks (both Mirage and Lwt) while renegotiating (#304)
+* `Engine.handshake_in_progress` no longer exist
+* `Hex_fingerprint / `Fingerprint authenticators no longer exist
+* Mirage X509 does no longer prefix keys and trust anchors with "tls/" in the path
+
+minor fixes
+* fix concurrent read/write in tls_mirage (#303)
+* expose own_random and peer_random in epoch_data (@cfcs, #297)
+* public key pinning (X509_lwt) via `Hex_key_fingerprint / `Key_fingerprint (#301)
+* certificate chain and peer certificate are exposed via epoch_data (new path-building X.509 interface)
+
 0.6.0 (2015-07-02):
 * API: dropped 'perfect' from forward secrecy in Config.Ciphers:
   fs instead of pfs, fs_of instead of pfs_of
