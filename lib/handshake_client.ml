@@ -67,7 +67,7 @@ let answer_server_hello state ch (sh : server_hello) raw log =
   let epoch_matches (epoch : epoch_data) =
     epoch.ciphersuite = sh.ciphersuites &&
       epoch.protocol_version = sh.version &&
-        option false ((=) epoch.session_id) sh.sessionid &&
+        option false (SessionID.equal epoch.session_id) sh.sessionid &&
           (not cfg.use_reneg ||
              (List.mem ExtendedMasterSecret sh.extensions && epoch.extended_ms))
   in
@@ -82,7 +82,7 @@ let answer_server_hello state ch (sh : server_hello) raw log =
                   }
     in
     let client_ctx, server_ctx =
-      Handshake_crypto.initialise_crypto_ctx state.protocol_version session
+      Handshake_crypto.initialise_crypto_ctx sh.version session
     in
     let machina = AwaitServerChangeCipherSpecResume (session, client_ctx, server_ctx, log @ [raw]) in
     ({ state with protocol_version = sh.version ; machina = Client machina }, [])
