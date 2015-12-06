@@ -6,7 +6,7 @@
 
 semantic changes
 * disable renegotiation by default (#300)
-* stack blocks (both Mirage and Lwt) while renegotiating (#304)
+* blocking semantics (both Mirage and Lwt) while renegotiating (#304)
 * `Engine.handshake_in_progress` no longer exist
 * `Hex_fingerprint / `Fingerprint authenticators no longer exist
 * Mirage X509 does no longer prefix keys and trust anchors with "tls/" in the path
