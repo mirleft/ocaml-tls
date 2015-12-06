@@ -542,7 +542,7 @@ let client config =
   } in
   let state = { state with handshake } in
 
-  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ; *)
+  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
   Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
   send_records state [(Packet.HANDSHAKE, raw)]
 
