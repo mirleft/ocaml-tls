@@ -39,6 +39,7 @@ type payload_protection =
   | Stream of stream_cipher * Nocrypto.Hash.hash
   | Block of block_cipher * Nocrypto.Hash.hash
   | AEAD of aead_cipher
+  with sexp
 
 (** [key_length iv payload_protection] is [(key size, IV size, mac size)] where key IV, and mac sizes are the required bytes for the given [payload_protection] *)
 let key_length iv pp =
