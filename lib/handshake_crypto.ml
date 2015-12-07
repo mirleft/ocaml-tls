@@ -22,6 +22,8 @@ let rec p_hash (hmac, hmac_n) key seed len =
   expand (hmac ~key seed) len
 
 let prf_mac = function
+  | `TLS_RSA_WITH_AES_256_GCM_SHA384
+  | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> (module SHA384 : S)
   | _ -> (module SHA256 : S)
 
 let pseudo_random_function version cipher len secret label seed =

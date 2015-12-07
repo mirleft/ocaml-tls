@@ -21,6 +21,7 @@ type iv_mode =
   | Iv of Cstruct.t  (* traditional CBC (reusing last cipherblock) *)
   | Random_iv        (* TLS 1.1 and higher explicit IV (we use random) *)
   with sexp
+
 type 'k cbc_cipher    = (module Cipher_block.S.CBC with type key = 'k)
 type 'k cbc_state = {
   cipher         : 'k cbc_cipher ;
@@ -31,8 +32,13 @@ type 'k cbc_state = {
 }
 
 type nonce = Cstruct.t
-type 'k ccm_state = {
-  cipher         : (module Cipher_block.S.CCM with type key = 'k) ;
+
+type 'k aead_cipher =
+  | CCM of (module Cipher_block.S.CCM with type key = 'k)
+  | GCM of (module Cipher_block.S.GCM with type key = 'k)
+
+type 'k aead_state = {
+  cipher         : 'k aead_cipher ;
   cipher_secret  : 'k ;
   nonce          : nonce
 }
@@ -41,13 +47,13 @@ type 'k ccm_state = {
 type cipher_st =
   | Stream : 'k stream_state -> cipher_st
   | CBC    : 'k cbc_state -> cipher_st
-  | CCM    : 'k ccm_state -> cipher_st
+  | AEAD   : 'k aead_state -> cipher_st
 
 (* Sexplib stubs -- rethink how to play with crypto. *)
 let sexp_of_cipher_st = function
-  | Stream _ -> Sexp.(Atom "<stream-state>")
-  | CBC _    -> Sexp.(Atom "<cbc-state>")
-  | CCM _    -> Sexp.(Atom "<ccm-state>")
+  | Stream _ -> Sexp.Atom "<stream-state>"
+  | CBC _    -> Sexp.Atom "<cbc-state>"
+  | AEAD _   -> Sexp.Atom "<aead-state>"
 
 let cipher_st_of_sexp =
   Conv.of_sexp_error "cipher_st_of_sexp: not implemented"

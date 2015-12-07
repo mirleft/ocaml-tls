@@ -139,14 +139,14 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
                 let m, iv' = enc iv in
                 (CBC { c with iv_mode = Iv iv' }, m) )
 
-        | CCM c ->
+        | AEAD c ->
            let explicit_nonce = Crypto.sequence_buf ctx.sequence in
            let nonce = c.nonce <+> explicit_nonce
            in
            let msg =
-             Crypto.encrypt_ccm ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
+             Crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
            in
-           (CCM c, explicit_nonce <+> msg)
+           (AEAD c, explicit_nonce <+> msg)
       in
       (Some { sequence = Int64.succ ctx.sequence ; cipher_st = c_st }, enc)
 
@@ -208,7 +208,7 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
               dec iv buf >|= fun (msg, _) ->
               (CBC c, msg) )
 
-    | CCM c ->
+    | AEAD c ->
        if Cstruct.len buf < 8 then
          fail (`Fatal `MACUnderflow)
        else
@@ -218,9 +218,9 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
            Crypto.pseudo_header seq ty ver (Cstruct.len buf - 16)
          and nonce = c.nonce <+> explicit_nonce
          in
-         match Crypto.decrypt_ccm ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
+         match Crypto.decrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
          | None -> fail (`Fatal `MACMismatch)
-         | Some x -> return (CCM c, x)
+         | Some x -> return (AEAD c, x)
   in
   match st with
   | None     -> return (st, buf)

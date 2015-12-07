@@ -59,9 +59,15 @@ module Ciphers = struct
 
     | AEAD cipher ->
        let open Cipher_block.AES in
-       let cipher = (module CCM : Cipher_block.S.CCM with type key = CCM.key) in
-       let cipher_secret = CCM.of_secret ~maclen:16 secret in
-       State.(CCM { cipher ; cipher_secret ; nonce })
+       match cipher with
+       | AES_128_CCM | AES_256_CCM ->
+         let cipher = (module CCM : Cipher_block.S.CCM with type key = CCM.key) in
+         let cipher_secret = CCM.of_secret ~maclen:16 secret in
+         State.(AEAD { cipher = CCM cipher ; cipher_secret ; nonce })
+       | AES_128_GCM | AES_256_GCM ->
+         let cipher = (module GCM : Cipher_block.S.GCM with type key = GCM.key) in
+         let cipher_secret = GCM.of_secret secret in
+         State.(AEAD { cipher = GCM cipher ; cipher_secret ; nonce })
 end
 
 let digest_eq fn ~target cs =
@@ -131,13 +137,32 @@ let cbc_unpad ~block data =
     if check 0 then Some res else None
   with Invalid_argument _ -> None
 
-let encrypt_ccm (type a) ~cipher ~key ~nonce ~adata data =
-  let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
-  C.encrypt ~key ~nonce ~adata data
+let encrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
+  match cipher with
+  | State.CCM cipher ->
+     let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
+     C.encrypt ~key ~nonce ?adata data
+  | State.GCM cipher ->
+     let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
+     let { C.message ; tag } = C.encrypt ~key ~iv:nonce ?adata data in
+     message <+> tag
 
-let decrypt_ccm (type a) ~cipher ~key ~nonce ~adata data =
-  let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
-  C.decrypt ~key ~nonce ~adata data
+let decrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
+  match cipher with
+  | State.CCM cipher ->
+     let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
+     C.decrypt ~key ~nonce ?adata data
+  | State.GCM cipher ->
+     let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
+     if Cstruct.len data <= 16 then
+       None
+     else
+       let data, ctag = Cstruct.split data (Cstruct.len data - 16) in
+       let { C.message ; tag } = C.decrypt ~key ~iv:nonce ?adata data in
+       if Cstruct.equal tag ctag then
+         Some message
+       else
+         None
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
   let module C = (val cipher : Cipher_block.S.CBC with type key = a) in

@@ -33,6 +33,8 @@ type block_cipher =
 type aead_cipher =
   | AES_128_CCM
   | AES_256_CCM
+  | AES_128_GCM
+  | AES_256_GCM
   with sexp
 
 type payload_protection =
@@ -48,6 +50,8 @@ let key_length iv pp =
   | Stream (RC4_128, mac)           -> (16, 0 , mac_size mac)
   | AEAD AES_128_CCM                -> (16, 4 , 0)
   | AEAD AES_256_CCM                -> (32, 4 , 0)
+  | AEAD AES_128_GCM                -> (16, 4 , 0)
+  | AEAD AES_256_GCM                -> (32, 4 , 0)
   | Block (bc, mac) ->
      let keylen, ivlen = match bc with
        | TRIPLE_DES_EDE_CBC -> (24, 8)
@@ -72,6 +76,10 @@ type ciphersuite = [
   | `TLS_RSA_WITH_3DES_EDE_CBC_SHA
   | `TLS_RSA_WITH_RC4_128_SHA
   | `TLS_RSA_WITH_RC4_128_MD5
+  | `TLS_RSA_WITH_AES_128_GCM_SHA256
+  | `TLS_RSA_WITH_AES_256_GCM_SHA384
+  | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+  | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
   | `TLS_DHE_RSA_WITH_AES_256_CCM
   | `TLS_DHE_RSA_WITH_AES_128_CCM
   | `TLS_RSA_WITH_AES_256_CCM
@@ -95,6 +103,10 @@ let any_ciphersuite_to_ciphersuite = function
   | Packet.TLS_RSA_WITH_AES_256_CCM            -> Some `TLS_RSA_WITH_AES_256_CCM
   | Packet.TLS_DHE_RSA_WITH_AES_128_CCM        -> Some `TLS_DHE_RSA_WITH_AES_128_CCM
   | Packet.TLS_DHE_RSA_WITH_AES_256_CCM        -> Some `TLS_DHE_RSA_WITH_AES_256_CCM
+  | Packet.TLS_RSA_WITH_AES_128_GCM_SHA256     -> Some `TLS_RSA_WITH_AES_128_GCM_SHA256
+  | Packet.TLS_RSA_WITH_AES_256_GCM_SHA384     -> Some `TLS_RSA_WITH_AES_256_GCM_SHA384
+  | Packet.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 -> Some `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+  | Packet.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> Some `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
   | _                                          -> None
 
 let ciphersuite_to_any_ciphersuite = function
@@ -114,6 +126,10 @@ let ciphersuite_to_any_ciphersuite = function
   | `TLS_RSA_WITH_AES_256_CCM            -> Packet.TLS_RSA_WITH_AES_256_CCM
   | `TLS_DHE_RSA_WITH_AES_128_CCM        -> Packet.TLS_DHE_RSA_WITH_AES_128_CCM
   | `TLS_DHE_RSA_WITH_AES_256_CCM        -> Packet.TLS_DHE_RSA_WITH_AES_256_CCM
+  | `TLS_RSA_WITH_AES_128_GCM_SHA256     -> Packet.TLS_RSA_WITH_AES_128_GCM_SHA256
+  | `TLS_RSA_WITH_AES_256_GCM_SHA384     -> Packet.TLS_RSA_WITH_AES_256_GCM_SHA384
+  | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 -> Packet.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+  | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> Packet.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
 
 let ciphersuite_to_string x= Packet.any_ciphersuite_to_string (ciphersuite_to_any_ciphersuite x)
 
@@ -135,6 +151,10 @@ let get_kex_privprot = function
   | `TLS_RSA_WITH_AES_256_CCM            -> (RSA    , AEAD AES_256_CCM)
   | `TLS_DHE_RSA_WITH_AES_128_CCM        -> (DHE_RSA, AEAD AES_128_CCM)
   | `TLS_DHE_RSA_WITH_AES_256_CCM        -> (DHE_RSA, AEAD AES_256_CCM)
+  | `TLS_RSA_WITH_AES_128_GCM_SHA256     -> (RSA    , AEAD AES_128_GCM)
+  | `TLS_RSA_WITH_AES_256_GCM_SHA384     -> (RSA    , AEAD AES_256_GCM)
+  | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 -> (DHE_RSA, AEAD AES_128_GCM)
+  | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> (DHE_RSA, AEAD AES_256_GCM)
 
 (** [ciphersuite_kex ciphersuite] is [kex], first projection of [get_kex_privprot] *)
 let ciphersuite_kex c = fst (get_kex_privprot c)
@@ -155,5 +175,9 @@ let ciphersuite_tls12_only = function
   | `TLS_RSA_WITH_AES_128_CCM
   | `TLS_RSA_WITH_AES_256_CCM
   | `TLS_DHE_RSA_WITH_AES_128_CCM
-  | `TLS_DHE_RSA_WITH_AES_256_CCM        -> true
+  | `TLS_DHE_RSA_WITH_AES_256_CCM
+  | `TLS_RSA_WITH_AES_128_GCM_SHA256
+  | `TLS_RSA_WITH_AES_256_GCM_SHA384
+  | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+  | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> true
   | _                                    -> false
