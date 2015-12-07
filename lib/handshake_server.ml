@@ -21,7 +21,7 @@ let hello_request state =
 
 let answer_client_finished state session client_fin raw log =
   let client, server =
-    let checksum = Handshake_crypto.finished state.protocol_version session.master_secret in
+    let checksum = Handshake_crypto.finished state.protocol_version session.ciphersuite session.master_secret in
     (checksum "client finished" log, checksum "server finished" (log @ [raw]))
   in
   guard (Cs.equal client client_fin) (`Fatal `BadFinished) >>= fun () ->
@@ -38,7 +38,7 @@ let answer_client_finished state session client_fin raw log =
 
 let answer_client_finished_resume state session server_verify client_fin raw log =
   let client_verify =
-    Handshake_crypto.finished state.protocol_version session.master_secret "client finished" log
+    Handshake_crypto.finished state.protocol_version session.ciphersuite session.master_secret "client finished" log
   in
   guard (Cs.equal client_verify client_fin) (`Fatal `BadFinished) >>= fun () ->
   (* we really do not want to have any leftover handshake fragments *)
@@ -350,7 +350,7 @@ let answer_client_hello state (ch : client_hello) raw =
     let log = [ raw ; sh ] in
     let server =
       Handshake_crypto.finished
-        version session.master_secret "server finished" log
+        version session.ciphersuite session.master_secret "server finished" log
     in
     let fin = Finished server in
     let fin_raw = Writer.assemble_handshake fin in

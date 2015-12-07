@@ -21,29 +21,34 @@ let rec p_hash (hmac, hmac_n) key seed len =
   in
   expand (hmac ~key seed) len
 
-let pseudo_random_function version len secret label seed =
+let prf_mac = function
+  | _ -> (module SHA256 : S)
+
+let pseudo_random_function version cipher len secret label seed =
   let labelled = Cstruct.of_string label <+> seed in
   match version with
-  | TLS_1_2           ->
-     p_hash (SHA256.hmac, 32) secret labelled len
   | TLS_1_1 | TLS_1_0 ->
      let (s1, s2) = halve secret in
-     let md5 = p_hash (MD5.hmac, 16) s1 labelled len
-     and sha = p_hash (SHA1.hmac, 20) s2 labelled len in
+     let md5 = p_hash (MD5.hmac, MD5.digest_size) s1 labelled len
+     and sha = p_hash (SHA1.hmac, SHA1.digest_size) s2 labelled len in
      Cs.xor md5 sha
-
-let key_block version len master_secret seed =
-  pseudo_random_function version len master_secret "key expansion" seed
-
-let finished version master_secret label ps =
-  let data = Utils.Cs.appends ps in
-  match version with
-  | TLS_1_0 | TLS_1_1 ->
-     let seed = MD5.digest data <+> SHA1.digest data in
-     pseudo_random_function version 12 master_secret label seed
   | TLS_1_2 ->
-     let seed = SHA256.digest data in
-     pseudo_random_function version 12 master_secret label seed
+     let module D = (val (prf_mac cipher)) in
+     p_hash (D.hmac, D.digest_size) secret labelled len
+
+let key_block version cipher len master_secret seed =
+  pseudo_random_function version cipher len master_secret "key expansion" seed
+
+let hash version cipher data =
+  match version with
+  | TLS_1_0 | TLS_1_1 -> MD5.digest data <+> SHA1.digest data
+  | TLS_1_2 -> let module H = (val (prf_mac cipher)) in
+               H.digest data
+
+let finished version cipher master_secret label ps =
+  let data = Utils.Cs.appends ps in
+  let seed = hash version cipher data in
+  pseudo_random_function version cipher 12 master_secret label seed
 
 let divide_keyblock key mac iv buf =
   let open Cstruct in
@@ -56,13 +61,11 @@ let divide_keyblock key mac iv buf =
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
 let derive_master_secret version session premaster log =
-  let prf = pseudo_random_function version 48 premaster in
+  let prf = pseudo_random_function version session.ciphersuite 48 premaster in
   if session.extended_ms then
     let session_hash =
       let data = Utils.Cs.appends log in
-      match version with
-      | TLS_1_0 | TLS_1_1 -> MD5.digest data <+> SHA1.digest data
-      | TLS_1_2 -> SHA256.digest data
+      hash version session.ciphersuite data
     in
     prf "extended master secret" session_hash
   else
@@ -87,7 +90,7 @@ let initialise_crypto_ctx version session =
     let kblen = 2 * key_len + 2 * mac_len + 2 * iv_len
     and rand = server_random <+> client_random
     in
-    let keyblock = key_block version kblen master rand in
+    let keyblock = key_block version cipher kblen master rand in
     divide_keyblock key_len mac_len iv_len keyblock
   in
 
