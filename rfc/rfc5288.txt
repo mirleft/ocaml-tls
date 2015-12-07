@@ -1,9 +1,3 @@
-
-
-
-
-
-
 Network Working Group                                         J. Salowey
 Request for Comments: 5288                                  A. Choudhury
 Category: Standards Track                                      D. McGrew
@@ -46,19 +40,6 @@ Table of Contents
    8.  References  . . . . . . . . . . . . . . . . . . . . . . . . . . 6
      8.1.  Normative References  . . . . . . . . . . . . . . . . . . . 6
      8.2.  Informative References  . . . . . . . . . . . . . . . . . . 6
-
-
-
-
-
-
-
-
-
-Salowey, et al.             Standards Track                     [Page 1]
-
-RFC 5288                 AES-GCM Cipher suites               August 2008
-
 
 1.  Introduction
 
@@ -108,14 +89,6 @@ RFC 5288                 AES-GCM Cipher suites               August 2008
    AEAD_AES_256_GCM described in [RFC5116].  Note that each of these
    AEAD algorithms uses a 128-bit authentication tag with GCM (in
    particular, as described in Section 3.5 of [RFC4366], the
-
-
-
-Salowey, et al.             Standards Track                     [Page 2]
-
-RFC 5288                 AES-GCM Cipher suites               August 2008
-
-
    "truncated_hmac" extension does not have an effect on cipher suites
    that do not use HMAC).  The "nonce" SHALL be 12 bytes long consisting
    of two parts as follows: (this is an example of a "partially
@@ -164,14 +137,6 @@ RFC 5288                 AES-GCM Cipher suites               August 2008
    cipher suites if they do not offer TLS 1.2 or later.  Servers that
    select an earlier version of TLS MUST NOT select one of these cipher
    suites.  Because TLS has no way for the client to indicate that it
-
-
-
-Salowey, et al.             Standards Track                     [Page 3]
-
-RFC 5288                 AES-GCM Cipher suites               August 2008
-
-
    supports TLS 1.2 but not earlier, a non-compliant server might
    potentially negotiate TLS 1.1 or earlier and select one of the cipher
    suites in this document.  Clients MUST check the TLS version and
@@ -221,13 +186,6 @@ RFC 5288                 AES-GCM Cipher suites               August 2008
 
         nonce_explicit = FixedDistinct || Variable
 
-
-
-Salowey, et al.             Standards Track                     [Page 4]
-
-RFC 5288                 AES-GCM Cipher suites               August 2008
-
-
    where the FixedDistinct field is distinct for each encryption
    processor, but is fixed for a given processor, and the Variable field
    is distinct for each distinct nonce used by a particular encryption
@@ -276,14 +234,6 @@ RFC 5288                 AES-GCM Cipher suites               August 2008
    to thank Alex Lam, Simon Josefsson, and Pasi Eronen for providing
    useful comments during the review of this document.
 
-
-
-
-Salowey, et al.             Standards Track                     [Page 5]
-
-RFC 5288                 AES-GCM Cipher suites               August 2008
-
-
 8.  References
 
 8.1.  Normative References
@@ -325,21 +275,6 @@ RFC 5288                 AES-GCM Cipher suites               August 2008
                  SHA-256/384 and AES Galois Counter Mode", RFC 5289,
                  August 2008.
 
-
-
-
-
-
-
-
-
-
-
-Salowey, et al.             Standards Track                     [Page 6]
-
-RFC 5288                 AES-GCM Cipher suites               August 2008
-
-
 Authors' Addresses
 
    Joseph Salowey
@@ -367,34 +302,6 @@ Authors' Addresses
    USA
 
    EMail: mcgrew@cisco.com
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Salowey, et al.             Standards Track                     [Page 7]
-
-RFC 5288                 AES-GCM Cipher suites               August 2008
-
 
 Full Copyright Statement
 
@@ -435,17 +342,3 @@ Intellectual Property
    rights that may cover technology that may be required to implement
    this standard.  Please address the information to the IETF at
    ietf-ipr@ietf.org.
-
-
-
-
-
-
-
-
-
-
-
-
-Salowey, et al.             Standards Track                     [Page 8]
-
