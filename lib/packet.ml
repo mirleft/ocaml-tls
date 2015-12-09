@@ -33,6 +33,7 @@ type alert_level =
 [%%cenum
 type alert_type =
   | CLOSE_NOTIFY                    [@id 0]   (*RFC5246*)
+  | END_OF_EARLY_DATA               [@id 1]   (*TLS 1.3*)
   | UNEXPECTED_MESSAGE              [@id 10]  (*RFC5246*)
   | BAD_RECORD_MAC                  [@id 20]  (*RFC5246*)
   | DECRYPTION_FAILED               [@id 21]  (*RFC5246*)
@@ -73,17 +74,19 @@ type handshake_type =
   | CLIENT_HELLO         [@id 1]
   | SERVER_HELLO         [@id 2]
   | HELLO_VERIFY_REQUEST [@id 3] (*RFC6347*)
-  | NEWSESSIONTICKET     [@id 4] (*RFC4507*)
+  | SESSION_TICKET       [@id 4] (*RFC4507, TLS 1.3*)
+  | HELLO_RETRY_REQUEST  [@id 6] (*TLS 1.3*)
+  | ENCRYPTED_EXTENSIONS [@id 8] (*TLS 1.3*)
   | CERTIFICATE          [@id 11]
   | SERVER_KEY_EXCHANGE  [@id 12]
   | CERTIFICATE_REQUEST  [@id 13]
   | SERVER_HELLO_DONE    [@id 14]
   | CERTIFICATE_VERIFY   [@id 15]
   | CLIENT_KEY_EXCHANGE  [@id 16]
+  | SERVER_CONFIGURATION [@id 17] (*TLS 1.3*)
   | FINISHED             [@id 20]
-  (* from RFC 4366 *)
-  | CERTIFICATE_URL      [@id 21]
-  | CERTIFICATE_STATUS   [@id 22]
+  | CERTIFICATE_URL      [@id 21] (*RFC4366*)
+  | CERTIFICATE_STATUS   [@id 22] (*RFC4366*)
   | SUPPLEMENTAL_DATA    [@id 23] (*RFC4680*)
   [@@uint8_t] [@@sexp]
 ]
@@ -126,7 +129,7 @@ type extension_type =
   | CLIENT_AUTHZ                           [@id 7]  (*RFC5878*)
   | SERVER_AUTHZ                           [@id 8]  (*RFC5878*)
   | CERT_TYPE                              [@id 9]  (*RFC6091*)
-  | ELLIPTIC_CURVES                        [@id 10] (*RFC4492*)
+  | SUPPORTED_GROUPS                       [@id 10] (*RFC4492, TLS 1.3*)
   | EC_POINT_FORMATS                       [@id 11] (*RFC4492*)
   | SRP                                    [@id 12] (*RFC5054*)
   | SIGNATURE_ALGORITHMS                   [@id 13] (*RFC5246*)
@@ -141,6 +144,9 @@ type extension_type =
   | ENCRYPT_THEN_MAC                       [@id 22] (*RFC7366*)
   | EXTENDED_MASTER_SECRET                 [@id 23] (*draft-ietf-tls-session-hash*)
   | SESSIONTICKET_TLS                      [@id 35] (*RFC4507*)
+  | KEY_SHARE                              [@id 40] (*TLS 1.3*)
+  | PRE_SHARED_KEY                         [@id 41] (*TLS 1.3*)
+  | EARLY_DATA                             [@id 42] (*TLS 1.3*)
   | RENEGOTIATION_INFO                     [@id 0xFF01] (*RFC5746*)
   [@@uint16_t] [@@sexp]
 ]
@@ -162,6 +168,8 @@ type signature_algorithm_type =
   | RSA       [@id 1]
   | DSA       [@id 2]
   | ECDSA     [@id 3]
+  | RSAPSS    [@id 4] (*TLS 1.3*)
+  | EDDSA     [@id 5] (*TLS 1.3*)
   [@@uint8_t] [@@sexp]
 ]
 
@@ -206,7 +214,7 @@ type ec_curve_type =
 ]
 
 [%%cenum
-type named_curve_type =
+type named_group =
   | SECT163K1 [@id 1]
   | SECT163R1 [@id 2]
   | SECT163R2 [@id 3]
@@ -232,11 +240,24 @@ type named_curve_type =
   | SECP256R1 [@id 23]
   | SECP384R1 [@id 24]
   | SECP521R1 [@id 25]
-  (*RFC7027*)
-  | BRAINPOOLP256R1 [@id 26]
-  | BRAINPOOLP384R1 [@id 27]
-  | BRAINPOOLP512R1 [@id 28]
-  (* reserved (0xFE00..0xFEFF), *)
+  | BRAINPOOLP256R1 [@id 26] (*RFC7027*)
+  | BRAINPOOLP384R1 [@id 27] (*RFC7027*)
+  | BRAINPOOLP512R1 [@id 28] (*RFC7027*)
+  | ECDH_X25519     [@id 29] (*TLS 1.3*)
+  | ECDH_X448       [@id 30] (*TLS 1.3*)
+  | EDDSA_ED25519   [@id 31] (*TLS 1.3*)
+  | EDDSA_ED448     [@id 32] (*TLS 1.3*)
+  | FFDHE2048       [@id 256] (*TLS 1.3*)
+  | FFDHE3072       [@id 257] (*TLS 1.3*)
+  | FFDHE4096       [@id 258] (*TLS 1.3*)
+  | FFDHE6144       [@id 259] (*TLS 1.3*)
+  | FFDHE8192       [@id 260] (*TLS 1.3*)
+
+  | FFDHE_PRIVATE_USE1 [@id 0x01FC] (*TLS 1.3*)
+  | FFDHE_PRIVATE_USE2 [@id 0x01FD] (*TLS 1.3*)
+  | FFDHE_PRIVATE_USE3 [@id 0x01FE] (*TLS 1.3*)
+  | FFDHE_PRIVATE_USE4 [@id 0x01FF] (*TLS 1.3*)
+  (* reserved / ECDHE_PRIVATE_USE = 0xFE00..0xFEFF*)
   | ARBITRARY_EXPLICIT_PRIME_CURVES [@id 0xFF01]
   | ARBITRARY_EXPLICIT_CHAR2_CURVES [@id 0xFF02]
   [@@uint16_t] [@@sexp]
@@ -250,6 +271,18 @@ type ec_point_format =
   (* reserved 248..255 *)
   [@@uint8_t] [@@sexp]
 ]
+
+let ks_len = function
+  | FFDHE2048
+  | FFDHE3072
+  | FFDHE4096
+  | FFDHE6144
+  | FFDHE8192
+  | FFDHE_PRIVATE_USE1
+  | FFDHE_PRIVATE_USE2
+  | FFDHE_PRIVATE_USE3
+  | FFDHE_PRIVATE_USE4 -> 2
+  | _ -> 1
 
 [%%cenum
 type ec_basis_type =

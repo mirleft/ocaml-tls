@@ -10,17 +10,20 @@ type tls_version =
   | TLS_1_0
   | TLS_1_1
   | TLS_1_2
+  | TLS_1_3
   [@@deriving sexp]
 
 let pair_of_tls_version = function
   | TLS_1_0   -> (3, 1)
   | TLS_1_1   -> (3, 2)
   | TLS_1_2   -> (3, 3)
+  | TLS_1_3   -> (3, 4)
 
 let tls_version_of_pair = function
   | (3, 1) -> Some TLS_1_0
   | (3, 2) -> Some TLS_1_1
   | (3, 3) -> Some TLS_1_2
+  | (3, 4) -> Some TLS_1_3
   | _      -> None
 
 type tls_any_version =
@@ -76,7 +79,7 @@ end
 type client_extension = [
   | `Hostname of string
   | `MaxFragmentLength of max_fragment_length
-  | `EllipticCurves of named_curve_type list
+  | `SupportedGroups of named_group list
   | `ECPointFormats of ec_point_format list
   | `SecureRenegotiation of Cstruct.t
   | `Padding of int
@@ -144,7 +147,7 @@ type ec_char_parameters = {
 type ec_parameters =
   | ExplicitPrimeParameters of ec_prime_parameters
   | ExplicitCharParameters of ec_char_parameters
-  | NamedCurveParameters of (named_curve_type * Cstruct.t)
+  | NamedGroupParameters of (named_group * Cstruct.t)
   [@@deriving sexp]
 
 type tls_handshake =

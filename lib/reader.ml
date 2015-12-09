@@ -101,6 +101,7 @@ let validate_alert (lvl, typ) =
   (* those are always warnings *)
   | FATAL, USER_CANCELED -> raise_unknown "user_canceled must always be a warning"
   | FATAL, NO_RENEGOTIATION -> raise_unknown "no_renegotiation must always be a warning"
+  | FATAL, END_OF_EARLY_DATA -> raise_unknown "end_of_early_data must always be a warning"
 
   | lvl, typ -> (lvl, typ)
 
@@ -186,16 +187,16 @@ let parse_fragment_length buf =
   else
     int_to_max_fragment_length (get_uint8 buf 0)
 
-let parse_named_curve buf =
+let parse_named_group buf =
   let typ = BE.get_uint16 buf 0 in
-  (int_to_named_curve_type typ, shift buf 2)
+  (int_to_named_group typ, shift buf 2)
 
-let parse_elliptic_curves buf =
+let parse_supported_groups buf =
   let count = BE.get_uint16 buf 0 in
   if count mod 2 <> 0 then
     raise_wrong_length "elliptic curve list"
   else
-    let cs, rt = parse_count_list parse_named_curve (shift buf 2) [] (count / 2) in
+    let cs, rt = parse_count_list parse_named_group (shift buf 2) [] (count / 2) in
     if len rt <> 0 then
       raise_trailing_bytes "elliptic curves"
     else
@@ -262,9 +263,9 @@ let parse_client_extension raw =
        (match parse_hostnames buf with
         | [name] -> `Hostname name
         | _      -> raise_unknown "bad server name indication (multiple names)")
-    | Some ELLIPTIC_CURVES ->
-       let ecc = parse_elliptic_curves buf in
-       `EllipticCurves ecc
+    | Some SUPPORTED_GROUPS ->
+       let gs = parse_supported_groups buf in
+       `SupportedGroups gs
     | Some PADDING ->
        let rec check = function
          | 0 -> `Padding length
@@ -296,7 +297,7 @@ let parse_server_extension raw =
        (match parse_hostnames buf with
         | [] -> `Hostname
         | _      -> raise_unknown "bad server name indication (multiple names)")
-    | Some ELLIPTIC_CURVES | Some SIGNATURE_ALGORITHMS | Some PADDING ->
+    | Some SUPPORTED_GROUPS | Some SIGNATURE_ALGORITHMS | Some PADDING ->
        raise_unknown "invalid extension in server hello!"
     | Some x -> parse_extension buf x
     | None -> `UnknownExtension (etype, buf)

@@ -130,13 +130,13 @@ let assemble_certificate_request_1_2 ts sigalgs cas =
     assemble_signature_algorithms sigalgs <+>
     assemble_cas cas
 
-let assemble_named_curve nc =
+let assemble_named_group nc =
   let buf = create 2 in
-  BE.set_uint16 buf 0 (named_curve_type_to_int nc);
+  BE.set_uint16 buf 0 (named_group_to_int nc);
   buf
 
-let assemble_elliptic_curves curves =
-  assemble_list Two assemble_named_curve curves
+let assemble_supported_groups groups =
+  assemble_list Two assemble_named_group groups
 
 let assemble_ec_point_format f =
   let buf = create 1 in
@@ -158,7 +158,8 @@ let assemble_extension = function
 
 let assemble_client_extension e =
   let pay, typ = match e with
-    | `EllipticCurves cs -> (assemble_elliptic_curves cs, ELLIPTIC_CURVES)
+    | `SupportedGroups groups ->
+       (assemble_supported_groups groups, SUPPORTED_GROUPS)
     | `Hostname name -> (assemble_hostnames [name], SERVER_NAME)
     | `Padding x ->
        let buf = create x in

@@ -52,7 +52,7 @@ let assert_client_extension_equal a b =
   Core.(match a, b with
         | `Hostname a, `Hostname b -> assert_equal a b
         | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
-        | `EllipticCurves a, `EllipticCurves b -> assert_lists_eq assert_equal a b
+        | `SupportedGroups a, `SupportedGroups b -> assert_lists_eq assert_equal a b
         | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
         | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
         | `Padding a, `Padding b -> assert_equal a b

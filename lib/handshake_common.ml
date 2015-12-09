@@ -60,7 +60,7 @@ let supported_protocol_version (min, max) v =
 let to_client_ext_type = function
   | `Hostname _            -> `Hostname
   | `MaxFragmentLength _   -> `MaxFragmentLength
-  | `EllipticCurves _      -> `EllipticCurves
+  | `SupportedGroups _     -> `SupportedGroups
   | `ECPointFormats _      -> `ECPointFormats
   | `SecureRenegotiation _ -> `SecureRenegotiation
   | `Padding _             -> `Padding
