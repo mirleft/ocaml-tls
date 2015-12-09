@@ -97,10 +97,9 @@ let assemble_hostname host =
 let assemble_hostnames hosts =
   assemble_list Two assemble_hostname hosts
 
-let assemble_hash_signature (h, s) =
+let assemble_hash_signature sigalg =
   let buf = create 2 in
-  set_uint8 buf 0 (hash_algorithm_to_int (hash_algorithm_of_tag h));
-  set_uint8 buf 1 (signature_algorithm_type_to_int s);
+  BE.set_uint16 buf 0 (signature_alg_to_int (to_signature_alg sigalg)) ;
   buf
 
 let assemble_signature_algorithms s =
@@ -130,13 +129,40 @@ let assemble_certificate_request_1_2 ts sigalgs cas =
     assemble_signature_algorithms sigalgs <+>
     assemble_cas cas
 
-let assemble_named_curve nc =
+let assemble_named_group g =
   let buf = create 2 in
-  BE.set_uint16 buf 0 (named_curve_type_to_int nc);
+  BE.set_uint16 buf 0 (named_group_to_int g);
   buf
 
-let assemble_elliptic_curves curves =
-  assemble_list Two assemble_named_curve curves
+let assemble_group g =
+  assemble_named_group (group_to_named_group g)
+
+let assemble_supported_groups groups =
+  assemble_list Two assemble_named_group groups
+
+let assemble_keyshare_entry (ng, ks) =
+  let g = assemble_named_group ng in
+  let l = create 2 in
+  BE.set_uint16 l 0 (len ks) ;
+  g <+> l <+> ks
+
+let assemble_psk_id (id, age) =
+  let id_len = create 2 in
+  BE.set_uint16 id_len 0 (len id) ;
+  let age_buf = create 4 in
+  BE.set_uint32 age_buf 0 age ;
+  id_len <+> id <+> age_buf
+
+let assemble_binder b =
+  let b_len = create 1 in
+  set_uint8 b_len 0 (len b) ;
+  b_len <+> b
+
+let assemble_client_psks psks =
+  let ids, binders = List.split psks in
+  let ids_buf = assemble_list Two assemble_psk_id ids in
+  let binders_buf = assemble_list Two assemble_binder binders in
+  ids_buf <+> binders_buf
 
 let assemble_ec_point_format f =
   let buf = create 1 in
@@ -154,6 +180,9 @@ let assemble_alpn_protocol p =
 let assemble_alpn_protocols protocols =
   assemble_list Two assemble_alpn_protocol protocols
 
+let assemble_supported_versions vs =
+  assemble_list One assemble_any_protocol_version vs
+
 let assemble_extension = function
   | `ECPointFormats formats ->
      (assemble_ec_point_formats formats, EC_POINT_FORMATS)
@@ -161,51 +190,139 @@ let assemble_extension = function
      let buf = create 1 in
      set_uint8 buf 0 (len x);
      (buf <+> x, RENEGOTIATION_INFO)
-  | `ExtendedMasterSecret -> (Cstruct.create 0, EXTENDED_MASTER_SECRET)
+  | `ExtendedMasterSecret -> (create 0, EXTENDED_MASTER_SECRET)
   | _ -> invalid_arg "unknown extension"
 
+let assemble_cookie c =
+  let l = create 2 in
+  BE.set_uint16 l 0 (len c) ;
+  l <+> c
+
+let assemble_psk_key_exchange_mode mode =
+  let c = create 1 in
+  set_uint8 c 0 (psk_key_exchange_mode_to_int mode) ;
+  c
+
+let assemble_psk_key_exchange_modes modes =
+  assemble_list One assemble_psk_key_exchange_mode modes
+
+let assemble_ext (pay, typ) =
+  let buf = Cstruct.create 4 in
+  BE.set_uint16 buf 0 (extension_type_to_int typ);
+  BE.set_uint16 buf 2 (len pay);
+  buf <+> pay
+
+let assemble_extensions ?none_if_empty assemble_e es =
+  assemble_list ?none_if_empty Two assemble_e es
+
+let assemble_ca ca =
+  let lenbuf = create 2 in
+  let data = X509.Distinguished_name.encode_der ca in
+  BE.set_uint16 lenbuf 0 (len data) ;
+  lenbuf <+> data
+
+let assemble_certificate_authorities cas =
+  assemble_list Two assemble_ca cas
+
+let assemble_certificate_request_extension e =
+  assemble_ext @@ match e with
+  | `SignatureAlgorithms s ->
+    (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
+  | `CertificateAuthorities cas ->
+    (assemble_certificate_authorities cas, CERTIFICATE_AUTHORITIES)
+  | _ -> invalid_arg "unknown extension"
+
+let assemble_certificate_request_1_3 ?(context = Cstruct.empty) exts =
+  let clen = create 1 in
+  set_uint8 clen 0 (len context) ;
+  let exts = assemble_extensions assemble_certificate_request_extension exts in
+  clen <+> context <+> exts
+
 let assemble_client_extension e =
-  let pay, typ = match e with
-    | `EllipticCurves cs -> (assemble_elliptic_curves cs, ELLIPTIC_CURVES)
+  assemble_ext @@ match e with
+    | `SupportedGroups groups ->
+      (assemble_supported_groups groups, SUPPORTED_GROUPS)
     | `Hostname name -> (assemble_hostnames [name], SERVER_NAME)
-    | `Padding x ->
-       let buf = create x in
-       memset buf 0 ;
-       (buf, PADDING)
+    | `Padding x -> (create x, PADDING)
     | `SignatureAlgorithms s ->
       (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
     | `ALPN protocols ->
       (assemble_alpn_protocols protocols, APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
+    | `KeyShare ks ->
+      (assemble_list Two assemble_keyshare_entry ks, KEY_SHARE)
+    | `PreSharedKeys ids ->
+      (assemble_client_psks ids, PRE_SHARED_KEY)
+    | `EarlyDataIndication ->
+      (create 0, EARLY_DATA)
+    | `SupportedVersions vs ->
+      (assemble_supported_versions vs, SUPPORTED_VERSIONS)
+    | `PostHandshakeAuthentication ->
+      (Utils.Cs.empty, POST_HANDSHAKE_AUTH)
+    | `Cookie c ->
+      (assemble_cookie c, COOKIE)
+    | `PskKeyExchangeModes modes ->
+      (assemble_psk_key_exchange_modes modes, PSK_KEY_EXCHANGE_MODES)
     | x -> assemble_extension x
-  in
-  let buf = create 4 in
-  BE.set_uint16 buf 0 (extension_type_to_int typ);
-  BE.set_uint16 buf 2 (Cstruct.len pay);
-  buf <+> pay
 
 let assemble_server_extension e =
-  let pay, typ = match e with
+  assemble_ext @@ match e with
     | `Hostname -> (create 0, SERVER_NAME)
     | `ALPN protocol ->
       (assemble_alpn_protocols [protocol], APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
+    | `KeyShare (g, ks) ->
+      let ng = group_to_named_group g in
+      (assemble_keyshare_entry (ng, ks), KEY_SHARE)
+    | `PreSharedKey id ->
+      let data = create 2 in
+      BE.set_uint16 data 0 id ;
+      (data, PRE_SHARED_KEY)
+    | `SelectedVersion v -> (assemble_protocol_version v, SUPPORTED_VERSIONS)
     | x -> assemble_extension x
-  in
-  let buf = create 4 in
-  BE.set_uint16 buf 0 (extension_type_to_int typ);
-  BE.set_uint16 buf 2 (Cstruct.len pay);
-  buf <+> pay
 
-let assemble_extensions assemble_e es =
-  assemble_list ~none_if_empty:true Two assemble_e es
+let assemble_encrypted_extension e =
+  assemble_ext @@ match e with
+    | `Hostname -> (create 0, SERVER_NAME)
+    | `ALPN protocol ->
+      (assemble_alpn_protocols [protocol], APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
+    | `SupportedGroups groups ->
+      (assemble_supported_groups (List.map group_to_named_group groups), SUPPORTED_GROUPS)
+    | `EarlyDataIndication -> (create 0, EARLY_DATA)
+    | _ -> invalid_arg "unknown extension"
+
+let assemble_retry_extension e =
+  assemble_ext @@ match e with
+    | `SelectedGroup g -> (assemble_group g, KEY_SHARE)
+    | `Cookie c -> (assemble_cookie c, COOKIE)
+    | `SelectedVersion v -> (assemble_protocol_version v, SUPPORTED_VERSIONS)
+    | `UnknownExtension _ -> invalid_arg "unknown retry extension"
+
+let assemble_cert_ext (certificate, extensions) =
+  let cert = assemble_certificate certificate
+  and exts = assemble_list Two assemble_server_extension extensions
+  in
+  cert <+> exts
+
+let assemble_certs_exts cs =
+  assemble_list Three assemble_cert_ext cs
+
+let assemble_certificates_1_3 context certs =
+  let l = create 1 in
+  set_uint8 l 0 (len context) ;
+  l <+> context <+> assemble_certs_exts (List.map (fun c -> c, []) certs)
+
+let assemble_sid sid =
+  let buf = create 1 in
+  match sid with
+  | None   -> buf
+  | Some s -> set_uint8 buf 0 (len s); buf <+> s
 
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
-  let v = assemble_any_protocol_version cl.client_version in
-  let sid =
-    let buf = create 1 in
-    match cl.sessionid with
-    | None   -> set_uint8 buf 0 0; buf
-    | Some s -> set_uint8 buf 0 (len s); buf <+> s
+  let version = match cl.client_version with
+    | `TLS_1_3 -> `TLS_1_2 (* keep 0x03 0x03 on wire *)
+    | x -> x
   in
+  let v = assemble_any_protocol_version version in
+  let sid = assemble_sid cl.sessionid in
   let css = assemble_any_ciphersuites cl.ciphersuites in
   (* compression methods, completely useless *)
   let cms = assemble_compression_methods [NULL] in
@@ -224,7 +341,7 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
    handshake protocol) and test whether the resulting length falls into
    that range.  If it does, a padding extension can be added in order to
    push the length to (at least) 512 bytes. *)
-  let extensions = assemble_extensions assemble_client_extension cl.extensions in
+  let extensions = assemble_extensions ~none_if_empty:true assemble_client_extension cl.extensions in
   let extrapadding =
     let buflen = len bbuf + len extensions + 4 in
     if buflen >= 256 && buflen <= 511 then
@@ -249,19 +366,17 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   bbuf <+> extensions <+> extrapadding
 
 let assemble_server_hello (sh : server_hello) : Cstruct.t =
-  let v = assemble_protocol_version sh.server_version in
-  let sid =
-    let buf = create 1 in
-    match sh.sessionid with
-     | None   -> set_uint8 buf 0 0; buf
-     | Some s -> set_uint8 buf 0 (len s); buf <+> s
+  let version, exts = match sh.server_version with
+    | `TLS_1_3 -> `TLS_1_2, `SelectedVersion `TLS_1_3 :: sh.extensions
+    | x -> x, sh.extensions
   in
+  let v = assemble_protocol_version version in
+  let sid = assemble_sid sh.sessionid in
   let cs = assemble_ciphersuite sh.ciphersuite in
   (* useless compression method *)
   let cm = assemble_compression_method NULL in
-  let extensions = assemble_extensions assemble_server_extension sh.extensions in
-  let bbuf = v <+> sh.server_random <+> sid <+> cs <+> cm in
-  bbuf <+> extensions
+  let extensions = assemble_extensions ~none_if_empty:true assemble_server_extension exts in
+  v <+> sh.server_random <+> sid <+> cs <+> cm <+> extensions
 
 let assemble_dh_parameters p =
   let plen, glen, yslen = (len p.dh_p, len p.dh_g, len p.dh_Ys) in
@@ -279,9 +394,27 @@ let assemble_digitally_signed signature =
   BE.set_uint16 lenbuf 0 (len signature);
   lenbuf <+> signature
 
-let assemble_digitally_signed_1_2 hashalgo sigalgo signature =
-  (assemble_hash_signature (hashalgo, sigalgo)) <+>
+let assemble_digitally_signed_1_2 sigalg signature =
+  (assemble_hash_signature sigalg) <+>
     (assemble_digitally_signed signature)
+
+let assemble_session_ticket_extension e =
+  assemble_ext @@ match e with
+  | `EarlyDataIndication max ->
+    let buf = create 4 in
+    BE.set_uint32 buf 0 max ;
+    (buf, EARLY_DATA)
+  | _ -> invalid_arg "unknown extension"
+
+let assemble_session_ticket (se : session_ticket) =
+  let buf = create 9 in
+  BE.set_uint32 buf 0 se.lifetime ;
+  BE.set_uint32 buf 4 se.age_add ;
+  set_uint8 buf 8 (len se.nonce) ;
+  let ticketlen = create 2 in
+  BE.set_uint16 ticketlen 0 (len se.ticket) ;
+  let exts = assemble_extensions assemble_session_ticket_extension se.extensions in
+  buf <+> se.nonce <+> ticketlen <+> se.ticket <+> exts
 
 let assemble_client_key_exchange kex =
   let len = len kex in
@@ -290,12 +423,41 @@ let assemble_client_key_exchange kex =
   blit kex 0 buf 2 len;
   buf
 
+let assemble_hello_retry_request hrr =
+  let exts = `SelectedGroup hrr.selected_group :: hrr.extensions in
+  let version, exts = match hrr.retry_version with
+    | `TLS_1_3 -> `TLS_1_2, `SelectedVersion `TLS_1_3 :: exts
+    | x -> x, exts
+  in
+  let v = assemble_protocol_version version in
+  let sid = assemble_sid hrr.sessionid in
+  let cs = assemble_ciphersuite (hrr.ciphersuite :> Ciphersuite.ciphersuite) in
+  (* useless compression method *)
+  let cm = create 1 in
+  let extensions = assemble_extensions ~none_if_empty:true assemble_retry_extension exts in
+  v <+> helloretryrequest <+> sid <+> cs <+> cm <+> extensions
+
+let assemble_hs typ len =
+  let buf = create 4 in
+  set_uint8 buf 0 (handshake_type_to_int typ);
+  set_uint24_len (shift buf 1) len;
+  buf
+
+let assemble_message_hash len =
+  assemble_hs MESSAGE_HASH len
+
+let assemble_key_update req =
+  let cs = create 1 in
+  set_uint8 cs 0 (key_update_request_type_to_int req);
+  cs
+
 let assemble_handshake hs =
   let (payload, payload_type) =
     match hs with
     | ClientHello ch -> (assemble_client_hello ch, CLIENT_HELLO)
     | ServerHello sh -> (assemble_server_hello sh, SERVER_HELLO)
-    | Certificate cs -> (assemble_certificates cs, CERTIFICATE)
+    | HelloRetryRequest hr -> (assemble_hello_retry_request hr, SERVER_HELLO)
+    | Certificate cs -> (cs, CERTIFICATE)
     | CertificateRequest cr -> (cr, CERTIFICATE_REQUEST)
     | CertificateVerify c -> (c, CERTIFICATE_VERIFY)
     | ServerKeyExchange kex -> (kex, SERVER_KEY_EXCHANGE)
@@ -303,11 +465,17 @@ let assemble_handshake hs =
     | ServerHelloDone -> (create 0, SERVER_HELLO_DONE)
     | HelloRequest -> (create 0, HELLO_REQUEST)
     | Finished fs -> (fs, FINISHED)
+    | SessionTicket st -> (assemble_session_ticket st, SESSION_TICKET)
+    | EncryptedExtensions ee ->
+       let cs = assemble_extensions assemble_encrypted_extension ee in
+       (cs, ENCRYPTED_EXTENSIONS)
+    | KeyUpdate req ->
+      let cs = assemble_key_update req in
+      (cs, KEY_UPDATE)
+    | EndOfEarlyData -> (create 0, END_OF_EARLY_DATA)
   in
   let pay_len = len payload in
-  let buf = create 4 in
-  set_uint8 buf 0 (handshake_type_to_int payload_type);
-  set_uint24_len (shift buf 1) pay_len;
+  let buf = assemble_hs payload_type pay_len in
   buf <+> payload
 
 let assemble_alert ?(level = Packet.FATAL) typ =

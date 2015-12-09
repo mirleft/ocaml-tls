@@ -6,11 +6,11 @@ let version_assembler (ver, res) _ =
   let buf = Writer.assemble_protocol_version ver in
   assert_cs_eq buf res
 
-let version_assembler_tests = Core.([
- (TLS_1_0, list_to_cstruct [3; 1]) ;
- (TLS_1_1, list_to_cstruct [3; 2]) ;
- (TLS_1_2, list_to_cstruct [3; 3]) ;
-])
+let version_assembler_tests = [
+  (`TLS_1_0, list_to_cstruct [3; 1]) ;
+  (`TLS_1_1, list_to_cstruct [3; 2]) ;
+  (`TLS_1_2, list_to_cstruct [3; 3]) ;
+]
 
 let version_tests =
   List.mapi
@@ -22,32 +22,32 @@ let hdr_assembler (ver, ct, cs, res) _ =
   let res' = list_to_cstruct res in
   assert_cs_eq buf res'
 
-let hdr_assembler_tests = Core.([
-  (TLS_1_2, Packet.CHANGE_CIPHER_SPEC, [], [20; 3; 3; 0; 0]) ;
-  (TLS_1_1, Packet.CHANGE_CIPHER_SPEC, [], [20; 3; 2; 0; 0]) ;
-  (TLS_1_0, Packet.CHANGE_CIPHER_SPEC, [], [20; 3; 1; 0; 0]) ;
-  (TLS_1_2, Packet.CHANGE_CIPHER_SPEC, [0; 0; 0], [20; 3; 3; 0; 3; 0; 0; 0]) ;
+let hdr_assembler_tests = [
+  (`TLS_1_2, Packet.CHANGE_CIPHER_SPEC, [], [20; 3; 3; 0; 0]) ;
+  (`TLS_1_1, Packet.CHANGE_CIPHER_SPEC, [], [20; 3; 2; 0; 0]) ;
+  (`TLS_1_0, Packet.CHANGE_CIPHER_SPEC, [], [20; 3; 1; 0; 0]) ;
+  (`TLS_1_2, Packet.CHANGE_CIPHER_SPEC, [0; 0; 0], [20; 3; 3; 0; 3; 0; 0; 0]) ;
 
-  (TLS_1_2, Packet.ALERT, [], [21; 3; 3; 0; 0]) ;
-  (TLS_1_1, Packet.ALERT, [], [21; 3; 2; 0; 0]) ;
-  (TLS_1_0, Packet.ALERT, [], [21; 3; 1; 0; 0]) ;
-  (TLS_1_2, Packet.ALERT, [0; 0; 0], [21; 3; 3; 0; 3; 0; 0; 0]) ;
+  (`TLS_1_2, Packet.ALERT, [], [21; 3; 3; 0; 0]) ;
+  (`TLS_1_1, Packet.ALERT, [], [21; 3; 2; 0; 0]) ;
+  (`TLS_1_0, Packet.ALERT, [], [21; 3; 1; 0; 0]) ;
+  (`TLS_1_2, Packet.ALERT, [0; 0; 0], [21; 3; 3; 0; 3; 0; 0; 0]) ;
 
-  (TLS_1_2, Packet.HANDSHAKE, [], [22; 3; 3; 0; 0]) ;
-  (TLS_1_1, Packet.HANDSHAKE, [], [22; 3; 2; 0; 0]) ;
-  (TLS_1_0, Packet.HANDSHAKE, [], [22; 3; 1; 0; 0]) ;
-  (TLS_1_2, Packet.HANDSHAKE, [0; 0; 0], [22; 3; 3; 0; 3; 0; 0; 0]) ;
+  (`TLS_1_2, Packet.HANDSHAKE, [], [22; 3; 3; 0; 0]) ;
+  (`TLS_1_1, Packet.HANDSHAKE, [], [22; 3; 2; 0; 0]) ;
+  (`TLS_1_0, Packet.HANDSHAKE, [], [22; 3; 1; 0; 0]) ;
+  (`TLS_1_2, Packet.HANDSHAKE, [0; 0; 0], [22; 3; 3; 0; 3; 0; 0; 0]) ;
 
-  (TLS_1_2, Packet.APPLICATION_DATA, [], [23; 3; 3; 0; 0]) ;
-  (TLS_1_1, Packet.APPLICATION_DATA, [], [23; 3; 2; 0; 0]) ;
-  (TLS_1_0, Packet.APPLICATION_DATA, [], [23; 3; 1; 0; 0]) ;
-  (TLS_1_2, Packet.APPLICATION_DATA, [0; 0; 0], [23; 3; 3; 0; 3; 0; 0; 0]) ;
+  (`TLS_1_2, Packet.APPLICATION_DATA, [], [23; 3; 3; 0; 0]) ;
+  (`TLS_1_1, Packet.APPLICATION_DATA, [], [23; 3; 2; 0; 0]) ;
+  (`TLS_1_0, Packet.APPLICATION_DATA, [], [23; 3; 1; 0; 0]) ;
+  (`TLS_1_2, Packet.APPLICATION_DATA, [0; 0; 0], [23; 3; 3; 0; 3; 0; 0; 0]) ;
 
-  (TLS_1_2, Packet.HEARTBEAT, [], [24; 3; 3; 0; 0]) ;
-  (TLS_1_1, Packet.HEARTBEAT, [], [24; 3; 2; 0; 0]) ;
-  (TLS_1_0, Packet.HEARTBEAT, [], [24; 3; 1; 0; 0]) ;
-  (TLS_1_2, Packet.HEARTBEAT, [0; 0; 0], [24; 3; 3; 0; 3; 0; 0; 0]) ;
-])
+  (`TLS_1_2, Packet.HEARTBEAT, [], [24; 3; 3; 0; 0]) ;
+  (`TLS_1_1, Packet.HEARTBEAT, [], [24; 3; 2; 0; 0]) ;
+  (`TLS_1_0, Packet.HEARTBEAT, [], [24; 3; 1; 0; 0]) ;
+  (`TLS_1_2, Packet.HEARTBEAT, [0; 0; 0], [24; 3; 3; 0; 3; 0; 0; 0]) ;
+]
 
 let hdr_tests =
   List.mapi
@@ -217,8 +217,8 @@ let ds_tests =
     (fun i f -> "Assemble digitally signed " ^ string_of_int i >:: ds_assembler f)
     ds_assembler_tests
 
-let ds_1_2_assembler (h, s, p, res) _ =
-  let buf = Writer.assemble_digitally_signed_1_2 h s p in
+let ds_1_2_assembler (sigalg, p, res) _ =
+  let buf = Writer.assemble_digitally_signed_1_2 sigalg p in
   assert_cs_eq buf res
 
 let ds_1_2_assembler_tests =
@@ -227,9 +227,9 @@ let ds_1_2_assembler_tests =
   let le2 = list_to_cstruct [ 0; 32 ] in
   let emp, empl = (list_to_cstruct [], list_to_cstruct [0; 0]) in
   [
-    ( `MD5, Packet.RSA, a , list_to_cstruct [1; 1] <+> le <+> a ) ;
-    ( `SHA1, Packet.DSA, a <+> a , list_to_cstruct [2; 2] <+> le2 <+> a <+> a ) ;
-    ( `SHA256, Packet.ECDSA, emp , list_to_cstruct [4; 3] <+> empl )
+    ( `RSA_PKCS1_MD5, a , list_to_cstruct [1; 1] <+> le <+> a ) ;
+    ( `RSA_PKCS1_SHA1, a <+> a , list_to_cstruct [2; 1] <+> le2 <+> a <+> a ) ;
+    ( `RSA_PSS_RSAENC_SHA256, emp , list_to_cstruct [8; 4] <+> empl )
   ]
 
 let ds_1_2_tests =
@@ -264,46 +264,46 @@ let handshake_assembler_tests =
    ( ServerKeyExchange a_cs , [ 12 ] @ le @ a_l ) ;
    ( ServerKeyExchange (a_cs <+> a_cs) , [ 12 ] @ le2 @ a_l @ a_l ) ;
 
-   ( Certificate [] , [ 11; 0; 0; 3; 0; 0; 0 ] ) ;
-   ( Certificate [emp] , [ 11; 0; 0; 6; 0; 0; 3; 0; 0; 0 ] ) ;
-   ( Certificate [emp ; emp] , [ 11; 0; 0; 9; 0; 0; 6; 0; 0; 0; 0; 0; 0 ] ) ;
+   ( Certificate (Writer.assemble_certificates []) , [ 11; 0; 0; 3; 0; 0; 0 ] ) ;
+   ( Certificate (Writer.assemble_certificates[emp]) , [ 11; 0; 0; 6; 0; 0; 3; 0; 0; 0 ] ) ;
+   ( Certificate (Writer.assemble_certificates[emp ; emp]) , [ 11; 0; 0; 9; 0; 0; 6; 0; 0; 0; 0; 0; 0 ] ) ;
 
-   ( Certificate [a_cs] , [ 11; 0; 0; 22; 0; 0; 19 ] @ le @ a_l ) ;
-   ( Certificate [a_cs ; emp] , [ 11; 0; 0; 25; 0; 0; 22 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
-   ( Certificate [emp ; a_cs] , [ 11; 0; 0; 25; 0; 0; 22; 0; 0; 0] @ le @ a_l ) ;
-   ( Certificate [emp ; a_cs ; emp] , [ 11; 0; 0; 28; 0; 0; 25; 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ]) ;
-   ( Certificate [a_cs ; emp ; a_cs] , [ 11; 0; 0; 44; 0; 0; 41 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l ) ;
-   ( Certificate [a_cs ; emp ; a_cs ; emp] , [ 11; 0; 0; 47; 0; 0; 44 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
+   ( Certificate (Writer.assemble_certificates[a_cs]) , [ 11; 0; 0; 22; 0; 0; 19 ] @ le @ a_l ) ;
+   ( Certificate (Writer.assemble_certificates[a_cs ; emp]) , [ 11; 0; 0; 25; 0; 0; 22 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
+   ( Certificate (Writer.assemble_certificates[emp ; a_cs]) , [ 11; 0; 0; 25; 0; 0; 22; 0; 0; 0] @ le @ a_l ) ;
+   ( Certificate (Writer.assemble_certificates[emp ; a_cs ; emp]) , [ 11; 0; 0; 28; 0; 0; 25; 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ]) ;
+   ( Certificate (Writer.assemble_certificates[a_cs ; emp ; a_cs]) , [ 11; 0; 0; 44; 0; 0; 41 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l ) ;
+   ( Certificate (Writer.assemble_certificates[a_cs ; emp ; a_cs ; emp]) , [ 11; 0; 0; 47; 0; 0; 44 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
 
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { client_version = Supported TLS_1_1 ;
+   ( ClientHello { client_version = `TLS_1_1 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 2 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { client_version = Supported TLS_1_0 ;
+   ( ClientHello { client_version = `TLS_1_0 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 1 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
                    extensions = [] },
      [ 1; 0; 0; 41; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = Packet.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
@@ -311,34 +311,24 @@ let handshake_assembler_tests =
      [ 1; 0; 0; 47; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ] ) ;
 
 
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = Packet.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
                    extensions = [
                             `SignatureAlgorithms
-                              [(`SHA512, Packet.RSA) ;
-                               (`SHA512, Packet.DSA) ;
-                               (`SHA512, Packet.ECDSA) ;
-                               (`SHA384, Packet.RSA) ;
-                               (`SHA384, Packet.DSA) ;
-                               (`SHA384, Packet.ECDSA) ;
-                               (`SHA256, Packet.RSA) ;
-                               (`SHA256, Packet.DSA) ;
-                               (`SHA256, Packet.ECDSA) ;
-                               (`SHA224, Packet.RSA) ;
-                               (`SHA224, Packet.DSA) ;
-                               (`SHA224, Packet.ECDSA) ;
-                               (`SHA1, Packet.RSA) ;
-                               (`SHA1, Packet.DSA) ;
-                               (`SHA1, Packet.ECDSA)] ] },
-     [ 1; 0; 0; 85; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ; 0; 0x24 ;
+                              [`RSA_PKCS1_SHA512 ;
+                               `RSA_PKCS1_SHA384 ;
+                               `RSA_PKCS1_SHA256 ;
+                               `RSA_PKCS1_SHA224 ;
+                               `RSA_PKCS1_SHA1 ] ] },
+     [ 1; 0; 0; 65; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ; 0; 0x10 ;
 
-              0x00; 0x0d; 0x00; 0x20; (* signature algorithms *)
-              0x00; 0x1e; 0x06; 0x01; 0x06; 0x02; 0x06; 0x03; 0x05; 0x01; 0x05; 0x02; 0x05; 0x03; 0x04; 0x01; 0x04; 0x02; 0x04; 0x03; 0x03; 0x01; 0x03; 0x02; 0x03; 0x03; 0x02; 0x01; 0x02; 0x02; 0x02; 0x03 ] ) ;
+              0x00; 0x0d; 0x00; 0x0c; (* signature algorithms *)
+              0x00; 0x0a; 0x06; 0x01; 0x05; 0x01; 0x04; 0x01; 0x03; 0x01; 0x02; 0x01 ] ) ;
 
 
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
@@ -346,21 +336,21 @@ let handshake_assembler_tests =
      [ 1; 0; 0; 61; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 18; 0; 16; 0; 14; 0; 12; 2; 104; 50; 8; 104; 116; 116; 112; 47; 49; 46; 49 ] ) ;
 
 
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
                    extensions = [`Hostname "foo"] },
      [ 1; 0; 0; 55; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 3; 102; 111; 111 ] ) ;
 
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
                    extensions = [`Hostname "foofoofoofoofoofoofoofoofoofoo"] },
      [ 1; 0; 0; 82; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 39; 0; 0; 0; 35; 0; 33; 0; 0; 30; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111 ] ) ;
 
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
@@ -369,7 +359,7 @@ let handshake_assembler_tests =
 
    (* this one is the smallest which needs extra padding
      (due to its size being > 256 and < 511) *)
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
@@ -377,7 +367,7 @@ let handshake_assembler_tests =
      [ 1; 0; 1; 0xFC; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 1; 0xD1; 0; 0; 0; 0xD0; 0; 0xCE; 0; 0; 0xCB; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111; 0; 21; 0; 0xF9; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0  ] ) ;
 
    (* this one is the biggest which needs no extra padding *)
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
@@ -385,7 +375,7 @@ let handshake_assembler_tests =
      [ 1; 0; 0; 251; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 208; 0; 0; 0; 204; 0; 202; 0; 0; 199; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102 ] ) ;
 
    (* this one is the biggest which needs no extra padding, and no exts *)
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;
@@ -398,7 +388,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
   1; 0 ] ) ;
 
    (* add one more, and we get into padding no exts *)
-   ( ClientHello { client_version = Supported TLS_1_2 ;
+   ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;
@@ -414,7 +404,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;
  ] ) ;
 
-   ( ServerHello { server_version = TLS_1_2 ;
+   ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
@@ -422,7 +412,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
                  } ,
      [2; 0; 0; 38; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
 
-   ( ServerHello { server_version = TLS_1_1 ;
+   ( ServerHello { server_version = `TLS_1_1 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
@@ -430,7 +420,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
                  } ,
      [2; 0; 0; 38; 3; 2] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
 
-   ( ServerHello { server_version = TLS_1_0 ;
+   ( ServerHello { server_version = `TLS_1_0 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
@@ -439,7 +429,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
      [2; 0; 0; 38; 3; 1] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
 
 
-   ( ServerHello { server_version = TLS_1_0 ;
+   ( ServerHello { server_version = `TLS_1_0 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = Some a_cs ;
                    ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
@@ -447,7 +437,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
                  } ,
      [2; 0; 0; 54; 3; 1] @ a_l @ a_l @ (* session id *) [ 16 ] @ a_l @ [(* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
 
-   ( ServerHello { server_version = TLS_1_2 ;
+   ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
@@ -456,7 +446,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
      [2; 0; 0; 44; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 4; 0; 0; 0; 0] ) ;
 
 
-   ( ServerHello { server_version = TLS_1_2 ;
+   ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
@@ -464,7 +454,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
                  } ,
      [2; 0; 0; 45; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 5; 0xFF; 1; 0; 1; 0] ) ;
 
-   ( ServerHello { server_version = TLS_1_2 ;
+   ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
@@ -472,7 +462,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0; 0; 0; 0; 0xFF; 1; 0; 1; 0] ) ;
 
-   ( ServerHello { server_version = TLS_1_2 ;
+   ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
@@ -480,7 +470,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 1; 0; 0; 0; 0; 0] ) ;
 
-   ( ServerHello { server_version = TLS_1_2 ;
+   ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;

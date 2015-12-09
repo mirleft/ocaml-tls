@@ -7,7 +7,7 @@ let ca_cert_dir = "./certificates"
 let server_cert = "./certificates/server.pem"
 let server_key  = "./certificates/server.key"
 
-let yap ~tag msg = Lwt_io.printf "[%s] %s\n%!" tag msg
+let yap ~tag msg = Lwt_io.printf "(%s %s)\n%!" tag msg
 
 let lines ic =
   Lwt_stream.from @@ fun () ->
@@ -15,17 +15,12 @@ let lines ic =
       | None -> Lwt_io.close ic >>= fun () -> return_none
       | line -> return line
 
-let eprint_sexp sexp =
-  output_string stderr Sexplib.Sexp.(to_string_hum sexp) ;
-  output_string stderr "\n\n" ;
-  flush stderr
-
 let print_alert where alert =
-    Printf.eprintf "TLS ALERT (%s): %s\n%!"
+    Printf.eprintf "(TLS ALERT (%s): %s)\n%!"
       where (Tls.Packet.alert_type_to_string alert)
 
 let print_fail where fail =
-  Printf.eprintf "TLS FAIL (%s): %s\n%!"
+  Printf.eprintf "(TLS FAIL (%s): %s)\n%!"
     where (Tls.Engine.string_of_failure fail)
 
 let null_auth ~host:_ _ = Ok None
@@ -40,3 +35,15 @@ let auth ~hostname ?ca ?fp () =
       | Some f, _ -> `Ca_file f
     in
     X509_lwt.authenticator a
+
+let setup_log style_renderer level =
+  Fmt_tty.setup_std_outputs ?style_renderer ();
+  Logs.set_level level;
+  Logs.set_reporter (Logs_fmt.reporter ~dst:Format.std_formatter ())
+
+open Cmdliner
+
+let setup_log =
+  Term.(const setup_log
+        $ Fmt_cli.style_renderer ()
+        $ Logs_cli.level ())

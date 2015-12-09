@@ -1,4 +1,3 @@
-
 open Mirage_crypto
 
 open Ciphersuite
@@ -39,31 +38,33 @@ module Ciphers = struct
         K_CBC ( (module CBC : Cipher_block.S.CBC with type key = CBC.key),
                 CBC.of_secret )
 
+  let get_aead ~secret ~nonce =
+    let open Cipher_block.AES in
+    function
+    | AES_128_CCM | AES_256_CCM ->
+       let cipher = (module CCM : Cipher_block.S.CCM with type key = CCM.key) in
+       let cipher_secret = CCM.of_secret ~maclen:16 secret in
+       State.(AEAD { cipher = CCM cipher ; cipher_secret ; nonce })
+    | AES_128_GCM | AES_256_GCM ->
+       let cipher = (module GCM : Cipher_block.S.GCM with type key = GCM.key) in
+       let cipher_secret = GCM.of_secret secret in
+       State.(AEAD { cipher = GCM cipher ; cipher_secret ; nonce })
+
   let get_cipher ~secret ~hmac_secret ~iv_mode ~nonce = function
-    | Stream (RC4_128, hmac) ->
+    | `Stream (RC4_128, hmac) ->
         let open Cipher_stream in
         let cipher = (module ARC4 : Cipher_stream.S with type key = ARC4.key) in
         let cipher_secret = ARC4.of_secret secret in
         State.(Stream { cipher ; cipher_secret ; hmac ; hmac_secret })
 
-    | Block (cipher, hmac) ->
+    | `Block (cipher, hmac) ->
        ( match get_block cipher with
          | K_CBC (cipher, sec) ->
             let cipher_secret = sec secret in
             State.(CBC { cipher ; cipher_secret ; iv_mode ; hmac ; hmac_secret })
        )
 
-    | AEAD cipher ->
-       let open Cipher_block.AES in
-       match cipher with
-       | AES_128_CCM | AES_256_CCM ->
-         let cipher = (module CCM : Cipher_block.S.CCM with type key = CCM.key) in
-         let cipher_secret = CCM.of_secret ~maclen:16 secret in
-         State.(AEAD { cipher = CCM cipher ; cipher_secret ; nonce })
-       | AES_128_GCM | AES_256_GCM ->
-         let cipher = (module GCM : Cipher_block.S.GCM with type key = GCM.key) in
-         let cipher_secret = GCM.of_secret secret in
-         State.(AEAD { cipher = GCM cipher ; cipher_secret ; nonce })
+    | `AEAD cipher -> get_aead ~secret ~nonce cipher
 end
 
 let digest_eq fn ~target cs =
@@ -73,6 +74,28 @@ let sequence_buf seq =
   let open Cstruct in
   let buf = create 8 in
   BE.set_uint64 buf 0 seq ;
+  buf
+
+let aead_nonce nonce seq =
+  let s =
+    let l = Cstruct.len nonce in
+    let s = sequence_buf seq in
+    let pad = Cstruct.create (l - 8) in
+    pad <+> s
+  in
+  Uncommon.Cs.xor nonce s
+
+let adata_1_3 len =
+  (* additional data in TLS 1.3 is using the header (RFC 8446 Section 5.2):
+     - APPLICATION_TYPE
+     - 0x03 0x03 (for TLS version 1.2 -- binary representation is 0x03 0x03)
+     - <length in 16 bit>
+  *)
+  let buf = Cstruct.create 5 in
+  Cstruct.set_uint8 buf 0 (Packet.content_type_to_int Packet.APPLICATION_DATA) ;
+  Cstruct.set_uint8 buf 1 3;
+  Cstruct.set_uint8 buf 2 3;
+  Cstruct.BE.set_uint16 buf 3 len ;
   buf
 
 let pseudo_header seq ty (v_major, v_minor) length =
@@ -112,10 +135,8 @@ let cbc_pad block data =
   let padding_length = block - (len mod block) in
   (* 1 is again padding length field *)
   let cstruct_len = padding_length + 1 in
-  let pad = create cstruct_len in
-  for i = 0 to pred cstruct_len do
-    set_uint8 pad i padding_length
-  done;
+  let pad = create_unsafe cstruct_len in
+  memset pad padding_length;
   pad
 
 let cbc_unpad data =
@@ -133,15 +154,23 @@ let cbc_unpad data =
     if check 0 then Some res else None
   with Invalid_argument _ -> None
 
+let tag_len (type a) = function
+  | State.CCM cipher ->
+    let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
+    C.block_size
+  | State.GCM cipher ->
+    let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
+    C.block_size
+
 let encrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
   match cipher with
   | State.CCM cipher ->
-     let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
-     C.encrypt ~key ~nonce ?adata data
+    let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
+    C.encrypt ~key ~nonce ?adata data
   | State.GCM cipher ->
-     let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
-     let { C.message ; tag } = C.encrypt ~key ~iv:nonce ?adata data in
-     message <+> tag
+    let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
+    let { C.message ; tag } = C.encrypt ~key ~iv:nonce ?adata data in
+    message <+> tag
 
 let decrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
   match cipher with

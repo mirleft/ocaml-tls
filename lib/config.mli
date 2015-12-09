@@ -17,23 +17,39 @@ type own_cert = [
 
 type session_cache = SessionID.t -> epoch_data option
 
+type ticket_cache = {
+  lookup : Cstruct.t -> (psk13 * epoch_data) option ;
+  ticket_granted : psk13 -> epoch_data -> unit ;
+  lifetime : int32 ;
+  timestamp : unit -> Ptime.t
+}
+
+type ticket_cache_opt = ticket_cache option
+
 (** configuration parameters *)
 type config = private {
-  ciphers           : Ciphersuite.ciphersuite list ; (** ordered list (regarding preference) of supported cipher suites *)
+  ciphers : Ciphersuite.ciphersuite list ; (** ordered list (regarding preference) of supported cipher suites *)
   protocol_versions : tls_version * tls_version ; (** supported protocol versions (min, max) *)
-  hashes            : Mirage_crypto.Hash.hash list ; (** ordered list of supported hash algorithms (regarding preference) *)
-  use_reneg         : bool ; (** endpoint should accept renegotiation requests *)
-  authenticator     : X509.Authenticator.t option ; (** optional X509 authenticator *)
-  peer_name         : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
-  own_certificates  : own_cert ; (** optional default certificate chain and other certificate chains *)
-  acceptable_cas    : X509.Distinguished_name.t list ; (** ordered list of acceptable certificate authorities *)
-  session_cache     : session_cache ;
-  cached_session    : epoch_data option ;
-  alpn_protocols    : string list ; (** optional ordered list of accepted alpn_protocols *)
+  signature_algorithms : signature_algorithm list ; (** ordered list of supported signature algorithms (regarding preference) *)
+  use_reneg : bool ; (** endpoint should accept renegotiation requests *)
+  authenticator : X509.Authenticator.t option ; (** optional X509 authenticator *)
+  peer_name : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
+  own_certificates : own_cert ; (** optional default certificate chain and other certificate chains *)
+  acceptable_cas : X509.Distinguished_name.t list ; (** ordered list of acceptable certificate authorities *)
+  session_cache : session_cache ;
+  ticket_cache : ticket_cache_opt ;
+  cached_session : epoch_data option ;
+  cached_ticket : (psk13 * epoch_data) option ;
+  alpn_protocols : string list ; (** optional ordered list of accepted alpn_protocols *)
+  groups : group list ;
+  zero_rtt : int32 ;
 }
 
 val config_of_sexp : Sexplib.Sexp.t -> config
 val sexp_of_config : config -> Sexplib.Sexp.t
+
+(** [ciphers13 config] are the ciphersuites for TLS 1.3 in the configuration. *)
+val ciphers13 : config -> Ciphersuite.ciphersuite13 list
 
 (** opaque type of a client configuration *)
 type client
@@ -53,30 +69,36 @@ val sexp_of_server : server -> Sexplib.Sexp.t
     [client] configuration with the given parameters.
     @raise Invalid_argument if the configuration is invalid *)
 val client :
-  authenticator   : X509.Authenticator.t ->
-  ?peer_name      : string ->
-  ?ciphers        : Ciphersuite.ciphersuite list ->
-  ?version        : tls_version * tls_version ->
-  ?hashes         : Mirage_crypto.Hash.hash list ->
-  ?reneg          : bool ->
-  ?certificates   : own_cert ->
+  authenticator : X509.Authenticator.t ->
+  ?peer_name : string ->
+  ?ciphers : Ciphersuite.ciphersuite list ->
+  ?version : tls_version * tls_version ->
+  ?signature_algorithms : signature_algorithm list ->
+  ?reneg : bool ->
+  ?certificates : own_cert ->
   ?cached_session : epoch_data ->
+  ?cached_ticket : psk13 * epoch_data ->
+  ?ticket_cache : ticket_cache ->
   ?alpn_protocols : string list ->
+  ?groups : group list ->
   unit -> client
 
 (** [server ?ciphers ?version ?hashes ?reneg ?certificates ?acceptable_cas ?authenticator ?alpn_protocols]
     is [server] configuration with the given parameters.
     @raise Invalid_argument if the configuration is invalid *)
 val server :
-  ?ciphers        : Ciphersuite.ciphersuite list ->
-  ?version        : tls_version * tls_version ->
-  ?hashes         : Mirage_crypto.Hash.hash list ->
-  ?reneg          : bool ->
-  ?certificates   : own_cert ->
+  ?ciphers : Ciphersuite.ciphersuite list ->
+  ?version : tls_version * tls_version ->
+  ?signature_algorithms : signature_algorithm list ->
+  ?reneg : bool ->
+  ?certificates : own_cert ->
   ?acceptable_cas : X509.Distinguished_name.t list ->
-  ?authenticator  : X509.Authenticator.t ->
+  ?authenticator : X509.Authenticator.t ->
   ?session_cache  : session_cache ->
+  ?ticket_cache : ticket_cache ->
   ?alpn_protocols : string list ->
+  ?groups : group list ->
+  ?zero_rtt : int32 ->
   unit -> server
 
 (** [peer client name] is [client] with [name] as [peer_name] *)
@@ -93,11 +115,11 @@ val peer : client -> string -> client
 
 (** {1 Utility functions} *)
 
-(** [default_hashes] is a list of hash algorithms used by default *)
-val default_hashes  : Mirage_crypto.Hash.hash list
+(** [default_signature_algorithms] is a list of signature algorithms used by default *)
+val default_signature_algorithms  : signature_algorithm list
 
-(** [supported_hashes] is a list of supported hash algorithms by this library *)
-val supported_hashes  : Mirage_crypto.Hash.hash list
+(** [supported_signature_algorithms] is a list of supported signature algorithms by this library *)
+val supported_signature_algorithms  : signature_algorithm list
 
 (** [min_dh_size] is minimal diffie hellman group size in bits (currently 1024) *)
 val min_dh_size : int
@@ -107,6 +129,10 @@ ffdhe2048 group from
 {{:https://www.ietf.org/id/draft-ietf-tls-negotiated-ff-dhe-10.txt}Negotiated
 Finite Field Diffie-Hellman Ephemeral Parameters for TLS}) *)
 val dh_group : Mirage_crypto_pk.Dh.group
+
+(** [supported_groups] are the Diffie-Hellman groups supported in this
+    library. *)
+val supported_groups : group list
 
 (** [min_rsa_key_size] is minimal RSA modulus key size in bits (currently 1024) *)
 val min_rsa_key_size : int
