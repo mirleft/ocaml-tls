@@ -105,50 +105,64 @@ type raw_record = tls_hdr * Cstruct.t [@@deriving sexp]
 (* well-behaved pure encryptor *)
 let encrypt (version : tls_version) (st : crypto_state) ty buf =
   match st with
-  | None     -> (st, buf)
+  | None -> (st, ty, buf)
   | Some ctx ->
-      let pseudo_hdr =
-        let seq = ctx.sequence
-        and ver = pair_of_tls_version version
+     match version with
+     | TLS_1_3 ->
+        (match ctx.cipher_st with
+         | AEAD c ->
+            let buf =
+              let t = Cstruct.create 1 in
+              Cstruct.set_uint8 t 0 (Packet.content_type_to_int ty) ;
+              buf <+> t
+            in
+            let nonce = Crypto.aead_nonce c.nonce ctx.sequence in
+            let buf = Crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce buf in
+            (Some { ctx with sequence = Int64.succ ctx.sequence }, Packet.APPLICATION_DATA, buf)
+         | _ -> invalid_arg "only AEAD supported in TLS 1.3")
+     | _ ->
+        let pseudo_hdr =
+          let seq = ctx.sequence
+          and ver = pair_of_tls_version version
         in
         Crypto.pseudo_header seq ty ver (Cstruct.len buf)
-      in
-      let to_encrypt mac mac_k =
-        let signature = Crypto.mac mac mac_k pseudo_hdr buf in
-        buf <+> signature
-      in
-      let c_st, enc =
-        match ctx.cipher_st with
-        | Stream s ->
-           let to_encrypt = to_encrypt s.hmac s.hmac_secret in
-           let (message, key') =
-             Crypto.encrypt_stream ~cipher:s.cipher ~key:s.cipher_secret to_encrypt in
-           (Stream { s with cipher_secret = key'}, message)
+        in
+        let to_encrypt mac mac_k =
+          let signature = Crypto.mac mac mac_k pseudo_hdr buf in
+          buf <+> signature
+        in
+        let c_st, enc =
+          match ctx.cipher_st with
+          | Stream s ->
+             let to_encrypt = to_encrypt s.hmac s.hmac_secret in
+             let (message, key') =
+               Crypto.encrypt_stream ~cipher:s.cipher ~key:s.cipher_secret to_encrypt in
+             (Stream { s with cipher_secret = key'}, message)
 
-        | CBC c ->
-           let enc iv =
-             let to_encrypt = to_encrypt c.hmac c.hmac_secret in
-             Crypto.encrypt_cbc ~cipher:c.cipher ~key:c.cipher_secret ~iv to_encrypt
-           in
-           ( match c.iv_mode with
-             | Random_iv ->
-                let iv = Rng.generate (Crypto.cbc_block c.cipher) in
-                let m, _ = enc iv in
-                (CBC c, iv <+> m)
-             | Iv iv ->
-                let m, iv' = enc iv in
-                (CBC { c with iv_mode = Iv iv' }, m) )
+          | CBC c ->
+             let enc iv =
+               let to_encrypt = to_encrypt c.hmac c.hmac_secret in
+               Crypto.encrypt_cbc ~cipher:c.cipher ~key:c.cipher_secret ~iv to_encrypt
+             in
+             ( match c.iv_mode with
+               | Random_iv ->
+                  let iv = Rng.generate (Crypto.cbc_block c.cipher) in
+                  let m, _ = enc iv in
+                  (CBC c, iv <+> m)
+               | Iv iv ->
+                  let m, iv' = enc iv in
+                  (CBC { c with iv_mode = Iv iv' }, m) )
 
-        | AEAD c ->
-           let explicit_nonce = Crypto.sequence_buf ctx.sequence in
-           let nonce = c.nonce <+> explicit_nonce
-           in
-           let msg =
-             Crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
-           in
-           (AEAD c, explicit_nonce <+> msg)
-      in
-      (Some { sequence = Int64.succ ctx.sequence ; cipher_st = c_st }, enc)
+          | AEAD c ->
+             let explicit_nonce = Crypto.sequence_buf ctx.sequence in
+             let nonce = c.nonce <+> explicit_nonce
+             in
+             let msg =
+               Crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
+             in
+             (AEAD c, explicit_nonce <+> msg)
+        in
+        (Some { sequence = Int64.succ ctx.sequence ; cipher_st = c_st }, ty, enc)
 
 (* well-behaved pure decryptor *)
 let verify_mac sequence mac mac_k ty ver decrypted =
@@ -222,16 +236,37 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
          | None -> fail (`Fatal `MACMismatch)
          | Some x -> return (AEAD c, x)
   in
-  match st with
-  | None     -> return (st, buf)
-  | Some ctx ->
+  match st, version with
+  | None, _ -> return (st, buf, ty)
+  | Some ctx, TLS_1_3 ->
+     (match ctx.cipher_st with
+      | AEAD c ->
+         (* XXX: FAILURE VALUES! *)
+         guard (ty = Packet.APPLICATION_DATA) (`Fatal `MACUnderflow) >>= fun () ->
+         let nonce = Crypto.aead_nonce c.nonce ctx.sequence in
+         let unpad x =
+           let rec eat idx =
+             match Cstruct.get_uint8 x idx with
+             | 0 when pred idx > 0 -> eat (pred idx)
+             | 0 -> fail (`Fatal `MACUnderflow)
+             | n ->
+                let pkt = if idx = 0 then Cstruct.create 0 else Cstruct.sub x 0 idx in
+                match Packet.int_to_content_type n with
+                | Some ct when ct <> Packet.CHANGE_CIPHER_SPEC -> return (pkt, ct)
+                | _ -> fail (`Fatal `MACUnderflow)
+           in
+           eat (pred (Cstruct.len x))
+         in
+         (match Crypto.decrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce buf with
+          | None -> fail (`Fatal `MACMismatch)
+          | Some x ->
+             unpad x >|= fun (data, ty) ->
+             (Some { ctx with sequence = Int64.succ ctx.sequence }, data, ty))
+      | _ -> invalid_arg "tls 1.3 requires aead!")
+  | Some ctx, _ ->
       dec ctx >>= fun (st', msg) ->
-      let ctx' = {
-        sequence  = Int64.succ ctx.sequence ;
-        cipher_st = st'
-      }
-      in
-      return (Some ctx', msg)
+      let ctx' = { cipher_st = st' ; sequence = Int64.succ ctx.sequence } in
+      return (Some ctx', msg, ty)
 
 (* party time *)
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) eff
@@ -267,7 +302,7 @@ let encrypt_records encryptor version records =
   and crypt st = function
     | []            -> (st, [])
     | (ty, buf)::rs ->
-        let (st, enc)  = encrypt version st ty buf in
+        let (st, ty, enc) = encrypt version st ty buf in
         let (st, encs) = crypt st rs in
         (st, (ty, enc) :: encs)
   in
@@ -365,15 +400,15 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
 
   let hs = state.handshake in
   let version = hs.protocol_version in
-  ( match hs.machina, version_eq hdr.version version with
-    | Client (AwaitServerHello _), _     -> return ()
-    | Server (AwaitClientHello)  , _     -> return ()
-    | _                          , true  -> return ()
-    | _                          , false -> fail (`Fatal (`BadRecordVersion hdr.version)) )
+  ( match hs.machina, version with
+    | Client (AwaitServerHello _), _       -> return ()
+    | Server (AwaitClientHello)  , _       -> return ()
+    | _                          , TLS_1_3 -> guard (hdr.version = Supported TLS_1_0) (`Fatal (`BadRecordVersion hdr.version))
+    | _                          , v       -> guard (version_eq hdr.version v) (`Fatal (`BadRecordVersion hdr.version)) )
   >>= fun () ->
   decrypt version state.decryptor hdr.content_type buf
-  >>= fun (dec_st, dec) ->
-  handle_packet state.handshake dec hdr.content_type
+  >>= fun (dec_st, dec, ty) ->
+  handle_packet state.handshake dec ty
   >|= fun (handshake, items, data, err) ->
   let (encryptor, decryptor, encs) =
     List.fold_left (fun (enc, dec, es) -> function
@@ -481,12 +516,12 @@ let reneg st =
   | Server Established ->
      ( match Handshake_server.hello_request hs with
        | Ok (handshake, [`Record hr]) -> Some (send_records { st with handshake } [hr])
-       | _                            -> None )
+       | _ -> None )
   | Client Established ->
      ( match Handshake_client.answer_hello_request hs with
        | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
-       | _                            -> None )
-  | _                        -> None
+       | _ -> None )
+  | _ -> None
 
 let client config =
   let config = Config.of_client config in

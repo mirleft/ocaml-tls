@@ -75,6 +75,15 @@ let sequence_buf seq =
   BE.set_uint64 buf 0 seq ;
   buf
 
+let aead_nonce nonce seq =
+  let s =
+    let l = Cstruct.len nonce in
+    let s = sequence_buf seq in
+    let pad = Cs.create (l - 8) in
+    pad <+> s
+  in
+  Cs.xor nonce s
+
 let pseudo_header seq ty (v_major, v_minor) length =
   let open Cstruct in
   let prefix = create 5 in
