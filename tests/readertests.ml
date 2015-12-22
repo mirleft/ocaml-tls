@@ -1136,10 +1136,10 @@ let good_client_hellos =
   (* I rolled the dice 16 times *)
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
-  let random = list_to_cstruct rand in
+  let client_random = list_to_cstruct rand in
   Core.(let ch : client_hello =
-          { version = Supported TLS_1_2 ;
-            random ;
+          { client_version = Supported TLS_1_2 ;
+            client_random ;
             sessionid = None ;
             ciphersuites = [] ;
             extensions = []}
@@ -1147,11 +1147,11 @@ let good_client_hellos =
         [
           (* versions *)
           ([1; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , ch ) ;
-          ([1; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = SSL_3 } ) ;
-          ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Supported TLS_1_0 } ) ;
-          ([1; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = Supported TLS_1_1 } ) ;
-          ([1; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_X 4 } ) ;
-          ([1; 0; 0; 38; 3; 5] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with version = TLS_1_X 5 } ) ;
+          ([1; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with client_version = SSL_3 } ) ;
+          ([1; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with client_version = Supported TLS_1_0 } ) ;
+          ([1; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with client_version = Supported TLS_1_1 } ) ;
+          ([1; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with client_version = TLS_1_X 4 } ) ;
+          ([1; 0; 0; 38; 3; 5] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] , { ch with client_version = TLS_1_X 5 } ) ;
 
           (* well-formed compression (not available in higher layer) *)
           ([1; 0; 0; 39; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 1; 0; (* exts *)] , ch ) ;
@@ -1250,8 +1250,8 @@ let good_client_hellos =
 (*           0x00; 0x23; 0x00; 0x00; (* sessionticket_tls *)
            0x00; 0x0f; 0x00; 0x01; 0x01 (* heartbeat *) *) ,
            { ch with
-             version = Supported TLS_1_0 ;
-             random =  list_to_cstruct [0x7c; 0x53; 0x05; 0x72; 0x7a; 0x1b; 0x84; 0x70; 0x30; 0x89; 0xef; 0xad; 0xfb; 0x56; 0xc1; 0x3d; 0x73; 0x4b; 0xc7; 0xcb; 0x8c; 0xc8; 0x75; 0x43; 0x01; 0x12; 0x32; 0xd6; 0x74; 0x87; 0xcb; 0x18] ;
+             client_version = Supported TLS_1_0 ;
+             client_random =  list_to_cstruct [0x7c; 0x53; 0x05; 0x72; 0x7a; 0x1b; 0x84; 0x70; 0x30; 0x89; 0xef; 0xad; 0xfb; 0x56; 0xc1; 0x3d; 0x73; 0x4b; 0xc7; 0xcb; 0x8c; 0xc8; 0x75; 0x43; 0x01; 0x12; 0x32; 0xd6; 0x74; 0x87; 0xcb; 0x18] ;
              ciphersuites = Packet.([TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_SEED_CBC_SHA; TLS_DHE_DSS_WITH_SEED_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_SEED_CBC_SHA; TLS_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_RSA_WITH_IDEA_CBC_SHA; TLS_ECDHE_RSA_WITH_RC4_128_SHA; TLS_ECDHE_ECDSA_WITH_RC4_128_SHA; TLS_ECDH_RSA_WITH_RC4_128_SHA; TLS_ECDH_ECDSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_MD5; TLS_DHE_RSA_WITH_DES_CBC_SHA; TLS_DHE_DSS_WITH_DES_CBC_SHA; TLS_RSA_WITH_DES_CBC_SHA; TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5; TLS_RSA_EXPORT_WITH_RC4_40_MD5; TLS_EMPTY_RENEGOTIATION_INFO_SCSV]);
              extensions = [ECPointFormats Packet.([UNCOMPRESSED; ANSIX962_COMPRESSED_PRIME; ANSIX962_COMPRESSED_CHAR2]) ;
                            EllipticCurves Packet.([SECT571R1; SECT571K1; SECP521R1; SECT409K1; SECT409R1; SECP384R1; SECT283K1; SECT283R1; SECP256K1; SECP256R1; SECT239K1; SECT233K1; SECT233R1; SECP224K1; SECP224R1; SECT193R1; SECT193R2; SECP192K1; SECP192R1; SECT163K1; SECT163R1; SECT163R2; SECP160K1; SECP160R1; SECP160R2]) ] } ) ;
@@ -1289,8 +1289,8 @@ let good_client_hellos =
               0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00;
               0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00 ],
             { ch with
-              version = Supported TLS_1_2 ;
-              random = list_to_cstruct [0xb7; 0x36; 0xeb; 0x21; 0xec; 0x81; 0x4d; 0x01; 0xfc; 0xf4; 0xe2; 0x06; 0x9a; 0x34; 0xb7; 0x21; 0xe1; 0x23; 0x6f; 0xbe; 0x50; 0xbf; 0xfe; 0x33; 0x9b; 0xc9; 0x5b; 0x20; 0x0e; 0x15; 0x02; 0x27] ;
+              client_version = Supported TLS_1_2 ;
+              client_random = list_to_cstruct [0xb7; 0x36; 0xeb; 0x21; 0xec; 0x81; 0x4d; 0x01; 0xfc; 0xf4; 0xe2; 0x06; 0x9a; 0x34; 0xb7; 0x21; 0xe1; 0x23; 0x6f; 0xbe; 0x50; 0xbf; 0xfe; 0x33; 0x9b; 0xc9; 0x5b; 0x20; 0x0e; 0x15; 0x02; 0x27] ;
               ciphersuites = Packet.([TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384; TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384; TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384; TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_GCM_SHA384; TLS_DHE_RSA_WITH_AES_256_GCM_SHA384; TLS_DHE_RSA_WITH_AES_256_CBC_SHA256; TLS_DHE_DSS_WITH_AES_256_CBC_SHA256; TLS_DHE_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384; TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_AES_256_GCM_SHA384; TLS_RSA_WITH_AES_256_CBC_SHA256; TLS_RSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256; TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_GCM_SHA256; TLS_DHE_RSA_WITH_AES_128_GCM_SHA256; TLS_DHE_RSA_WITH_AES_128_CBC_SHA256; TLS_DHE_DSS_WITH_AES_128_CBC_SHA256; TLS_DHE_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_SEED_CBC_SHA; TLS_DHE_DSS_WITH_SEED_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA; TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256; TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_AES_128_GCM_SHA256; TLS_RSA_WITH_AES_128_CBC_SHA256; TLS_RSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_SEED_CBC_SHA; TLS_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_RSA_WITH_IDEA_CBC_SHA; TLS_ECDHE_RSA_WITH_RC4_128_SHA; TLS_ECDHE_ECDSA_WITH_RC4_128_SHA; TLS_ECDH_RSA_WITH_RC4_128_SHA; TLS_ECDH_ECDSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_MD5; TLS_DHE_RSA_WITH_DES_CBC_SHA; TLS_DHE_DSS_WITH_DES_CBC_SHA; TLS_RSA_WITH_DES_CBC_SHA; TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5; TLS_RSA_EXPORT_WITH_RC4_40_MD5; TLS_EMPTY_RENEGOTIATION_INFO_SCSV]) ;
               extensions = [ECPointFormats Packet.([UNCOMPRESSED; ANSIX962_COMPRESSED_PRIME; ANSIX962_COMPRESSED_CHAR2]);
                             EllipticCurves Packet.([SECT571R1; SECT571K1; SECP521R1; SECT409K1; SECT409R1; SECP384R1; SECT283K1; SECT283R1; SECP256K1; SECP256R1; SECT239K1; SECT233K1; SECT233R1; SECP224K1; SECP224R1; SECT193R1; SECT193R2; SECP192K1; SECP192R1; SECT163K1; SECT163R1; SECT163R2; SECP160K1; SECP160R1; SECP160R2]);
@@ -1326,8 +1326,8 @@ let good_client_hellos =
               0x00; 0x00; 0x00; 0x0e; 0x00; 0x0c; 0x00; 0x00; 0x09; 0x31; 0x32; 0x37; 0x2e; 0x30; 0x2e; 0x30; 0x2e; 0x31; (* SNI 127.0.0.1 *)
               0x00; 0x0d; 0x00; 0x0c; 0x00; 0x0a; 0x06; 0x01; 0x05; 0x01; 0x04; 0x01; 0x02; 0x01; 0x01; 0x01 (* SignatureAlgorithms *)
             ],
-            { ch with version = TLS_1_X 4 ;
-                      random = list_to_cstruct [ 0xf1; 0xb2; 0x50; 0x16; 0x4b; 0x77; 0x50; 0xb3; 0xdc; 0xcb; 0x1c; 0x6a; 0xae; 0x1a; 0x94; 0x87; 0xc4; 0x17; 0xbb; 0xa4; 0xf7; 0x92; 0xf8; 0x16; 0x56; 0x12; 0x03; 0x38; 0x1e; 0xe5; 0xc1; 0xae ] ;
+            { ch with client_version = TLS_1_X 4 ;
+                      client_random = list_to_cstruct [ 0xf1; 0xb2; 0x50; 0x16; 0x4b; 0x77; 0x50; 0xb3; 0xdc; 0xcb; 0x1c; 0x6a; 0xae; 0x1a; 0x94; 0x87; 0xc4; 0x17; 0xbb; 0xa4; 0xf7; 0x92; 0xf8; 0x16; 0x56; 0x12; 0x03; 0x38; 0x1e; 0xe5; 0xc1; 0xae ] ;
                       ciphersuites = Packet.([TLS_RSA_WITH_AES_256_CBC_SHA ; TLS_DHE_RSA_WITH_AES_256_CBC_SHA ; TLS_RSA_WITH_AES_128_CBC_SHA ; TLS_DHE_RSA_WITH_AES_128_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_RC4_128_SHA ; TLS_RSA_WITH_RC4_128_MD5]) ;
                       extensions = [ SecureRenegotiation (Cstruct.create 0) ;
                                      Hostname (Some "127.0.0.1") ;
@@ -1343,8 +1343,8 @@ let good_client_hellos =
 
 let cmp_client_hellos ch ch' =
   let open Core in
-  assert_equal ch.version ch'.version ;
-  assert_cs_eq ch.random ch'.random ;
+  assert_equal ch.client_version ch'.client_version ;
+  assert_cs_eq ch.client_random ch'.client_random ;
   assert_sessionid_equal ch.sessionid ch'.sessionid ;
   assert_lists_eq assert_equal ch.ciphersuites ch'.ciphersuites ;
   assert_lists_eq assert_extension_equal ch.extensions ch'.extensions
@@ -1447,25 +1447,25 @@ let good_server_hellos =
   (* I rolled the dice 16 times *)
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
-  let random = list_to_cstruct rand in
+  let server_random = list_to_cstruct rand in
   Core.(let sh : server_hello =
-          { version = TLS_1_2 ;
-            random ;
+          { server_version = TLS_1_2 ;
+            server_random ;
             sessionid = None ;
-            ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
+            ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
             extensions = []}
         in
         [
           (* versions *)
           ([2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] , sh ) ;
-          ([2; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_0 } ) ;
-          ([2; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] , { sh with version = TLS_1_1 } ) ;
+          ([2; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] , { sh with server_version = TLS_1_0 } ) ;
+          ([2; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] , { sh with server_version = TLS_1_1 } ) ;
 
           (* session id *)
           ([2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 3; 1; 2; 3; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] , { sh with sessionid = Some (list_to_cstruct [1; 2; 3]) } ) ;
 
           (* ciphersuite *)
-          ([2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 5; (* comp *) 0; (* exts *)] , { sh with ciphersuites = `TLS_RSA_WITH_RC4_128_SHA } ) ;
+          ([2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 5; (* comp *) 0; (* exts *)] , { sh with ciphersuite = `TLS_RSA_WITH_RC4_128_SHA } ) ;
 
           (* extensions *)
           (* empty *)
@@ -1498,8 +1498,8 @@ let good_server_hellos =
             0x00; 0x00; 0x00; 0x00; (* servername *)
             0xff; 0x01; 0x00; 0x01; 0x00 (* secure renegotiation *)
           ], { sh with
-               ciphersuites = `TLS_RSA_WITH_AES_128_CBC_SHA ;
-               random = list_to_cstruct [ 0x53; 0x66; 0x2d; 0xf0; 0x1b; 0x61; 0x55; 0x8f; 0x74; 0x2a; 0xbf; 0xf4; 0x99; 0x86; 0x30; 0x99; 0x32; 0xe4; 0xd0; 0x1e; 0x2b; 0xa9; 0x2e; 0x86; 0x7b; 0xeb; 0x03; 0x00; 0xf9; 0x11; 0x3e; 0xc5 ] ;
+               ciphersuite = `TLS_RSA_WITH_AES_128_CBC_SHA ;
+               server_random = list_to_cstruct [ 0x53; 0x66; 0x2d; 0xf0; 0x1b; 0x61; 0x55; 0x8f; 0x74; 0x2a; 0xbf; 0xf4; 0x99; 0x86; 0x30; 0x99; 0x32; 0xe4; 0xd0; 0x1e; 0x2b; 0xa9; 0x2e; 0x86; 0x7b; 0xeb; 0x03; 0x00; 0xf9; 0x11; 0x3e; 0xc5 ] ;
                sessionid = Some (list_to_cstruct [ 0xd1; 0x54; 0xd9; 0x05; 0x61; 0x41; 0x53; 0x33; 0xb2; 0xf0; 0x13; 0x78; 0x1a; 0x17; 0xb3; 0x1d; 0x09; 0xf6; 0x59; 0x70; 0xfe; 0x5d; 0x58; 0x22; 0xfa; 0x8c; 0x5c; 0x89; 0xe9; 0xa2; 0xb4; 0x70 ]) ;
                extensions = [Hostname None;
                              SecureRenegotiation (Cstruct.create 0)] }) ;
@@ -1517,8 +1517,8 @@ let good_server_hellos =
             0x00; 0x00; 0x00; 0x00;
             0xff; 0x01; 0x00; 0x01; 0x00 ],
             { sh with
-              ciphersuites = `TLS_RSA_WITH_AES_128_CBC_SHA ;
-              random = list_to_cstruct [ 0x53; 0x66; 0x2f; 0xb7; 0x35; 0x3a; 0x42; 0xee; 0x1c; 0xe6; 0xed; 0x63; 0x8a; 0x1d; 0x3d; 0xb3; 0x71; 0x9c; 0xf5; 0x64; 0x45; 0xc5; 0xe9; 0xf4; 0x11; 0x8b; 0x9f; 0x41; 0x5a; 0x5f; 0xf1; 0xf6 ] ;
+              ciphersuite = `TLS_RSA_WITH_AES_128_CBC_SHA ;
+              server_random = list_to_cstruct [ 0x53; 0x66; 0x2f; 0xb7; 0x35; 0x3a; 0x42; 0xee; 0x1c; 0xe6; 0xed; 0x63; 0x8a; 0x1d; 0x3d; 0xb3; 0x71; 0x9c; 0xf5; 0x64; 0x45; 0xc5; 0xe9; 0xf4; 0x11; 0x8b; 0x9f; 0x41; 0x5a; 0x5f; 0xf1; 0xf6 ] ;
               sessionid = Some (list_to_cstruct [ 0xdf; 0xe1; 0x09; 0x8a; 0x42; 0xf0; 0x25; 0xc7; 0xbd; 0xe5; 0xe9; 0x02; 0x6a; 0x03; 0xaf; 0xb4; 0x70; 0x80; 0xe9; 0x2f; 0x07; 0x3f; 0x53; 0xd3; 0xc8; 0x97; 0x3f; 0xc4; 0x44; 0x23; 0xf5; 0x94 ] ) ;
               extensions = [Hostname None;
                             SecureRenegotiation (Cstruct.create 0)] }) ;
@@ -1527,10 +1527,10 @@ let good_server_hellos =
 
 let cmp_server_hellos sh sh' =
   let open Core in
-  assert_equal sh.version sh'.version ;
-  assert_cs_eq sh.random sh'.random ;
+  assert_equal sh.server_version sh'.server_version ;
+  assert_cs_eq sh.server_random sh'.server_random ;
   assert_sessionid_equal sh.sessionid sh'.sessionid ;
-  assert_equal sh.ciphersuites sh'.ciphersuites ;
+  assert_equal sh.ciphersuite sh'.ciphersuite ;
   assert_lists_eq assert_extension_equal sh.extensions sh'.extensions
 
 let good_server_hellos_parser (xs, res) _ =

@@ -122,7 +122,7 @@ let answer_client_key_exchange_DHE_RSA state session (group, secret) kex raw log
   | None     -> fail (`Fatal `InvalidDH)
   | Some pms -> return (establish_master_secret state session pms raw log)
 
-let sig_algs client_hello =
+let sig_algs (client_hello : client_hello) =
   map_find client_hello.extensions ~f:function
            | SignatureAlgorithms xs -> Some xs
            | _                      -> None
@@ -183,11 +183,11 @@ let server_hello session version reneg =
     | _ -> session.session_id
   in
   let sh = ServerHello
-      { version      = version ;
-        random       = server_random ;
-        sessionid    = Some session_id ;
-        ciphersuites = session.ciphersuite ;
-        extensions   = secren :: host @ ems }
+      { server_version = version ;
+        server_random  = server_random ;
+        sessionid      = Some session_id ;
+        ciphersuite    = session.ciphersuite ;
+        extensions     = secren :: host @ ems }
   in
   (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ; *)
   (Writer.assemble_handshake sh,
@@ -217,8 +217,8 @@ let answer_client_hello_common state reneg ch raw =
     (* Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ; *)
 
     { empty_session with
-      client_random    = ch.random ;
-      client_version   = ch.version ;
+      client_random    = ch.client_random ;
+      client_version   = ch.client_version ;
       ciphersuite      = cipher ;
       own_certificate  = chain ;
       own_private_key  = priv ;
@@ -320,7 +320,7 @@ let answer_client_hello state (ch : client_hello) raw =
     | _ -> fail (`Fatal `NoSecureRenegotiation)
 
 
-  and resume ch state =
+  and resume (ch : client_hello) state =
     let epoch_matches (epoch : Core.epoch_data) version ciphers extensions =
       let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ciphers in
       List.mem epoch.ciphersuite cciphers &&
@@ -332,8 +332,8 @@ let answer_client_hello state (ch : client_hello) raw =
     match option None state.config.session_cache ch.sessionid with
     | Some epoch when epoch_matches epoch state.protocol_version ch.ciphersuites ch.extensions ->
       Some { session_of_epoch epoch with
-             client_random = ch.random ;
-             client_version = ch.version ;
+             client_random = ch.client_random ;
+             client_version = ch.client_version ;
              client_auth = (epoch.peer_certificate <> None) ;
            }
     | _ -> None
@@ -365,7 +365,7 @@ let answer_client_hello state (ch : client_hello) raw =
   let process_client_hello config ch =
     let cciphers = ch.ciphersuites in
     guard (client_hello_valid ch) (`Fatal `InvalidClientHello) >>= fun () ->
-    agreed_version config.protocol_versions ch.version >>= fun version ->
+    agreed_version config.protocol_versions ch.client_version >>= fun version ->
     guard (not (List.mem Packet.TLS_FALLBACK_SCSV cciphers) ||
            version = max_protocol_version config.protocol_versions)
       (`Fatal `InappropriateFallback) >>= fun () ->
@@ -393,7 +393,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
 
   let process_client_hello config oldversion ours ch =
     guard (client_hello_valid ch) (`Fatal `InvalidClientHello) >>= fun () ->
-    agreed_version config.protocol_versions ch.version >>= fun version ->
+    agreed_version config.protocol_versions ch.client_version >>= fun version ->
     guard (version = oldversion) (`Fatal (`InvalidRenegotiationVersion version)) >>= fun () ->
     let theirs = get_secure_renegotiation ch.extensions in
     ensure_reneg ours theirs >|= fun () ->

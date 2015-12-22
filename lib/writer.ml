@@ -179,7 +179,7 @@ let assemble_extensions es =
   assemble_list ~none_if_empty:true Two assemble_extension es
 
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
-  let v = assemble_any_protocol_version cl.version in
+  let v = assemble_any_protocol_version cl.client_version in
   let sid =
     let buf = create 1 in
     match cl.sessionid with
@@ -189,7 +189,7 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let css = assemble_any_ciphersuites cl.ciphersuites in
   (* compression methods, completely useless *)
   let cms = assemble_compression_methods [NULL] in
-  let bbuf = v <+> cl.random <+> sid <+> css <+> cms in
+  let bbuf = v <+> cl.client_random <+> sid <+> css <+> cms in
   (* some widely deployed firewalls drop ClientHello messages which are
      > 256 and < 511 byte, insert PADDING extension for these *)
   (* from draft-ietf-tls-padding-00:
@@ -225,18 +225,18 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   bbuf <+> extensions <+> extrapadding
 
 let assemble_server_hello (sh : server_hello) : Cstruct.t =
-  let v = assemble_protocol_version sh.version in
+  let v = assemble_protocol_version sh.server_version in
   let sid =
     let buf = create 1 in
     match sh.sessionid with
      | None   -> set_uint8 buf 0 0; buf
      | Some s -> set_uint8 buf 0 (len s); buf <+> s
   in
-  let cs = assemble_ciphersuite sh.ciphersuites in
+  let cs = assemble_ciphersuite sh.ciphersuite in
   (* useless compression method *)
   let cm = assemble_compression_method NULL in
   let extensions = assemble_extensions sh.extensions in
-  let bbuf = v <+> sh.random <+> sid <+> cs <+> cm in
+  let bbuf = v <+> sh.server_random <+> sid <+> cs <+> cm in
   bbuf <+> extensions
 
 let assemble_dh_parameters p =

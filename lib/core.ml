@@ -85,19 +85,21 @@ type extension =
   | ExtendedMasterSecret
   with sexp
 
-type ('a, 'b) hello = {
-  version      : 'b;
-  random       : Cstruct.t;
-  sessionid    : SessionID.t option;
-  ciphersuites : 'a;
-  extensions   : extension list
+type client_hello = {
+  client_version : tls_any_version;
+  client_random  : Cstruct.t;
+  sessionid      : SessionID.t option;
+  ciphersuites   : any_ciphersuite list;
+  extensions     : extension list
 } with sexp
 
-type client_hello = (any_ciphersuite list, tls_any_version) hello
-  with sexp
-
-type server_hello = (ciphersuite, tls_version) hello
-  with sexp
+type server_hello = {
+  server_version : tls_version;
+  server_random  : Cstruct.t;
+  sessionid      : SessionID.t option;
+  ciphersuite    : ciphersuite;
+  extensions     : extension list
+} with sexp
 
 type dh_parameters = {
   dh_p  : Cstruct.t;

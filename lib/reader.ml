@@ -292,39 +292,48 @@ let parse_extensions buf =
   else
     parse_list parse_extension (sub buf 2 length) []
 
-let parse_hello get_version get_compression get_cipher buf =
-  let version = get_version buf in
-  let random = sub buf 2 32 in
+let parse_client_hello buf =
+  let client_version = parse_any_version_exn buf in
+  let client_random = sub buf 2 32 in
   let slen = get_uint8 buf 34 in
   let sessionid = if slen = 0 then
                     None
                   else
                     Some (sub buf 35 slen)
   in
-  let ciphersuites, rt = get_cipher (shift buf (35 + slen)) in
-  let _, rt' = get_compression rt in
+  let ciphersuites, rt = parse_any_ciphersuites (shift buf (35 + slen)) in
+  let _, rt' = parse_compression_methods rt in
   let extensions = if len rt' == 0 then
                      []
                    else
                      parse_extensions rt'
   in
-  { version ; random ; sessionid ; ciphersuites ; extensions }
-
-let parse_client_hello buf =
-  let ch = parse_hello parse_any_version_exn parse_compression_methods parse_any_ciphersuites buf in
-  ClientHello ch
+  ClientHello { client_version ; client_random ; sessionid ; ciphersuites ; extensions }
 
 let parse_server_hello buf =
-  let p_c buf = match parse_compression_method buf with
-    | Some x, buf' -> (x, buf')
-    | None  , _    -> raise_unknown "compression method"
+  let server_version = parse_version_exn buf in
+  let server_random = sub buf 2 32 in
+  let slen = get_uint8 buf 34 in
+  let sessionid = if slen = 0 then
+                    None
+                  else
+                    Some (sub buf 35 slen)
   in
-  let p_c_s buf = match parse_ciphersuite buf with
+  let ciphersuite, rt = match parse_ciphersuite (shift buf (35 + slen)) with
     | Some x, buf' -> (x, buf')
     | None  , _    -> raise_unknown "ciphersuite"
   in
-  let sh = parse_hello parse_version_exn p_c p_c_s buf in
-  ServerHello sh
+  let rt' = match parse_compression_method rt with
+    | Some NULL, buf' -> buf'
+    | Some _   , _    -> raise_unknown "unsupported compression method"
+    | None     , _    -> raise_unknown "compression method"
+  in
+  let extensions = if len rt' == 0 then
+                     []
+                   else
+                     parse_extensions rt'
+  in
+  ServerHello { server_version ; server_random ; sessionid ; ciphersuite ; extensions }
 
 let parse_certificates buf =
   let parsef buf =

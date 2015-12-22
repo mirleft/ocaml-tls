@@ -33,11 +33,11 @@ let default_client_hello config =
     | _ -> None
   in
   let ch = {
-    version      = Supported version ;
-    random       = Rng.generate 32 ;
-    sessionid    = sessionid ;
-    ciphersuites = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
-    extensions   = host @ signature_algos @ [ExtendedMasterSecret]
+    client_version = Supported version ;
+    client_random  = Rng.generate 32 ;
+    sessionid      = sessionid ;
+    ciphersuites   = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
+    extensions     = host @ signature_algos @ [ExtendedMasterSecret]
   }
   in
   (ch , version)
@@ -45,7 +45,7 @@ let default_client_hello config =
 let validate_cipher suites suite =
   guard (List.mem suite suites) (`Error (`NoConfiguredCiphersuite [suite]))
 
-let answer_server_hello state ch (sh : server_hello) raw log =
+let answer_server_hello state (ch : client_hello) sh raw log =
   let validate_version requested (lo, _) server_version =
     guard (version_ge requested server_version && server_version >= lo)
       (`Error (`NoConfiguredVersion server_version))
@@ -60,13 +60,13 @@ let answer_server_hello state ch (sh : server_hello) raw log =
   guard (server_hello_valid sh &&
          server_exts_subset_of_client sh.extensions ch.extensions) (`Fatal `InvalidServerHello)
   >>= fun () ->
-  validate_version ch.version state.config.protocol_versions sh.version >>= fun () ->
-  validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
+  validate_version ch.client_version state.config.protocol_versions sh.server_version >>= fun () ->
+  validate_cipher cfg.ciphers sh.ciphersuite >>= fun () ->
   validate_reneg (get_secure_renegotiation sh.extensions) >|= fun () ->
 
   let epoch_matches (epoch : epoch_data) =
-    epoch.ciphersuite = sh.ciphersuites &&
-      epoch.protocol_version = sh.version &&
+    epoch.ciphersuite = sh.ciphersuite &&
+      epoch.protocol_version = sh.server_version &&
         option false (SessionID.equal epoch.session_id) sh.sessionid &&
           (not cfg.use_reneg ||
              (List.mem ExtendedMasterSecret sh.extensions && epoch.extended_ms))
@@ -75,29 +75,29 @@ let answer_server_hello state ch (sh : server_hello) raw log =
   match state.config.cached_session with
   | Some epoch when epoch_matches epoch ->
     let session = { session_of_epoch epoch with
-                    client_random = ch.random ;
-                    server_random = sh.random ;
-                    client_version = ch.version ;
+                    client_random = ch.client_random ;
+                    server_random = sh.server_random ;
+                    client_version = ch.client_version ;
                     client_auth = List.length epoch.own_certificate > 0 ;
                   }
     in
     let client_ctx, server_ctx =
-      Handshake_crypto.initialise_crypto_ctx sh.version session
+      Handshake_crypto.initialise_crypto_ctx sh.server_version session
     in
     let machina = AwaitServerChangeCipherSpecResume (session, client_ctx, server_ctx, log @ [raw]) in
-    ({ state with protocol_version = sh.version ; machina = Client machina }, [])
+    ({ state with protocol_version = sh.server_version ; machina = Client machina }, [])
   | _ ->
     let machina =
-      let cipher = sh.ciphersuites in
+      let cipher = sh.ciphersuite in
       let session_id = match sh.sessionid with None -> Cstruct.create 0 | Some x -> x in
       let extended_ms =
         let ems = List.mem ExtendedMasterSecret in
         ems ch.extensions && ems sh.extensions
       in
       let session = { empty_session with
-                      client_random    = ch.random ;
-                      client_version   = ch.version ;
-                      server_random    = sh.random ;
+                      client_random    = ch.client_random ;
+                      client_version   = ch.client_version ;
+                      server_random    = sh.server_random ;
                       ciphersuite      = cipher ;
                       session_id ;
                       extended_ms ;
@@ -107,9 +107,9 @@ let answer_server_hello state ch (sh : server_hello) raw log =
                    | RSA     -> AwaitCertificate_RSA (session, log @ [raw])
                    | DHE_RSA -> AwaitCertificate_DHE_RSA (session, log @ [raw]))
     in
-    ({ state with protocol_version = sh.version ; machina = Client machina }, [])
+    ({ state with protocol_version = sh.server_version ; machina = Client machina }, [])
 
-let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log =
+let answer_server_hello_renegotiate state session (ch : client_hello) sh raw log =
   let validate_reneg reneg data =
     match reneg, data with
     | (cvd, svd), Some x -> guard (Cs.equal (cvd <+> svd) x) (`Fatal `InvalidRenegotiation)
@@ -121,19 +121,19 @@ let answer_server_hello_renegotiate state session ch (sh : server_hello) raw log
          server_exts_subset_of_client sh.extensions ch.extensions)
     (`Fatal `InvalidServerHello)
   >>= fun () ->
-  guard (state.protocol_version = sh.version)
-    (`Fatal (`InvalidRenegotiationVersion sh.version)) >>= fun () ->
-  validate_cipher cfg.ciphers sh.ciphersuites >>= fun () ->
+  guard (state.protocol_version = sh.server_version)
+    (`Fatal (`InvalidRenegotiationVersion sh.server_version)) >>= fun () ->
+  validate_cipher cfg.ciphers sh.ciphersuite >>= fun () ->
   let theirs = get_secure_renegotiation sh.extensions in
   validate_reneg session.renegotiation theirs >|= fun () ->
 
   let machina =
-    let cipher = sh.ciphersuites in
+    let cipher = sh.ciphersuite in
     let session = { empty_session with
       ciphersuite      = cipher ;
-      server_random    = sh.random ;
-      client_random    = ch.random ;
-      client_version   = ch.version
+      server_random    = sh.server_random ;
+      client_random    = ch.client_random ;
+      client_version   = ch.client_version
     } in
     Ciphersuite.(match ciphersuite_kex cipher with
                  | RSA     -> AwaitCertificate_RSA (session, log @ [raw])

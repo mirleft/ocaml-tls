@@ -353,28 +353,28 @@ let rw_handshake_client_hello hs _ =
 
 let rw_handshake_client_hello_vals =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
-  let random = list_to_cstruct (rnd @ rnd) in
+  let client_random = list_to_cstruct (rnd @ rnd) in
   Core.(let ch : client_hello =
-          { version = Supported TLS_1_2 ;
-            random ;
+          { client_version = Supported TLS_1_2 ;
+            client_random ;
             sessionid = None ;
             ciphersuites = [] ;
             extensions = []}
         in
         [
           ClientHello ch ;
-          ClientHello { ch with version = Supported TLS_1_0 } ;
-          ClientHello { ch with version = Supported TLS_1_1 } ;
+          ClientHello { ch with client_version = Supported TLS_1_0 } ;
+          ClientHello { ch with client_version = Supported TLS_1_1 } ;
 
           ClientHello { ch with ciphersuites = [ Packet.TLS_NULL_WITH_NULL_NULL ] } ;
           ClientHello { ch with ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) } ;
 
           ClientHello { ch with sessionid = (Some (list_to_cstruct rnd)) } ;
-          ClientHello { ch with sessionid = (Some random) } ;
+          ClientHello { ch with sessionid = (Some client_random) } ;
 
           ClientHello { ch with
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
-                        sessionid = (Some random) } ;
+                        sessionid = (Some client_random) } ;
 
           ClientHello { ch with extensions = [ Hostname None ] } ;
           ClientHello { ch with extensions = [ Hostname None ; Hostname None ] } ;
@@ -392,12 +392,12 @@ let rw_handshake_client_hello_vals =
 
           ClientHello { ch with
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
-                        sessionid = (Some random) ;
+                        sessionid = (Some client_random) ;
                         extensions = [ Hostname (Some "foobarblubb") ] } ;
 
           ClientHello { ch with
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
-                        sessionid = (Some random) ;
+                        sessionid = (Some client_random) ;
                         extensions = [
                              Hostname (Some "foobarblubb") ;
                              EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
@@ -407,13 +407,13 @@ let rw_handshake_client_hello_vals =
 
           ClientHello { ch with
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
-                        sessionid = (Some random) ;
+                        sessionid = (Some client_random) ;
                         extensions = [
                              Hostname (Some "foobarblubb") ;
                              EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
                              ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
                              SignatureAlgorithms [(`MD5, Packet.ANONYMOUS); (`SHA1, Packet.RSA)] ;
-                             SecureRenegotiation random
+                             SecureRenegotiation client_random
                       ] } ;
 
         ])
@@ -444,29 +444,29 @@ let rw_handshake_server_hello hs _ =
 
 let rw_handshake_server_hello_vals =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
-  let random = list_to_cstruct (rnd @ rnd) in
+  let server_random = list_to_cstruct (rnd @ rnd) in
   Core.(let sh : server_hello =
-          { version = TLS_1_2 ;
-            random ;
+          { server_version = TLS_1_2 ;
+            server_random ;
             sessionid = None ;
-            ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
+            ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
             extensions = []}
         in
         [
           ServerHello sh ;
-          ServerHello { sh with version = TLS_1_0 } ;
-          ServerHello { sh with version = TLS_1_1 } ;
+          ServerHello { sh with server_version = TLS_1_0 } ;
+          ServerHello { sh with server_version = TLS_1_1 } ;
 
-          ServerHello { sh with sessionid = (Some random) } ;
+          ServerHello { sh with sessionid = (Some server_random) } ;
 
           ServerHello { sh with
-                        sessionid = (Some random) ;
+                        sessionid = (Some server_random) ;
                         extensions = [Hostname None]
                       } ;
 
           ServerHello { sh with
-                        sessionid = (Some random) ;
-                        extensions = [Hostname None ; SecureRenegotiation random]
+                        sessionid = (Some server_random) ;
+                        extensions = [Hostname None ; SecureRenegotiation server_random]
                       } ;
 
         ])

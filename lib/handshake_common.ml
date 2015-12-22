@@ -9,13 +9,11 @@ let empty = function [] -> true | _ -> false
 let change_cipher_spec =
   (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
 
-let get_hostname_ext h =
-  map_find
-    h.extensions
-    ~f:(function Hostname s -> Some s | _ -> None)
+let get_hostname_ext =
+  map_find ~f:(function Hostname s -> Some s | _ -> None)
 
-let hostname h : string option =
-  match get_hostname_ext h with
+let hostname (h : client_hello) : string option =
+  match get_hostname_ext h.extensions with
   | Some (Some name) -> Some name
   | _                -> None
 
@@ -130,7 +128,7 @@ let client_hello_valid ch =
   not_multiple_same_extensions ch.extensions
   &&
 
-  ( match ch.version with
+  ( match ch.client_version with
     | Supported TLS_1_2 | TLS_1_X _                  -> true
     | SSL_3 | Supported TLS_1_0 | Supported TLS_1_1  ->
         let has_sig_algo =
@@ -139,14 +137,14 @@ let client_hello_valid ch =
         not has_sig_algo )
   &&
 
-  get_hostname_ext ch <> Some None
+  get_hostname_ext ch.extensions <> Some None
 
 let server_hello_valid sh =
   let open Ciphersuite in
 
   not_multiple_same_extensions sh.extensions
   &&
-  ( match get_hostname_ext sh with
+  ( match get_hostname_ext sh.extensions with
     Some (Some _) -> false | _ -> true )
   (* TODO:
       - EC stuff must be present if EC ciphersuite chosen
