@@ -99,11 +99,6 @@ type client_hello = (any_ciphersuite list, tls_any_version) hello
 type server_hello = (ciphersuite, tls_version) hello
   with sexp
 
-type rsa_parameters = {
-  rsa_modulus  : Cstruct.t;
-  rsa_exponent : Cstruct.t;
-} with sexp
-
 type dh_parameters = {
   dh_p  : Cstruct.t;
   dh_g  : Cstruct.t;
