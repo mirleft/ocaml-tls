@@ -510,7 +510,7 @@ let client config =
    implementations reliably ignore unknown cipher suites, the SCSV may
    be safely sent to any server. *)
     | TLS_1_0 -> ([Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
-    | TLS_1_1 | TLS_1_2 -> ([], [SecureRenegotiation (Cstruct.create 0)])
+    | TLS_1_1 | TLS_1_2 -> ([], [`SecureRenegotiation (Cstruct.create 0)])
   in
 
   let client_hello =

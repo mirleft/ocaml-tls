@@ -124,8 +124,8 @@ let answer_client_key_exchange_DHE_RSA state session (group, secret) kex raw log
 
 let sig_algs (client_hello : client_hello) =
   map_find client_hello.extensions ~f:function
-           | SignatureAlgorithms xs -> Some xs
-           | _                      -> None
+           | `SignatureAlgorithms xs -> Some xs
+           | _                       -> None
 
 let rec find_matching host certs =
   match certs with
@@ -168,13 +168,13 @@ let agreed_cipher cert requested =
 
 let server_hello session version reneg =
   (* RFC 4366: server shall reply with an empty hostname extension *)
-  let host = option [] (fun _ -> [Hostname None]) session.own_name
+  let host = option [] (fun _ -> [`Hostname]) session.own_name
   and server_random = Rng.generate 32
   and secren = match reneg with
-    | None            -> SecureRenegotiation (Cstruct.create 0)
-    | Some (cvd, svd) -> SecureRenegotiation (cvd <+> svd)
+    | None            -> `SecureRenegotiation (Cstruct.create 0)
+    | Some (cvd, svd) -> `SecureRenegotiation (cvd <+> svd)
   and ems = if session.extended_ms then
-      [ExtendedMasterSecret]
+      [`ExtendedMasterSecret]
     else
       []
   and session_id =
@@ -212,7 +212,7 @@ let answer_client_hello_common state reneg ch raw =
         | Some _ -> fail (`Error (`NoConfiguredCiphersuite cciphers))
         | None -> fail (`Fatal (`NoCiphersuite ch.ciphersuites)) ) >|= fun cipher ->
 
-    let extended_ms = List.mem ExtendedMasterSecret ch.extensions in
+    let extended_ms = List.mem `ExtendedMasterSecret ch.extensions in
 
     (* Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ; *)
 
@@ -326,7 +326,7 @@ let answer_client_hello state (ch : client_hello) raw =
       List.mem epoch.ciphersuite cciphers &&
         version = epoch.protocol_version &&
           (not state.config.use_reneg ||
-             (List.mem ExtendedMasterSecret extensions && epoch.extended_ms))
+             (List.mem `ExtendedMasterSecret extensions && epoch.extended_ms))
     in
 
     match option None state.config.session_cache ch.sessionid with

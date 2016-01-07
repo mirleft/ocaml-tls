@@ -146,37 +146,44 @@ let assemble_ec_point_format f =
 let assemble_ec_point_formats formats =
   assemble_list One assemble_ec_point_format formats
 
-let assemble_extension e =
+let assemble_extension = function
+  | `ECPointFormats formats ->
+     (assemble_ec_point_formats formats, EC_POINT_FORMATS)
+  | `SecureRenegotiation x ->
+     let buf = create 1 in
+     set_uint8 buf 0 (len x);
+     (buf <+> x, RENEGOTIATION_INFO)
+  | `ExtendedMasterSecret -> (Cstruct.create 0, EXTENDED_MASTER_SECRET)
+  | _ -> invalid_arg "unknown extension"
+
+let assemble_client_extension e =
   let pay, typ = match e with
-    | EllipticCurves curves ->
-       (assemble_elliptic_curves curves, ELLIPTIC_CURVES)
-    | ECPointFormats formats ->
-       (assemble_ec_point_formats formats, EC_POINT_FORMATS)
-    | SecureRenegotiation x ->
-       let buf = create 1 in
-       set_uint8 buf 0 (len x);
-       (buf <+> x, RENEGOTIATION_INFO)
-    | Hostname (Some name) ->
-       (assemble_hostnames [name], SERVER_NAME)
-    | Hostname None ->
-       (create 0, SERVER_NAME)
-    | Padding x ->
+    | `EllipticCurves cs -> (assemble_elliptic_curves cs, ELLIPTIC_CURVES)
+    | `Hostname name -> (assemble_hostnames [name], SERVER_NAME)
+    | `Padding x ->
        let buf = create x in
-       for i = 0 to pred x do
-         set_uint8 buf i 0
-       done;
+       memset buf 0 ;
        (buf, PADDING)
-    | SignatureAlgorithms s ->
-       (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
-    | ExtendedMasterSecret -> (Cstruct.create 0, EXTENDED_MASTER_SECRET)
+    | `SignatureAlgorithms s -> (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
+    | x -> assemble_extension x
   in
   let buf = create 4 in
   BE.set_uint16 buf 0 (extension_type_to_int typ);
   BE.set_uint16 buf 2 (Cstruct.len pay);
   buf <+> pay
 
-let assemble_extensions es =
-  assemble_list ~none_if_empty:true Two assemble_extension es
+let assemble_server_extension e =
+  let pay, typ = match e with
+    | `Hostname -> (create 0, SERVER_NAME)
+    | x -> assemble_extension x
+  in
+  let buf = create 4 in
+  BE.set_uint16 buf 0 (extension_type_to_int typ);
+  BE.set_uint16 buf 2 (Cstruct.len pay);
+  buf <+> pay
+
+let assemble_extensions assemble_e es =
+  assemble_list ~none_if_empty:true Two assemble_e es
 
 let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let v = assemble_any_protocol_version cl.client_version in
@@ -204,19 +211,19 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
    handshake protocol) and test whether the resulting length falls into
    that range.  If it does, a padding extension can be added in order to
    push the length to (at least) 512 bytes. *)
-  let extensions = assemble_extensions cl.extensions in
+  let extensions = assemble_extensions assemble_client_extension cl.extensions in
   let extrapadding =
     let buflen = len bbuf + len extensions + 4 in
     if buflen >= 256 && buflen <= 511 then
       match len extensions with
         | 0 -> (* need to construct a 2 byte extension length as well *)
-           let p = assemble_extension (Padding (506 - buflen)) in
+           let p = assemble_client_extension (`Padding (506 - buflen)) in
            let le = create 2 in
            BE.set_uint16 le 0 (len p + 4);
            le <+> p
         | _ ->
            let l = 508 - buflen in
-           let p = assemble_extension (Padding l) in
+           let p = assemble_client_extension (`Padding l) in
            BE.set_uint16 extensions 0 (len extensions + l + 4);
            p
     else
@@ -235,7 +242,7 @@ let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let cs = assemble_ciphersuite sh.ciphersuite in
   (* useless compression method *)
   let cm = assemble_compression_method NULL in
-  let extensions = assemble_extensions sh.extensions in
+  let extensions = assemble_extensions assemble_server_extension sh.extensions in
   let bbuf = v <+> sh.server_random <+> sid <+> cs <+> cm in
   bbuf <+> extensions
 

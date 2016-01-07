@@ -9,18 +9,13 @@ let empty = function [] -> true | _ -> false
 let change_cipher_spec =
   (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
 
-let get_hostname_ext =
-  map_find ~f:(function Hostname s -> Some s | _ -> None)
-
 let hostname (h : client_hello) : string option =
-  match get_hostname_ext h.extensions with
-  | Some (Some name) -> Some name
-  | _                -> None
+  map_find ~f:(function `Hostname s -> Some s | _ -> None) h.extensions
 
 let get_secure_renegotiation exts =
   map_find
     exts
-    ~f:(function SecureRenegotiation data -> Some data | _ -> None)
+    ~f:(function `SecureRenegotiation data -> Some data | _ -> None)
 
 let empty_session = {
   server_random          = Cstruct.create 0 ;
@@ -62,24 +57,29 @@ let supported_protocol_version (min, max) v =
     | true, _    -> any_version_to_version v
     | _   , _    -> None
 
-let to_ext_type = function
-  | Hostname _            -> `Hostname
-  | MaxFragmentLength _   -> `MaxFragmentLength
-  | EllipticCurves _      -> `EllipticCurves
-  | ECPointFormats _      -> `ECPointFormats
-  | SecureRenegotiation _ -> `SecureRenegotiation
-  | Padding _             -> `Padding
-  | SignatureAlgorithms _ -> `SignatureAlgorithms
-  | UnknownExtension _    -> `UnknownExtension
-  | ExtendedMasterSecret  -> `ExtendedMasterSecret
+let to_client_ext_type = function
+  | `Hostname _            -> `Hostname
+  | `MaxFragmentLength _   -> `MaxFragmentLength
+  | `EllipticCurves _      -> `EllipticCurves
+  | `ECPointFormats _      -> `ECPointFormats
+  | `SecureRenegotiation _ -> `SecureRenegotiation
+  | `Padding _             -> `Padding
+  | `SignatureAlgorithms _ -> `SignatureAlgorithms
+  | `UnknownExtension _    -> `UnknownExtension
+  | `ExtendedMasterSecret  -> `ExtendedMasterSecret
 
-let extension_types exts = List.(
-  exts |> map to_ext_type
+let to_server_ext_type = function
+  | `Hostname              -> `Hostname
+  | `MaxFragmentLength _   -> `MaxFragmentLength
+  | `ECPointFormats _      -> `ECPointFormats
+  | `SecureRenegotiation _ -> `SecureRenegotiation
+  | `UnknownExtension _    -> `UnknownExtension
+  | `ExtendedMasterSecret  -> `ExtendedMasterSecret
+
+let extension_types t exts = List.(
+  exts |> map t
        |> filter @@ function `UnknownExtension -> false | _ -> true
   )
-
-let not_multiple_same_extensions exts =
-  List_set.is_proper_set (extension_types exts)
 
 (* a server hello may only contain extensions which are also in the client hello *)
 (*  RFC5246, 7.4.7.1
@@ -90,13 +90,8 @@ let not_multiple_same_extensions exts =
    with an unsupported_extension fatal alert. *)
 let server_exts_subset_of_client sexts cexts =
   let (sexts', cexts') =
-    (extension_types sexts, extension_types cexts) in
+    (extension_types to_server_ext_type sexts, extension_types to_client_ext_type cexts) in
   List_set.subset sexts' cexts'
-  &&
-  let forbidden = function
-    | `Padding | `SignatureAlgorithms -> true
-    | _                               -> false in
-  not (List.exists forbidden sexts')
 
 let client_hello_valid ch =
   let open Ciphersuite in
@@ -125,27 +120,21 @@ let client_hello_valid ch =
   &&
 
   (* TODO: if ecc ciphersuite, require ellipticcurves and ecpointformats extensions! *)
-  not_multiple_same_extensions ch.extensions
+  List_set.is_proper_set (extension_types to_client_ext_type ch.extensions)
   &&
 
   ( match ch.client_version with
     | Supported TLS_1_2 | TLS_1_X _                  -> true
     | SSL_3 | Supported TLS_1_0 | Supported TLS_1_1  ->
         let has_sig_algo =
-          List.exists (function SignatureAlgorithms _ -> true | _ -> false)
+          List.exists (function `SignatureAlgorithms _ -> true | _ -> false)
             ch.extensions in
         not has_sig_algo )
-  &&
-
-  get_hostname_ext ch.extensions <> Some None
 
 let server_hello_valid sh =
   let open Ciphersuite in
 
-  not_multiple_same_extensions sh.extensions
-  &&
-  ( match get_hostname_ext sh.extensions with
-    Some (Some _) -> false | _ -> true )
+  List_set.is_proper_set (extension_types to_server_ext_type sh.extensions)
   (* TODO:
       - EC stuff must be present if EC ciphersuite chosen
    *)

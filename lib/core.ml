@@ -73,24 +73,33 @@ module SessionID = struct
   let equal = Cstruct.equal
 end
 
-type extension =
-  | Hostname of string option
-  | MaxFragmentLength of max_fragment_length
-  | EllipticCurves of named_curve_type list
-  | ECPointFormats of ec_point_format list
-  | SecureRenegotiation of Cstruct.t
-  | Padding of int
-  | SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
-  | UnknownExtension of (int * Cstruct.t)
-  | ExtendedMasterSecret
-  with sexp
+type client_extension = [
+  | `Hostname of string
+  | `MaxFragmentLength of max_fragment_length
+  | `EllipticCurves of named_curve_type list
+  | `ECPointFormats of ec_point_format list
+  | `SecureRenegotiation of Cstruct.t
+  | `Padding of int
+  | `SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
+  | `UnknownExtension of (int * Cstruct.t)
+  | `ExtendedMasterSecret
+] with sexp
+
+type server_extension = [
+  | `Hostname
+  | `MaxFragmentLength of max_fragment_length
+  | `ECPointFormats of ec_point_format list
+  | `SecureRenegotiation of Cstruct.t
+  | `UnknownExtension of (int * Cstruct.t)
+  | `ExtendedMasterSecret
+] with sexp
 
 type client_hello = {
   client_version : tls_any_version;
   client_random  : Cstruct.t;
   sessionid      : SessionID.t option;
   ciphersuites   : any_ciphersuite list;
-  extensions     : extension list
+  extensions     : client_extension list
 } with sexp
 
 type server_hello = {
@@ -98,7 +107,7 @@ type server_hello = {
   server_random  : Cstruct.t;
   sessionid      : SessionID.t option;
   ciphersuite    : ciphersuite;
-  extensions     : extension list
+  extensions     : server_extension list
 } with sexp
 
 type dh_parameters = {

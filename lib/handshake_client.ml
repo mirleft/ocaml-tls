@@ -12,14 +12,14 @@ let (<+>) = Cs.(<+>)
 let default_client_hello config =
   let host = match config.peer_name with
     | None   -> []
-    | Some x -> [Hostname (Some x)]
+    | Some x -> [`Hostname x]
   in
   let version = max_protocol_version config.protocol_versions in
   let signature_algos = match version with
     | TLS_1_0 | TLS_1_1 -> []
     | TLS_1_2 ->
        let supported = List.map (fun h -> (h, Packet.RSA)) config.hashes in
-       [SignatureAlgorithms supported]
+       [`SignatureAlgorithms supported]
   in
   let ciphers =
     let cs = config.ciphers in
@@ -37,7 +37,7 @@ let default_client_hello config =
     client_random  = Rng.generate 32 ;
     sessionid      = sessionid ;
     ciphersuites   = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
-    extensions     = host @ signature_algos @ [ExtendedMasterSecret]
+    extensions     = host @ signature_algos @ [`ExtendedMasterSecret]
   }
   in
   (ch , version)
@@ -69,7 +69,7 @@ let answer_server_hello state (ch : client_hello) sh raw log =
       epoch.protocol_version = sh.server_version &&
         option false (SessionID.equal epoch.session_id) sh.sessionid &&
           (not cfg.use_reneg ||
-             (List.mem ExtendedMasterSecret sh.extensions && epoch.extended_ms))
+             (List.mem `ExtendedMasterSecret sh.extensions && epoch.extended_ms))
   in
 
   match state.config.cached_session with
@@ -91,8 +91,8 @@ let answer_server_hello state (ch : client_hello) sh raw log =
       let cipher = sh.ciphersuite in
       let session_id = match sh.sessionid with None -> Cstruct.create 0 | Some x -> x in
       let extended_ms =
-        let ems = List.mem ExtendedMasterSecret in
-        ems ch.extensions && ems sh.extensions
+        List.mem `ExtendedMasterSecret ch.extensions &&
+          List.mem `ExtendedMasterSecret sh.extensions
       in
       let session = { empty_session with
                       client_random    = ch.client_random ;
@@ -342,7 +342,7 @@ let answer_hello_request state =
 
   match state.config.use_reneg, state.session with
   | true , x :: _ ->
-    let ext = SecureRenegotiation (fst x.renegotiation) in
+    let ext = `SecureRenegotiation (fst x.renegotiation) in
     return (produce_client_hello x state.config [ext])
   | true , _      -> fail (`Fatal `InvalidSession) (* I'm pretty sure this can be an assert false *)
   | false, _      ->
