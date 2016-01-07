@@ -376,44 +376,42 @@ let rw_handshake_client_hello_vals =
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) } ;
 
-          ClientHello { ch with extensions = [ Hostname None ] } ;
-          ClientHello { ch with extensions = [ Hostname None ; Hostname None ] } ;
-          ClientHello { ch with extensions = [ Hostname (Some "foobar") ] } ;
-          ClientHello { ch with extensions = [ Hostname (Some "foobarblubb") ] } ;
+          ClientHello { ch with extensions = [ `Hostname "foobar" ] } ;
+          ClientHello { ch with extensions = [ `Hostname "foobarblubb" ] } ;
 
-          ClientHello { ch with extensions = [ Hostname (Some "foobarblubb") ; EllipticCurves Packet.([SECP521R1; SECP384R1]) ] } ;
+          ClientHello { ch with extensions = [ `Hostname "foobarblubb" ; `EllipticCurves Packet.([SECP521R1; SECP384R1]) ] } ;
 
           ClientHello { ch with extensions = [
-                             Hostname (Some "foobarblubb") ;
-                             EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
-                             ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             SignatureAlgorithms [(`MD5, Packet.RSA)]
+                             `Hostname "foobarblubb" ;
+                             `EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
+                             `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
+                             `SignatureAlgorithms [(`MD5, Packet.RSA)]
                            ] } ;
 
           ClientHello { ch with
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) ;
-                        extensions = [ Hostname (Some "foobarblubb") ] } ;
+                        extensions = [ `Hostname "foobarblubb" ] } ;
 
           ClientHello { ch with
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) ;
                         extensions = [
-                             Hostname (Some "foobarblubb") ;
-                             EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
-                             ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             SignatureAlgorithms [(`SHA1, Packet.ANONYMOUS); (`MD5, Packet.RSA)]
+                             `Hostname "foobarblubb" ;
+                             `EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
+                             `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
+                             `SignatureAlgorithms [(`SHA1, Packet.ANONYMOUS); (`MD5, Packet.RSA)]
                       ] } ;
 
           ClientHello { ch with
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) ;
                         extensions = [
-                             Hostname (Some "foobarblubb") ;
-                             EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
-                             ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             SignatureAlgorithms [(`MD5, Packet.ANONYMOUS); (`SHA1, Packet.RSA)] ;
-                             SecureRenegotiation client_random
+                             `Hostname "foobarblubb" ;
+                             `EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
+                             `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
+                             `SignatureAlgorithms [(`MD5, Packet.ANONYMOUS); (`SHA1, Packet.RSA)] ;
+                             `SecureRenegotiation client_random
                       ] } ;
 
         ])
@@ -461,12 +459,12 @@ let rw_handshake_server_hello_vals =
 
           ServerHello { sh with
                         sessionid = (Some server_random) ;
-                        extensions = [Hostname None]
+                        extensions = [`Hostname]
                       } ;
 
           ServerHello { sh with
                         sessionid = (Some server_random) ;
-                        extensions = [Hostname None ; SecureRenegotiation server_random]
+                        extensions = [`Hostname ; `SecureRenegotiation server_random]
                       } ;
 
         ])

@@ -48,17 +48,24 @@ let assert_sessionid_equal a b =
   | Some x, Some y -> assert_cs_eq x y
   | _ -> assert_failure "session id not equal"
 
-let assert_extension_equal a b =
+let assert_client_extension_equal a b =
   Core.(match a, b with
-        | Hostname None, Hostname None -> ()
-        | Hostname (Some a), Hostname (Some b) -> assert_equal a b
-        | MaxFragmentLength a, MaxFragmentLength b -> assert_equal a b
-        | EllipticCurves a, EllipticCurves b -> assert_lists_eq assert_equal a b
-        | ECPointFormats a, ECPointFormats b -> assert_lists_eq assert_equal a b
-        | SecureRenegotiation a, SecureRenegotiation b -> assert_cs_eq a b
-        | Padding a, Padding b -> assert_equal a b
-        | SignatureAlgorithms a, SignatureAlgorithms b ->
+        | `Hostname a, `Hostname b -> assert_equal a b
+        | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
+        | `EllipticCurves a, `EllipticCurves b -> assert_lists_eq assert_equal a b
+        | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
+        | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
+        | `Padding a, `Padding b -> assert_equal a b
+        | `SignatureAlgorithms a, `SignatureAlgorithms b ->
            assert_lists_eq (fun (h, s) (h', s') -> assert_equal h h' ; assert_equal s s') a b
+        | _ -> assert_failure "extensions did not match")
+
+let assert_server_extension_equal a b =
+  Core.(match a, b with
+        | `Hostname, `Hostname -> ()
+        | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
+        | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
+        | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
         | _ -> assert_failure "extensions did not match")
 
 let cs_mmap file =
