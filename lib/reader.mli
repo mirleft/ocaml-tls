@@ -29,6 +29,7 @@ val parse_change_cipher_spec   : Cstruct.t -> unit result
 
 val parse_certificate_request     : Cstruct.t -> (Packet.client_certificate_type list * Cstruct.t list) result
 val parse_certificate_request_1_2 : Cstruct.t -> (Packet.client_certificate_type list * (Nocrypto.Hash.hash * Packet.signature_algorithm_type) list * Cstruct.t list) result
+val parse_certificate_request_1_3 : Cstruct.t -> (Cstruct.t * (Nocrypto.Hash.hash * Packet.signature_algorithm_type) list * Cstruct.t list * (Cstruct.t * Cstruct.t) list) result
 
 val parse_dh_parameters        : Cstruct.t -> (Core.dh_parameters * Cstruct.t * Cstruct.t) result
 val parse_digitally_signed     : Cstruct.t -> Cstruct.t result

@@ -191,6 +191,11 @@ let parse_named_group buf =
   let typ = BE.get_uint16 buf 0 in
   (int_to_named_group typ, shift buf 2)
 
+let parse_group buf =
+  match parse_named_group buf with
+  | Some x, buf -> (Ciphersuite.any_group_to_group x, buf)
+  | None, buf -> (None, buf)
+
 let parse_supported_groups buf =
   let count = BE.get_uint16 buf 0 in
   if count mod 2 <> 0 then
@@ -253,6 +258,55 @@ let parse_extension buf = function
          `ExtendedMasterSecret
   | x -> `UnknownExtension (extension_type_to_int x, buf)
 
+let parse_keyshare_entry buf =
+  let parse_share l data =
+    let size = BE.get_uint16 data 0 in
+    let share, left = split (shift data 2) size in
+    match l with
+    | 1 ->
+      let l = get_uint8 share 0 in
+      if len share <> l + 1 then
+        raise_trailing_bytes "keyshare"
+      else
+        (sub share 1 l, left)
+    | 2 ->
+      let l = BE.get_uint16 share 0 in
+      if len share <> l + 2 then
+        raise_trailing_bytes "keyshare"
+      else
+        (sub share 2 l, left)
+    | 0 -> (share, left)
+    | _ -> raise_unknown "keyshare"
+  in
+  match parse_named_group buf with
+  | Some g, rest ->
+     let ksl = ks_len g in
+     let share, left = parse_share ksl rest in
+     (Some (g, share), left)
+  | None, rest ->
+     let _, left = parse_share 0 rest in
+     (None, left)
+
+let parse_presharedkey buf =
+  let len = BE.get_uint16 buf 0 in
+  let psk, rest = split (shift buf 2) len in
+  (Some psk, rest)
+
+let parse_early_data buf =
+  let cfgidlen = BE.get_uint16 buf 0 in
+  let configuration_id, rest = split (shift buf 2) cfgidlen in
+  match parse_ciphersuite rest with
+  | Some ciphersuite, rest ->
+     let extlen = BE.get_uint16 rest 0 in
+     let extensions, rest = split (shift rest 2) extlen in
+     let clen = get_uint8 rest 0 in
+     let context, rest = split (shift rest 1) clen in
+     if len rest <> 0 then
+       raise_trailing_bytes "early_data"
+     else
+       { configuration_id ; ciphersuite ; extensions ; context }
+  | None, _ -> raise_unknown "ciphersuite in early_data"
+
 let parse_client_extension raw =
   let etype = BE.get_uint16 raw 0 in
   let length = BE.get_uint16 raw 2 in
@@ -282,6 +336,23 @@ let parse_client_extension raw =
          raise_trailing_bytes "signature algorithms"
        else
          `SignatureAlgorithms algos
+    | Some KEY_SHARE ->
+       let ll = BE.get_uint16 buf 0 in
+       if ll + 2 <> len buf then
+         raise_unknown "bad key share extension"
+       else
+         let shares = parse_list parse_keyshare_entry (sub buf 2 ll) [] in
+         `KeyShare shares
+    | Some PRE_SHARED_KEY ->
+       let ll = BE.get_uint16 buf 0 in
+       if ll + 2 <> len buf then
+         raise_unknown "bad pre_shared_key length"
+       else
+         let ids = parse_list parse_presharedkey (sub buf 2 ll) [] in
+         `PreSharedKey ids
+    | Some EARLY_DATA ->
+       let ed = parse_early_data buf in
+       `EarlyDataIndication ed
     | Some x -> parse_extension buf x
     | None -> `UnknownExtension (etype, buf)
   in
@@ -297,6 +368,24 @@ let parse_server_extension raw =
        (match parse_hostnames buf with
         | [] -> `Hostname
         | _      -> raise_unknown "bad server name indication (multiple names)")
+    | Some KEY_SHARE ->
+       (match parse_keyshare_entry buf with
+        | _, xs when len xs <> 0 -> raise_trailing_bytes "server keyshare"
+        | None, _ -> raise_unknown "keyshare entry"
+        | Some (g, ks), _ ->
+          match Ciphersuite.any_group_to_group g with
+          | Some g -> `KeyShare (g, ks)
+          | None -> raise_unknown "keyshare entry")
+    | Some PRE_SHARED_KEY ->
+       (match parse_presharedkey buf with
+        | _, xs when len xs <> 0 -> raise_trailing_bytes "server pre_shared_key"
+        | Some psk, _ -> `PreSharedKey psk
+        | _ -> raise_unknown "server presharedkey")
+    | Some EARLY_DATA ->
+       if len buf <> 0 then
+         raise_trailing_bytes "server early_data"
+       else
+         `EarlyDataIndication
     | Some SUPPORTED_GROUPS | Some SIGNATURE_ALGORITHMS | Some PADDING ->
        raise_unknown "invalid extension in server hello!"
     | Some x -> parse_extension buf x
@@ -380,27 +469,54 @@ let parse_cas buf =
     (Some name, shift buf (2 + length))
   in
   let calength = BE.get_uint16 buf 0 in
-  if (calength + 2) <> len buf then
-    raise_trailing_bytes "cas"
-  else
-    parse_list parsef (sub buf 2 calength) []
+  let cas, rt = split (shift buf 2) calength in
+  (parse_list parsef cas [], rt)
 
 let parse_certificate_request_exn buf =
   let certificate_types, buf' = parse_certificate_types buf in
-  let certificate_authorities = parse_cas buf' in
-  (certificate_types, certificate_authorities)
+  let certificate_authorities, buf' = parse_cas buf' in
+  if len buf' <> 0 then
+    raise_trailing_bytes "certificate request"
+  else
+    (certificate_types, certificate_authorities)
 
 let parse_certificate_request =
   catch parse_certificate_request_exn
 
 let parse_certificate_request_1_2_exn buf =
   let certificate_types, buf' = parse_certificate_types buf in
-  let sigs, buf'' = parse_hash_sig buf' in
-  let cas = parse_cas buf'' in
-  (certificate_types, sigs, cas)
+  let sigs, buf' = parse_hash_sig buf' in
+  let cas, buf' = parse_cas buf' in
+  if len buf' <> 0 then
+    raise_trailing_bytes "certificate request"
+  else
+    (certificate_types, sigs, cas)
 
 let parse_certificate_request_1_2 =
   catch parse_certificate_request_1_2_exn
+
+let parse_cert_extension buf =
+  let olen = get_uint8 buf 0 in
+  let oid, rt = split (shift buf 1) olen in
+  let vallen = BE.get_uint16 rt 0 in
+  let values, rt = split (shift rt 2) vallen in
+  (Some (oid, values), rt)
+
+let parse_certificate_request_1_3_exn buf =
+  let conlen = get_uint8 buf 0 in
+  let context, rt = split (shift buf 1) conlen in
+  let sigs, rt = parse_hash_sig rt in
+  let cas, rt = parse_cas rt in
+  let extlen = BE.get_uint16 rt 0 in
+  let extdata, rt = split (shift rt 2) extlen in
+  let exts = parse_list parse_cert_extension extdata [] in
+  if len rt <> 0 then
+    raise_trailing_bytes "certificate request"
+  else
+    (context, sigs, cas, exts)
+
+let parse_certificate_request_1_3 =
+  catch parse_certificate_request_1_3_exn
 
 let parse_dh_parameters = catch @@ fun raw ->
   let plength = BE.get_uint16 raw 0 in
@@ -449,6 +565,33 @@ let parse_client_key_exchange buf =
   else
     ClientKeyExchange (sub buf 2 length)
 
+let parse_hello_retry_request buf =
+  let version = parse_version_exn buf in
+  let ciphersuite, rt = parse_ciphersuite (shift buf 2) in
+  let group, rt = parse_group rt in
+  let extensions = parse_extensions parse_server_extension rt in
+  match ciphersuite, group with
+  | Some ciphersuite, Some selected_group -> { version ; ciphersuite ; selected_group ; extensions }
+  | None, _ -> raise_unknown "ciphersuite"
+  | _, None -> raise_unknown "selected group"
+
+let parse_server_configuration buf =
+  let cfgidlen = BE.get_uint16 buf 0 in
+  let configuration_id, rest = split (shift buf 2) cfgidlen in
+  let expiration_date, rest = split rest 4 in
+  let key_share, rest = parse_keyshare_entry rest in
+  let early_data_type = get_uint8 rest 0 in
+  let extensions = shift rest 1 in
+  match key_share, int_to_early_data_type early_data_type with
+  | Some (g, ks), Some early_data_type ->
+    (match Ciphersuite.any_group_to_group g with
+     | Some g ->
+       let key_share = (g, ks) in
+       { configuration_id ; expiration_date ; key_share ; early_data_type ; extensions }
+     | None -> raise_unknown "key share")
+  | None, _ -> raise_unknown "key share"
+  | _, None -> raise_unknown "early data type"
+
 let parse_handshake_frame buf =
   if len buf < 4 then
     (None, buf)
@@ -486,4 +629,12 @@ let parse_handshake = catch @@ fun buf ->
     | Some CERTIFICATE_REQUEST -> CertificateRequest payload
     | Some CLIENT_KEY_EXCHANGE -> parse_client_key_exchange payload
     | Some FINISHED -> Finished payload
+    | Some HELLO_RETRY_REQUEST -> let hrr = parse_hello_retry_request payload in
+                                  HelloRetryRequest hrr
+    | Some SERVER_CONFIGURATION -> let sc = parse_server_configuration payload in
+                                   ServerConfiguration sc
+    | Some ENCRYPTED_EXTENSIONS -> let ee = parse_extensions parse_server_extension payload in
+                                   EncryptedExtensions ee
+    | Some KEY_UPDATE -> if len payload <> 0 then raise_trailing_bytes "key update" else KeyUpdate
+    | Some SESSION_TICKET -> SessionTicket payload
     | _  -> raise_unknown @@ "handshake type" ^ string_of_int typ

@@ -76,6 +76,17 @@ module SessionID = struct
   let equal = Cstruct.equal
 end
 
+type early_data = {
+  configuration_id : Cstruct.t ;
+  ciphersuite : ciphersuite ;
+  extensions : Cstruct.t ; (* XXX: extensions! *)
+  context : Cstruct.t ;
+} [@@deriving sexp]
+
+type psk_identity = Cstruct.t [@@deriving sexp]
+
+type group = Nocrypto.Dh.group [@@deriving sexp] (* for now *)
+
 type client_extension = [
   | `Hostname of string
   | `MaxFragmentLength of max_fragment_length
@@ -84,8 +95,11 @@ type client_extension = [
   | `SecureRenegotiation of Cstruct.t
   | `Padding of int
   | `SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
-  | `UnknownExtension of (int * Cstruct.t)
   | `ExtendedMasterSecret
+  | `KeyShare of (named_group * Cstruct.t) list
+  | `EarlyDataIndication of early_data
+  | `PreSharedKey of psk_identity list
+  | `UnknownExtension of (int * Cstruct.t)
 ] [@@deriving sexp]
 
 type server_extension = [
@@ -93,8 +107,11 @@ type server_extension = [
   | `MaxFragmentLength of max_fragment_length
   | `ECPointFormats of ec_point_format list
   | `SecureRenegotiation of Cstruct.t
-  | `UnknownExtension of (int * Cstruct.t)
   | `ExtendedMasterSecret
+  | `KeyShare of (group * Cstruct.t)
+  | `EarlyDataIndication
+  | `PreSharedKey of psk_identity
+  | `UnknownExtension of (int * Cstruct.t)
 ] [@@deriving sexp]
 
 type client_hello = {
@@ -147,11 +164,28 @@ type ec_char_parameters = {
 type ec_parameters =
   | ExplicitPrimeParameters of ec_prime_parameters
   | ExplicitCharParameters of ec_char_parameters
-  | NamedGroupParameters of (named_group * Cstruct.t)
+  | NamedGroupParameters of (group * Cstruct.t)
   [@@deriving sexp]
+
+type hello_retry_request = {
+  version : tls_version ;
+  ciphersuite : ciphersuite ;
+  selected_group : group ;
+  extensions : server_extension list
+} [@@deriving sexp]
+
+type server_configuration = {
+  configuration_id : Cstruct.t ;
+  expiration_date : Cstruct.t ;
+  key_share : (group * Cstruct.t) ;
+  early_data_type : early_data_type ;
+  extensions : Cstruct.t ; (* XXX: configuration_extension list *)
+} [@@deriving sexp]
 
 type tls_handshake =
   | HelloRequest
+  | HelloRetryRequest of hello_retry_request
+  | EncryptedExtensions of server_extension list
   | ServerHelloDone
   | ClientHello of client_hello
   | ServerHello of server_hello
@@ -161,6 +195,9 @@ type tls_handshake =
   | ClientKeyExchange of Cstruct.t
   | CertificateVerify of Cstruct.t
   | Finished of Cstruct.t
+  | SessionTicket of Cstruct.t
+  | ServerConfiguration of server_configuration
+  | KeyUpdate
   [@@deriving sexp]
 
 type tls_alert = alert_level * alert_type [@@deriving sexp]

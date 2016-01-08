@@ -88,6 +88,7 @@ type handshake_type =
   | CERTIFICATE_URL      [@id 21] (*RFC4366*)
   | CERTIFICATE_STATUS   [@id 22] (*RFC4366*)
   | SUPPLEMENTAL_DATA    [@id 23] (*RFC4680*)
+  | KEY_UPDATE           [@id 24] (*TLS 1.3*)
   [@@uint8_t] [@@sexp]
 ]
 
@@ -158,6 +159,15 @@ type max_fragment_length =
   | TWO_10 [@id 2]
   | TWO_11 [@id 3]
   | TWO_12 [@id 4]
+  [@@uint8_t] [@@sexp]
+]
+
+(* TLS 1.3 *)
+[%%cenum
+type early_data_type =
+  | CLIENT_AUTHENTICATION [@id 1]
+  | EARLY_DATA [@id 2]
+  | CLIENT_AUTHENTICATION_AND_DATA [@id 3]
   [@@uint8_t] [@@sexp]
 ]
 

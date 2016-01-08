@@ -67,6 +67,9 @@ let to_client_ext_type = function
   | `SignatureAlgorithms _ -> `SignatureAlgorithms
   | `UnknownExtension _    -> `UnknownExtension
   | `ExtendedMasterSecret  -> `ExtendedMasterSecret
+  | `KeyShare _            -> `KeyShare
+  | `EarlyDataIndication _ -> `EarlyDataIndication
+  | `PreSharedKey _        -> `PreSharedKey
 
 let to_server_ext_type = function
   | `Hostname              -> `Hostname
@@ -75,6 +78,9 @@ let to_server_ext_type = function
   | `SecureRenegotiation _ -> `SecureRenegotiation
   | `UnknownExtension _    -> `UnknownExtension
   | `ExtendedMasterSecret  -> `ExtendedMasterSecret
+  | `KeyShare _            -> `KeyShare
+  | `EarlyDataIndication   -> `EarlyDataIndication
+  | `PreSharedKey _        -> `PreSharedKey
 
 let extension_types t exts = List.(
   exts |> map t
@@ -131,7 +137,7 @@ let client_hello_valid ch =
             ch.extensions in
         not has_sig_algo )
 
-let server_hello_valid sh =
+let server_hello_valid (sh : server_hello) =
   let open Ciphersuite in
 
   List_set.is_proper_set (extension_types to_server_ext_type sh.extensions)

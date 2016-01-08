@@ -181,3 +181,22 @@ let ciphersuite_tls12_only = function
   | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
   | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> true
   | _                                    -> false
+
+let any_group_to_group =
+  let open Nocrypto.Dh.Group in
+  function
+  | Packet.FFDHE2048 -> Some ffdhe2048
+  | Packet.FFDHE3072 -> Some ffdhe3072
+  | Packet.FFDHE4096 -> Some ffdhe4096
+  | Packet.FFDHE6144 -> Some ffdhe6144
+  | Packet.FFDHE8192 -> Some ffdhe8192
+  | _ -> None
+
+let group_to_any_group =
+  let open Nocrypto.Dh.Group in
+  function
+   | x when x = ffdhe2048 -> Packet.FFDHE2048
+   | x when x = ffdhe3072 -> Packet.FFDHE3072
+   | x when x = ffdhe4096 -> Packet.FFDHE4096
+   | x when x = ffdhe6144 -> Packet.FFDHE6144
+   | x when x = ffdhe8192 -> Packet.FFDHE8192
