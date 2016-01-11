@@ -443,7 +443,7 @@ let parse_server_hello buf =
   in
   ServerHello { server_version ; server_random ; sessionid ; ciphersuite ; extensions }
 
-let parse_certificates buf =
+let parse_certificates_exn buf =
   let parsef buf =
     let len = get_uint24_len buf in
     (Some (sub buf 3 len), shift buf (len + 3))
@@ -452,7 +452,16 @@ let parse_certificates buf =
   if len buf <> length + 3 then
     raise_trailing_bytes "certificates"
   else
-    Certificate (parse_list parsef (sub buf 3 length) [])
+    parse_list parsef (sub buf 3 length) []
+
+let parse_certificates = catch @@ parse_certificates_exn
+
+let parse_certificates_1_3_exn buf =
+  let clen = get_uint8 buf 0 in
+  let context, rt = split (shift buf 1) clen in
+  (context, parse_certificates_exn rt)
+
+let parse_certificates_1_3 = catch @@ parse_certificates_1_3_exn
 
 let parse_certificate_types buf =
   let parsef buf =
@@ -619,7 +628,7 @@ let parse_handshake = catch @@ fun buf ->
                               HelloRequest
     | Some CLIENT_HELLO -> parse_client_hello payload
     | Some SERVER_HELLO -> parse_server_hello payload
-    | Some CERTIFICATE -> parse_certificates payload
+    | Some CERTIFICATE -> Certificate payload
     | Some CERTIFICATE_VERIFY -> CertificateVerify payload
     | Some SERVER_KEY_EXCHANGE -> ServerKeyExchange payload
     | Some SERVER_HELLO_DONE -> if len payload <> 0 then

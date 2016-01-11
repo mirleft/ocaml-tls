@@ -18,3 +18,7 @@ val assemble_digitally_signed_1_2 : Nocrypto.Hash.hash -> Packet.signature_algor
 val assemble_certificate_request : Packet.client_certificate_type list -> Cstruct.t list -> Cstruct.t
 
 val assemble_certificate_request_1_2 : Packet.client_certificate_type list -> (Nocrypto.Hash.hash * Packet.signature_algorithm_type) list -> Cstruct.t list -> Cstruct.t
+
+val assemble_certificates : Cstruct.t list -> Cstruct.t
+
+val assemble_certificates_1_3 : Cstruct.t -> Cstruct.t list -> Cstruct.t

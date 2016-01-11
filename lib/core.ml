@@ -189,7 +189,7 @@ type tls_handshake =
   | ServerHelloDone
   | ClientHello of client_hello
   | ServerHello of server_hello
-  | Certificate of Cstruct.t list
+  | Certificate of Cstruct.t
   | ServerKeyExchange of Cstruct.t
   | CertificateRequest of Cstruct.t
   | ClientKeyExchange of Cstruct.t

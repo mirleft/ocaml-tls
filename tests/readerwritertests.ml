@@ -317,13 +317,13 @@ let rw_handshake_cstruct_data_vals =
           Finished data_cs ;
           ClientKeyExchange emp ;
           ClientKeyExchange data_cs ;
-          Certificate [] ;
-          Certificate [data_cs] ;
-          Certificate [data_cs; data_cs] ;
-          Certificate [data_cs ; emp] ;
-          Certificate [emp ; data_cs] ;
-          Certificate [emp ; data_cs ; emp] ;
-          Certificate [emp ; data_cs ; emp ; data_cs]
+          Certificate (Writer.assemble_certificates []) ;
+          Certificate (Writer.assemble_certificates [data_cs]) ;
+          Certificate (Writer.assemble_certificates [data_cs; data_cs]) ;
+          Certificate (Writer.assemble_certificates [data_cs ; emp]) ;
+          Certificate (Writer.assemble_certificates [emp ; data_cs]) ;
+          Certificate (Writer.assemble_certificates [emp ; data_cs ; emp]) ;
+          Certificate (Writer.assemble_certificates [emp ; data_cs ; emp ; data_cs])
        ])
 
 let rw_handshake_cstruct_data_tests =

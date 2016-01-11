@@ -712,7 +712,7 @@ let bad_handshake_no_data_parser xs _ =
 
 let bad_handshake_no_data_tests =
   List.mapi
-    (fun i f -> "Parse bad handshake " ^ string_of_int i >:: bad_handshake_no_data_parser f)
+    (fun i f -> "Parse bad handshake (no data) " ^ string_of_int i >:: bad_handshake_no_data_parser f)
     bad_handshakes_no_data
 
 let good_handshake_cstruct_data =
@@ -897,10 +897,10 @@ let good_handshake_cstruct_data =
     ([20; 0; 0; 12] @ data , (Core.Finished data_cs)) ;
     ([16; 0; 0; 14; 0; 12] @ data , (Core.ClientKeyExchange data_cs)) ;
 
-    ([11; 0; 0; 3; 0; 0; 0] , (Core.Certificate [])) ;
-    ([11; 0; 0; 18; 0; 0; 15; 0; 0; 12] @ data , (Core.Certificate [data_cs])) ;
+    ([11; 0; 0; 3; 0; 0; 0] , (Core.Certificate (Writer.assemble_certificates []))) ;
+    ([11; 0; 0; 18; 0; 0; 15; 0; 0; 12] @ data , (Core.Certificate (Writer.assemble_certificates [data_cs]))) ;
     ([11; 0; 0; 33; 0; 0; 30; 0; 0; 12] @ data @ [0; 0; 12] @ data ,
-     (Core.Certificate [data_cs; data_cs])) ;
+     (Core.Certificate (Writer.assemble_certificates [data_cs ; data_cs]))) ;
 
 ([
 0x0b; 0x00; 0x0a; 0xa7;
@@ -1078,7 +1078,7 @@ let good_handshake_cstruct_data =
 0xa8; 0x45; 0x3b; 0xf4; 0xe5; 0xf6; 0xa2; 0x51; 0xdd; 0xc7; 0x7b; 0x62; 0xe8; 0x6f; 0x0c; 0x74;
 0xeb; 0xb8; 0xda; 0xf8; 0xbf; 0x87; 0x0d; 0x79; 0x50; 0x91; 0x90; 0x9b; 0x18; 0x3b; 0x91; 0x59;
 0x27; 0xf1; 0x35; 0x28; 0x13; 0xab; 0x26; 0x7e; 0xd5; 0xf7; 0x7a ],
- Core.Certificate [gh1 ; gh2] )
+ Core.Certificate (Writer.assemble_certificates [gh1 ; gh2]) )
 
 
   ]
@@ -1087,7 +1087,7 @@ let cmp_handshake_cstruct hs hs' =
   Core.(match hs, hs' with
         | Finished xs, Finished ys -> assert_cs_eq xs ys
         | ServerKeyExchange xs, ServerKeyExchange ys -> assert_cs_eq xs ys
-        | Certificate xs, Certificate ys -> assert_lists_eq assert_cs_eq xs ys
+        | Certificate xs, Certificate ys -> assert_cs_eq xs ys
         | ClientKeyExchange xs, ClientKeyExchange ys -> assert_cs_eq xs ys
         | _ -> assert_failure "handshake cstruct data parser broken")
 
@@ -1115,12 +1115,7 @@ let bad_handshake_cstruct_data =
     [25; 0; 0; 14; 0; 12] @ data ;
     [255; 0; 0; 14; 0; 12] @ data ;
 
-    [11; 0; 0; 3; 0; 0; 2] ;
-    [11; 0; 0; 4; 0; 0; 0] ;
     [11; 0; 0; 17; 0; 0; 15; 0; 0; 12] @ data ;
-    [11; 0; 0; 17; 0; 0; 14; 0; 0; 11] @ data ;
-    [11; 0; 0; 30; 0; 0; 30; 0; 0; 12] @ data @ [0; 0; 12] @ data ;
-    [11; 0; 0; 32; 0; 0; 29; 0; 0; 12] @ data @ [0; 0; 11] @ data
   ]
 
 let bad_handshake_cstruct_data_parser xs _ =
@@ -1133,6 +1128,31 @@ let bad_handshake_cstruct_data_tests =
   List.mapi
     (fun i f -> "Parse bad handshake " ^ string_of_int i >:: bad_handshake_cstruct_data_parser f)
     bad_handshake_cstruct_data
+
+let bad_certificate_cstruct_data =
+  let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
+  [ [11; 0; 0; 3; 0; 0; 2] ;
+    [11; 0; 0; 4; 0; 0; 0; 0] ;
+    [11; 0; 0; 18; 0; 0; 15; 0; 0; 11] @ data ;
+    [11; 0; 0; 18; 0; 0; 14; 0; 0; 11] @ data ;
+    [11; 0; 0; 33; 0; 0; 29; 0; 0; 12] @ data @ [0; 0; 12] @ data ;
+    [11; 0; 0; 33; 0; 0; 31; 0; 0; 12] @ data @ [0; 0; 12] @ data ;
+    [11; 0; 0; 33; 0; 0; 30; 0; 0; 11] @ data @ [0; 0; 12] @ data
+  ]
+
+let bad_certificate_cstruct_data_parser xs _ =
+  let buf = list_to_cstruct xs in
+  Reader.(match parse_handshake buf with
+          | Ok (Core.Certificate cs) ->
+             (match Reader.parse_certificates cs with
+              | Ok _ -> assert_failure "bad certificate parser won"
+              | Error _ -> ())
+          | _ -> assert_failure "should've been a certificate")
+
+let bad_certificate_cstruct_data_tests =
+  List.mapi
+    (fun i f -> "Parse bad certificate " ^ string_of_int i >:: bad_certificate_cstruct_data_parser f)
+    bad_certificate_cstruct_data
 
 let good_client_hellos =
   (* I rolled the dice 16 times *)
@@ -1588,6 +1608,6 @@ let reader_tests =
   good_digitally_signed_tests @ bad_digitally_signed_tests @
   good_handshake_hdr_tests @
   good_handshake_no_data_tests @ bad_handshake_no_data_tests @
-  good_handshake_cstruct_data_tests @ bad_handshake_cstruct_data_tests @
+  good_handshake_cstruct_data_tests @ bad_handshake_cstruct_data_tests @ bad_certificate_cstruct_data_tests @
   good_client_hellos_tests @ bad_client_hello_tests @
   good_server_hellos_tests @ bad_server_hellos_tests

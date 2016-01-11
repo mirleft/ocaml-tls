@@ -66,6 +66,11 @@ let assemble_certificate c =
 let assemble_certificates cs =
   assemble_list Three assemble_certificate cs
 
+let assemble_certificates_1_3 context certs =
+  let l = create 1 in
+  set_uint8 l 0 (len context) ;
+  l <+> context <+> assemble_certificates certs
+
 let assemble_compression_method m =
   let buf = create 1 in
   set_uint8 buf 0 (compression_method_to_int m);
@@ -279,7 +284,7 @@ let assemble_handshake hs =
     match hs with
     | ClientHello ch -> (assemble_client_hello ch, CLIENT_HELLO)
     | ServerHello sh -> (assemble_server_hello sh, SERVER_HELLO)
-    | Certificate cs -> (assemble_certificates cs, CERTIFICATE)
+    | Certificate cs -> (cs, CERTIFICATE)
     | CertificateRequest cr -> (cr, CERTIFICATE_REQUEST)
     | CertificateVerify c -> (c, CERTIFICATE_VERIFY)
     | ServerKeyExchange kex -> (kex, SERVER_KEY_EXCHANGE)

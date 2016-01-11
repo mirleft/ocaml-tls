@@ -229,7 +229,8 @@ let answer_client_hello_common state reneg ch raw =
     match session.own_certificate with
     | []    -> []
     | certs ->
-       let cert = Certificate (List.map X509.Encoding.cs_of_cert certs) in
+       let cs = List.map X509.Encoding.cs_of_cert certs in
+       let cert = Certificate (Writer.assemble_certificates cs) in
        (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ; *)
        [ Writer.assemble_handshake cert ]
 
@@ -446,9 +447,13 @@ let handle_handshake ss hs buf =
        | AwaitClientHello, ClientHello ch ->
           answer_client_hello hs ch buf
        | AwaitClientCertificate_RSA (session, log), Certificate cs ->
-          answer_client_certificate_RSA hs session cs buf log
+          (match Reader.parse_certificates cs with
+           | Ok cs -> answer_client_certificate_RSA hs session cs buf log
+           | Error re -> fail (`Fatal (`ReaderError re)))
        | AwaitClientCertificate_DHE_RSA (session, dh_sent, log), Certificate cs ->
-          answer_client_certificate_DHE_RSA hs session dh_sent cs buf log
+          (match Reader.parse_certificates cs with
+           | Ok cs -> answer_client_certificate_DHE_RSA hs session dh_sent cs buf log
+           | Error re -> fail (`Fatal (`ReaderError re)))
        | AwaitClientKeyExchange_RSA (session, log), ClientKeyExchange kex ->
           answer_client_key_exchange_RSA hs session kex buf log
        | AwaitClientKeyExchange_DHE_RSA (session, dh_sent, log), ClientKeyExchange kex ->

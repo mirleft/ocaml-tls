@@ -254,7 +254,8 @@ let answer_server_hello_done state session sigalgs kex premaster raw log =
 
   ( match session.client_auth, session.own_private_key with
     | true, Some p ->
-       let cert = Certificate (List.map X509.Encoding.cs_of_cert session.own_certificate) in
+       let cs = List.map X509.Encoding.cs_of_cert session.own_certificate in
+       let cert = Certificate (Writer.assemble_certificates cs) in
        let ccert = Writer.assemble_handshake cert in
        let to_sign = log @ [ raw ; ccert ; ckex ] in
        let data = Cs.appends to_sign in
@@ -267,7 +268,7 @@ let answer_server_hello_done state session sigalgs kex premaster raw log =
         [ ccert ; ckex ; ccert_verify ],
         to_sign, Some ccert_verify)
     | true, None ->
-       let cert = Certificate [] in
+       let cert = Certificate (Cstruct.create 0) in
        let ccert = Writer.assemble_handshake cert in
        return ([cert ; kex], [ccert ; ckex], log @ [ raw ; ccert ; ckex ], None)
     | false, _ ->
@@ -377,9 +378,13 @@ let handle_handshake cs hs buf =
        | AwaitServerHelloRenegotiate (session, ch, log), ServerHello sh ->
           answer_server_hello_renegotiate hs session ch sh buf log
        | AwaitCertificate_RSA (session, log), Certificate cs ->
-          answer_certificate_RSA hs session cs buf log
+          (match Reader.parse_certificates cs with
+           | Ok cs -> answer_certificate_RSA hs session cs buf log
+           | Error re -> fail (`Fatal (`ReaderError re)))
        | AwaitCertificate_DHE_RSA (session, log), Certificate cs ->
-          answer_certificate_DHE_RSA hs session cs buf log
+          (match Reader.parse_certificates cs with
+           | Ok cs -> answer_certificate_DHE_RSA hs session cs buf log
+           | Error re -> fail (`Fatal (`ReaderError re)))
        | AwaitServerKeyExchange_DHE_RSA (session, log), ServerKeyExchange kex ->
           answer_server_key_exchange_DHE_RSA hs session kex buf log
        | AwaitCertificateRequestOrServerHelloDone (session, kex, pms, log), CertificateRequest cr ->

@@ -262,16 +262,16 @@ let handshake_assembler_tests =
    ( ServerKeyExchange a_cs , [ 12 ] @ le @ a_l ) ;
    ( ServerKeyExchange (a_cs <+> a_cs) , [ 12 ] @ le2 @ a_l @ a_l ) ;
 
-   ( Certificate [] , [ 11; 0; 0; 3; 0; 0; 0 ] ) ;
-   ( Certificate [emp] , [ 11; 0; 0; 6; 0; 0; 3; 0; 0; 0 ] ) ;
-   ( Certificate [emp ; emp] , [ 11; 0; 0; 9; 0; 0; 6; 0; 0; 0; 0; 0; 0 ] ) ;
+   ( Certificate (Writer.assemble_certificates []) , [ 11; 0; 0; 3; 0; 0; 0 ] ) ;
+   ( Certificate (Writer.assemble_certificates[emp]) , [ 11; 0; 0; 6; 0; 0; 3; 0; 0; 0 ] ) ;
+   ( Certificate (Writer.assemble_certificates[emp ; emp]) , [ 11; 0; 0; 9; 0; 0; 6; 0; 0; 0; 0; 0; 0 ] ) ;
 
-   ( Certificate [a_cs] , [ 11; 0; 0; 22; 0; 0; 19 ] @ le @ a_l ) ;
-   ( Certificate [a_cs ; emp] , [ 11; 0; 0; 25; 0; 0; 22 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
-   ( Certificate [emp ; a_cs] , [ 11; 0; 0; 25; 0; 0; 22; 0; 0; 0] @ le @ a_l ) ;
-   ( Certificate [emp ; a_cs ; emp] , [ 11; 0; 0; 28; 0; 0; 25; 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ]) ;
-   ( Certificate [a_cs ; emp ; a_cs] , [ 11; 0; 0; 44; 0; 0; 41 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l ) ;
-   ( Certificate [a_cs ; emp ; a_cs ; emp] , [ 11; 0; 0; 47; 0; 0; 44 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
+   ( Certificate (Writer.assemble_certificates[a_cs]) , [ 11; 0; 0; 22; 0; 0; 19 ] @ le @ a_l ) ;
+   ( Certificate (Writer.assemble_certificates[a_cs ; emp]) , [ 11; 0; 0; 25; 0; 0; 22 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
+   ( Certificate (Writer.assemble_certificates[emp ; a_cs]) , [ 11; 0; 0; 25; 0; 0; 22; 0; 0; 0] @ le @ a_l ) ;
+   ( Certificate (Writer.assemble_certificates[emp ; a_cs ; emp]) , [ 11; 0; 0; 28; 0; 0; 25; 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ]) ;
+   ( Certificate (Writer.assemble_certificates[a_cs ; emp ; a_cs]) , [ 11; 0; 0; 44; 0; 0; 41 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l ) ;
+   ( Certificate (Writer.assemble_certificates[a_cs ; emp ; a_cs ; emp]) , [ 11; 0; 0; 47; 0; 0; 44 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
 
    ( ClientHello { client_version = Supported TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
