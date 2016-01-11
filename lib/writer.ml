@@ -239,18 +239,23 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
 
 let assemble_server_hello (sh : server_hello) : Cstruct.t =
   let v = assemble_protocol_version sh.server_version in
-  let sid =
-    let buf = create 1 in
-    match sh.sessionid with
-     | None   -> set_uint8 buf 0 0; buf
-     | Some s -> set_uint8 buf 0 (len s); buf <+> s
-  in
-  let cs = assemble_ciphersuite sh.ciphersuite in
-  (* useless compression method *)
-  let cm = assemble_compression_method NULL in
-  let extensions = assemble_extensions assemble_server_extension sh.extensions in
-  let bbuf = v <+> sh.server_random <+> sid <+> cs <+> cm in
-  bbuf <+> extensions
+  match sh.server_version with
+  | TLS_1_3 ->
+     let cs = assemble_ciphersuite sh.ciphersuite in
+     let extensions = assemble_extensions assemble_server_extension sh.extensions in
+     v <+> sh.server_random <+> cs <+> extensions
+  | TLS_1_0 | TLS_1_1 | TLS_1_2 ->
+     let sid =
+       let buf = create 1 in
+       match sh.sessionid with
+       | None   -> set_uint8 buf 0 0; buf
+       | Some s -> set_uint8 buf 0 (len s); buf <+> s
+     in
+     let cs = assemble_ciphersuite sh.ciphersuite in
+     (* useless compression method *)
+     let cm = assemble_compression_method NULL in
+     let extensions = assemble_extensions assemble_server_extension sh.extensions in
+     v <+> sh.server_random <+> sid <+> cs <+> cm <+> extensions
 
 let assemble_dh_parameters p =
   let plen, glen, yslen = (len p.dh_p, len p.dh_g, len p.dh_Ys) in
