@@ -135,13 +135,48 @@ let assemble_certificate_request_1_2 ts sigalgs cas =
     assemble_signature_algorithms sigalgs <+>
     assemble_cas cas
 
-let assemble_named_group nc =
+let assemble_cert_extension (oid, values) =
+  let olen = create 1 in
+  set_uint8 olen 0 (len oid) ;
+  let vlen = create 2 in
+  BE.set_uint16 vlen 0 (len values) ;
+  olen <+> oid <+> vlen <+> values
+
+let assemble_certificate_request_1_3 con sigalgs cas exts =
+  let clen = create 1 in
+  set_uint8 clen 0 (len con) ;
+  let sa = assemble_signature_algorithms sigalgs in
+  let ca = assemble_cas cas in
+  let ext = assemble_list Two assemble_cert_extension exts in
+  clen <+> con <+> sa <+> ca <+> ext
+
+let assemble_named_group g =
   let buf = create 2 in
-  BE.set_uint16 buf 0 (named_group_to_int nc);
+  BE.set_uint16 buf 0 (named_group_to_int g);
   buf
+
+let assemble_group g =
+  assemble_named_group (Ciphersuite.group_to_any_group g)
 
 let assemble_supported_groups groups =
   assemble_list Two assemble_named_group groups
+
+let assemble_keyshare_entry (ng, ks) =
+  let g = assemble_named_group ng in
+  let kslen = ks_len ng in
+  let l = create (2 + kslen) in
+  let ksl = len ks in
+  BE.set_uint16 l 0 (kslen + ksl) ;
+  (match kslen with
+   | 1 -> set_uint8 l 2 ksl
+   | 2 -> BE.set_uint16 l 2 ksl
+   | _ -> assert false) ;
+  g <+> l <+> ks
+
+let assemble_psk psk =
+  let c = create 2 in
+  BE.set_uint16 c 0 (len psk) ;
+  c <+> psk
 
 let assemble_ec_point_format f =
   let buf = create 1 in
@@ -150,6 +185,16 @@ let assemble_ec_point_format f =
 
 let assemble_ec_point_formats formats =
   assemble_list One assemble_ec_point_format formats
+
+let assemble_early_data (edi : early_data) =
+  let clen = create 2 in
+  BE.set_uint16 clen 0 (len edi.configuration_id) ;
+  let cs = assemble_ciphersuite edi.ciphersuite in
+  let extl = create 2 in
+  BE.set_uint16 extl 0 (len edi.extensions) ;
+  let conlen = create 1 in
+  set_uint8 conlen 0 (len edi.context) ;
+  clen <+> edi.configuration_id <+> cs <+> extl <+> edi.extensions <+> conlen <+> edi.context
 
 let assemble_extension = function
   | `ECPointFormats formats ->
@@ -171,6 +216,12 @@ let assemble_client_extension e =
        memset buf 0 ;
        (buf, PADDING)
     | `SignatureAlgorithms s -> (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
+    | `KeyShare ks ->
+       (assemble_list Two assemble_keyshare_entry ks, KEY_SHARE)
+    | `PreSharedKey ids ->
+       (assemble_list Two assemble_psk ids, PRE_SHARED_KEY)
+    | `EarlyDataIndication edi ->
+       (assemble_early_data edi, EARLY_DATA)
     | x -> assemble_extension x
   in
   let buf = create 4 in
@@ -181,6 +232,11 @@ let assemble_client_extension e =
 let assemble_server_extension e =
   let pay, typ = match e with
     | `Hostname -> (create 0, SERVER_NAME)
+    | `KeyShare (g, ks) ->
+      let ng = Ciphersuite.group_to_any_group g in
+      (assemble_keyshare_entry (ng, ks), KEY_SHARE)
+    | `PreSharedKey psk -> (assemble_psk psk, PRE_SHARED_KEY)
+    | `EarlyDataIndication -> (create 0, EARLY_DATA)
     | x -> assemble_extension x
   in
   let buf = create 4 in
@@ -284,6 +340,22 @@ let assemble_client_key_exchange kex =
   blit kex 0 buf 2 len;
   buf
 
+let assemble_hello_retry_request hrr =
+  let v = assemble_protocol_version hrr.version in
+  let cs = assemble_ciphersuite hrr.ciphersuite in
+  let ng = assemble_group hrr.selected_group in
+  let exts = assemble_extensions assemble_server_extension hrr.extensions in
+  v <+> cs <+> ng <+> exts
+
+let assemble_server_config sc =
+  let clen = create 2 in
+  BE.set_uint16 clen 0 (len sc.configuration_id) ;
+  let ng = Ciphersuite.group_to_any_group (fst sc.key_share) in
+  let ks = assemble_keyshare_entry (ng, snd sc.key_share) in
+  let edt = create 1 in
+  set_uint8 edt 0 (early_data_type_to_int sc.early_data_type) ;
+  clen <+> sc.configuration_id <+> ks <+> edt <+> sc.extensions
+
 let assemble_handshake hs =
   let (payload, payload_type) =
     match hs with
@@ -297,6 +369,13 @@ let assemble_handshake hs =
     | ServerHelloDone -> (create 0, SERVER_HELLO_DONE)
     | HelloRequest -> (create 0, HELLO_REQUEST)
     | Finished fs -> (fs, FINISHED)
+    | SessionTicket st -> (st, SESSION_TICKET)
+    | EncryptedExtensions ee ->
+       let cs = assemble_extensions assemble_server_extension ee in
+       (cs, ENCRYPTED_EXTENSIONS)
+    | HelloRetryRequest hrr -> (assemble_hello_retry_request hrr, HELLO_RETRY_REQUEST)
+    | ServerConfiguration sc -> (assemble_server_config sc, SERVER_CONFIGURATION)
+    | KeyUpdate -> (create 0, KEY_UPDATE)
   in
   let pay_len = len payload in
   let buf = create 4 in

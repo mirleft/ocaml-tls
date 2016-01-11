@@ -19,6 +19,8 @@ val assemble_certificate_request : Packet.client_certificate_type list -> Cstruc
 
 val assemble_certificate_request_1_2 : Packet.client_certificate_type list -> (Nocrypto.Hash.hash * Packet.signature_algorithm_type) list -> Cstruct.t list -> Cstruct.t
 
+val assemble_certificate_request_1_3 : Cstruct.t -> (Nocrypto.Hash.hash * Packet.signature_algorithm_type) list -> Cstruct.t list -> (Cstruct.t * Cstruct.t) list -> Cstruct.t
+
 val assemble_certificates : Cstruct.t list -> Cstruct.t
 
 val assemble_certificates_1_3 : Cstruct.t -> Cstruct.t list -> Cstruct.t
