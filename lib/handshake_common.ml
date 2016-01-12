@@ -147,7 +147,7 @@ let server_hello_valid (sh : server_hello) =
 
 let (<+>) = Cs.(<+>)
 
-let signature version data sig_algs hashes private_key =
+let signature version ?context_string data sig_algs hashes private_key =
   match version with
   | TLS_1_0 | TLS_1_1 ->
     let data = Hash.MD5.digest data <+> Hash.SHA1.digest data in
@@ -169,6 +169,35 @@ let signature version data sig_algs hashes private_key =
     let cs = X509.Encoding.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
     let sign = Rsa.PKCS1.sig_encode private_key cs in
     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
+  | TLS_1_3 ->
+     (* RSA-PSS is used *)
+     (* input is prepended by 64 * 0x20 (to avoid cross-version attacks) *)
+     (* input for signature now contains also a context string *)
+     let prefix = Cstruct.create 64 in
+     Cstruct.memset prefix 0x20 ;
+     let ctx =
+       let stop = Cstruct.create 1 in
+       Cstruct.memset stop 0 ; (* trailing 0 byte *)
+       match context_string with
+       | None -> stop
+       | Some x -> Cstruct.of_string x <+> stop
+     in
+     ( match sig_algs with
+       | None              -> return `SHA256
+       | Some client_algos ->
+          let client_hashes =
+            List.(map fst @@ filter (fun (_, x) -> x = Packet.RSAPSS) client_algos)
+          in
+          match first_match client_hashes hashes with
+          | None      -> fail (`Error (`NoConfiguredHash client_hashes))
+          | Some hash -> return hash ) >|= fun hash_algo ->
+     (* XXX should not be MD5/SHA1/SHA224 *)
+     let module H = (val (Hash.module_of hash_algo)) in
+     let module PSS = Rsa.PSS(H) in
+     let data = H.digest data in (* XXX See #407 https://github.com/tlswg/tls13-spec/issues/407 *)
+     let to_sign = H.digest (prefix <+> ctx <+> data) in
+     let signature = PSS.sign ~key:private_key to_sign in
+     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSAPSS signature
 
 let peer_rsa_key = function
   | None -> fail (`Fatal `NoCertificateReceived)
@@ -177,22 +206,29 @@ let peer_rsa_key = function
     | `RSA key -> return key
     | _        -> fail (`Fatal `NotRSACertificate)
 
-let verify_digitally_signed version hashes data signature_data certificate =
-  let signature_verifier version data =
-    let open Reader in
-    match version with
-    | TLS_1_0 | TLS_1_1 ->
-      ( match parse_digitally_signed data with
-        | Ok signature ->
-          let compare_hashes should data =
-            let computed_sig = Hash.MD5.digest data <+> Hash.SHA1.digest data in
-            guard (Cs.equal should computed_sig) (`Fatal `RSASignatureMismatch)
-          in
-          return (signature, compare_hashes)
-        | Error re -> fail (`Fatal (`ReaderError re)) )
-    | TLS_1_2 ->
-      ( match parse_digitally_signed_1_2 data with
-        | Ok (hash_algo, Packet.RSA, signature) ->
+let verify_digitally_signed version ?context_string hashes data signature_data certificate =
+  peer_rsa_key certificate >>= fun pubkey ->
+
+  let decode_signature raw_signature =
+    match Rsa.PKCS1.sig_decode pubkey raw_signature with
+    | Some signature -> return signature
+    | None -> fail (`Fatal `RSASignatureVerificationFailed)
+  in
+
+  match version with
+  | TLS_1_0 | TLS_1_1 ->
+    ( match Reader.parse_digitally_signed data with
+      | Ok signature ->
+         let compare_hashes should data =
+           let computed_sig = Hash.MD5.digest data <+> Hash.SHA1.digest data in
+           guard (Cs.equal should computed_sig) (`Fatal `RSASignatureMismatch)
+         in
+         decode_signature signature >>= fun raw ->
+         compare_hashes raw signature_data
+      | Error re -> fail (`Fatal (`ReaderError re)) )
+  | TLS_1_2 ->
+     ( match Reader.parse_digitally_signed_1_2 data with
+       | Ok (hash_algo, Packet.RSA, signature) ->
           guard (List.mem hash_algo hashes) (`Error (`NoConfiguredHash hashes)) >>= fun () ->
           let compare_hashes should data =
             match X509.Encoding.pkcs1_digest_info_of_cstruct should with
@@ -200,20 +236,32 @@ let verify_digitally_signed version hashes data signature_data certificate =
               guard (Crypto.digest_eq hash_algo ~target data) (`Fatal `RSASignatureMismatch)
             | _ -> fail (`Fatal `HashAlgorithmMismatch)
           in
-          return (signature, compare_hashes)
+          decode_signature signature >>= fun raw ->
+          compare_hashes raw signature_data
         | Ok _ -> fail (`Fatal `NotRSASignature)
         | Error re -> fail (`Fatal (`ReaderError re)) )
-
-  and signature pubkey raw_signature =
-    match Rsa.PKCS1.sig_decode pubkey raw_signature with
-    | Some signature -> return signature
-    | None -> fail (`Fatal `RSASignatureVerificationFailed)
-  in
-
-  signature_verifier version data >>= fun (raw_signature, verifier) ->
-  peer_rsa_key certificate >>= fun pubkey ->
-  signature pubkey raw_signature >>= fun signature ->
-  verifier signature signature_data
+    | TLS_1_3 ->
+       ( match Reader.parse_digitally_signed_1_2 data with
+         | Ok (hash_algo, Packet.RSAPSS, signature) ->
+            (* hash_algo should not be MD5/SHA1/SHA224 *)
+            let module H = (val (Hash.module_of hash_algo)) in
+            let module PSS = Rsa.PSS(H) in
+            let data =
+              let pre = Cstruct.create 64 in
+              Cstruct.memset pre 0x20 ;
+              let con =
+                let stop = Cstruct.create 1 in
+                Cstruct.memset stop 0 ;
+                match context_string with
+                | None -> stop
+                | Some x -> Cstruct.of_string x <+> stop
+              in
+              let data = H.digest signature_data in
+              H.digest (pre <+> con <+> data)
+            in
+            guard (PSS.verify ~key:pubkey ~signature data) (`Fatal `RSASignatureMismatch)
+         | Ok _ -> fail (`Fatal `NotRSASignature)
+         | Error re -> fail (`Fatal (`ReaderError re)))
 
 let validate_chain authenticator certificates hostname =
   let authenticate authenticator host certificates =
