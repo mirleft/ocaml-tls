@@ -144,20 +144,12 @@ type record = Packet.content_type * Cstruct.t with sexp
 (* response returned by a handler *)
 type rec_resp = [
   | `Change_enc of crypto_state (* either instruction to change the encryptor to the given one *)
-  | `Record     of record (* or a record which should be sent out *)
-]
-
-(* response for the decryption part *)
-type dec_resp = [
   | `Change_dec of crypto_state (* either change the decryptor to the given one *)
-  | `Pass (* do not change anything *)
+  | `Record     of record (* or a record which should be sent out *)
 ]
 
 (* return type of handshake handlers *)
 type handshake_return = handshake_state * rec_resp list
-
-(* return type of change cipher spec handlers *)
-type ccs_return = handshake_state * rec_resp list * dec_resp
 
 (* Top level state, encapsulating the entire session. *)
 type state = {
