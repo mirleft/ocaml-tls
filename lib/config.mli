@@ -29,6 +29,7 @@ type config = private {
   own_certificates  : own_cert ; (** optional default certificate chain and other certificate chains *)
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
+  groups            : group list ;
 }
 
 val config_of_sexp : Sexplib.Sexp.t -> config
@@ -58,6 +59,7 @@ val client :
   ?reneg          : bool ->
   ?certificates   : own_cert ->
   ?cached_session : epoch_data ->
+  ?groups         : Dh.group list ->
   unit -> client
 
 (** [server ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator] is [server] configuration with the given parameters *)
@@ -70,6 +72,7 @@ val server :
   ?certificates  : own_cert ->
   ?authenticator : X509.Authenticator.a ->
   ?session_cache : session_cache ->
+  ?groups        : Dh.group list ->
   unit -> server
 
 (** [peer client name] is [client] with [name] as [peer_name] *)
@@ -91,6 +94,8 @@ ffdhe2048 group from
 {{:https://www.ietf.org/id/draft-ietf-tls-negotiated-ff-dhe-10.txt}Negotiated
 Finite Field Diffie-Hellman Ephemeral Parameters for TLS}) *)
 val dh_group : Dh.group
+
+val supported_groups : Dh.group list
 
 (** [min_rsa_key_size] is minimal RSA modulus key size in bits (currently 1024) *)
 val min_rsa_key_size : int
