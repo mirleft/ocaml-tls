@@ -9,6 +9,7 @@ PKG cstruct
 PKG sexplib
 PKG nocrypto
 PKG x509
+PKG hkdf
 
 EXT sexplib
 EXT lwt
