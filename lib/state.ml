@@ -125,9 +125,26 @@ type client_handshake_state =
   | Established (* handshake successfully completed *)
   [@@deriving sexp]
 
+type client13_handshake_state =
+  | AwaitServerEncryptedExtensions13 (* required, but may be empty *)
+  | AwaitServerCertificateVerify13 (* optional *)
+  | AwaitServerFinished13
+  | Established13
+  [@@deriving sexp]
+
+type server13_handshake_state =
+  | AwaitClientHello13 (* on helloretryrequest *)
+  | AwaitClientCertificate13 (* optional *)
+  | AwaitClientCertificateVerify13 (* optional *)
+  | AwaitClientFinished13 of session_data * Cstruct.t * crypto_context option
+  | Established13
+  [@@deriving sexp]
+
 type handshake_machina_state =
   | Client of client_handshake_state
   | Server of server_handshake_state
+  | Client13 of client13_handshake_state
+  | Server13 of server13_handshake_state
   [@@deriving sexp]
 
 (* state during a handshake, used in the handlers *)
@@ -207,6 +224,8 @@ type fatal = [
   | `InvalidCertificateUsage
   | `InvalidCertificateExtendedUsage
   | `InvalidSession
+  | `HelloRetryRequest
+  | `InvalidMessage
 ] [@@deriving sexp]
 
 type failure = [

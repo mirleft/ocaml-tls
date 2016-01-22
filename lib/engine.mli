@@ -95,6 +95,8 @@ type fatal = [
   | `InvalidCertificateUsage
   | `InvalidCertificateExtendedUsage
   | `InvalidSession
+  | `HelloRetryRequest
+  | `InvalidMessage
 ]
 
 (** type of failures *)

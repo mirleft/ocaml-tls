@@ -58,6 +58,8 @@ let alert_of_fatal = function
   | `NoCiphersuite _ -> Packet.HANDSHAKE_FAILURE
   | `InvalidClientHello -> Packet.HANDSHAKE_FAILURE
   | `InappropriateFallback -> Packet.INAPPROPRIATE_FALLBACK
+  | `InvalidMessage -> Packet.HANDSHAKE_FAILURE
+  | `HelloRetryRequest -> Packet.HANDSHAKE_FAILURE (* XXX *)
 
 let alert_of_failure = function
   | `Error x -> alert_of_error x
@@ -119,7 +121,7 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
             let nonce = Crypto.aead_nonce c.nonce ctx.sequence in
             let buf = Crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce buf in
             (Some { ctx with sequence = Int64.succ ctx.sequence }, Packet.APPLICATION_DATA, buf)
-         | _ -> invalid_arg "only AEAD supported in TLS 1.3")
+         | _ -> assert false)
      | _ ->
         let pseudo_hdr =
           let seq = ctx.sequence
@@ -262,7 +264,7 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
           | Some x ->
              unpad x >|= fun (data, ty) ->
              (Some { ctx with sequence = Int64.succ ctx.sequence }, data, ty))
-      | _ -> invalid_arg "tls 1.3 requires aead!")
+      | _ -> fail (`Fatal `InvalidMessage))
   | Some ctx, _ ->
       dec ctx >>= fun (st', msg) ->
       let ctx' = { cipher_st = st' ; sequence = Int64.succ ctx.sequence } in
@@ -335,8 +337,8 @@ let hs_can_handle_appdata s =
      - but ok if server sent a HelloRequest and can get first some appdata then ClientHello
      --> or converse: client sent ClientHello, waiting for ServerHello *)
   match s.machina with
-  | Server Established | Server AwaitClientHelloRenegotiate
-  | Client Established | Client AwaitServerHelloRenegotiate _ -> true
+  | Server Established | Server AwaitClientHelloRenegotiate | Server13 Established13
+  | Client Established | Client AwaitServerHelloRenegotiate _ | Client13 Established13 -> true
   | _ -> false
 
 let rec separate_handshakes buf =

@@ -130,8 +130,8 @@ let client_hello_valid ch =
   &&
 
   ( match ch.client_version with
-    | Supported TLS_1_2 | TLS_1_X _                  -> true
-    | SSL_3 | Supported TLS_1_0 | Supported TLS_1_1  ->
+    | Supported TLS_1_2 | Supported TLS_1_3 | TLS_1_X _ -> true
+    | SSL_3 | Supported TLS_1_0 | Supported TLS_1_1 ->
         let has_sig_algo =
           List.exists (function `SignatureAlgorithms _ -> true | _ -> false)
             ch.extensions in
