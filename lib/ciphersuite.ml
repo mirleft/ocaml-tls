@@ -37,6 +37,13 @@ type aead_cipher =
   | AES_256_GCM
   [@@deriving sexp]
 
+(* this is K_LEN, max 8 N_MIN from RFC5116 -- as defined in TLS1.3 spec *)
+let kn = function
+  | AES_128_GCM -> (16, 12)
+  | AES_256_GCM -> (32, 12)
+  | AES_128_CCM -> (16, 12)
+  | AES_256_CCM -> (32, 12)
+
 type payload_protection =
   | Stream of stream_cipher * Nocrypto.Hash.hash
   | Block of block_cipher * Nocrypto.Hash.hash
@@ -63,7 +70,22 @@ let key_length iv pp =
      | None -> (keylen, 0, maclen)
      | Some () -> (keylen, ivlen, maclen)
 
+type ciphersuite13 = [
+  | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+  | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+  | `TLS_DHE_RSA_WITH_AES_256_CCM
+  | `TLS_DHE_RSA_WITH_AES_128_CCM
+] [@@deriving sexp]
+
+let hash_of = function
+  | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 -> `SHA256
+  | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> `SHA384
+  | `TLS_DHE_RSA_WITH_AES_256_CCM -> `SHA256
+  | `TLS_DHE_RSA_WITH_AES_128_CCM -> `SHA256
+  | _ -> assert false
+
 type ciphersuite = [
+  ciphersuite13
   | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
   | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
   | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA
@@ -78,10 +100,6 @@ type ciphersuite = [
   | `TLS_RSA_WITH_RC4_128_MD5
   | `TLS_RSA_WITH_AES_128_GCM_SHA256
   | `TLS_RSA_WITH_AES_256_GCM_SHA384
-  | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
-  | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
-  | `TLS_DHE_RSA_WITH_AES_256_CCM
-  | `TLS_DHE_RSA_WITH_AES_128_CCM
   | `TLS_RSA_WITH_AES_256_CCM
   | `TLS_RSA_WITH_AES_128_CCM
 ]  [@@deriving sexp]
@@ -133,6 +151,13 @@ let ciphersuite_to_any_ciphersuite = function
 
 let ciphersuite_to_string x= Packet.any_ciphersuite_to_string (ciphersuite_to_any_ciphersuite x)
 
+let privprot13 = function
+  | `TLS_DHE_RSA_WITH_AES_128_CCM        -> AES_128_CCM
+  | `TLS_DHE_RSA_WITH_AES_256_CCM        -> AES_256_CCM
+  | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 -> AES_128_GCM
+  | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> AES_256_GCM
+  | _ -> assert false
+
 (** [get_kex_privprot ciphersuite] is [(kex, privacy_protection)] where it dissects the [ciphersuite] into a pair containing the key exchange method [kex], and its [privacy_protection] *)
 let get_kex_privprot = function
   | `TLS_RSA_WITH_RC4_128_MD5            -> (RSA    , Stream (RC4_128, `MD5))
@@ -178,6 +203,13 @@ let ciphersuite_tls12_only = function
   | `TLS_DHE_RSA_WITH_AES_256_CCM
   | `TLS_RSA_WITH_AES_128_GCM_SHA256
   | `TLS_RSA_WITH_AES_256_GCM_SHA384
+  | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+  | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> true
+  | _                                    -> false
+
+let ciphersuite_tls13 = function
+  | `TLS_DHE_RSA_WITH_AES_128_CCM
+  | `TLS_DHE_RSA_WITH_AES_256_CCM
   | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
   | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> true
   | _                                    -> false

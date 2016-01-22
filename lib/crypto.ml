@@ -39,6 +39,18 @@ module Ciphers = struct
         K_CBC ( (module CBC : Cipher_block.S.CBC with type key = CBC.key),
                 CBC.of_secret )
 
+  let get_aead ~secret ~nonce =
+    let open Cipher_block.AES in
+    function
+    | AES_128_CCM | AES_256_CCM ->
+       let cipher = (module CCM : Cipher_block.S.CCM with type key = CCM.key) in
+       let cipher_secret = CCM.of_secret ~maclen:16 secret in
+       State.(AEAD { cipher = CCM cipher ; cipher_secret ; nonce })
+    | AES_128_GCM | AES_256_GCM ->
+       let cipher = (module GCM : Cipher_block.S.GCM with type key = GCM.key) in
+       let cipher_secret = GCM.of_secret secret in
+       State.(AEAD { cipher = GCM cipher ; cipher_secret ; nonce })
+
   let get_cipher ~secret ~hmac_secret ~iv_mode ~nonce = function
     | Stream (RC4_128, hmac) ->
         let open Cipher_stream in
@@ -53,17 +65,7 @@ module Ciphers = struct
             State.(CBC { cipher ; cipher_secret ; iv_mode ; hmac ; hmac_secret })
        )
 
-    | AEAD cipher ->
-       let open Cipher_block.AES in
-       match cipher with
-       | AES_128_CCM | AES_256_CCM ->
-         let cipher = (module CCM : Cipher_block.S.CCM with type key = CCM.key) in
-         let cipher_secret = CCM.of_secret ~maclen:16 secret in
-         State.(AEAD { cipher = CCM cipher ; cipher_secret ; nonce })
-       | AES_128_GCM | AES_256_GCM ->
-         let cipher = (module GCM : Cipher_block.S.GCM with type key = GCM.key) in
-         let cipher_secret = GCM.of_secret secret in
-         State.(AEAD { cipher = GCM cipher ; cipher_secret ; nonce })
+    | AEAD cipher -> get_aead ~secret ~nonce cipher
 end
 
 let digest_eq fn ~target cs =
