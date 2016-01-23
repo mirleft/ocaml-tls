@@ -58,6 +58,7 @@ type alert_type =
   | INAPPROPRIATE_FALLBACK          [@id 86]  (*draft-ietf-tls-downgrade-scsv*)
   | USER_CANCELED                   [@id 90]  (*RFC5246*)
   | NO_RENEGOTIATION                [@id 100] (*RFC5246*)
+  | MISSING_EXTENSION               [@id 109] (*TLS 1.3*)
   | UNSUPPORTED_EXTENSION           [@id 110] (*RFC5246*)
   | CERTIFICATE_UNOBTAINABLE        [@id 111] (*RFC6066*)
   | UNRECOGNIZED_NAME               [@id 112] (*RFC6066*)
@@ -185,7 +186,7 @@ type signature_algorithm_type =
 
 [%%cenum
 type hash_algorithm =
-  | NULL      [@id 0]
+  | NULL      [@id 0] (* actually useful for EDDSA where no hashing is needed upfront! *)
   | MD5       [@id 1]
   | SHA       [@id 2]
   | SHA224    [@id 3]

@@ -7,6 +7,7 @@ open State
 
 type state = State.state
 
+type client_hello_errors = State.client_hello_errors
 type error = State.error
 type fatal = State.fatal
 type failure = State.failure [@@deriving sexp]
@@ -26,6 +27,7 @@ let alert_of_error = function
 
 let alert_of_fatal = function
   | `NoSecureRenegotiation -> Packet.HANDSHAKE_FAILURE
+  | `NoSupportedGroup -> Packet.HANDSHAKE_FAILURE
   | `MACUnderflow -> Packet.BAD_RECORD_MAC
   | `MACMismatch -> Packet.BAD_RECORD_MAC
   | `RecordOverflow _ -> Packet.RECORD_OVERFLOW
@@ -55,11 +57,12 @@ let alert_of_fatal = function
   | `RSASignatureVerificationFailed -> Packet.HANDSHAKE_FAILURE
   | `KeyTooSmall -> Packet.INSUFFICIENT_SECURITY
   | `BadCertificateChain -> Packet.BAD_CERTIFICATE
-  | `NoCiphersuite _ -> Packet.HANDSHAKE_FAILURE
-  | `InvalidClientHello -> Packet.HANDSHAKE_FAILURE
+  | `InvalidClientHello `NoSignatureAlgorithmsExtension
+  | `InvalidClientHello `NoKeyShareExtension
+  | `InvalidClientHello `NoSupportedGroupExtension -> Packet.MISSING_EXTENSION
+  | `InvalidClientHello _ -> Packet.HANDSHAKE_FAILURE
   | `InappropriateFallback -> Packet.INAPPROPRIATE_FALLBACK
   | `InvalidMessage -> Packet.HANDSHAKE_FAILURE
-  | `HelloRetryRequest -> Packet.HANDSHAKE_FAILURE (* XXX *)
 
 let alert_of_failure = function
   | `Error x -> alert_of_error x
@@ -351,10 +354,13 @@ let rec separate_handshakes buf =
 let handle_change_cipher_spec = function
   | Client cs -> Handshake_client.handle_change_cipher_spec cs
   | Server ss -> Handshake_server.handle_change_cipher_spec ss
+  | Client13 _ | Server13 _ -> (fun _ _ -> fail (`Fatal `InvalidMessage))
 
 and handle_handshake = function
   | Client cs -> Handshake_client.handle_handshake cs
   | Server ss -> Handshake_server.handle_handshake ss
+  | Client13 cs -> invalid_arg "no TLS 1.3 support yet"
+  | Server13 ss -> Handshake_server13.handle_handshake ss
 
 let non_empty cs =
   if Cstruct.len cs = 0 then None else Some cs
@@ -379,8 +385,8 @@ let handle_packet hs buf = function
       fail (`Fatal `CannotHandleApplicationDataYet)
 
   | Packet.CHANGE_CIPHER_SPEC ->
-      handle_change_cipher_spec hs.machina hs buf
-      >|= fun (hs, items) -> (hs, items, None, `No_err)
+     handle_change_cipher_spec hs.machina hs buf
+     >|= fun (hs, items) -> (hs, items, None, `No_err)
 
   | Packet.HANDSHAKE ->
      separate_handshakes (hs.hs_fragment <+> buf)
@@ -596,8 +602,8 @@ let epoch state =
   | session :: _ ->
      let own_random , peer_random =
        match hs.machina with
-       | Client _ -> session.client_random , session.server_random
-       | Server _ -> session.server_random , session.client_random
+       | Client _ | Client13 _ -> session.client_random , session.server_random
+       | Server _ | Server13 _ -> session.server_random , session.client_random
      in
      `Epoch {
         protocol_version       = hs.protocol_version ;

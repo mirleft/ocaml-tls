@@ -133,10 +133,10 @@ type client13_handshake_state =
   [@@deriving sexp]
 
 type server13_handshake_state =
-  | AwaitClientHello13 (* on helloretryrequest *)
+  | AwaitClientHello13 of client_hello * hello_retry_request * Cstruct.t
   | AwaitClientCertificate13 (* optional *)
   | AwaitClientCertificateVerify13 (* optional *)
-  | AwaitClientFinished13 of session_data * Cstruct.t * crypto_context option
+  | AwaitClientFinished13 of session_data * crypto_context option * Cstruct.t
   | Established13
   [@@deriving sexp]
 
@@ -190,9 +190,24 @@ type error = [
   | `CouldntSelectCertificate
 ] [@@deriving sexp]
 
+type client_hello_errors = [
+  | `EmptyCiphersuites
+  | `NotSetCiphersuites of Packet.any_ciphersuite list
+  | `NoSupportedCiphersuite of Packet.any_ciphersuite list
+  | `NotSetExtension of client_extension list
+  | `HasSignatureAlgorithmsExtension
+  | `NoSignatureAlgorithmsExtension
+  | `NoGoodSignatureAlgorithms of (Hash.hash * Packet.signature_algorithm_type) list
+  | `NoKeyShareExtension
+  | `NoSupportedGroupExtension
+  | `NotSetSupportedGroup of Packet.named_group list
+  | `NotSetKeyShare of (Packet.named_group * Cstruct.t) list
+  | `NotSubsetKeyShareSupportedGroup of (Packet.named_group list * (Packet.named_group * Cstruct.t) list)
+] [@@deriving sexp]
+
 type fatal = [
   | `NoSecureRenegotiation
-  | `NoCiphersuite of Packet.any_ciphersuite list
+  | `NoSupportedGroup
   | `NoVersion of tls_any_version
   | `ReaderError of Reader.error
   | `NoCertificateReceived
@@ -215,7 +230,7 @@ type fatal = [
   | `HandshakeFragmentsNotEmpty
   | `InvalidDH
   | `InvalidRenegotiation
-  | `InvalidClientHello
+  | `InvalidClientHello of client_hello_errors
   | `InvalidServerHello
   | `InvalidRenegotiationVersion of tls_version
   | `InappropriateFallback
@@ -224,7 +239,6 @@ type fatal = [
   | `InvalidCertificateUsage
   | `InvalidCertificateExtendedUsage
   | `InvalidSession
-  | `HelloRetryRequest
   | `InvalidMessage
 ] [@@deriving sexp]
 

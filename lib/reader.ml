@@ -96,6 +96,7 @@ let validate_alert (lvl, typ) =
   | WARNING, PROTOCOL_VERSION -> raise_unknown "protocol_version must always be fatal"
   | WARNING, INSUFFICIENT_SECURITY -> raise_unknown "insufficient_security must always be fatal"
   | WARNING, INTERNAL_ERROR -> raise_unknown "internal_error must always be fatal"
+  | WARNING, MISSING_EXTENSION -> raise_unknown "missing_extension must always be fatal"
   | WARNING, UNSUPPORTED_EXTENSION -> raise_unknown "unsupported_extension must always be fatal"
 
   (* those are always warnings *)

@@ -99,9 +99,18 @@ let server_exts_subset_of_client sexts cexts =
     (extension_types to_server_ext_type sexts, extension_types to_client_ext_type cexts) in
   List_set.subset sexts' cexts'
 
-let client_hello_valid ch =
-  let open Ciphersuite in
+module Group = struct
+  type t = Packet.named_group
+  let compare = Pervasives.compare
+end
 
+module GroupSet = Set.Make(Group)
+
+(* Set.of_list appeared only in 4.02, for 4.01 compatibility *)
+let of_list xs = List.fold_right GroupSet.add xs GroupSet.empty
+
+let client_hello_valid (ch : client_hello) =
+  let open Ciphersuite in
   (* match ch.version with
     | TLS_1_0 ->
        if List.mem TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA ch.ciphersuites then
@@ -118,24 +127,68 @@ let client_hello_valid ch =
          return ()
        else
          fail HANDSHAKE_FAILURE *)
+  let sig_alg =
+    map_find
+      ~f:(function `SignatureAlgorithms sa -> Some sa | _ -> None)
+      ch.extensions
+  and key_share =
+    map_find
+      ~f:(function `KeyShare ks -> Some ks | _ -> None)
+      ch.extensions
+  and groups =
+    map_find
+      ~f:(function `SupportedGroups gs -> Some gs | _ -> None)
+      ch.extensions
+  in
 
-  not (empty ch.ciphersuites)
-  &&
-
-  (List_set.is_proper_set ch.ciphersuites)
-  &&
-
-  (* TODO: if ecc ciphersuite, require ellipticcurves and ecpointformats extensions! *)
-  List_set.is_proper_set (extension_types to_client_ext_type ch.extensions)
-  &&
-
-  ( match ch.client_version with
-    | Supported TLS_1_2 | Supported TLS_1_3 | TLS_1_X _ -> true
+  let version_good = function
+    | Supported TLS_1_2 | TLS_1_X _ -> `Ok
+    | Supported TLS_1_3 ->
+       ( let good_sig_alg =
+           List.exists
+             (function
+               | (`SHA256, Packet.RSAPSS)
+               | (`SHA384, Packet.RSAPSS)
+               | (`SHA512, Packet.RSAPSS) -> true
+               | _ -> false)
+         in
+         match sig_alg with
+         | None -> `Error `NoSignatureAlgorithmsExtension
+         | Some sig_alg when good_sig_alg sig_alg ->
+            ( match key_share, groups with
+              | None, _ -> `Error `NoKeyShareExtension
+              | _, None -> `Error `NoSupportedGroupExtension
+              | Some ks, Some gs ->
+                 match
+                   List_set.is_proper_set gs,
+                   List_set.is_proper_set (List.map fst ks),
+                   GroupSet.subset (of_list (List.map fst ks)) (of_list gs)
+                 with
+                 | true, true, true -> `Ok
+                 | false, _, _ -> `Error (`NotSetSupportedGroup gs)
+                 | _, false, _ -> `Error (`NotSetKeyShare ks)
+                 | _, _, false -> `Error (`NotSubsetKeyShareSupportedGroup (gs, ks)) )
+         | Some x -> `Error (`NoGoodSignatureAlgorithms x)
+       )
     | SSL_3 | Supported TLS_1_0 | Supported TLS_1_1 ->
-        let has_sig_algo =
-          List.exists (function `SignatureAlgorithms _ -> true | _ -> false)
-            ch.extensions in
-        not has_sig_algo )
+      Utils.option
+        `Ok
+        (fun _ -> `Error `HasSignatureAlgorithmsExtension)
+        sig_alg
+  in
+
+  match
+    not (empty ch.ciphersuites),
+    List_set.is_proper_set ch.ciphersuites,
+    first_match (filter_map ~f:any_ciphersuite_to_ciphersuite ch.ciphersuites) Config.Ciphers.supported,
+    List_set.is_proper_set (extension_types to_client_ext_type ch.extensions)
+  with
+  | true, true, Some _, true -> version_good ch.client_version
+  | false, _ , _, _ -> `Error `EmptyCiphersuites
+  | _, false, _, _ -> `Error (`NotSetCiphersuites ch.ciphersuites)
+  | _, _, None, _ -> `Error (`NoSupportedCiphersuite ch.ciphersuites)
+  | _, _, _, false -> `Error (`NotSetExtension ch.extensions)
+
 
 let server_hello_valid (sh : server_hello) =
   let open Ciphersuite in

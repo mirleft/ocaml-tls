@@ -28,7 +28,8 @@ Library "tls"
   InternalModules : Control, Crypto, Utils,
                     State, Handshake_common, Handshake_crypto,
                     Handshake_server, Handshake_client,
-                    Handshake_crypto13
+                    Handshake_crypto13,
+                    Handshake_server13
   Pack            : true
   BuildDepends    : cstruct, cstruct.ppx, ppx_sexp_conv, result, nocrypto, x509, hkdf
   XMETARequires   : cstruct, sexplib, result, nocrypto, x509, hkdf
