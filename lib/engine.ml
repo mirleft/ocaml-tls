@@ -535,7 +535,7 @@ let client config =
   let config = Config.of_client config in
   let state = new_state config `Client in
   let dch, version = Handshake_client.default_client_hello config in
-  let ciphers, extensions = match version with
+  let ciphers, extensions = match config.Config.protocol_versions with
       (* from RFC 5746 section 3.3:
    Both the SSLv3 and TLS 1.0/TLS 1.1 specifications require
    implementations to ignore data following the ClientHello (i.e.,
@@ -552,8 +552,9 @@ let client config =
    described in the following sections.  Because SSLv3 and TLS
    implementations reliably ignore unknown cipher suites, the SCSV may
    be safely sent to any server. *)
-    | TLS_1_0 -> ([Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
-    | TLS_1_1 | TLS_1_2 -> ([], [`SecureRenegotiation (Cstruct.create 0)])
+    | (_, TLS_1_0) -> ([Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
+    | (TLS_1_3, _) -> ([], [])
+    | _ -> ([], [`SecureRenegotiation (Cstruct.create 0)])
   in
 
   let client_hello =
