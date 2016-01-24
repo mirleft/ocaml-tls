@@ -123,9 +123,9 @@ let answer_client_key_exchange_DHE_RSA state session (group, secret) kex raw log
   | Some pms -> return (establish_master_secret state session pms raw log)
 
 let sig_algs (client_hello : client_hello) =
-  map_find client_hello.extensions ~f:(function
-      | `SignatureAlgorithms xs -> Some xs
-      | _                       -> None)
+  map_find
+    ~f:(function `SignatureAlgorithms xs -> Some xs | _ -> None)
+    client_hello.extensions
 
 let rec find_matching host certs =
   match certs with

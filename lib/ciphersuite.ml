@@ -232,3 +232,4 @@ let group_to_any_group =
    | x when x = ffdhe4096 -> Packet.FFDHE4096
    | x when x = ffdhe6144 -> Packet.FFDHE6144
    | x when x = ffdhe8192 -> Packet.FFDHE8192
+   | _ -> assert false

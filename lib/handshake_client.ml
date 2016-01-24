@@ -74,9 +74,8 @@ let answer_server_hello state (ch : client_hello) sh secrets raw log =
   in
 
   let cfg = state.config in
-  guard (server_hello_valid sh &&
-         server_exts_subset_of_client sh.extensions ch.extensions) (`Fatal `InvalidServerHello)
-  >>= fun () ->
+  guard (server_hello_valid sh) (`Fatal `InvalidServerHello) >>= fun () ->
+  guard (server_exts_subset_of_client sh.extensions ch.extensions) (`Fatal `InvalidServerHello) >>= fun () ->
   validate_version ch.client_version state.config.protocol_versions sh.server_version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuite >>= fun () ->
 
