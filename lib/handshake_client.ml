@@ -15,17 +15,34 @@ let default_client_hello config =
     | Some x -> [`Hostname x]
   in
   let version = max_protocol_version config.protocol_versions in
-  let signature_algos = match version with
-    | TLS_1_0 | TLS_1_1 -> []
+  let extensions, secrets = match version with
+    | TLS_1_0 | TLS_1_1 -> ([], [])
     | TLS_1_2 ->
        let supported = List.map (fun h -> (h, Packet.RSA)) config.hashes in
-       [`SignatureAlgorithms supported]
+       ([`SignatureAlgorithms supported], [])
+    | TLS_1_3 ->
+       let sig_alg =
+         List.fold_left
+           (fun acc h ->
+            (h, Packet.RSA) :: (h, Packet.RSAPSS) :: acc)
+           [] config.hashes
+       and groups =
+         List.map Ciphersuite.group_to_any_group config.groups
+       and keyshares, secrets =
+         (* XXX: we could for sure generate fewer Dh keys *)
+         let secrets, shares = List.split (List.map Dh.gen_key config.groups) in
+         (List.combine
+            (List.map Ciphersuite.group_to_any_group config.groups)
+            shares,
+          List.combine config.groups secrets)
+       in
+       ([`SignatureAlgorithms sig_alg ; `SupportedGroups groups ; `KeyShare keyshares ], secrets)
   in
   let ciphers =
     let cs = config.ciphers in
     match version with
     | TLS_1_0 | TLS_1_1 -> List.filter (o not Ciphersuite.ciphersuite_tls12_only) cs
-    | TLS_1_2           -> cs
+    | TLS_1_2 | TLS_1_3 -> cs
   and sessionid =
     match config.use_reneg, config.cached_session with
     | _, Some { session_id ; extended_ms ; _ } when extended_ms = true -> Some session_id
@@ -37,15 +54,15 @@ let default_client_hello config =
     client_random  = Rng.generate 32 ;
     sessionid      = sessionid ;
     ciphersuites   = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
-    extensions     = `ExtendedMasterSecret :: host @ signature_algos
+    extensions     = `ExtendedMasterSecret :: host @ extensions
   }
   in
-  (ch , version)
+  (ch, version, secrets)
 
 let validate_cipher suites suite =
   guard (List.mem suite suites) (`Error (`NoConfiguredCiphersuite [suite]))
 
-let answer_server_hello state (ch : client_hello) sh raw log =
+let answer_server_hello state (ch : client_hello) sh secrets raw log =
   let validate_version requested (lo, _) server_version =
     guard (version_ge requested server_version && server_version >= lo)
       (`Error (`NoConfiguredVersion server_version))
@@ -62,7 +79,6 @@ let answer_server_hello state (ch : client_hello) sh raw log =
   >>= fun () ->
   validate_version ch.client_version state.config.protocol_versions sh.server_version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuite >>= fun () ->
-  validate_reneg (get_secure_renegotiation sh.extensions) >|= fun () ->
 
   let epoch_matches (epoch : epoch_data) =
     epoch.ciphersuite = sh.ciphersuite &&
@@ -72,43 +88,48 @@ let answer_server_hello state (ch : client_hello) sh raw log =
              (List.mem `ExtendedMasterSecret sh.extensions && epoch.extended_ms))
   in
 
-  match state.config.cached_session with
-  | Some epoch when epoch_matches epoch ->
-    let session = session_of_epoch epoch in
-    let session = { session with
-                    client_random = ch.client_random ;
-                    server_random = sh.server_random ;
-                    client_version = ch.client_version ;
-                    client_auth = List.length epoch.own_certificate > 0 ;
-                  }
-    in
-    let client_ctx, server_ctx =
-      Handshake_crypto.initialise_crypto_ctx sh.server_version session
-    in
-    let machina = AwaitServerChangeCipherSpecResume (session, client_ctx, server_ctx, log @ [raw]) in
-    ({ state with protocol_version = sh.server_version ; machina = Client machina }, [])
-  | _ ->
-    let machina =
-      let cipher = sh.ciphersuite in
-      let session_id = match sh.sessionid with None -> Cstruct.create 0 | Some x -> x in
-      let extended_ms =
-        List.mem `ExtendedMasterSecret ch.extensions &&
-          List.mem `ExtendedMasterSecret sh.extensions
-      in
-      let session = { empty_session with
-                      client_random    = ch.client_random ;
-                      client_version   = ch.client_version ;
-                      server_random    = sh.server_random ;
-                      ciphersuite      = cipher ;
-                      session_id ;
-                      extended_ms ;
-                    }
-      in
-      Ciphersuite.(match ciphersuite_kex cipher with
-                   | RSA     -> AwaitCertificate_RSA (session, log @ [raw])
-                   | DHE_RSA -> AwaitCertificate_DHE_RSA (session, log @ [raw]))
-    in
-    ({ state with protocol_version = sh.server_version ; machina = Client machina }, [])
+  let state = { state with protocol_version = sh.server_version } in
+  match sh.server_version with
+  | TLS_1_3 -> Handshake_client13.answer_server_hello state ch sh secrets raw (Cs.appends log)
+  | TLS_1_0 | TLS_1_1 | TLS_1_2 ->
+    validate_reneg (get_secure_renegotiation sh.extensions) >|= fun () ->
+    match state.config.cached_session with
+    | Some epoch when epoch_matches epoch ->
+       let session = session_of_epoch epoch in
+       let session = { session with
+                       client_random = ch.client_random ;
+                       server_random = sh.server_random ;
+                       client_version = ch.client_version ;
+                       client_auth = List.length epoch.own_certificate > 0 ;
+                     }
+       in
+       let client_ctx, server_ctx =
+         Handshake_crypto.initialise_crypto_ctx sh.server_version session
+       in
+       let machina = AwaitServerChangeCipherSpecResume (session, client_ctx, server_ctx, log @ [raw]) in
+       ({ state with machina = Client machina }, [])
+    | _ ->
+       let machina =
+         let cipher = sh.ciphersuite in
+         let session_id = match sh.sessionid with None -> Cstruct.create 0 | Some x -> x in
+         let extended_ms =
+           List.mem `ExtendedMasterSecret ch.extensions &&
+             List.mem `ExtendedMasterSecret sh.extensions
+         in
+         let session = { empty_session with
+                         client_random    = ch.client_random ;
+                         client_version   = ch.client_version ;
+                         server_random    = sh.server_random ;
+                         ciphersuite      = cipher ;
+                         session_id ;
+                         extended_ms ;
+                       }
+         in
+         Ciphersuite.(match ciphersuite_kex cipher with
+                      | RSA     -> AwaitCertificate_RSA (session, log @ [raw])
+                      | DHE_RSA -> AwaitCertificate_DHE_RSA (session, log @ [raw]))
+       in
+       ({ state with machina = Client machina }, [])
 
 let answer_server_hello_renegotiate state session (ch : client_hello) sh raw log =
   let validate_reneg reneg data =
@@ -332,7 +353,7 @@ let answer_server_finished_resume state session fin raw log =
 
 let answer_hello_request state =
   let produce_client_hello session config exts =
-     let dch, _ = default_client_hello config in
+     let dch, _, _ = default_client_hello config in
      let ch = { dch with extensions = dch.extensions @ exts ; sessionid = None } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
      let machina = AwaitServerHelloRenegotiate (session, ch, [raw]) in
@@ -373,8 +394,10 @@ let handle_handshake cs hs buf =
   | Ok handshake ->
     (* Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake ; *)
      ( match cs, handshake with
-       | AwaitServerHello (ch, log), ServerHello sh ->
-          answer_server_hello hs ch sh buf log
+       | AwaitServerHello (ch, secrets, log), ServerHello sh ->
+          answer_server_hello hs ch sh secrets buf log
+       | AwaitServerHello (ch, secrets, log), HelloRetryRequest hrr ->
+          Handshake_client13.answer_hello_retry_request hs ch hrr secrets buf log
        | AwaitServerHelloRenegotiate (session, ch, log), ServerHello sh ->
           answer_server_hello_renegotiate hs session ch sh buf log
        | AwaitCertificate_RSA (session, log), Certificate cs ->

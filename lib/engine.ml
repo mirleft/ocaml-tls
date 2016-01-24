@@ -359,7 +359,7 @@ let handle_change_cipher_spec = function
 and handle_handshake = function
   | Client cs -> Handshake_client.handle_handshake cs
   | Server ss -> Handshake_server.handle_handshake ss
-  | Client13 cs -> invalid_arg "no TLS 1.3 support yet"
+  | Client13 cs -> Handshake_client13.handle_handshake cs
   | Server13 ss -> Handshake_server13.handle_handshake ss
 
 let non_empty cs =
@@ -534,7 +534,7 @@ let reneg st =
 let client config =
   let config = Config.of_client config in
   let state = new_state config `Client in
-  let dch, version = Handshake_client.default_client_hello config in
+  let dch, version, secrets = Handshake_client.default_client_hello config in
   let ciphers, extensions = match config.Config.protocol_versions with
       (* from RFC 5746 section 3.3:
    Both the SSLv3 and TLS 1.0/TLS 1.1 specifications require
@@ -565,7 +565,7 @@ let client config =
 
   let ch = ClientHello client_hello in
   let raw = Writer.assemble_handshake ch in
-  let machina = AwaitServerHello (client_hello, [raw]) in
+  let machina = AwaitServerHello (client_hello, secrets, [raw]) in
 
     (* from RFC5246, appendix E.1
    TLS clients that wish to negotiate with older servers MAY send any
