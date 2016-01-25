@@ -45,6 +45,7 @@ let hs_ctx cs log es =
   let hash = Ciphersuite.hash_of cs in
   let xes = Hkdf.extract ~hash es in
   trace "xes" xes ;
+  let log = Hash.digest hash log in
   ctx cs "handshake key expansion, " xes log
 
 let traffic_secret hash master_secret log =
@@ -61,6 +62,7 @@ let master_secret cs es ss hlog =
   let hash = Ciphersuite.hash_of cs in
   let module H = (val (Nocrypto.Hash.module_of hash)) in
   let module HK = Hkdf.Make(H) in
+  let hlog = H.digest hlog in
   let xss = HK.extract ss
   and xes = HK.extract es
   in

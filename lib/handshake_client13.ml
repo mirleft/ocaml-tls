@@ -25,15 +25,9 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
     | None -> fail (`Fatal `InvalidDH)
     | Some x -> return x ) >>= fun shared ->
 
-  let hslog =
-    let hash = Ciphersuite.hash_of sh.ciphersuite in
-    Nocrypto.Hash.digest hash
-  in
-
-  let hraw = log <+> raw in
-  let log = hslog hraw in
+  let log = log <+> raw in
   let server_ctx, client_ctx = hs_ctx sh.ciphersuite log shared in
-  let st = AwaitServerEncryptedExtensions13 (session, sh.extensions, shared, hraw) in
+  let st = AwaitServerEncryptedExtensions13 (session, sh.extensions, shared, log) in
   return ({ state with machina = Client13 st },
           [ `Change_enc (Some client_ctx) ;
             `Change_dec (Some server_ctx) ])
@@ -67,19 +61,14 @@ let answer_certificate_verify (state : handshake_state) (session : session_data)
   return ({ state with machina = Client13 st }, [])
 
 let answer_finished state (session : session_data) exts shared fin log raw =
-  let ch log =
-    let hash = Ciphersuite.hash_of session.ciphersuite in
-    Nocrypto.Hash.digest hash log
-  in
-  let hraw = ch log in
-  let master_secret = master_secret session.ciphersuite shared shared hraw in
+  let master_secret = master_secret session.ciphersuite shared shared log in
 
   let cfin = finished session.ciphersuite master_secret true log in
   guard (Cs.equal fin cfin) (`Fatal `BadFinished) >>= fun () ->
 
-  let hraw = ch (log <+> raw) in
-  let server_app_ctx, client_app_ctx = app_ctx session.ciphersuite hraw master_secret in
-  let myfin = finished session.ciphersuite master_secret false (log <+> raw) in
+  let log = log <+> raw in
+  let server_app_ctx, client_app_ctx = app_ctx session.ciphersuite log master_secret in
+  let myfin = finished session.ciphersuite master_secret false log in
   let mfin = Writer.assemble_handshake (Finished myfin) in
   let sd = { session with master_secret } in
   let machina = Client13 Established13 in

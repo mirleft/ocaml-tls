@@ -386,7 +386,7 @@ let answer_client_hello state (ch : client_hello) raw =
      (match resume ch state with
       | None -> answer_client_hello_common state None ch raw
       | Some session -> answer_resumption session state)
-   | TLS_1_3 -> Handshake_server13.answer_client_hello state ch raw
+   | TLS_1_3 -> Handshake_server13.answer_client_hello state ch raw (Cstruct.create 0)
 
 let answer_client_hello_reneg state (ch : client_hello) raw =
   (* ensure reneg allowed and supplied *)

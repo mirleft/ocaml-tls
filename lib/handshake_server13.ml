@@ -6,7 +6,7 @@ open Handshake_common
 
 open Handshake_crypto13
 
-let answer_client_hello state ch buf =
+let answer_client_hello state ch raw log =
   (match client_hello_valid ch with
    | `Error e -> fail (`Fatal (`InvalidClientHello e))
    | `Ok -> return () ) >>= fun () ->
@@ -43,6 +43,7 @@ let answer_client_hello state ch buf =
        return (filter_map ~f ks) ) >>= fun keyshares ->
 
   match first_match (List.map fst keyshares) state.config.Config.groups with
+  | None when Cstruct.len log > 0 -> fail (`Fatal `InvalidMessage) (* already sent a hello retry request, not doing this game again *)
   | None ->
      ( match first_match groups state.config.Config.groups with
        | None -> fail (`Fatal `NoSupportedGroup)
@@ -53,7 +54,7 @@ let answer_client_hello state ch buf =
                       extensions = [] }
           in
           let hrr_raw = Writer.assemble_handshake (HelloRetryRequest hrr) in
-          let log = buf <+> hrr_raw in
+          let log = raw <+> hrr_raw in
           let st = AwaitClientHello13 (ch, hrr, log) in
           return ({ state with machina = Server13 st },
                   [ `Record (Packet.HANDSHAKE, hrr_raw) ]) )
@@ -77,13 +78,7 @@ let answer_client_hello state ch buf =
      let sh_raw = Writer.assemble_handshake (ServerHello sh) in
 
 
-     let hslog =
-       let hash = Ciphersuite.hash_of cipher in
-       Nocrypto.Hash.digest hash
-     in
-
-     let hs_raw = buf <+> sh_raw in
-     let log = hslog hs_raw in
+     let log = log <+> raw <+> sh_raw in
      let server_ctx, client_ctx = hs_ctx cipher log shared in
 
      (* ONLY if client sent a `Hostname *)
@@ -102,29 +97,24 @@ let answer_client_hello state ch buf =
      let cert = Certificate (Writer.assemble_certificates_1_3 (Cstruct.create 0) certs) in
      let cert_raw = Writer.assemble_handshake cert in
 
-     let hs_raw = Cstruct.concat [ hs_raw ; ee_raw ; cert_raw ] in
-     signature TLS_1_3 ~context_string:"TLS 1.3, server CertificateVerify" hs_raw (Some sigalgs) state.config.Config.hashes pr >>= fun signed ->
+     let log = Cstruct.concat [ log ; ee_raw ; cert_raw ] in
+     signature TLS_1_3 ~context_string:"TLS 1.3, server CertificateVerify" log (Some sigalgs) state.config.Config.hashes pr >>= fun signed ->
      let cv = CertificateVerify signed in
      let cv_raw = Writer.assemble_handshake cv in
 
-     let hs_raw = hs_raw <+> cv_raw in
-     let log = hslog hs_raw in
-
+     let log = log <+> cv_raw in
      let master_secret = master_secret cipher shared shared log in
 
-     let f_data = finished cipher master_secret true hs_raw in
+     let f_data = finished cipher master_secret true log in
      let fin = Finished f_data in
      let fin_raw = Writer.assemble_handshake fin in
 
-     (* we could as well already compute the traffic keys! *)
-     let hs_raw = hs_raw <+> fin_raw in
-     let log = hslog hs_raw in
-
+     let log = log <+> fin_raw in
      let server_app_ctx, client_app_ctx = app_ctx cipher log master_secret in
 
      let session = { empty_session with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = cipher ; own_private_key = Some pr ; own_certificate =  crt ; master_secret = master_secret } in
      (* new state: one of AwaitClientCertificate13 , AwaitClientFinished13 *)
-     let st = AwaitClientFinished13 (session, Some client_app_ctx, hs_raw) in
+     let st = AwaitClientFinished13 (session, Some client_app_ctx, log) in
      return ({ state with machina = Server13 st },
              [ `Record (Packet.HANDSHAKE, sh_raw) ;
                `Change_enc (Some server_ctx) ;
@@ -142,13 +132,13 @@ let answer_client_finished state fin (sd : session_data) dec_ctx log _buf =
   return ({ state with machina = Server13 Established13 ; session = sd :: state.session },
    cd)
 
-let answer_client_hello_retry state oldch ch hrr log buf =
+let answer_client_hello_retry state oldch ch hrr log raw =
   (* ch = oldch + keyshare for hrr.selected_group *)
   guard (oldch.client_version = ch.client_version) (`Fatal `InvalidMessage) >>= fun () ->
   guard (oldch.ciphersuites = ch.ciphersuites) (`Fatal `InvalidMessage) >>= fun () ->
   (* XXX: properly check that extensions are the same, plus a keyshare for the selected_group *)
   guard (List.length oldch.extensions = List.length ch.extensions) (`Fatal `InvalidMessage) >>= fun () ->
-  answer_client_hello state ch buf (* XXX: TLS draft: restart hash? https://github.com/tlswg/tls13-spec/issues/104 *)
+  answer_client_hello state ch raw log (* XXX: TLS draft: restart hash? https://github.com/tlswg/tls13-spec/issues/104 *)
 
 let handle_handshake cs hs buf =
   let open Reader in
