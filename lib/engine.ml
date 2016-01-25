@@ -329,6 +329,7 @@ module Alert = struct
         let err = match a_type with
           | CLOSE_NOTIFY -> `Eof
           | _            -> `Alert a_type in
+        Tracing.sexpf ~tag:"alert-out" ~f:sexp_of_tls_alert (Packet.WARNING, Packet.CLOSE_NOTIFY) ;
         return (err, [`Record close_notify])
     | Error re -> fail (`Fatal (`ReaderError re))
 end
@@ -417,6 +418,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   >>= fun () ->
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec, ty) ->
+  Tracing.sexpf ~tag:"frame-in" ~f:sexp_of_record (ty, dec) ;
   handle_packet state.handshake dec ty
   >|= fun (handshake, items, data, err) ->
   let (encryptor, decryptor, encs) =
@@ -424,15 +426,14 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
       | `Change_enc enc' -> (enc', dec, es)
       | `Change_dec dec' -> (enc, dec', es)
       | `Record r       ->
+         Tracing.sexpf ~tag:"frame-out" ~f:sexp_of_record r ;
           let (enc', encbuf) = encrypt_records enc handshake.protocol_version [r] in
           (enc', dec, es @ encbuf))
     (state.encryptor, dec_st, [])
     items
   in
+  List.iter (Tracing.sexpf ~tag:"record-out" ~f:sexp_of_record) encs ;
   let state' = { state with handshake ; encryptor ; decryptor } in
-
-  Tracing.sexpfs ~tag:"record-out" ~f:sexp_of_record encs ;
-
   (state', encs, data, err)
 
 let maybe_app a b = match a, b with
@@ -451,7 +452,9 @@ let assemble_records (version : tls_version) rs =
 (* main entry point *)
 let handle_tls state buf =
 
-  (* Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ; *)
+  Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ;
+
+  Tracing.cs ~tag:"wire-in" buf ;
 
   let rec handle_records st = function
     | []    -> return (st, [], None, `No_err)
@@ -470,7 +473,11 @@ let handle_tls state buf =
       let version = state'.handshake.protocol_version in
       let resp    = match out_records with
                     | [] -> None
-                    | _  -> Some (assemble_records version out_records) in
+                    | _  ->
+                      let out = assemble_records version out_records in
+                      Tracing.cs ~tag:"wire-out" out ;
+                      Some out
+      in
       ({ state' with fragment }, resp, data, err)
   with
   | Ok (state, resp, data, err) ->
@@ -498,9 +505,12 @@ let handle_tls state buf =
 
 let send_records (st : state) records =
   let version = st.handshake.protocol_version in
+  List.iter (Tracing.sexpf ~tag:"frame-out" ~f:sexp_of_record) records ;
   let (encryptor, encs) =
     encrypt_records st.encryptor version records in
+  List.iter (Tracing.sexpf ~tag:"record-out" ~f:sexp_of_record) encs ;
   let data = assemble_records version encs in
+  Tracing.cs ~tag:"wire-out" data ;
   ({ st with encryptor }, data)
 
 (* utility for user *)
@@ -587,7 +597,7 @@ let client config =
   } in
   let state = { state with handshake } in
 
-  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ; *)
+  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
   Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
   send_records state [(Packet.HANDSHAKE, raw)]
 

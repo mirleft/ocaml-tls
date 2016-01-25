@@ -140,6 +140,7 @@ let answer_certificate_verify (state : handshake_state) (session : session_data)
 
 let answer_finished state (session : session_data) exts es ss fin raw log =
   let master_secret = master_secret session.ciphersuite es ss log in
+  Tracing.cs ~tag:"master-secret" master_secret ;
   let resumption_secret =
     if Ciphersuite.ciphersuite_psk session.ciphersuite then
       session.resumption_secret

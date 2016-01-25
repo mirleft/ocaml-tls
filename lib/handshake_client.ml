@@ -106,6 +106,9 @@ let answer_server_hello state (ch : client_hello) sh secrets raw log =
              (List.mem `ExtendedMasterSecret sh.extensions && epoch.extended_ms))
   in
 
+  Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version sh.server_version ;
+  trace_cipher sh.ciphersuite ;
+
   let state = { state with protocol_version = sh.server_version } in
   match sh.server_version with
   | TLS_1_3 -> Handshake_client13.answer_server_hello state ch sh secrets raw (Cs.appends log)
@@ -333,10 +336,10 @@ let answer_server_hello_done state session sigalgs kex premaster raw log =
   let machina = AwaitServerChangeCipherSpec (session, server_ctx, checksum, ps)
   and ccst, ccs = change_cipher_spec in
 
-  (* List.iter (Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake) msgs; *)
+  List.iter (Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake) msgs;
   Tracing.cs ~tag:"change-cipher-spec-out" ccs ;
-  (* Tracing.cs ~tag:"master-secret" master_secret; *)
-  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin; *)
+  Tracing.cs ~tag:"master-secret" master_secret;
+  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin;
 
   ({ state with machina = Client machina },
    List.map (fun x -> `Record (Packet.HANDSHAKE, x)) raw_msgs @
@@ -366,6 +369,7 @@ let answer_server_finished_resume state session fin raw log =
   in
   let finished = Finished client in
   let raw_finished = Writer.assemble_handshake finished in
+  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake finished ;
   ({ state with machina = Client machina ; session = session :: state.session },
    [`Record (Packet.HANDSHAKE, raw_finished)])
 
@@ -375,7 +379,7 @@ let answer_hello_request state =
      let ch = { dch with extensions = dch.extensions @ exts ; sessionid = None } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
      let machina = AwaitServerHelloRenegotiate (session, ch, [raw]) in
-     (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ; *)
+     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ;
      ({ state with machina = Client machina }, [`Record (Packet.HANDSHAKE, raw)])
   in
 
@@ -386,6 +390,7 @@ let answer_hello_request state =
   | true , _      -> fail (`Fatal `InvalidSession) (* I'm pretty sure this can be an assert false *)
   | false, _      ->
     let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
+    Tracing.sexpf ~tag:"alert-out" ~f:sexp_of_tls_alert (Packet.WARNING, Packet.NO_RENEGOTIATION) ;
     return (state, [`Record (Packet.ALERT, no_reneg)])
 
 let handle_change_cipher_spec cs state packet =
@@ -410,7 +415,7 @@ let handle_handshake cs hs buf =
   let open Reader in
   match parse_handshake buf with
   | Ok handshake ->
-    (* Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake ; *)
+     Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake ;
      ( match cs, handshake with
        | AwaitServerHello (ch, secrets, log), ServerHello sh ->
           answer_server_hello hs ch sh secrets buf log

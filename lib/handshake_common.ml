@@ -7,6 +7,13 @@ open Nocrypto
 let downgrade13 = Uncommon.Cs.of_hex "44 4F 57 4E 47 52 44 01"
 let downgrade12 = Uncommon.Cs.of_hex "44 4F 57 4E 47 52 44 00"
 
+let trace_cipher cipher =
+  let kex, papr = Ciphersuite.get_kex_privprot cipher in
+  let sexp = lazy (Sexplib.Sexp.(List Ciphersuite.(
+      [ sexp_of_key_exchange_algorithm kex ;
+        sexp_of_payload_protection papr ])))
+  in
+  Tracing.sexp ~tag:"cipher" sexp
 
 let empty = function [] -> true | _ -> false
 
