@@ -440,8 +440,12 @@ let maybe_app a b = match a, b with
   | None  , Some y -> Some y
   | None  , None   -> None
 
-let assemble_records (version : tls_version) : record list -> Cstruct.t =
-  o Cs.appends @@ List.map @@ Writer.assemble_hdr version
+let assemble_records (version : tls_version) rs =
+  let version = match version with
+    | TLS_1_3 -> TLS_1_0
+    | x -> x
+  in
+  Cs.appends (List.map (Writer.assemble_hdr version) rs)
 
 (* main entry point *)
 let handle_tls state buf =
