@@ -79,6 +79,14 @@ let answer_server_hello state (ch : client_hello) sh secrets raw log =
   validate_version ch.client_version state.config.protocol_versions sh.server_version >>= fun () ->
   validate_cipher cfg.ciphers sh.ciphersuite >>= fun () ->
 
+  (let piece = Cstruct.sub sh.server_random 0 8 in
+   match any_version_to_version ch.client_version, sh.server_version with
+   | Some TLS_1_3, x when x = TLS_1_2 || x = TLS_1_1 || x = TLS_1_0 ->
+     guard (not (Cs.equal downgrade13 piece)) (`Fatal `InvalidServerHello)
+   | Some TLS_1_2, x when x = TLS_1_1 || x = TLS_1_0 ->
+     guard (not (Cs.equal downgrade12 piece)) (`Fatal `InvalidServerHello)
+   | _ -> return ()) >>= fun () ->
+
   let epoch_matches (epoch : epoch_data) =
     epoch.ciphersuite = sh.ciphersuite &&
       epoch.protocol_version = sh.server_version &&

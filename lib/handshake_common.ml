@@ -4,6 +4,10 @@ open State
 
 open Nocrypto
 
+let downgrade13 = Uncommon.Cs.of_hex "44 4F 57 4E 47 52 44 01"
+let downgrade12 = Uncommon.Cs.of_hex "44 4F 57 4E 47 52 44 00"
+
+
 let empty = function [] -> true | _ -> false
 
 let change_cipher_spec =

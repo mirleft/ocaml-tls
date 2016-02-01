@@ -166,10 +166,24 @@ let agreed_cipher cert requested =
   in
   List.filter type_usage_matches requested
 
-let server_hello session version reneg =
+let server_hello config client_version session version reneg =
   (* RFC 4366: server shall reply with an empty hostname extension *)
   let host = option [] (fun _ -> [`Hostname]) session.own_name
-  and server_random = Rng.generate 32
+  and server_random =
+    let prefix =
+      match
+        any_version_to_version client_version,
+        snd config.protocol_versions
+      with
+      | Some x, TLS_1_3 when x = TLS_1_2 || x = TLS_1_1 || x = TLS_1_0 -> downgrade13
+      | Some x, TLS_1_2 when x = TLS_1_1 || x = TLS_1_0 -> downgrade12
+      | _ -> Cstruct.create 0
+    in
+    let rst =
+      let left = 32 - Cstruct.len prefix in
+      Rng.generate left
+    in
+    prefix <+> rst
   and secren = match reneg with
     | None            -> `SecureRenegotiation (Cstruct.create 0)
     | Some (cvd, svd) -> `SecureRenegotiation (cvd <+> svd)
@@ -269,7 +283,7 @@ let answer_client_hello_common state reneg ch raw =
     (hs, dh_state) in
 
   process_client_hello ch state.config >>= fun session ->
-  let sh, session = server_hello session state.protocol_version reneg in
+  let sh, session = server_hello state.config ch.client_version session state.protocol_version reneg in
   let certificates = server_cert session
   and cert_req, session = cert_request state.protocol_version state.config session
   and hello_done = Writer.assemble_handshake ServerHelloDone
@@ -341,7 +355,7 @@ let answer_client_hello state (ch : client_hello) raw =
 
   and answer_resumption session state =
     let version = state.protocol_version in
-    let sh, session = server_hello session version None in
+    let sh, session = server_hello state.config ch.client_version session version None in
     (* we really do not want to have any leftover handshake fragments *)
     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
     let client_ctx, server_ctx =
