@@ -200,7 +200,7 @@ let answer_client_hello state ch raw log =
          `Record (Packet.HANDSHAKE, fin_raw) ;
          `Change_enc (Some server_app_ctx) ] )
 
-let answer_client_finished state fin (sd : session_data) dec_ctx log buf =
+let answer_client_finished state fin (sd : session_data) dec_ctx raw log =
   let data = finished sd.ciphersuite sd.master_secret false log in
   guard (Cs.equal data fin) (`Fatal `BadFinished) >>= fun () ->
   guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
@@ -223,7 +223,7 @@ let answer_client_finished state fin (sd : session_data) dec_ctx log buf =
      session = sd :: state.session },
    ret)
 
-let answer_client_hello_retry state oldch ch hrr log raw =
+let answer_client_hello_retry state oldch ch hrr raw log =
   (* ch = oldch + keyshare for hrr.selected_group (6.3.1.3) *)
   guard (oldch.client_version = ch.client_version) (`Fatal `InvalidMessage) >>= fun () ->
   guard (oldch.ciphersuites = ch.ciphersuites) (`Fatal `InvalidMessage) >>= fun () ->
@@ -238,10 +238,10 @@ let handle_handshake cs hs buf =
   | Ok handshake ->
      (match cs, handshake with
       | AwaitClientHello13 (oldch, hrr, log), ClientHello ch ->
-         answer_client_hello_retry hs oldch ch hrr log buf
+         answer_client_hello_retry hs oldch ch hrr buf log
       | AwaitClientCertificate13, Certificate _ -> assert false (* process C, move to CV *)
       | AwaitClientCertificateVerify13, CertificateVerify _ -> assert false (* validate CV *)
       | AwaitClientFinished13 (sd, cc, log), Finished x ->
-         answer_client_finished hs x sd cc log buf
+         answer_client_finished hs x sd cc buf log
       | _, hs -> fail (`Fatal (`UnexpectedHandshake hs)) )
   | Error re -> fail (`Fatal (`ReaderError re))

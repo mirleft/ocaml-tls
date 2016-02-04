@@ -415,7 +415,7 @@ let handle_handshake cs hs buf =
        | AwaitServerHello (ch, secrets, log), ServerHello sh ->
           answer_server_hello hs ch sh secrets buf log
        | AwaitServerHello (ch, secrets, log), HelloRetryRequest hrr ->
-          Handshake_client13.answer_hello_retry_request hs ch hrr secrets buf log
+          Handshake_client13.answer_hello_retry_request hs ch hrr secrets buf (Cs.appends log)
        | AwaitServerHelloRenegotiate (session, ch, log), ServerHello sh ->
           answer_server_hello_renegotiate hs session ch sh buf log
        | AwaitCertificate_RSA (session, log), Certificate cs ->
