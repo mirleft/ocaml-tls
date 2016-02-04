@@ -121,7 +121,7 @@ let answer_client_hello state ch raw log =
 
 
     match first_match (List.map fst keyshares) state.config.Config.groups with
-    | None when Cstruct.len log > 0 -> fail (`Fatal `InvalidMessage) (* already sent a hello retry request, not doing this game again *)
+    | None when not (Cs.null log) -> fail (`Fatal `InvalidMessage) (* already sent a hello retry request, not doing this game again *)
     | None ->
       ( match first_match groups state.config.Config.groups with
         | None -> fail (`Fatal `NoSupportedGroup)

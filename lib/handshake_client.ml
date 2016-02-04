@@ -56,8 +56,8 @@ let default_client_hello config =
     | TLS_1_3 -> cs (* for 1.3 only, we should filter for Ciphersuite.ciphersuite_tls13 *)
   and sessionid =
     match config.use_reneg, config.cached_session with
-    | _, Some { session_id ; extended_ms ; _ } when extended_ms = true && Cstruct.len session_id > 0 -> Some session_id
-    | false, Some { session_id ; _ } when Cstruct.len session_id > 0 -> Some session_id
+    | _, Some { session_id ; extended_ms ; _ } when extended_ms && not (Cs.null session_id) -> Some session_id
+    | false, Some { session_id ; _ } when not (Cs.null session_id) -> Some session_id
     | _ -> None
   in
   let ch = {
