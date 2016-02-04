@@ -46,6 +46,11 @@ module Ciphers = struct
    * slice and groom those lists. *)
 
   let psk = [
+    `TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 ;
+    `TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 ;
+    `TLS_DHE_PSK_WITH_AES_128_CCM ;
+    `TLS_DHE_PSK_WITH_AES_256_CCM ;
+
     `TLS_PSK_WITH_AES_256_GCM_SHA384 ;
     `TLS_PSK_WITH_AES_128_GCM_SHA256 ;
     `TLS_PSK_WITH_AES_128_CCM ;

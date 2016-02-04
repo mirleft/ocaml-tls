@@ -129,11 +129,10 @@ type client_handshake_state =
 
 type client13_handshake_state =
   | AwaitServerHello13 of client_hello * (Dh.group * Dh.secret) list * Cstruct.t
-  | AwaitServerEncryptedExtensions13 of session_data * server_extension list * Cstruct.t * Cstruct.t
-  | AwaitServerEncryptedExtensionsMaybeAuth13 of session_data * server_extension list * Cstruct.t * Cstruct.t
-  | AwaitServerCertificateVerify13 of session_data * server_extension list * Cstruct.t * Cstruct.t
-  | AwaitServerFinishedMaybeAuth13 of session_data * server_extension list * Cstruct.t * Cstruct.t
-  | AwaitServerFinished13 of session_data * server_extension list * Cstruct.t * Cstruct.t
+  | AwaitServerEncryptedExtensions13 of session_data * server_extension list * Cstruct.t * Cstruct.t * Cstruct.t
+  | AwaitServerCertificateVerify13 of session_data * server_extension list * Cstruct.t * Cstruct.t * Cstruct.t
+  | AwaitServerFinishedMaybeAuth13 of session_data * server_extension list * Cstruct.t * Cstruct.t * Cstruct.t
+  | AwaitServerFinished13 of session_data * server_extension list * Cstruct.t * Cstruct.t * Cstruct.t
   | Established13
   [@@deriving sexp]
 

@@ -11,52 +11,84 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
   (* assume SH valid, version 1.3, extensions are subset *)
   guard (List.mem sh.ciphersuite state.config.ciphers) (`Fatal `InvalidServerHello) >>= fun () ->
   guard (Ciphersuite.ciphersuite_tls13 sh.ciphersuite) (`Fatal `InvalidServerHello) >>= fun () ->
+  guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
+
+  let keyshare = map_find ~f:(function `KeyShare ks -> Some ks | _ -> None) sh.extensions
+  and pre_shared_key = map_find ~f:(function `PreSharedKey psk -> Some psk | _ -> None) sh.extensions
+  in
 
   match Ciphersuite.kex13 sh.ciphersuite with
+  | Ciphersuite.DHE_PSK ->
+    ( match keyshare, pre_shared_key, state.config.Config.cached_session with
+      | Some (group, keyshare), Some psk, Some e ->
+        guard (Cstruct.equal e.psk_id psk) (`Fatal `InvalidServerHello) >>= fun () ->
+        guard (List.mem group (List.map fst secrets)) (`Fatal `InvalidServerHello) >>= fun () ->
+
+        let session =
+          let s = session_of_epoch e in
+          { s with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite }
+        in
+
+        let group, secret = List.find (fun (g, ks) -> g = group) secrets in
+        let ss = e.resumption_secret in
+        (match Nocrypto.Dh.shared group secret keyshare with
+         | None -> fail (`Fatal `InvalidDH)
+         | Some shared -> return shared) >|= fun es ->
+
+        let log = log <+> raw in
+        let server_ctx, client_ctx = hs_ctx sh.ciphersuite log es in
+
+        let st = AwaitServerEncryptedExtensions13 (session, sh.extensions, es, ss, log) in
+        ({ state with machina = Client13 st },
+         [ `Change_enc (Some client_ctx) ;
+           `Change_dec (Some server_ctx) ])
+      | _ -> fail (`Fatal `InvalidServerHello) )
+
   | Ciphersuite.PSK ->
-    ( match map_find ~f:(function `PreSharedKey psk -> Some psk | _ -> None) sh.extensions, state.config.Config.cached_session with
-        | Some x, Some e ->
-          guard (Cstruct.equal e.psk_id x) (`Fatal `InvalidServerHello) >>= fun () ->
-          guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+    ( match pre_shared_key, state.config.Config.cached_session with
+      | Some psk, Some e ->
+        guard (Cstruct.equal e.psk_id psk) (`Fatal `InvalidServerHello) >>= fun () ->
+        guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
 
-          let session =
-            let s = session_of_epoch e in
-            { s with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite } in
+        let session =
+          let s = session_of_epoch e in
+          { s with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite }
+        in
 
-          let es = e.resumption_secret in
+        let ss = e.resumption_secret in
+        let es = ss in
 
-          let log = log <+> raw in
-          let server_ctx, client_ctx = hs_ctx sh.ciphersuite log es in
+        let log = log <+> raw in
+        let server_ctx, client_ctx = hs_ctx sh.ciphersuite log es in
 
-          let st = AwaitServerEncryptedExtensions13 (session, sh.extensions, es, log) in
-          ({ state with machina = Client13 st },
-           [ `Change_enc (Some client_ctx) ;
-             `Change_dec (Some server_ctx) ])
-        | _ -> fail (`Fatal `InvalidServerHello) )
+        let st = AwaitServerEncryptedExtensions13 (session, sh.extensions, es, ss, log) in
+        ({ state with machina = Client13 st },
+         [ `Change_enc (Some client_ctx) ;
+           `Change_dec (Some server_ctx) ])
+      | _ -> fail (`Fatal `InvalidServerHello) )
+
   | Ciphersuite.DHE_RSA ->
-    ( match map_find ~f:(function `KeyShare ks -> Some ks | _ -> None) sh.extensions with
-        | Some ks -> return ks
-        | None -> fail (`Fatal `InvalidServerHello) ) >>= fun (group, keyshare) ->
+    match keyshare with
+    | Some (group, keyshare) ->
+      guard (List.mem group (List.map fst secrets)) (`Fatal `InvalidServerHello) >>= fun () ->
 
-    guard (List.mem group (List.map fst secrets)) (`Fatal `InvalidServerHello) >>= fun () ->
-    guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
+      let _, secret = List.find (fun (g, ks) -> g = group) secrets in
 
-    let _, secret = List.find (fun (g, ks) -> g = group) secrets in
-
-    let session = { empty_session with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite } in
+      let session = { empty_session with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite } in
 
     ( match Nocrypto.Dh.shared group secret keyshare with
       | None -> fail (`Fatal `InvalidDH)
-      | Some x -> return x ) >|= fun shared ->
+      | Some x -> return x ) >|= fun ss ->
+      let es = ss in
 
-    let log = log <+> raw in
-    let server_ctx, client_ctx = hs_ctx sh.ciphersuite log shared in
-    let st = AwaitServerEncryptedExtensionsMaybeAuth13 (session, sh.extensions, shared, log) in
-    ({ state with machina = Client13 st },
-     [ `Change_enc (Some client_ctx) ;
-       `Change_dec (Some server_ctx) ])
+      let log = log <+> raw in
+      let server_ctx, client_ctx = hs_ctx sh.ciphersuite log es in
+      let st = AwaitServerEncryptedExtensions13 (session, sh.extensions, es, ss, log) in
+      ({ state with machina = Client13 st },
+       [ `Change_enc (Some client_ctx) ;
+         `Change_dec (Some server_ctx) ])
 
-  | _ -> fail (`Fatal `InvalidServerHello)
+    | _ -> fail (`Fatal `InvalidServerHello)
 
 (* called from handshake_client.ml *)
 let answer_hello_retry_request state (ch : client_hello) hrr secrets raw log =
@@ -81,16 +113,16 @@ let answer_hello_retry_request state (ch : client_hello) hrr secrets raw log =
 
   return ({ state with machina = Client13 st }, [`Record (Packet.HANDSHAKE, new_ch_raw)])
 
-let answer_encrypted_extensions_auth state session exts shared ee raw log =
-  let st = AwaitServerFinishedMaybeAuth13 (session, exts @ ee, shared, log <+> raw) in
+let answer_encrypted_extensions state (session : session_data) exts es ss ee raw log =
+  let st =
+    if Ciphersuite.ciphersuite_psk session.ciphersuite then
+      AwaitServerFinished13 (session, exts @ ee, es, ss, log <+> raw)
+    else
+      AwaitServerFinishedMaybeAuth13 (session, exts @ ee, es, ss, log <+> raw)
+  in
   return ({ state with machina = Client13 st }, [])
 
-let answer_encrypted_extensions state session exts shared ee raw log =
-  (* we can get CertificateRequest, ServerConfiguration, Certificate, Finished *)
-  let st = AwaitServerFinished13 (session, exts @ ee, shared, log <+> raw) in
-  return ({ state with machina = Client13 st }, [])
-
-let answer_certificate state (session : session_data) exts shared certs raw log =
+let answer_certificate state (session : session_data) exts es ss certs raw log =
   let name = match state.config.peer_name with
     | None -> None | Some x -> Some (`Wildcard x)
   in
@@ -98,17 +130,22 @@ let answer_certificate state (session : session_data) exts shared certs raw log 
   fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
   (* XXX: do we need keytype and usage as well? *)
   let session = { session with received_certificates ; peer_certificate_chain ; peer_certificate ; trust_anchor } in
-  let st = AwaitServerCertificateVerify13 (session, exts, shared, log <+> raw) in
+  let st = AwaitServerCertificateVerify13 (session, exts, es, ss, log <+> raw) in
   return ({ state with machina = Client13 st }, [])
 
-let answer_certificate_verify (state : handshake_state) (session : session_data) exts shared cv raw log =
+let answer_certificate_verify (state : handshake_state) (session : session_data) exts es ss cv raw log =
   verify_digitally_signed state.protocol_version ~context_string:"TLS 1.3, server CertificateVerify" state.config.hashes cv log session.peer_certificate >>= fun () ->
-  let st = AwaitServerFinished13 (session, exts, shared, log <+> raw) in
+  let st = AwaitServerFinished13 (session, exts, es, ss, log <+> raw) in
   return ({ state with machina = Client13 st }, [])
 
-let answer_finished state (session : session_data) exts shared fin raw log =
-  let master_secret = master_secret session.ciphersuite shared shared log in
-  let resumption_secret = resumption_secret session.ciphersuite master_secret log in
+let answer_finished state (session : session_data) exts es ss fin raw log =
+  let master_secret = master_secret session.ciphersuite es ss log in
+  let resumption_secret =
+    if Ciphersuite.ciphersuite_psk session.ciphersuite then
+      session.resumption_secret
+    else
+      resumption_secret session.ciphersuite master_secret log
+  in
 
   let cfin = finished session.ciphersuite master_secret true log in
   guard (Cs.equal fin cfin) (`Fatal `BadFinished) >>= fun () ->
@@ -131,8 +168,8 @@ let answer_finished state (session : session_data) exts shared fin raw log =
 let answer_session_ticket state _lifetime psk_id =
   (* XXX: do sth with lifetime *)
   (match state.session with
-   | [] -> fail (`Fatal `InvalidMessage)
-   | s::xs -> return ({ s with psk_id } :: xs)) >>= fun session ->
+   | s::xs when not (Ciphersuite.ciphersuite_psk s.ciphersuite) -> return ({ s with psk_id } :: xs)
+   | _ -> fail (`Fatal `InvalidMessage)) >>= fun session ->
   return ({ state with session }, [])
 
 let handle_handshake cs hs buf =
@@ -143,24 +180,21 @@ let handle_handshake cs hs buf =
      (match cs, handshake with
       | AwaitServerHello13 (ch, secrets, log), ServerHello sh ->
          answer_server_hello hs ch sh secrets buf log
-      | AwaitServerEncryptedExtensions13 (sd, exts, shared, log), EncryptedExtensions ee ->
-         answer_encrypted_extensions hs sd exts shared ee buf log
-      | AwaitServerEncryptedExtensionsMaybeAuth13 (sd, exts, shared, log), EncryptedExtensions ee ->
-         answer_encrypted_extensions_auth hs sd exts shared ee buf log
-      | AwaitServerFinishedMaybeAuth13 (sd, exts, shared, log), CertificateRequest _ -> assert false (* process CR *)
-      | AwaitServerFinishedMaybeAuth13 (sd, exts, shared, log), ServerConfiguration _ -> assert false (* preserve SC *)
-      | AwaitServerFinishedMaybeAuth13 (sd, exts, shared, log), Certificate cs ->
-        (match parse_certificates_1_3 cs with
-         | Ok (con, cs) ->
-           guard (Cs.null con) (`Fatal `InvalidMessage) >>= fun () ->
-           answer_certificate hs sd exts shared cs buf log
-         | Error re -> fail (`Fatal (`ReaderError re)))
-      | AwaitServerCertificateVerify13 (sd, exts, shared, log), CertificateVerify cv ->
-         answer_certificate_verify hs sd exts shared cv buf log
-      | AwaitServerFinished13 (sd, exts, shared, log), Finished fin ->
-         answer_finished hs sd exts shared fin buf log
-      | AwaitServerFinishedMaybeAuth13 (sd, exts, shared, log), Finished fin ->
-         answer_finished hs sd exts shared fin buf log
+      | AwaitServerEncryptedExtensions13 (sd, exts, es, ss, log), EncryptedExtensions ee ->
+         answer_encrypted_extensions hs sd exts es ss ee buf log
+      | AwaitServerFinishedMaybeAuth13 (sd, exts, es, ss, log), CertificateRequest _ -> assert false (* process CR *)
+      | AwaitServerFinishedMaybeAuth13 (sd, exts, es, ss, log), ServerConfiguration _ -> assert false (* preserve SC *)
+      | AwaitServerFinishedMaybeAuth13 (sd, exts, es, ss, log), Certificate cs ->
+         (match parse_certificates_1_3 cs with
+          | Ok (con, cs) -> guard (Cs.null con) (`Fatal `InvalidMessage) >>= fun () ->
+                                     answer_certificate hs sd exts es ss cs buf log
+          | Error re -> fail (`Fatal (`ReaderError re)))
+      | AwaitServerCertificateVerify13 (sd, exts, es, ss, log), CertificateVerify cv ->
+         answer_certificate_verify hs sd exts es ss cv buf log
+      | AwaitServerFinished13 (sd, exts, es, ss, log), Finished fin ->
+         answer_finished hs sd exts es ss fin buf log
+      | AwaitServerFinishedMaybeAuth13 (sd, exts, es, ss, log), Finished fin ->
+         answer_finished hs sd exts es ss fin buf log
       | Established13, SessionTicket se ->
         (match parse_session_ticket_1_3 se with
          | Ok (lifetime, psk_id) -> answer_session_ticket hs lifetime psk_id

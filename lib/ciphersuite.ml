@@ -5,23 +5,25 @@ type key_exchange_algorithm =
   | RSA
   | DHE_RSA
   | PSK
+  | DHE_PSK
   [@@deriving sexp]
 
 (** [needs_certificate kex] is a predicate which is true if the [kex] requires a server certificate *)
 let needs_certificate = function
   | RSA | DHE_RSA -> true
-  | PSK           -> false
+  | PSK | DHE_PSK -> false
 
 (** [needs_server_kex kex] is a predicate which is true if the [kex] requires a server key exchange messag *)
 let needs_server_kex = function
-  | DHE_RSA   -> true
-  | RSA | PSK -> false
+  | DHE_RSA | DHE_PSK -> true
+  | RSA | PSK         -> false
 
 (** [required_keytype_and_usage kex] is [(keytype, usage)] which a certificate must have if it is used in the given [kex] method *)
 let required_keytype_and_usage = function
   | RSA     -> (`RSA, `Key_encipherment)
   | DHE_RSA -> (`RSA, `Digital_signature) (* signing with the signature scheme and hash algorithm that will be employed in the server key exchange message. *)
-  | PSK     -> assert false
+  | PSK
+  | DHE_PSK -> assert false
 
 type stream_cipher =
   | RC4_128
@@ -82,6 +84,10 @@ type ciphersuite13 = [
   | `TLS_PSK_WITH_AES_256_GCM_SHA384
   | `TLS_PSK_WITH_AES_128_CCM
   | `TLS_PSK_WITH_AES_256_CCM
+  | `TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
+  | `TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
+  | `TLS_DHE_PSK_WITH_AES_128_CCM
+  | `TLS_DHE_PSK_WITH_AES_256_CCM
 ] [@@deriving sexp]
 
 let hash_of = function
@@ -94,6 +100,11 @@ let hash_of = function
   | `TLS_PSK_WITH_AES_256_GCM_SHA384 -> `SHA384
   | `TLS_PSK_WITH_AES_128_CCM -> `SHA256
   | `TLS_PSK_WITH_AES_256_CCM -> `SHA256
+
+  | `TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 -> `SHA256
+  | `TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 -> `SHA384
+  | `TLS_DHE_PSK_WITH_AES_128_CCM -> `SHA256
+  | `TLS_DHE_PSK_WITH_AES_256_CCM -> `SHA256
 
   | _ -> assert false
 
@@ -142,6 +153,10 @@ let any_ciphersuite_to_ciphersuite = function
   | Packet.TLS_PSK_WITH_AES_256_GCM_SHA384     -> Some `TLS_PSK_WITH_AES_256_GCM_SHA384
   | Packet.TLS_PSK_WITH_AES_128_CCM            -> Some `TLS_PSK_WITH_AES_128_CCM
   | Packet.TLS_PSK_WITH_AES_256_CCM            -> Some `TLS_PSK_WITH_AES_256_CCM
+  | Packet.TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 -> Some `TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
+  | Packet.TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 -> Some `TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
+  | Packet.TLS_DHE_PSK_WITH_AES_128_CCM        -> Some `TLS_DHE_PSK_WITH_AES_128_CCM
+  | Packet.TLS_DHE_PSK_WITH_AES_256_CCM        -> Some `TLS_DHE_PSK_WITH_AES_256_CCM
   | _                                          -> None
 
 let ciphersuite_to_any_ciphersuite = function
@@ -169,6 +184,10 @@ let ciphersuite_to_any_ciphersuite = function
   | `TLS_PSK_WITH_AES_256_GCM_SHA384     -> Packet.TLS_PSK_WITH_AES_256_GCM_SHA384
   | `TLS_PSK_WITH_AES_128_CCM            -> Packet.TLS_PSK_WITH_AES_128_CCM
   | `TLS_PSK_WITH_AES_256_CCM            -> Packet.TLS_PSK_WITH_AES_256_CCM
+  | `TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 -> Packet.TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
+  | `TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 -> Packet.TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
+  | `TLS_DHE_PSK_WITH_AES_128_CCM        -> Packet.TLS_DHE_PSK_WITH_AES_128_CCM
+  | `TLS_DHE_PSK_WITH_AES_256_CCM        -> Packet.TLS_DHE_PSK_WITH_AES_256_CCM
 
 let ciphersuite_to_string x= Packet.any_ciphersuite_to_string (ciphersuite_to_any_ciphersuite x)
 
@@ -183,6 +202,11 @@ let privprot13 = function
   | `TLS_PSK_WITH_AES_128_CCM            -> AES_128_CCM
   | `TLS_PSK_WITH_AES_256_CCM            -> AES_256_CCM
 
+  | `TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 -> AES_128_GCM
+  | `TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 -> AES_256_GCM
+  | `TLS_DHE_PSK_WITH_AES_128_CCM        -> AES_128_CCM
+  | `TLS_DHE_PSK_WITH_AES_256_CCM        -> AES_256_CCM
+
   | _ -> assert false
 
 let kex13 = function
@@ -195,6 +219,11 @@ let kex13 = function
   | `TLS_PSK_WITH_AES_256_GCM_SHA384     -> PSK
   | `TLS_PSK_WITH_AES_128_CCM            -> PSK
   | `TLS_PSK_WITH_AES_256_CCM            -> PSK
+
+  | `TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 -> DHE_PSK
+  | `TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 -> DHE_PSK
+  | `TLS_DHE_PSK_WITH_AES_128_CCM        -> DHE_PSK
+  | `TLS_DHE_PSK_WITH_AES_256_CCM        -> DHE_PSK
 
   | _ -> assert false
 
@@ -220,10 +249,15 @@ let get_kex_privprot = function
   | `TLS_RSA_WITH_AES_256_GCM_SHA384     -> (RSA    , AEAD AES_256_GCM)
   | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 -> (DHE_RSA, AEAD AES_128_GCM)
   | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 -> (DHE_RSA, AEAD AES_256_GCM)
+
   | `TLS_PSK_WITH_AES_128_GCM_SHA256     -> (PSK    , AEAD AES_128_GCM)
   | `TLS_PSK_WITH_AES_256_GCM_SHA384     -> (PSK    , AEAD AES_256_GCM)
   | `TLS_PSK_WITH_AES_128_CCM            -> (PSK    , AEAD AES_128_CCM)
   | `TLS_PSK_WITH_AES_256_CCM            -> (PSK    , AEAD AES_256_CCM)
+  | `TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 -> (DHE_PSK, AEAD AES_128_GCM)
+  | `TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 -> (DHE_PSK, AEAD AES_256_GCM)
+  | `TLS_DHE_PSK_WITH_AES_128_CCM        -> (DHE_PSK, AEAD AES_128_CCM)
+  | `TLS_DHE_PSK_WITH_AES_256_CCM        -> (DHE_PSK, AEAD AES_256_CCM)
 
 (** [ciphersuite_kex ciphersuite] is [kex], first projection of [get_kex_privprot] *)
 let ciphersuite_kex c = fst (get_kex_privprot c)
@@ -233,13 +267,13 @@ let ciphersuite_privprot c = snd (get_kex_privprot c)
 
 let ciphersuite_fs cs =
   match ciphersuite_kex cs with
-  | DHE_RSA -> true
-  | RSA | PSK -> false
+  | DHE_RSA | DHE_PSK -> true
+  | RSA | PSK         -> false
 
 let ciphersuite_psk cs =
   match ciphersuite_kex cs with
   | DHE_RSA | RSA -> false
-  | PSK -> true
+  | DHE_PSK | PSK -> true
 
 let ciphersuite_tls12_only = function
   | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
@@ -265,7 +299,12 @@ let ciphersuite_tls13 = function
   | `TLS_PSK_WITH_AES_128_GCM_SHA256
   | `TLS_PSK_WITH_AES_256_GCM_SHA384
   | `TLS_PSK_WITH_AES_128_CCM
-  | `TLS_PSK_WITH_AES_256_CCM            -> true
+  | `TLS_PSK_WITH_AES_256_CCM
+
+  | `TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
+  | `TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
+  | `TLS_DHE_PSK_WITH_AES_128_CCM
+  | `TLS_DHE_PSK_WITH_AES_256_CCM        -> true
   | _                                    -> false
 
 let any_group_to_group =
