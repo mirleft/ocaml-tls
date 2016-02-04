@@ -17,6 +17,7 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
     ( match map_find ~f:(function `PreSharedKey psk -> Some psk | _ -> None) sh.extensions, state.config.Config.cached_session with
         | Some x, Some e ->
           guard (Cstruct.equal e.psk_id x) (`Fatal `InvalidServerHello) >>= fun () ->
+          guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
 
           let session =
             let s = session_of_epoch e in
@@ -28,9 +29,9 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
           let server_ctx, client_ctx = hs_ctx sh.ciphersuite log es in
 
           let st = AwaitServerEncryptedExtensions13 (session, sh.extensions, es, log) in
-          return ({ state with machina = Client13 st },
-                  [ `Change_enc (Some client_ctx) ;
-                    `Change_dec (Some server_ctx) ])
+          ({ state with machina = Client13 st },
+           [ `Change_enc (Some client_ctx) ;
+             `Change_dec (Some server_ctx) ])
         | _ -> fail (`Fatal `InvalidServerHello) )
   | Ciphersuite.DHE_RSA ->
     ( match map_find ~f:(function `KeyShare ks -> Some ks | _ -> None) sh.extensions with
@@ -38,20 +39,22 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
         | None -> fail (`Fatal `InvalidServerHello) ) >>= fun (group, keyshare) ->
 
     guard (List.mem group (List.map fst secrets)) (`Fatal `InvalidServerHello) >>= fun () ->
+    guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
+
     let _, secret = List.find (fun (g, ks) -> g = group) secrets in
 
     let session = { empty_session with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite } in
 
     ( match Nocrypto.Dh.shared group secret keyshare with
       | None -> fail (`Fatal `InvalidDH)
-      | Some x -> return x ) >>= fun shared ->
+      | Some x -> return x ) >|= fun shared ->
 
     let log = log <+> raw in
     let server_ctx, client_ctx = hs_ctx sh.ciphersuite log shared in
     let st = AwaitServerEncryptedExtensionsMaybeAuth13 (session, sh.extensions, shared, log) in
-    return ({ state with machina = Client13 st },
-            [ `Change_enc (Some client_ctx) ;
-              `Change_dec (Some server_ctx) ])
+    ({ state with machina = Client13 st },
+     [ `Change_enc (Some client_ctx) ;
+       `Change_dec (Some server_ctx) ])
 
   | _ -> fail (`Fatal `InvalidServerHello)
 
@@ -93,6 +96,7 @@ let answer_finished state (session : session_data) exts shared fin log raw =
 
   let cfin = finished session.ciphersuite master_secret true log in
   guard (Cs.equal fin cfin) (`Fatal `BadFinished) >>= fun () ->
+  guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
 
   let log = log <+> raw in
   let server_app_ctx, client_app_ctx = app_ctx session.ciphersuite log master_secret in
@@ -100,10 +104,10 @@ let answer_finished state (session : session_data) exts shared fin log raw =
   let mfin = Writer.assemble_handshake (Finished myfin) in
   let sd = { session with master_secret ; resumption_secret } in
   let machina = Client13 Established13 in
-  return ({ state with machina ; session = sd :: state.session },
-          [ `Change_dec (Some server_app_ctx) ;
-            `Record (Packet.HANDSHAKE, mfin) ;
-            `Change_enc (Some client_app_ctx) ])
+  ({ state with machina ; session = sd :: state.session },
+   [ `Change_dec (Some server_app_ctx) ;
+     `Record (Packet.HANDSHAKE, mfin) ;
+     `Change_enc (Some client_app_ctx) ])
 
 let answer_session_ticket state _lifetime psk_id =
   (* XXX: do sth with lifetime *)

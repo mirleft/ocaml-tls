@@ -98,18 +98,20 @@ let answer_client_hello state ch raw log =
     let log = log <+> fin_raw in
     let server_app_ctx, client_app_ctx = app_ctx cipher log master_secret in
 
+    guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+
     let session =
       let s = session_of_epoch epoch in
       { s with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = cipher ; master_secret = master_secret } in
     (* new state: one of AwaitClientCertificate13 , AwaitClientFinished13 *)
     let st = AwaitClientFinished13 (session, Some client_app_ctx, log) in
-    return ({ state with machina = Server13 st },
-            [ `Record (Packet.HANDSHAKE, sh_raw) ;
-              `Change_enc (Some server_ctx) ;
-              `Change_dec (Some client_ctx) ;
-              `Record (Packet.HANDSHAKE, ee_raw) ;
-              `Record (Packet.HANDSHAKE, fin_raw) ;
-              `Change_enc (Some server_app_ctx) ] )
+    ({ state with machina = Server13 st },
+     [ `Record (Packet.HANDSHAKE, sh_raw) ;
+       `Change_enc (Some server_ctx) ;
+       `Change_dec (Some client_ctx) ;
+       `Record (Packet.HANDSHAKE, ee_raw) ;
+       `Record (Packet.HANDSHAKE, fin_raw) ;
+       `Change_enc (Some server_app_ctx) ] )
 
   | _ ->
     ( match first_match ciphers my_ciphers with
@@ -183,22 +185,25 @@ let answer_client_hello state ch raw log =
       let log = log <+> fin_raw in
       let server_app_ctx, client_app_ctx = app_ctx cipher log master_secret in
 
+      guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+
       let session = { empty_session with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = cipher ; own_private_key = Some pr ; own_certificate =  crt ; master_secret = master_secret ; resumption_secret = resumption_secret } in
       (* new state: one of AwaitClientCertificate13 , AwaitClientFinished13 *)
       let st = AwaitClientFinished13 (session, Some client_app_ctx, log) in
-      return ({ state with machina = Server13 st },
-              [ `Record (Packet.HANDSHAKE, sh_raw) ;
-                `Change_enc (Some server_ctx) ;
-                `Change_dec (Some client_ctx) ;
-                `Record (Packet.HANDSHAKE, ee_raw) ;
-                `Record (Packet.HANDSHAKE, cert_raw) ;
-                `Record (Packet.HANDSHAKE, cv_raw) ;
-                `Record (Packet.HANDSHAKE, fin_raw) ;
-                `Change_enc (Some server_app_ctx) ] )
+      ({ state with machina = Server13 st },
+       [ `Record (Packet.HANDSHAKE, sh_raw) ;
+         `Change_enc (Some server_ctx) ;
+         `Change_dec (Some client_ctx) ;
+         `Record (Packet.HANDSHAKE, ee_raw) ;
+         `Record (Packet.HANDSHAKE, cert_raw) ;
+         `Record (Packet.HANDSHAKE, cv_raw) ;
+         `Record (Packet.HANDSHAKE, fin_raw) ;
+         `Change_enc (Some server_app_ctx) ] )
 
 let answer_client_finished state fin (sd : session_data) dec_ctx log buf =
   let data = finished sd.ciphersuite sd.master_secret false log in
   guard (Cs.equal data fin) (`Fatal `BadFinished) >>= fun () ->
+  guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
   let ret, sd =
     (* only change dec if we're in handshake, also send out session ticket only just after handshake *)
     match dec_ctx with
@@ -213,10 +218,10 @@ let answer_client_finished state fin (sd : session_data) dec_ctx log buf =
       ([ `Change_dec (Some cc) ; `Record (Packet.HANDSHAKE, st_raw) ],
        { sd with psk_id })
   in
-  return ({ state with
-            machina = Server13 Established13 ;
-            session = sd :: state.session },
-          ret)
+  ({ state with
+     machina = Server13 Established13 ;
+     session = sd :: state.session },
+   ret)
 
 let answer_client_hello_retry state oldch ch hrr log raw =
   (* ch = oldch + keyshare for hrr.selected_group (6.3.1.3) *)
