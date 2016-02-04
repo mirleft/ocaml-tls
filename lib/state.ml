@@ -90,6 +90,8 @@ type session_data = {
   client_auth            : bool ;
   session_id             : Cstruct.t ;
   extended_ms            : bool ;
+  resumption_secret      : Cstruct.t ;
+  psk_id                 : Cstruct.t ;
 } [@@deriving sexp]
 
 (* state machine of the server *)
@@ -128,7 +130,9 @@ type client_handshake_state =
 type client13_handshake_state =
   | AwaitServerHello13 (* after HRR, CH *)
   | AwaitServerEncryptedExtensions13 of session_data * server_extension list * Cstruct.t * Cstruct.t
+  | AwaitServerEncryptedExtensionsMaybeAuth13 of session_data * server_extension list * Cstruct.t * Cstruct.t
   | AwaitServerCertificateVerify13 of session_data * server_extension list * Cstruct.t * Cstruct.t
+  | AwaitServerFinishedMaybeAuth13 of session_data * server_extension list * Cstruct.t * Cstruct.t
   | AwaitServerFinished13 of session_data * server_extension list * Cstruct.t * Cstruct.t
   | Established13
   [@@deriving sexp]

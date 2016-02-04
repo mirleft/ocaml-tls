@@ -15,11 +15,11 @@ let default_client_hello config =
     | Some x -> [`Hostname x]
   in
   let version = max_protocol_version config.protocol_versions in
-  let extensions, secrets = match version with
-    | TLS_1_0 | TLS_1_1 -> ([], [])
+  let extensions, psk, secrets = match version with
+    | TLS_1_0 | TLS_1_1 -> ([], false, [])
     | TLS_1_2 ->
        let supported = List.map (fun h -> (h, Packet.RSA)) config.hashes in
-       ([`SignatureAlgorithms supported], [])
+       ([`SignatureAlgorithms supported], false, [])
     | TLS_1_3 ->
        let sig_alg =
          List.fold_left
@@ -29,20 +29,31 @@ let default_client_hello config =
        and groups =
          List.map Ciphersuite.group_to_any_group config.groups
        and keyshares, secrets =
-         (* XXX: we could for sure generate fewer Dh keys *)
          let secrets, shares = List.split (List.map Dh.gen_key config.groups) in
          (List.combine
             (List.map Ciphersuite.group_to_any_group config.groups)
             shares,
           List.combine config.groups secrets)
        in
-       ([`SignatureAlgorithms sig_alg ; `SupportedGroups groups ; `KeyShare keyshares ], secrets)
+       let exts =
+         [`SignatureAlgorithms sig_alg ; `SupportedGroups groups ; `KeyShare keyshares ]
+       in
+       let psk = match config.cached_session with
+         | Some { psk_id ; _ } when Cstruct.len psk_id > 0 -> [`PreSharedKey [ psk_id ]]
+         | _ -> []
+       in
+       (exts @ psk, List.length psk > 0, secrets)
   in
   let ciphers =
     let cs = config.ciphers in
+    let cs =
+      if psk then cs
+      else List.filter (o not Ciphersuite.ciphersuite_psk) cs
+    in
     match version with
     | TLS_1_0 | TLS_1_1 -> List.filter (o not Ciphersuite.ciphersuite_tls12_only) cs
-    | TLS_1_2 | TLS_1_3 -> cs
+    | TLS_1_2 -> cs
+    | TLS_1_3 -> cs (* for 1.3 only, we should filter for Ciphersuite.ciphersuite_tls13 *)
   and sessionid =
     match config.use_reneg, config.cached_session with
     | _, Some { session_id ; extended_ms ; _ } when extended_ms = true && Cstruct.len session_id > 0 -> Some session_id

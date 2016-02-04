@@ -52,6 +52,13 @@ let traffic_secret hash master_secret log =
   let l = Hash.digest_size hash in
   expand_label hash master_secret "traffic secret" log l
 
+let resumption_secret cs master_secret log =
+  let hash = Ciphersuite.hash_of cs in
+  let d = Hash.digest hash log
+  and l = Hash.digest_size hash
+  in
+  expand_label hash master_secret "resumption master secret" d l
+
 let app_ctx cs log ms =
   let hash = Ciphersuite.hash_of cs in
   let log = Hash.digest hash log in

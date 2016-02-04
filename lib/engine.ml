@@ -626,4 +626,6 @@ let epoch state =
         master_secret          = session.master_secret ;
         session_id             = session.session_id ;
         extended_ms            = session.extended_ms ;
+        resumption_secret      = session.resumption_secret ;
+        psk_id                 = session.psk_id ;
       }

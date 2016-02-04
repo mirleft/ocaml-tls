@@ -18,6 +18,8 @@ type own_cert = [
 
 type session_cache = SessionID.t -> epoch_data option
 
+type psk_cache = PreSharedKeyID.t -> epoch_data option
+
 (** configuration parameters *)
 type config = private {
   ciphers           : Ciphersuite.ciphersuite list ; (** ordered list (regarding preference) of supported cipher suites *)
@@ -28,6 +30,7 @@ type config = private {
   peer_name         : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
   own_certificates  : own_cert ; (** optional default certificate chain and other certificate chains *)
   session_cache     : session_cache ;
+  psk_cache         : psk_cache ;
   cached_session    : epoch_data option ;
   groups            : group list ;
 }
@@ -72,6 +75,7 @@ val server :
   ?certificates  : own_cert ->
   ?authenticator : X509.Authenticator.a ->
   ?session_cache : session_cache ->
+  ?psk_cache     : psk_cache ->
   ?groups        : Dh.group list ->
   unit -> server
 
@@ -123,6 +127,13 @@ module Ciphers : sig
   val fs_of : ciphersuite list -> ciphersuite list
   (** [fs_of ciphers] selects all ciphersuites which provide forward
       secrecy from [ciphers]. *)
+
+  val psk : ciphersuite list
+  (** [psk] is a list of ciphersuites which use a pre-shared key (sublist of [default]). *)
+
+  val psk_of : ciphersuite list -> ciphersuite list
+  (** [psk_of ciphers] selects all ciphersuites which use a pre-shared key. *)
+
 end
 
 (** {1 Internal use only} *)

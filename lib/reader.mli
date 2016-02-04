@@ -37,3 +37,6 @@ val parse_certificates_1_3 : Cstruct.t -> (Cstruct.t * Cstruct.t list) result
 val parse_dh_parameters        : Cstruct.t -> (Core.dh_parameters * Cstruct.t * Cstruct.t) result
 val parse_digitally_signed     : Cstruct.t -> Cstruct.t result
 val parse_digitally_signed_1_2 : Cstruct.t -> (Nocrypto.Hash.hash * Packet.signature_algorithm_type * Cstruct.t) result
+
+val parse_session_ticket_1_3 : Cstruct.t -> (int32 * Cstruct.t) result
+

@@ -212,6 +212,7 @@ let answer_client_hello_common state reneg ch raw =
     let host = hostname ch
     and cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites
     and tst = Ciphersuite.(o needs_certificate ciphersuite_kex) in
+    let cciphers = List.filter (fun c -> not (Ciphersuite.ciphersuite_psk c)) cciphers in
     ( if List.for_all tst cciphers then
         agreed_cert config.own_certificates host >>= function
         | (c::cs, priv) -> let cciphers = agreed_cipher c cciphers in

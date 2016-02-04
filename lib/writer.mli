@@ -24,3 +24,5 @@ val assemble_certificate_request_1_3 : Cstruct.t -> (Nocrypto.Hash.hash * Packet
 val assemble_certificates : Cstruct.t list -> Cstruct.t
 
 val assemble_certificates_1_3 : Cstruct.t -> Cstruct.t list -> Cstruct.t
+
+val assemble_session_ticket_1_3 : int32 -> Cstruct.t -> Cstruct.t

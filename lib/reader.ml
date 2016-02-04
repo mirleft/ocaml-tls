@@ -581,6 +581,16 @@ let parse_digitally_signed_1_2 = catch @@ fun buf ->
      (hash', sign', signature)
   | _ , _                  -> raise_unknown "hash or signature algorithm"
 
+let parse_session_ticket_1_3_exn buf =
+  let lifetime = BE.get_uint32 buf 0 in
+  let pskidlen = BE.get_uint16 buf 4 in
+  if len buf <> pskidlen + 6 then
+    raise_trailing_bytes "1.3 session ticket"
+  else
+    (lifetime, sub buf 6 pskidlen)
+
+let parse_session_ticket_1_3 = catch parse_session_ticket_1_3_exn
+
 let parse_client_key_exchange buf =
   let length = BE.get_uint16 buf 0 in
   if len buf <> length + 2 then
