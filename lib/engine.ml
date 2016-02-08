@@ -332,18 +332,18 @@ let handle_packet hs buf = function
 
   | Packet.ALERT ->
       Alert.handle buf >|= fun (err, out) ->
-        (hs, out, None, `Pass, err)
+        (hs, out, None, err)
 
   | Packet.APPLICATION_DATA ->
     if hs_can_handle_appdata hs then
       (Tracing.cs ~tag:"application-data-in" buf;
-       return (hs, [], non_empty buf, `Pass, `No_err))
+       return (hs, [], non_empty buf, `No_err))
     else
       fail (`Fatal `CannotHandleApplicationDataYet)
 
   | Packet.CHANGE_CIPHER_SPEC ->
       handle_change_cipher_spec hs.machina hs buf
-      >|= fun (hs, items, dec_cmd) -> (hs, items, None, dec_cmd, `No_err)
+      >|= fun (hs, items) -> (hs, items, None, `No_err)
 
   | Packet.HANDSHAKE ->
      separate_handshakes (hs.hs_fragment <+> buf)
@@ -353,7 +353,7 @@ let handle_packet hs buf = function
          >|= fun (hs', items') -> (hs', items @ items'))
        (hs, []) hss
      >|= fun (hs, items) ->
-       ({ hs with hs_fragment }, items, None, `Pass, `No_err)
+       ({ hs with hs_fragment }, items, None, `No_err)
 
   | Packet.HEARTBEAT -> fail (`Fatal `NoHeartbeat)
 
@@ -374,19 +374,17 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   decrypt version state.decryptor hdr.content_type buf
   >>= fun (dec_st, dec) ->
   handle_packet state.handshake dec hdr.content_type
-  >|= fun (handshake, items, data, dec_cmd, err) ->
-  let (encryptor, encs) =
-    List.fold_left (fun (st, es) -> function
-      | `Change_enc st' -> (st', es)
+  >|= fun (handshake, items, data, err) ->
+  let (encryptor, decryptor, encs) =
+    List.fold_left (fun (enc, dec, es) -> function
+      | `Change_enc enc' -> (enc', dec, es)
+      | `Change_dec dec' -> (enc, dec', es)
       | `Record r       ->
-          let (st', enc) = encrypt_records st handshake.protocol_version [r] in
-          (st', es @ enc))
-    (state.encryptor, [])
+          let (enc', encbuf) = encrypt_records enc handshake.protocol_version [r] in
+          (enc', dec, es @ encbuf))
+    (state.encryptor, dec_st, [])
     items
   in
-  let decryptor = match dec_cmd with
-    | `Change_dec dec -> dec
-    | `Pass           -> dec_st in
   let state' = { state with handshake ; encryptor ; decryptor } in
 
   Tracing.sexpfs ~tag:"record-out" ~f:sexp_of_record encs ;

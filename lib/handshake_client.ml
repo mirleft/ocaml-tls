@@ -356,7 +356,7 @@ let handle_change_cipher_spec cs state packet =
      guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
      let machina = AwaitServerFinished (session, client_verify, log) in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
-     ({ state with machina = Client machina }, [], `Change_dec (Some server_ctx))
+     ({ state with machina = Client machina }, [`Change_dec (Some server_ctx)])
   | Or_error.Ok (), AwaitServerChangeCipherSpecResume (session, client_ctx, server_ctx, log) ->
      guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
      let ccs = change_cipher_spec in
@@ -364,8 +364,7 @@ let handle_change_cipher_spec cs state packet =
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      Tracing.cs ~tag:"change-cipher-spec-out" packet ;
      ({ state with machina = Client machina },
-      [`Record ccs ; `Change_enc (Some client_ctx)],
-      `Change_dec (Some server_ctx))
+      [`Record ccs ; `Change_enc (Some client_ctx); `Change_dec (Some server_ctx)])
   | Or_error.Error re, _ -> fail (`Fatal (`ReaderError re))
   | _ -> fail (`Fatal `UnexpectedCCS)
 
