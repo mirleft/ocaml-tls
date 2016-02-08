@@ -184,7 +184,7 @@ let peer_rsa_key = function
     | `RSA key -> return key
     | _        -> fail (`Fatal `NotRSACertificate)
 
-let verify_digitally_signed version data signature_data certificate =
+let verify_digitally_signed version hashes data signature_data certificate =
   let signature_verifier version data =
     let open Reader in
     match version with
@@ -200,6 +200,7 @@ let verify_digitally_signed version data signature_data certificate =
     | TLS_1_2 ->
       ( match parse_digitally_signed_1_2 data with
         | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
+          guard (List.mem hash_algo hashes) (`Error (`NoConfiguredHash hashes)) >>= fun () ->
           let compare_hashes should data =
             match X509.Encoding.pkcs1_digest_info_of_cstruct should with
             | Some (hash_algo', target) when hash_algo = hash_algo' ->

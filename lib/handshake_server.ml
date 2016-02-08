@@ -87,7 +87,7 @@ let answer_client_certificate_DHE_RSA state session dh_sent certs raw log =
 
 let answer_client_certificate_verify state session sctx cctx verify raw log =
   let sigdata = Cs.appends log in
-  verify_digitally_signed state.protocol_version verify sigdata session.peer_certificate >|= fun () ->
+  verify_digitally_signed state.protocol_version state.config.hashes verify sigdata session.peer_certificate >|= fun () ->
   let machina = AwaitClientChangeCipherSpec (session, sctx, cctx, log @ [raw]) in
   ({ state with machina = Server machina }, [])
 
