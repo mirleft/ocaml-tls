@@ -23,7 +23,7 @@ Flag "mirage"
 Library "tls"
   Path            : lib/
   Modules         : Tracing, Ciphersuite, Packet, Core,
-                    Printer, Reader, Writer, Config,
+                    Reader, Writer, Config,
                     Engine
   InternalModules : Control, Crypto, Utils,
                     State, Handshake_common, Handshake_crypto,

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 23e4e9c6084252c78d7e3c085c6f050c)
+# DO NOT EDIT (digest: b5deca3b87fc759bbd55f07da45aafef)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -20,7 +20,6 @@ true: annot, bin_annot
 "lib/ciphersuite.cmx": for-pack(Tls)
 "lib/packet.cmx": for-pack(Tls)
 "lib/core.cmx": for-pack(Tls)
-"lib/printer.cmx": for-pack(Tls)
 "lib/reader.cmx": for-pack(Tls)
 "lib/writer.cmx": for-pack(Tls)
 "lib/config.cmx": for-pack(Tls)
