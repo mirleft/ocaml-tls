@@ -293,18 +293,16 @@ module Alert = struct
 end
 
 let hs_can_handle_appdata s =
-  match s.session with
-  | [] -> false
-  | _  ->
-    (* if there is a renegotiation going on -
-       specifically ChangeCipherSuite was transmitted, waiting for Finished -
-       we should not allow any application data (since the
-       new crypto context, not authenticated by Finished, is in use).
-
-       We are slightly conservative and only allow application data in established state. *)
-    match s.machina with
-    | Server Established | Client Established -> true
-    | _ -> false
+  (* When is a TLS session up for some application data?
+     - initial handshake must be finished!
+     - renegotiation must not be in progress
+     --> thus only ok for Established
+     - but ok if server sent a HelloRequest and can get first some appdata then ClientHello
+     --> or converse: client sent ClientHello, waiting for ServerHello *)
+  match s.machina with
+  | Server Established | Server AwaitClientHelloRenegotiate
+  | Client Established | Client AwaitServerHelloRenegotiate _ -> true
+  | _ -> false
 
 let rec separate_handshakes buf =
   match Reader.parse_handshake_frame buf with
