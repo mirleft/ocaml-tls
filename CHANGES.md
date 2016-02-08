@@ -1,3 +1,33 @@
+master:
+* fix `hs_can_handle_appdata` (#315):
+    Initially we allowed application data always after the first handshake.
+
+    Turns out, between CCS and Finished there is new crypto_context in place
+    which has not yet been authenticated -- bad idea to accept application data
+    at that point (beginning of 2015 in OCaml TLS).
+
+    The fix was to only allow application data in Established state (and block
+    in Tls_lwt/Tls_mirage when the user requested renegotiation) (December 2015
+    in OCaml-TLS).
+
+    Renegotiation was also turned off by default when we introduced resumption
+    (mid October 2015): both features together (without mitigating via session
+    hash) allow the triple handshake.
+
+    It turns out, the server side can happily accept application data from the
+    other side when it just sent a HelloRequest (and waits for the ClientHello;
+    same is true for the client side, waiting for the ServerHello in
+    renegotiation case might be interleaved with application data) to let the
+    client initiate a new handshake.  By this commit, OCaml-TLS allows
+    application data then.
+
+    In the end, it is a pretty academic thing anyways, since nobody uses
+    renegotiation with OCaml-TLS in the field.
+* durinng verification of a digitally signed: checked that the used hash
+  algorithm is one of the configured ones (#313)
+* unify return type of handshake and change cipher spec handler (#314)
+* removed Printer (was barely useful)
+
 0.7.0 (2015-12-04):
 * session resumption (via session ID) support (#283)
   Config contains `session_cache : SessionID.t -> epoch_data option`
