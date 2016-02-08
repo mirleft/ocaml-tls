@@ -90,6 +90,8 @@ val default_hashes  : Hash.hash list
 (** [supported_hashes] is a list of supported hash algorithms by this library *)
 val supported_hashes  : Hash.hash list
 
+val tls13_hashes : Hash.hash list
+
 (** [min_dh_size] is minimal diffie hellman group size in bits (currently 1024) *)
 val min_dh_size : int
 

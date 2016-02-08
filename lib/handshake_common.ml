@@ -249,10 +249,13 @@ let signature version ?context_string data sig_algs hashes private_key =
           let client_hashes =
             List.(map fst @@ filter (fun (_, x) -> x = Packet.RSAPSS) client_algos)
           in
-          match first_match client_hashes hashes with
+          let my_hashes = List.filter (fun x ->
+              List.mem x Config.tls13_hashes)
+              hashes
+          in
+          match first_match client_hashes my_hashes with
           | None      -> fail (`Error (`NoConfiguredHash client_hashes))
           | Some hash -> return hash ) >|= fun hash_algo ->
-     (* XXX should not be MD5/SHA1/SHA224 *)
      let module H = (val (Hash.module_of hash_algo)) in
      let module PSS = Rsa.PSS(H) in
      let data = H.digest data in (* XXX See #407 https://github.com/tlswg/tls13-spec/issues/407 *)
@@ -304,7 +307,8 @@ let verify_digitally_signed version ?context_string hashes data signature_data c
     | TLS_1_3 ->
        ( match Reader.parse_digitally_signed_1_2 data with
          | Ok (hash_algo, Packet.RSAPSS, signature) ->
-            (* hash_algo should not be MD5/SHA1/SHA224 *)
+            guard (List.mem hash_algo Config.tls13_hashes) (`Fatal `InvalidMessage) >>= fun () ->
+            guard (List.mem hash_algo hashes) (`Error (`NoConfiguredHash hashes)) >>= fun () ->
             let module H = (val (Hash.module_of hash_algo)) in
             let module PSS = Rsa.PSS(H) in
             let data =
