@@ -273,48 +273,48 @@ let handshake_assembler_tests =
    ( Certificate [a_cs ; emp ; a_cs] , [ 11; 0; 0; 44; 0; 0; 41 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l ) ;
    ( Certificate [a_cs ; emp ; a_cs ; emp] , [ 11; 0; 0; 47; 0; 0; 44 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
 
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { version = Supported TLS_1_1 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_1 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 2 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { version = Supported TLS_1_0 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_0 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 1 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
                    extensions = [] },
      [ 1; 0; 0; 41; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0 ] ) ;
 
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = Packet.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
                    extensions = [] },
      [ 1; 0; 0; 47; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ] ) ;
 
 
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = Packet.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
                    extensions = [
-                            SignatureAlgorithms
+                            `SignatureAlgorithms
                               [(`SHA512, Packet.RSA) ;
                                (`SHA512, Packet.DSA) ;
                                (`SHA512, Packet.ECDSA) ;
@@ -336,47 +336,47 @@ let handshake_assembler_tests =
               0x00; 0x1e; 0x06; 0x01; 0x06; 0x02; 0x06; 0x03; 0x05; 0x01; 0x05; 0x02; 0x05; 0x03; 0x04; 0x01; 0x04; 0x02; 0x04; 0x03; 0x03; 0x01; 0x03; 0x02; 0x03; 0x03; 0x02; 0x01; 0x02; 0x02; 0x02; 0x03 ] ) ;
 
 
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
-                   extensions = [Hostname (Some "foo")] },
+                   extensions = [`Hostname "foo"] },
      [ 1; 0; 0; 55; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 3; 102; 111; 111 ] ) ;
 
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
-                   extensions = [Hostname (Some "foofoofoofoofoofoofoofoofoofoo")] },
+                   extensions = [`Hostname "foofoofoofoofoofoofoofoofoofoo"] },
      [ 1; 0; 0; 82; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 39; 0; 0; 0; 35; 0; 33; 0; 0; 30; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111 ] ) ;
 
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
-                   extensions = [Hostname (Some "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo")] },
+                   extensions = [`Hostname "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo"] },
      [ 1; 0; 0; 232; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 189; 0; 0; 0; 185; 0; 183; 0; 0; 180; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111 ] ) ;
 
    (* this one is the smallest which needs extra padding
      (due to its size being > 256 and < 511) *)
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
-                   extensions = [Hostname (Some "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofo")] },
+                   extensions = [`Hostname "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofo"] },
      [ 1; 0; 1; 0xFC; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 1; 0xD3; 0; 0; 0; 0xD0; 0; 0xCE; 0; 0; 0xCB; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111; 0; 21; 0; 0xF9; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0  ] ) ;
 
    (* this one is the biggest which needs no extra padding *)
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
-                   extensions = [Hostname (Some "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoof")] },
+                   extensions = [`Hostname "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoof"] },
      [ 1; 0; 0; 251; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 208; 0; 0; 0; 204; 0; 202; 0; 0; 199; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102;111;111; 102 ] ) ;
 
    (* this one is the biggest which needs no extra padding, and no exts *)
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;
 Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;
@@ -388,8 +388,8 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
   1; 0 ] ) ;
 
    (* add one more, and we get into padding no exts *)
-   ( ClientHello { version = Supported TLS_1_2 ;
-                   random = a_cs <+> a_cs ;
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL; Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;
 Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;
@@ -404,69 +404,69 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0; 0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;
  ] ) ;
 
-   ( ServerHello { version = TLS_1_2 ;
-                   random  = a_cs <+> a_cs ;
+   ( ServerHello { server_version = TLS_1_2 ;
+                   server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
                    extensions = []
                  } ,
      [2; 0; 0; 38; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
 
-   ( ServerHello { version = TLS_1_1 ;
-                   random  = a_cs <+> a_cs ;
+   ( ServerHello { server_version = TLS_1_1 ;
+                   server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
                    extensions = []
                  } ,
      [2; 0; 0; 38; 3; 2] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
 
-   ( ServerHello { version = TLS_1_0 ;
-                   random  = a_cs <+> a_cs ;
+   ( ServerHello { server_version = TLS_1_0 ;
+                   server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
                    extensions = []
                  } ,
      [2; 0; 0; 38; 3; 1] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
 
 
-   ( ServerHello { version = TLS_1_0 ;
-                   random  = a_cs <+> a_cs ;
+   ( ServerHello { server_version = TLS_1_0 ;
+                   server_random  = a_cs <+> a_cs ;
                    sessionid = Some a_cs ;
-                   ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
                    extensions = []
                  } ,
      [2; 0; 0; 54; 3; 1] @ a_l @ a_l @ (* session id *) [ 16 ] @ a_l @ [(* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
 
-   ( ServerHello { version = TLS_1_2 ;
-                   random  = a_cs <+> a_cs ;
+   ( ServerHello { server_version = TLS_1_2 ;
+                   server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
-                   extensions = [Hostname None]
+                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   extensions = [`Hostname]
                  } ,
      [2; 0; 0; 44; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 4; 0; 0; 0; 0] ) ;
 
 
-   ( ServerHello { version = TLS_1_2 ;
-                   random  = a_cs <+> a_cs ;
+   ( ServerHello { server_version = TLS_1_2 ;
+                   server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
-                   extensions = [SecureRenegotiation (Cstruct.create 0)]
+                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   extensions = [`SecureRenegotiation (Cstruct.create 0)]
                  } ,
      [2; 0; 0; 45; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 5; 0xFF; 1; 0; 1; 0] ) ;
 
-   ( ServerHello { version = TLS_1_2 ;
-                   random  = a_cs <+> a_cs ;
+   ( ServerHello { server_version = TLS_1_2 ;
+                   server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
-                   extensions = [Hostname None ; SecureRenegotiation (Cstruct.create 0)]
+                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   extensions = [`Hostname ; `SecureRenegotiation (Cstruct.create 0)]
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0; 0; 0; 0; 0xFF; 1; 0; 1; 0] ) ;
 
-   ( ServerHello { version = TLS_1_2 ;
-                   random  = a_cs <+> a_cs ;
+   ( ServerHello { server_version = TLS_1_2 ;
+                   server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuites = `TLS_RSA_WITH_RC4_128_MD5 ;
-                   extensions = [SecureRenegotiation (Cstruct.create 0); Hostname None]
+                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   extensions = [`SecureRenegotiation (Cstruct.create 0); `Hostname ]
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 1; 0; 0; 0; 0; 0] ) ;
 

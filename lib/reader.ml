@@ -232,7 +232,28 @@ let parse_hash_sig buf =
   else
     parse_count_list parsef (shift buf 2) [] (count / 2)
 
-let parse_extension raw =
+let parse_extension buf = function
+  | MAX_FRAGMENT_LENGTH ->
+     (match parse_fragment_length buf with
+      | Some mfl -> `MaxFragmentLength mfl
+      | None     -> raise_unknown "maximum fragment length")
+  | EC_POINT_FORMATS ->
+       let formats = parse_ec_point_format buf in
+       `ECPointFormats formats
+  | RENEGOTIATION_INFO ->
+       let len' = get_uint8 buf 0 in
+       if len buf <> len' + 1 then
+         raise_trailing_bytes "renegotiation"
+       else
+         `SecureRenegotiation (sub buf 1 len')
+  | EXTENDED_MASTER_SECRET ->
+      if len buf > 0 then
+         raise_trailing_bytes "extended master secret"
+       else
+         `ExtendedMasterSecret
+  | x -> `UnknownExtension (extension_type_to_int x, buf)
+
+let parse_client_extension raw =
   let etype = BE.get_uint16 raw 0 in
   let length = BE.get_uint16 raw 2 in
   let buf = sub raw 4 length in
@@ -240,28 +261,14 @@ let parse_extension raw =
     match int_to_extension_type etype with
     | Some SERVER_NAME ->
        (match parse_hostnames buf with
-        | []     -> Hostname None
-        | [name] -> Hostname (Some name)
+        | [name] -> `Hostname name
         | _      -> raise_unknown "bad server name indication (multiple names)")
-    | Some MAX_FRAGMENT_LENGTH ->
-       (match parse_fragment_length buf with
-        | Some mfl -> MaxFragmentLength mfl
-        | None     -> raise_unknown "maximum fragment length")
     | Some ELLIPTIC_CURVES ->
        let ecc = parse_elliptic_curves buf in
-       EllipticCurves ecc
-    | Some EC_POINT_FORMATS ->
-       let formats = parse_ec_point_format buf in
-       ECPointFormats formats
-    | Some RENEGOTIATION_INFO ->
-       let len' = get_uint8 buf 0 in
-       if len buf <> len' + 1 then
-         raise_trailing_bytes "renegotiation"
-       else
-         SecureRenegotiation (sub buf 1 len')
+       `EllipticCurves ecc
     | Some PADDING ->
        let rec check = function
-         | 0 -> Padding length
+         | 0 -> `Padding length
          | n -> let idx = pred n in
                 if get_uint8 buf idx <> 0 then
                   raise_unknown "bad padding in padding extension"
@@ -274,57 +281,78 @@ let parse_extension raw =
        if len rt <> 0 then
          raise_trailing_bytes "signature algorithms"
        else
-         SignatureAlgorithms algos
-    | Some EXTENDED_MASTER_SECRET ->
-      if len buf > 0 then
-         raise_trailing_bytes "extended master secret"
-       else
-         ExtendedMasterSecret
-    | _ ->
-       UnknownExtension (etype, buf)
+         `SignatureAlgorithms algos
+    | Some x -> parse_extension buf x
+    | None -> `UnknownExtension (etype, buf)
   in
   (Some data, shift raw (4 + length))
 
-let parse_extensions buf =
+let parse_server_extension raw =
+  let etype = BE.get_uint16 raw 0 in
+  let length = BE.get_uint16 raw 2 in
+  let buf = sub raw 4 length in
+  let data =
+    match int_to_extension_type etype with
+    | Some SERVER_NAME ->
+       (match parse_hostnames buf with
+        | [] -> `Hostname
+        | _      -> raise_unknown "bad server name indication (multiple names)")
+    | Some ELLIPTIC_CURVES | Some SIGNATURE_ALGORITHMS | Some PADDING ->
+       raise_unknown "invalid extension in server hello!"
+    | Some x -> parse_extension buf x
+    | None -> `UnknownExtension (etype, buf)
+  in
+  (Some data, shift raw (4 + length))
+
+let parse_extensions parse_ext buf =
   let length = BE.get_uint16 buf 0 in
   if len buf <> length + 2 then
     raise_trailing_bytes "extensions"
   else
-    parse_list parse_extension (sub buf 2 length) []
+    parse_list parse_ext (sub buf 2 length) []
 
-let parse_hello get_version get_compression get_cipher buf =
-  let version = get_version buf in
-  let random = sub buf 2 32 in
+let parse_client_hello buf =
+  let client_version = parse_any_version_exn buf in
+  let client_random = sub buf 2 32 in
   let slen = get_uint8 buf 34 in
   let sessionid = if slen = 0 then
                     None
                   else
                     Some (sub buf 35 slen)
   in
-  let ciphersuites, rt = get_cipher (shift buf (35 + slen)) in
-  let _, rt' = get_compression rt in
+  let ciphersuites, rt = parse_any_ciphersuites (shift buf (35 + slen)) in
+  let _, rt' = parse_compression_methods rt in
   let extensions = if len rt' == 0 then
                      []
                    else
-                     parse_extensions rt'
+                     parse_extensions parse_client_extension rt'
   in
-  { version ; random ; sessionid ; ciphersuites ; extensions }
-
-let parse_client_hello buf =
-  let ch = parse_hello parse_any_version_exn parse_compression_methods parse_any_ciphersuites buf in
-  ClientHello ch
+  ClientHello { client_version ; client_random ; sessionid ; ciphersuites ; extensions }
 
 let parse_server_hello buf =
-  let p_c buf = match parse_compression_method buf with
-    | Some x, buf' -> (x, buf')
-    | None  , _    -> raise_unknown "compression method"
+  let server_version = parse_version_exn buf in
+  let server_random = sub buf 2 32 in
+  let slen = get_uint8 buf 34 in
+  let sessionid = if slen = 0 then
+                    None
+                  else
+                    Some (sub buf 35 slen)
   in
-  let p_c_s buf = match parse_ciphersuite buf with
+  let ciphersuite, rt = match parse_ciphersuite (shift buf (35 + slen)) with
     | Some x, buf' -> (x, buf')
     | None  , _    -> raise_unknown "ciphersuite"
   in
-  let sh = parse_hello parse_version_exn p_c p_c_s buf in
-  ServerHello sh
+  let rt' = match parse_compression_method rt with
+    | Some NULL, buf' -> buf'
+    | Some _   , _    -> raise_unknown "unsupported compression method"
+    | None     , _    -> raise_unknown "compression method"
+  in
+  let extensions = if len rt' == 0 then
+                     []
+                   else
+                     parse_extensions parse_server_extension rt'
+  in
+  ServerHello { server_version ; server_random ; sessionid ; ciphersuite ; extensions }
 
 let parse_certificates buf =
   let parsef buf =
