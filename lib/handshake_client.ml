@@ -285,7 +285,7 @@ let answer_server_hello_done state session sigalgs kex premaster raw log =
     Handshake_crypto.initialise_crypto_ctx state.protocol_version session
   in
 
-  let checksum = Handshake_crypto.finished state.protocol_version master_secret "client finished" to_fin in
+  let checksum = Handshake_crypto.finished state.protocol_version session.ciphersuite master_secret "client finished" to_fin in
   let fin = Finished checksum in
   let raw_fin = Writer.assemble_handshake fin in
   let ps = to_fin @ [raw_fin] in
@@ -307,7 +307,7 @@ let answer_server_hello_done state session sigalgs kex premaster raw log =
 
 let answer_server_finished state session client_verify fin log =
   let computed =
-    Handshake_crypto.finished state.protocol_version session.master_secret "server finished" log
+    Handshake_crypto.finished state.protocol_version session.ciphersuite session.master_secret "server finished" log
   in
   guard (Cs.equal computed fin) (`Fatal `BadFinished) >>= fun () ->
   guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
@@ -317,7 +317,7 @@ let answer_server_finished state session client_verify fin log =
 
 let answer_server_finished_resume state session fin raw log =
   let client, server =
-    let checksum = Handshake_crypto.finished state.protocol_version session.master_secret in
+    let checksum = Handshake_crypto.finished state.protocol_version session.ciphersuite session.master_secret in
     (checksum "client finished" (log @ [raw]), checksum "server finished" log)
   in
   guard (Cs.equal server fin) (`Fatal `BadFinished) >>= fun () ->
