@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: b5deca3b87fc759bbd55f07da45aafef)
+# DO NOT EDIT (digest: 37ed62dccae839c5299ce53d3857fa9c)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -34,6 +34,7 @@ true: annot, bin_annot
 "lib/handshake_client.cmx": for-pack(Tls)
 <lib/*.ml{,i,y}>: pkg_cstruct.syntax
 <lib/*.ml{,i,y}>: pkg_nocrypto
+<lib/*.ml{,i,y}>: pkg_result
 <lib/*.ml{,i,y}>: pkg_sexplib.syntax
 <lib/*.ml{,i,y}>: pkg_x509
 # Library tests
@@ -46,6 +47,7 @@ true: annot, bin_annot
 <lwt/*.ml{,i,y}>: pkg_lwt.unix
 <lwt/*.ml{,i,y}>: pkg_nocrypto
 <lwt/*.ml{,i,y}>: pkg_nocrypto.lwt
+<lwt/*.ml{,i,y}>: pkg_result
 <lwt/*.ml{,i,y}>: pkg_sexplib.syntax
 <lwt/*.ml{,i,y}>: pkg_x509
 <lwt/*.ml{,i,y}>: use_tls
@@ -57,6 +59,7 @@ true: annot, bin_annot
 <mirage/*.ml{,i,y}>: pkg_lwt.syntax
 <mirage/*.ml{,i,y}>: pkg_mirage-types
 <mirage/*.ml{,i,y}>: pkg_nocrypto
+<mirage/*.ml{,i,y}>: pkg_result
 <mirage/*.ml{,i,y}>: pkg_sexplib.syntax
 <mirage/*.ml{,i,y}>: pkg_x509
 <mirage/*.ml{,i,y}>: use_tls
@@ -65,6 +68,7 @@ true: annot, bin_annot
 "tests/unittestrunner.native": pkg_cstruct.unix
 "tests/unittestrunner.native": pkg_nocrypto
 "tests/unittestrunner.native": pkg_oUnit
+"tests/unittestrunner.native": pkg_result
 "tests/unittestrunner.native": pkg_sexplib.syntax
 "tests/unittestrunner.native": pkg_x509
 "tests/unittestrunner.native": use_tests
@@ -74,6 +78,7 @@ true: annot, bin_annot
 "tests/feedback.native": pkg_cstruct.unix
 "tests/feedback.native": pkg_nocrypto
 "tests/feedback.native": pkg_oUnit
+"tests/feedback.native": pkg_result
 "tests/feedback.native": pkg_sexplib.syntax
 "tests/feedback.native": pkg_x509
 "tests/feedback.native": use_tests
@@ -82,6 +87,7 @@ true: annot, bin_annot
 <tests/*.ml{,i,y}>: pkg_cstruct.unix
 <tests/*.ml{,i,y}>: pkg_nocrypto
 <tests/*.ml{,i,y}>: pkg_oUnit
+<tests/*.ml{,i,y}>: pkg_result
 <tests/*.ml{,i,y}>: pkg_sexplib.syntax
 <tests/*.ml{,i,y}>: pkg_x509
 <tests/*.ml{,i,y}>: use_tests
@@ -93,6 +99,7 @@ true: annot, bin_annot
 "lwt/examples/starttls_server.native": pkg_lwt.unix
 "lwt/examples/starttls_server.native": pkg_nocrypto
 "lwt/examples/starttls_server.native": pkg_nocrypto.lwt
+"lwt/examples/starttls_server.native": pkg_result
 "lwt/examples/starttls_server.native": pkg_sexplib.syntax
 "lwt/examples/starttls_server.native": pkg_str
 "lwt/examples/starttls_server.native": pkg_x509
@@ -106,6 +113,7 @@ true: annot, bin_annot
 "lwt/examples/echo_server.native": pkg_lwt.unix
 "lwt/examples/echo_server.native": pkg_nocrypto
 "lwt/examples/echo_server.native": pkg_nocrypto.lwt
+"lwt/examples/echo_server.native": pkg_result
 "lwt/examples/echo_server.native": pkg_sexplib.syntax
 "lwt/examples/echo_server.native": pkg_x509
 "lwt/examples/echo_server.native": use_tls
@@ -117,6 +125,7 @@ true: annot, bin_annot
 "lwt/examples/echo_server_sni.native": pkg_lwt.unix
 "lwt/examples/echo_server_sni.native": pkg_nocrypto
 "lwt/examples/echo_server_sni.native": pkg_nocrypto.lwt
+"lwt/examples/echo_server_sni.native": pkg_result
 "lwt/examples/echo_server_sni.native": pkg_sexplib.syntax
 "lwt/examples/echo_server_sni.native": pkg_x509
 "lwt/examples/echo_server_sni.native": use_tls
@@ -128,6 +137,7 @@ true: annot, bin_annot
 "lwt/examples/echo_client.native": pkg_lwt.unix
 "lwt/examples/echo_client.native": pkg_nocrypto
 "lwt/examples/echo_client.native": pkg_nocrypto.lwt
+"lwt/examples/echo_client.native": pkg_result
 "lwt/examples/echo_client.native": pkg_sexplib.syntax
 "lwt/examples/echo_client.native": pkg_x509
 "lwt/examples/echo_client.native": use_tls
@@ -139,6 +149,7 @@ true: annot, bin_annot
 "lwt/examples/http_client.native": pkg_lwt.unix
 "lwt/examples/http_client.native": pkg_nocrypto
 "lwt/examples/http_client.native": pkg_nocrypto.lwt
+"lwt/examples/http_client.native": pkg_result
 "lwt/examples/http_client.native": pkg_sexplib.syntax
 "lwt/examples/http_client.native": pkg_x509
 "lwt/examples/http_client.native": use_tls
@@ -150,6 +161,7 @@ true: annot, bin_annot
 "lwt/examples/test_server.native": pkg_lwt.unix
 "lwt/examples/test_server.native": pkg_nocrypto
 "lwt/examples/test_server.native": pkg_nocrypto.lwt
+"lwt/examples/test_server.native": pkg_result
 "lwt/examples/test_server.native": pkg_sexplib.syntax
 "lwt/examples/test_server.native": pkg_x509
 "lwt/examples/test_server.native": use_tls
@@ -161,6 +173,7 @@ true: annot, bin_annot
 "lwt/examples/test_client.native": pkg_lwt.unix
 "lwt/examples/test_client.native": pkg_nocrypto
 "lwt/examples/test_client.native": pkg_nocrypto.lwt
+"lwt/examples/test_client.native": pkg_result
 "lwt/examples/test_client.native": pkg_sexplib.syntax
 "lwt/examples/test_client.native": pkg_x509
 "lwt/examples/test_client.native": use_tls
@@ -171,6 +184,7 @@ true: annot, bin_annot
 <lwt/examples/*.ml{,i,y}>: pkg_lwt.unix
 <lwt/examples/*.ml{,i,y}>: pkg_nocrypto
 <lwt/examples/*.ml{,i,y}>: pkg_nocrypto.lwt
+<lwt/examples/*.ml{,i,y}>: pkg_result
 <lwt/examples/*.ml{,i,y}>: pkg_sexplib.syntax
 <lwt/examples/*.ml{,i,y}>: pkg_x509
 <lwt/examples/*.ml{,i,y}>: use_tls

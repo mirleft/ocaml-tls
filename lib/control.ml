@@ -1,3 +1,4 @@
+open Result
 
 (*
  * Monad core
@@ -75,8 +76,6 @@ module type Or_error = sig
   val or_else    : 'a t -> 'a -> 'a
   val or_else_f  : 'a t -> ('b -> 'a) -> 'b -> 'a
 end
-
-type ('a, 'err) result = Ok of 'a | Error of 'err
 
 module Or_error_make (M : sig type err end) :
   Or_error with type err = M.err and type 'a t = ('a, M.err) result =

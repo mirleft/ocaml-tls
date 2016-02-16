@@ -19,6 +19,7 @@ remove: [ "ocamlfind" "remove" "tls" ]
 depends: [
   "ocamlfind" {build}
   "ocamlbuild" {build}
+  "result"
   "cstruct" {>= "1.6.0"}
   "type_conv"
   "sexplib" {< "113.01.00"}

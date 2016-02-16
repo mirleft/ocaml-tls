@@ -1,6 +1,6 @@
-open OUnit2
+open Result
 open Tls
-open Control (** XXX *)
+open OUnit2
 open Testlib
 
 let readerwriter_version v _ =

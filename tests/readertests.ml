@@ -1,6 +1,6 @@
-open OUnit2
+open Result
 open Tls
-open Control (** XXX temp **)
+open OUnit2
 open Testlib
 
 

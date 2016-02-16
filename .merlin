@@ -4,6 +4,7 @@ S mirage
 
 B _build/**
 
+PKG result
 PKG cstruct
 PKG sexplib
 PKG nocrypto
