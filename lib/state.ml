@@ -217,4 +217,7 @@ type failure = [
 ] with sexp
 
 (* Monadic control-flow core. *)
-include Control.Or_error_make (struct type err = failure end)
+type ('a, 'b) result = ('a, 'b) Control.result = Ok of 'a | Error of 'b
+module Effect = Control.Or_error_make (struct type err = failure end)
+include Effect
+type 'a eff = 'a Effect.t

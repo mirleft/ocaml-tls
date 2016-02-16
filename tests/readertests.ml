@@ -1,24 +1,26 @@
 open OUnit2
 open Tls
+open Control (** XXX temp **)
 open Testlib
+
 
 let good_any_version_parser major minor result _ =
   let ver = list_to_cstruct [ major ; minor ] in
-  Reader.(match parse_any_version ver with
-          | Or_error.Ok v    -> assert_equal v result
-          | Or_error.Error _ -> assert_failure "Version parser broken")
+  match Reader.parse_any_version ver with
+  | Ok v    -> assert_equal v result
+  | Error _ -> assert_failure "Version parser broken"
 
 let bad_any_version_parser major minor _ =
   let ver = list_to_cstruct [ major ; minor ] in
-  Reader.(match parse_any_version ver with
-          | Or_error.Ok v    -> assert_failure "Version parser broken"
-          | Or_error.Error _ -> ())
+  match Reader.parse_any_version ver with
+  | Ok v    -> assert_failure "Version parser broken"
+  | Error _ -> ()
 
 let parse_any_version_too_short _ =
   let ver = list_to_cstruct [ 0 ] in
-  Reader.(match parse_any_version ver with
-          | Or_error.Ok v    -> assert_failure "Version parser broken"
-          | Or_error.Error _ -> ())
+  match Reader.parse_any_version ver with
+  | Ok v    -> assert_failure "Version parser broken"
+  | Error _ -> ()
 
 let any_version_parser_tests = [
   good_any_version_parser 3 0 Core.SSL_3 ;
@@ -42,21 +44,21 @@ let any_version_tests =
 
 let good_version_parser major minor result _ =
   let ver = list_to_cstruct [ major ; minor ] in
-  Reader.(match parse_version ver with
-          | Or_error.Ok v    -> assert_equal v result
-          | Or_error.Error _ -> assert_failure "Version parser broken")
+  match Reader.parse_version ver with
+  | Ok v    -> assert_equal v result
+  | Error _ -> assert_failure "Version parser broken"
 
 let bad_version_parser major minor _ =
   let ver = list_to_cstruct [ major ; minor ] in
-  Reader.(match parse_version ver with
-          | Or_error.Ok v    -> assert_failure "Version parser broken"
-          | Or_error.Error _ -> ())
+  match Reader.parse_version ver with
+  | Ok v    -> assert_failure "Version parser broken"
+  | Error _ -> ()
 
 let parse_version_too_short _ =
   let ver = list_to_cstruct [ 0 ] in
-  Reader.(match parse_version ver with
-          | Or_error.Ok v    -> assert_failure "Version parser broken"
-          | Or_error.Error _ -> ())
+  match Reader.parse_version ver with
+  | Ok v    -> assert_failure "Version parser broken"
+  | Error _ -> ()
 
 let version_parser_tests = [
   good_version_parser 3 1 Core.TLS_1_0 ;
@@ -83,14 +85,14 @@ let good_record_parser (bytes, result) _ =
   let buf = list_to_cstruct bytes in
   let open Reader in
   match parse_record buf, result with
-  | Or_error.Ok (`Record ((hdr, x), f)), `Record ((rhdr, y), g) ->
+  | Ok (`Record ((hdr, x), f)), `Record ((rhdr, y), g) ->
     assert_equal rhdr hdr ;
     assert_cs_eq y x ;
     assert_cs_eq g f
-  | Or_error.Ok (`Fragment x), `Fragment y -> assert_cs_eq y x
-  | Or_error.Error (Overflow x), `Overflow y -> assert_equal y x
-  | Or_error.Error (UnknownVersion x), `UnknownVersion y -> assert_equal y x
-  | Or_error.Error (UnknownContent x), `UnknownContent y -> assert_equal y x
+  | Ok (`Fragment x), `Fragment y -> assert_cs_eq y x
+  | Error (Overflow x), `Overflow y -> assert_equal y x
+  | Error (UnknownVersion x), `UnknownVersion y -> assert_equal y x
+  | Error (UnknownContent x), `UnknownContent y -> assert_equal y x
   | _ -> assert_failure "record parser broken"
 
 let good_records =
@@ -121,9 +123,9 @@ let good_records_tests =
 
 let good_alert_parser (lvl, typ, expected) _ =
   let buf = list_to_cstruct [ lvl ; typ ] in
-  Reader.(match parse_alert buf with
-          | Or_error.Ok al   -> assert_equal al expected
-          | Or_error.Error _ -> assert_failure "alert parser broken")
+  match Reader.parse_alert buf with
+  | Ok al   -> assert_equal al expected
+  | Error _ -> assert_failure "alert parser broken"
 
 let good_alerts =
   let w = Packet.WARNING in
@@ -198,9 +200,9 @@ let good_alert_tests =
 
 let bad_alert_parser xs _ =
   let buf = list_to_cstruct xs in
-  Reader.(match parse_alert buf with
-          | Or_error.Ok _    -> assert_failure "bad alert passes"
-          | Or_error.Error _ -> ())
+  match Reader.parse_alert buf with
+  | Ok _    -> assert_failure "bad alert passes"
+  | Error _ -> ()
 
 let bad_alerts = [
   [3; 0] ;
@@ -213,15 +215,15 @@ let bad_alerts = [
 
 let alert_too_small _ =
   let buf = list_to_cstruct [ 0 ] in
-  Reader.(match parse_alert buf with
-          | Or_error.Ok _    -> assert_failure "short alert passes"
-          | Or_error.Error _ -> ())
+  match Reader.parse_alert buf with
+  | Ok _    -> assert_failure "short alert passes"
+  | Error _ -> ()
 
 let alert_too_small2 _ =
   let buf = list_to_cstruct [ 25 ] in
-  Reader.(match parse_alert buf with
-          | Or_error.Ok _    -> assert_failure "short alert passes"
-          | Or_error.Error _ -> ())
+  match Reader.parse_alert buf with
+  | Ok _    -> assert_failure "short alert passes"
+  | Error _ -> ()
 
 let bad_alerts_tests =
   ("short alert" >:: alert_too_small) ::
@@ -423,9 +425,9 @@ let good_dhparams = [
 
 let good_dh_param_parser xs _ =
   let buf = list_to_cstruct xs in
-  Reader.(match parse_dh_parameters buf with
-          | Or_error.Error _          -> assert_failure "dh params parser broken"
-          | Or_error.Ok (p, raw, rst) -> assert_equal 0 (Cstruct.len rst))
+  match Reader.parse_dh_parameters buf with
+  | Error _          -> assert_failure "dh params parser broken"
+  | Ok (p, raw, rst) -> assert_equal 0 (Cstruct.len rst)
 
 let good_dh_params_tests =
   List.mapi
@@ -433,11 +435,11 @@ let good_dh_params_tests =
     good_dhparams
 
 let bad_dh_param_parser buf _ =
-  Reader.(match parse_dh_parameters buf with
-          | Or_error.Error _ -> ()
-          | Or_error.Ok (p, raw, rst) ->
-             if Cstruct.len rst == 0 then
-               assert_failure "dh params parser broken")
+  match Reader.parse_dh_parameters buf with
+  | Error _ -> ()
+  | Ok (p, raw, rst) ->
+      if Cstruct.len rst == 0 then
+        assert_failure "dh params parser broken"
 
 let bad_dh_params_tests =
   let param = list_to_cstruct (List.hd good_dhparams) in
@@ -575,9 +577,9 @@ let good_digitally_signed_1_2 = [
 
 let good_digitally_signed_1_2_parser xs _ =
   let buf = list_to_cstruct xs in
-  Reader.(match parse_digitally_signed_1_2 buf with
-          | Or_error.Error _ -> assert_failure "digitally signed 1.2 parser broken"
-          | Or_error.Ok _    -> ())
+  match Reader.parse_digitally_signed_1_2 buf with
+  | Error _ -> assert_failure "digitally signed 1.2 parser broken"
+  | Ok _    -> ()
 
 let good_digitally_signed_1_2_tests =
   List.mapi
@@ -608,9 +610,9 @@ let bad_dss_1_2 =
   ]
 
 let bad_digitally_signed_1_2_parser buf _ =
-  Reader.(match parse_digitally_signed_1_2 buf with
-          | Or_error.Error _ -> ()
-          | Or_error.Ok _    -> assert_failure "digitally signed 1.2 parser broken")
+  match Reader.parse_digitally_signed_1_2 buf with
+  | Error _ -> ()
+  | Ok _    -> assert_failure "digitally signed 1.2 parser broken"
 
 let bad_digitally_signed_1_2_tests =
   List.mapi
@@ -619,9 +621,9 @@ let bad_digitally_signed_1_2_tests =
 
 let good_digitally_signed_parser xs _ =
   let buf = Cstruct.shift (list_to_cstruct xs) 2 in
-  Reader.(match parse_digitally_signed buf with
-          | Or_error.Error _ -> assert_failure "digitally signed parser broken"
-          | Or_error.Ok _    -> ())
+  match Reader.parse_digitally_signed buf with
+  | Error _ -> assert_failure "digitally signed parser broken"
+  | Ok _    -> ()
 
 let good_digitally_signed_tests =
   List.mapi
@@ -641,9 +643,9 @@ let bad_dss =
   ]
 
 let bad_digitally_signed_parser buf _ =
-  Reader.(match parse_digitally_signed buf with
-          | Or_error.Error _ -> ()
-          | Or_error.Ok _    -> assert_failure "digitally signed parser broken")
+  match Reader.parse_digitally_signed buf with
+  | Error _ -> ()
+  | Ok _    -> assert_failure "digitally signed parser broken"
 
 let bad_digitally_signed_tests =
   List.mapi
@@ -685,9 +687,9 @@ let good_handshakes_no_data = [
 
 let good_handshake_no_data_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok r -> assert_equal res r
-          | Or_error.Error _ -> assert_failure "handshake no data parser failed")
+  match Reader.parse_handshake buf with
+  | Ok r -> assert_equal res r
+  | Error _ -> assert_failure "handshake no data parser failed"
 
 let good_handshake_no_data_tests =
   List.mapi
@@ -704,9 +706,9 @@ let bad_handshakes_no_data = [
 
 let bad_handshake_no_data_parser xs _ =
   let buf = list_to_cstruct xs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok _ -> assert_failure "bad handshake no data parser failed"
-          | Or_error.Error _ -> ())
+  match Reader.parse_handshake buf with
+  | Ok _ -> assert_failure "bad handshake no data parser failed"
+  | Error _ -> ()
 
 let bad_handshake_no_data_tests =
   List.mapi
@@ -1091,9 +1093,9 @@ let cmp_handshake_cstruct hs hs' =
 
 let good_handshake_cstruct_data_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok r -> cmp_handshake_cstruct r res
-          | Or_error.Error _ -> assert_failure "handshake cstruct data parser failed")
+  match Reader.parse_handshake buf with
+  | Ok r -> cmp_handshake_cstruct r res
+  | Error _ -> assert_failure "handshake cstruct data parser failed"
 
 let good_handshake_cstruct_data_tests =
   List.mapi
@@ -1123,9 +1125,9 @@ let bad_handshake_cstruct_data =
 
 let bad_handshake_cstruct_data_parser xs _ =
   let buf = list_to_cstruct xs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok _ -> assert_failure "bad handshake cstruct parser won"
-          | Or_error.Error _ -> ())
+  match Reader.parse_handshake buf with
+  | Ok _ -> assert_failure "bad handshake cstruct parser won"
+  | Error _ -> ()
 
 let bad_handshake_cstruct_data_tests =
   List.mapi
@@ -1347,9 +1349,9 @@ let cmp_client_hellos ch ch' =
 
 let good_client_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok (Core.ClientHello ch) -> cmp_client_hellos ch res
-          | _ -> assert_failure "handshake client hello parser failed")
+  match Reader.parse_handshake buf with
+  | Ok (Core.ClientHello ch) -> cmp_client_hellos ch res
+  | _ -> assert_failure "handshake client hello parser failed"
 
 let good_client_hellos_tests =
   List.mapi
@@ -1430,9 +1432,9 @@ let bad_client_hellos =
 let bad_client_hello_parser xs _ =
   let open Core in
   let buf = list_to_cstruct xs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok _ -> assert_failure "bad client hello parser won"
-          | Or_error.Error _ -> ())
+  match Reader.parse_handshake buf with
+  | Ok _ -> assert_failure "bad client hello parser won"
+  | Error _ -> ()
 
 let bad_client_hello_tests =
   List.mapi
@@ -1531,9 +1533,9 @@ let cmp_server_hellos sh sh' =
 
 let good_server_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok (Core.ServerHello sh) -> cmp_server_hellos sh res
-          | _ -> assert_failure "handshake server hello parser failed")
+  match Reader.parse_handshake buf with
+  | Ok (Core.ServerHello sh) -> cmp_server_hellos sh res
+  | _ -> assert_failure "handshake server hello parser failed"
 
 let good_server_hellos_tests =
   List.mapi
@@ -1568,9 +1570,9 @@ let bad_server_hellos =
 let bad_server_hellos_parser xs _ =
   let open Core in
   let buf = list_to_cstruct xs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok _ -> assert_failure "handshake server hello parser succeeded"
-          | Or_error.Error _ -> ())
+  match Reader.parse_handshake buf with
+  | Ok _ -> assert_failure "handshake server hello parser succeeded"
+  | Error _ -> ()
 
 let bad_server_hellos_tests =
   List.mapi

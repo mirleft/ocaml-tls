@@ -105,7 +105,7 @@ let answer_client_key_exchange_RSA state session kex raw log =
        fails, the PreMasterSecret SHOULD be randomized as described below *)
     (* we do not provide an option to disable the version checking (yet!) *)
     match Cstruct.len k == 48, Reader.parse_any_version k with
-    | true, Reader.Or_error.Ok c_ver when c_ver = session.client_version -> k
+    | true, Ok c_ver when c_ver = session.client_version -> k
     | _                                                                  -> other
   in
 
@@ -413,9 +413,8 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
   | true , _             -> fail (`Fatal `InvalidSession) (* I'm pretty sure this can be an assert false *)
 
 let handle_change_cipher_spec ss state packet =
-  let open Reader in
-  match parse_change_cipher_spec packet, ss with
-  | Or_error.Ok (), AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log) ->
+  match Reader.parse_change_cipher_spec packet, ss with
+  | Ok (), AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log) ->
      guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty)
      >>= fun () ->
      let ccs = change_cipher_spec in
@@ -426,7 +425,7 @@ let handle_change_cipher_spec ss state packet =
 
      return ({ state with machina = Server machina },
              [`Record ccs; `Change_enc (Some server_ctx); `Change_dec (Some client_ctx)])
-  | Or_error.Ok (), AwaitClientChangeCipherSpecResume (session, client_ctx, server_verify, log) ->
+  | Ok (), AwaitClientChangeCipherSpecResume (session, client_ctx, server_verify, log) ->
      guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
      let machina = AwaitClientFinishedResume (session, server_verify, log)
      in
@@ -435,13 +434,12 @@ let handle_change_cipher_spec ss state packet =
 
      ({ state with machina = Server machina },
       [`Change_dec (Some client_ctx)])
-  | Or_error.Error er, _ -> fail (`Fatal (`ReaderError er))
+  | Error er, _ -> fail (`Fatal (`ReaderError er))
   | _ -> fail (`Fatal `UnexpectedCCS)
 
 let handle_handshake ss hs buf =
-  let open Reader in
-  match parse_handshake buf with
-  | Or_error.Ok handshake ->
+  match Reader.parse_handshake buf with
+  | Ok handshake ->
     (* Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake; *)
      ( match ss, handshake with
        | AwaitClientHello, ClientHello ch ->
@@ -465,4 +463,4 @@ let handle_handshake ss hs buf =
        | AwaitClientHelloRenegotiate, ClientHello ch -> (* hello-request send, renegotiation *)
           answer_client_hello_reneg hs ch buf
        | _, hs -> fail (`Fatal (`UnexpectedHandshake hs)) )
-  | Or_error.Error re -> fail (`Fatal (`ReaderError re))
+  | Error re -> fail (`Fatal (`ReaderError re))

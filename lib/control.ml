@@ -66,21 +66,23 @@ end )
 
 module type Or_error = sig
   type err
-  type 'a or_error = Ok of 'a | Error of err
-  val fail       : err -> 'a or_error
-  val is_success : 'a or_error -> bool
-  val is_error   : 'a or_error -> bool
-  include Monad_ext with type 'a t = 'a or_error
-  val guard      : bool -> err -> unit or_error
-  val or_else    : 'a or_error -> 'a -> 'a
-  val or_else_f  : 'a or_error -> ('b -> 'a) -> 'b -> 'a
+  type 'a t
+  val fail       : err -> 'a t
+  val is_success : 'a t -> bool
+  val is_error   : 'a t -> bool
+  include Monad_ext with type 'a t := 'a t
+  val guard      : bool -> err -> unit t
+  val or_else    : 'a t -> 'a -> 'a
+  val or_else_f  : 'a t -> ('b -> 'a) -> 'b -> 'a
 end
 
+type ('a, 'err) result = Ok of 'a | Error of 'err
+
 module Or_error_make (M : sig type err end) :
-  Or_error with type err = M.err =
+  Or_error with type err = M.err and type 'a t = ('a, M.err) result =
 struct
   type err = M.err
-  type 'a or_error = Ok of 'a | Error of err
+  type 'a t = ('a, err) result
   let fail e   = Error e
   let is_success = function
     | Ok    _ -> true
@@ -88,18 +90,15 @@ struct
   let is_error = function
     | Ok    _ -> false
     | Error _ -> true
-  include Monad_ext_make ( struct
-    type 'a t = 'a or_error
-    let return a = Ok a
-    let bind a f = match a with
-      | Ok x    -> f x
-      | Error e -> Error e
-  end )
+  include (
+    Monad_ext_make ( struct
+      type nonrec 'a t = 'a t
+      let return a = Ok a
+      let bind a f = match a with
+        | Ok x    -> f x
+        | Error e -> Error e
+    end ) : Monad_ext with type 'a t := 'a t)
   let guard pred err = if pred then return () else fail err
   let or_else m a = match m with Ok x -> x | _ -> a
   let or_else_f m f b = match m with Ok x -> x | _ -> f b
 end
-
-module Or_string_error =
-  Or_error_make (struct type err = string end)
-

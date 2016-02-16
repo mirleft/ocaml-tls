@@ -234,24 +234,24 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
       return (Some ctx', msg)
 
 (* party time *)
-let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) or_error
+let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) eff
 = fun buf ->
   let open Reader in
   match parse_record buf with
-  | Or_error.Ok (`Fragment b) -> return ([], b)
-  | Or_error.Ok (`Record (packet, fragment)) ->
+  | Ok (`Fragment b) -> return ([], b)
+  | Ok (`Record (packet, fragment)) ->
     separate_records fragment >|= fun (tl, frag) ->
     (packet :: tl, frag)
-  | Or_error.Error (Overflow x) ->
+  | Error (Overflow x) ->
     Tracing.cs ~tag:"buf-in" buf ;
     fail (`Fatal (`RecordOverflow x))
-  | Or_error.Error (UnknownVersion v) ->
+  | Error (UnknownVersion v) ->
     Tracing.cs ~tag:"buf-in" buf ;
     fail (`Fatal (`UnknownRecordVersion v))
-  | Or_error.Error (UnknownContent c) ->
+  | Error (UnknownContent c) ->
     Tracing.cs ~tag:"buf-in" buf ;
     fail (`Fatal (`UnknownContentType c))
-  | Or_error.Error e ->
+  | Error e ->
     Tracing.cs ~tag:"buf-in" buf ;
     fail (`Fatal (`ReaderError e))
 
@@ -283,13 +283,13 @@ module Alert = struct
 
   let handle buf =
     match Reader.parse_alert buf with
-    | Reader.Or_error.Ok (_, a_type as alert) ->
+    | Ok (_, a_type as alert) ->
         Tracing.sexpf ~tag:"alert-in" ~f:sexp_of_tls_alert alert ;
         let err = match a_type with
           | CLOSE_NOTIFY -> `Eof
           | _            -> `Alert a_type in
         return (err, [`Record close_notify])
-    | Reader.Or_error.Error re -> fail (`Fatal (`ReaderError re))
+    | Error re -> fail (`Fatal (`ReaderError re))
 end
 
 let hs_can_handle_appdata s =
