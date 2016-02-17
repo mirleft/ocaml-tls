@@ -1,5 +1,5 @@
+open Result
 open Nocrypto
-
 open Utils
 
 open Core

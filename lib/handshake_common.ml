@@ -1,8 +1,9 @@
+open Result
+open Nocrypto
+
 open Utils
 open Core
 open State
-
-open Nocrypto
 
 let empty = function [] -> true | _ -> false
 

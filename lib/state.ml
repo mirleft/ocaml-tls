@@ -217,6 +217,7 @@ type failure = [
 ] with sexp
 
 (* Monadic control-flow core. *)
-include Control.Or_error_make (struct type err = failure end)
-type 'a eff = 'a t
-include Result
+
+module Amb = Control.Amb          (* Alias for easy reference *)
+include Amb.Operators             (* This is used all over the place *)
+type 'a eff = ('a, failure) Amb.t (* Alias for internal signatures. *)
