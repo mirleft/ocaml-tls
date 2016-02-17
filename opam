@@ -25,6 +25,7 @@ depends: [
   "sexplib" {< "113.01.00"}
   "nocrypto" {>= "0.5.0"}
   "x509" {>= "0.5.0"}
+  "effective"
   "camlp4"
   "ounit" {test}
 ]

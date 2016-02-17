@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 37ed62dccae839c5299ce53d3857fa9c)
+# DO NOT EDIT (digest: ac5c16cf2811b012e7f650929c4b68cf)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -33,6 +33,7 @@ true: annot, bin_annot
 "lib/handshake_server.cmx": for-pack(Tls)
 "lib/handshake_client.cmx": for-pack(Tls)
 <lib/*.ml{,i,y}>: pkg_cstruct.syntax
+<lib/*.ml{,i,y}>: pkg_effective
 <lib/*.ml{,i,y}>: pkg_nocrypto
 <lib/*.ml{,i,y}>: pkg_result
 <lib/*.ml{,i,y}>: pkg_sexplib.syntax
@@ -43,6 +44,7 @@ true: annot, bin_annot
 "lwt/tls-lwt.cmxs": use_tls-lwt
 <lwt/*.ml{,i,y}>: pkg_cstruct.lwt
 <lwt/*.ml{,i,y}>: pkg_cstruct.syntax
+<lwt/*.ml{,i,y}>: pkg_effective
 <lwt/*.ml{,i,y}>: pkg_lwt.syntax
 <lwt/*.ml{,i,y}>: pkg_lwt.unix
 <lwt/*.ml{,i,y}>: pkg_nocrypto
@@ -54,6 +56,7 @@ true: annot, bin_annot
 # Library tls-mirage
 "mirage/tls-mirage.cmxs": use_tls-mirage
 <mirage/*.ml{,i,y}>: pkg_cstruct.syntax
+<mirage/*.ml{,i,y}>: pkg_effective
 <mirage/*.ml{,i,y}>: pkg_ipaddr
 <mirage/*.ml{,i,y}>: pkg_lwt
 <mirage/*.ml{,i,y}>: pkg_lwt.syntax
@@ -66,6 +69,7 @@ true: annot, bin_annot
 # Executable test_runner
 "tests/unittestrunner.native": pkg_cstruct.syntax
 "tests/unittestrunner.native": pkg_cstruct.unix
+"tests/unittestrunner.native": pkg_effective
 "tests/unittestrunner.native": pkg_nocrypto
 "tests/unittestrunner.native": pkg_oUnit
 "tests/unittestrunner.native": pkg_result
@@ -76,6 +80,7 @@ true: annot, bin_annot
 # Executable feedback
 "tests/feedback.native": pkg_cstruct.syntax
 "tests/feedback.native": pkg_cstruct.unix
+"tests/feedback.native": pkg_effective
 "tests/feedback.native": pkg_nocrypto
 "tests/feedback.native": pkg_oUnit
 "tests/feedback.native": pkg_result
@@ -85,6 +90,7 @@ true: annot, bin_annot
 "tests/feedback.native": use_tls
 <tests/*.ml{,i,y}>: pkg_cstruct.syntax
 <tests/*.ml{,i,y}>: pkg_cstruct.unix
+<tests/*.ml{,i,y}>: pkg_effective
 <tests/*.ml{,i,y}>: pkg_nocrypto
 <tests/*.ml{,i,y}>: pkg_oUnit
 <tests/*.ml{,i,y}>: pkg_result
@@ -95,6 +101,7 @@ true: annot, bin_annot
 # Executable starttls_server
 "lwt/examples/starttls_server.native": pkg_cstruct.lwt
 "lwt/examples/starttls_server.native": pkg_cstruct.syntax
+"lwt/examples/starttls_server.native": pkg_effective
 "lwt/examples/starttls_server.native": pkg_lwt.syntax
 "lwt/examples/starttls_server.native": pkg_lwt.unix
 "lwt/examples/starttls_server.native": pkg_nocrypto
@@ -109,6 +116,7 @@ true: annot, bin_annot
 # Executable echo_server
 "lwt/examples/echo_server.native": pkg_cstruct.lwt
 "lwt/examples/echo_server.native": pkg_cstruct.syntax
+"lwt/examples/echo_server.native": pkg_effective
 "lwt/examples/echo_server.native": pkg_lwt.syntax
 "lwt/examples/echo_server.native": pkg_lwt.unix
 "lwt/examples/echo_server.native": pkg_nocrypto
@@ -121,6 +129,7 @@ true: annot, bin_annot
 # Executable echo_server_sni
 "lwt/examples/echo_server_sni.native": pkg_cstruct.lwt
 "lwt/examples/echo_server_sni.native": pkg_cstruct.syntax
+"lwt/examples/echo_server_sni.native": pkg_effective
 "lwt/examples/echo_server_sni.native": pkg_lwt.syntax
 "lwt/examples/echo_server_sni.native": pkg_lwt.unix
 "lwt/examples/echo_server_sni.native": pkg_nocrypto
@@ -133,6 +142,7 @@ true: annot, bin_annot
 # Executable echo_client
 "lwt/examples/echo_client.native": pkg_cstruct.lwt
 "lwt/examples/echo_client.native": pkg_cstruct.syntax
+"lwt/examples/echo_client.native": pkg_effective
 "lwt/examples/echo_client.native": pkg_lwt.syntax
 "lwt/examples/echo_client.native": pkg_lwt.unix
 "lwt/examples/echo_client.native": pkg_nocrypto
@@ -145,6 +155,7 @@ true: annot, bin_annot
 # Executable http_client
 "lwt/examples/http_client.native": pkg_cstruct.lwt
 "lwt/examples/http_client.native": pkg_cstruct.syntax
+"lwt/examples/http_client.native": pkg_effective
 "lwt/examples/http_client.native": pkg_lwt.syntax
 "lwt/examples/http_client.native": pkg_lwt.unix
 "lwt/examples/http_client.native": pkg_nocrypto
@@ -157,6 +168,7 @@ true: annot, bin_annot
 # Executable test_server
 "lwt/examples/test_server.native": pkg_cstruct.lwt
 "lwt/examples/test_server.native": pkg_cstruct.syntax
+"lwt/examples/test_server.native": pkg_effective
 "lwt/examples/test_server.native": pkg_lwt.syntax
 "lwt/examples/test_server.native": pkg_lwt.unix
 "lwt/examples/test_server.native": pkg_nocrypto
@@ -169,6 +181,7 @@ true: annot, bin_annot
 # Executable test_client
 "lwt/examples/test_client.native": pkg_cstruct.lwt
 "lwt/examples/test_client.native": pkg_cstruct.syntax
+"lwt/examples/test_client.native": pkg_effective
 "lwt/examples/test_client.native": pkg_lwt.syntax
 "lwt/examples/test_client.native": pkg_lwt.unix
 "lwt/examples/test_client.native": pkg_nocrypto
@@ -180,6 +193,7 @@ true: annot, bin_annot
 "lwt/examples/test_client.native": use_tls-lwt
 <lwt/examples/*.ml{,i,y}>: pkg_cstruct.lwt
 <lwt/examples/*.ml{,i,y}>: pkg_cstruct.syntax
+<lwt/examples/*.ml{,i,y}>: pkg_effective
 <lwt/examples/*.ml{,i,y}>: pkg_lwt.syntax
 <lwt/examples/*.ml{,i,y}>: pkg_lwt.unix
 <lwt/examples/*.ml{,i,y}>: pkg_nocrypto
