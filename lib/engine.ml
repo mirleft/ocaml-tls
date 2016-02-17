@@ -1,3 +1,5 @@
+open Result
+
 open Nocrypto
 
 open Utils
@@ -67,15 +69,14 @@ let string_of_failure = function
   | `Error (`AuthenticationFailure v) -> "authentication failure: " ^ X509.Validation.validation_error_to_string v
   | f -> Sexplib.Sexp.to_string_hum (sexp_of_failure f)
 
-type ret = [
 
-  | `Ok of [ `Ok of state | `Eof | `Alert of Packet.alert_type ]
-         * [ `Response of Cstruct.t option ]
-         * [ `Data of Cstruct.t option ]
+type ok = [ `Ok of state | `Eof | `Alert of Packet.alert_type ]
+          * [ `Response of Cstruct.t option ]
+          * [ `Data of Cstruct.t option ]
 
-  | `Fail of failure * [ `Response of Cstruct.t ]
-]
+type fail = failure * [ `Response of Cstruct.t ]
 
+type ret = [ `Ok of ok | `Fail of fail ]
 
 let (<+>) = Cs.(<+>)
 
@@ -348,7 +349,7 @@ let handle_packet hs buf = function
   | Packet.HANDSHAKE ->
      separate_handshakes (hs.hs_fragment <+> buf)
      >>= fun (hss, hs_fragment) ->
-       foldM (fun (hs, items) raw ->
+       Amb.foldM (fun (hs, items) raw ->
          handle_handshake hs.machina hs raw
          >|= fun (hs', items') -> (hs', items @ items'))
        (hs, []) hss
@@ -401,7 +402,7 @@ let assemble_records (version : tls_version) : record list -> Cstruct.t =
   o Cs.appends @@ List.map @@ Writer.assemble_hdr version
 
 (* main entry point *)
-let handle_tls state buf =
+let handle_tls_nd state buf =
 
   (* Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ; *)
 
@@ -414,7 +415,7 @@ let handle_tls state buf =
                 (st', raw_rs @ raw_rs', maybe_app data data', err')
           | res -> return res
   in
-  match
+  let tls_resp =
     separate_records (state.fragment <+> buf)
     >>= fun (in_records, fragment) ->
       handle_records state in_records
@@ -424,21 +425,20 @@ let handle_tls state buf =
                     | [] -> None
                     | _  -> Some (assemble_records version out_records) in
       ({ state' with fragment }, resp, data, err)
-  with
-  | Ok (state, resp, data, err) ->
-      let res = match err with
-        | `Eof ->
-          Tracing.sexpf ~tag:"eof-out" ~f:Sexplib.Conv.sexp_of_unit () ;
-          `Eof
-        | `Alert al ->
-          Tracing.sexpf ~tag:"ok-alert-out" ~f:Packet.sexp_of_alert_type al ;
-          `Alert al
-        | `No_err ->
-          Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
-          `Ok state
-      in
-      `Ok (res, `Response resp, `Data data)
-  | Error x ->
+  in
+  tls_resp >|= (fun (state, resp, data, err) ->
+    let res = match err with
+      | `Eof ->
+        Tracing.sexpf ~tag:"eof-out" ~f:Sexplib.Conv.sexp_of_unit () ;
+        `Eof
+      | `Alert al ->
+        Tracing.sexpf ~tag:"ok-alert-out" ~f:Packet.sexp_of_alert_type al ;
+        `Alert al
+      | `No_err ->
+        Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
+        `Ok state
+    in (res, `Response resp, `Data data))
+  |> Amb.map_err (fun x ->
       let version = state.handshake.protocol_version in
       let alert   = alert_of_failure x in
       let record  = Alert.make alert in
@@ -446,7 +446,12 @@ let handle_tls state buf =
       let resp    = assemble_records version enc in
       Tracing.sexpf ~tag:"fail-alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, alert) ;
       Tracing.sexpf ~tag:"failure" ~f:sexp_of_failure x ;
-      `Fail (x, `Response resp)
+      (x, `Response resp))
+
+let handle_tls state buf =
+  match handle_tls_nd state buf |> Amb.refl1 with
+  | Ok res    -> `Ok res
+  | Error err -> `Fail err
 
 let send_records (st : state) records =
   let version = st.handshake.protocol_version in
@@ -475,18 +480,26 @@ let send_application_data st css =
 
 let send_close_notify st = send_records st [Alert.close_notify]
 
-let reneg st =
-  let hs = st.handshake in
+let reneg_nd st =
+  let erase = Amb.map_err (fun _ -> ())
+  and hs    = st.handshake in
   match hs.machina with
   | Server Established ->
-     ( match Handshake_server.hello_request hs with
-       | Ok (handshake, [`Record hr]) -> Some (send_records { st with handshake } [hr])
-       | _                            -> None )
+      Handshake_server.hello_request hs |> erase >>= (function
+        | (handshake, [`Record hr]) ->
+            return (send_records { st with handshake } [hr])
+        | _ -> fail ())
   | Client Established ->
-     ( match Handshake_client.answer_hello_request hs with
-       | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
-       | _                            -> None )
-  | _                        -> None
+      Handshake_client.answer_hello_request hs |> erase >>= (function
+        | (handshake, [`Record ch]) ->
+            return (send_records { st with handshake } [ch])
+        | _ -> fail ())
+  | _ -> fail ()
+
+let reneg st =
+  match reneg_nd st |> Amb.refl1 with
+  | Ok (res) -> Some res
+  | Error () -> None
 
 let client config =
   let config = Config.of_client config in

@@ -123,12 +123,13 @@ val sexp_of_failure : failure -> Sexplib.Sexp.t
     {!state}, an end of file ([`Eof]), or an incoming ([`Alert]).
     Possibly some [`Response] to the other endpoint is needed, and
     potentially some [`Data] for the application was received. *)
-type ret = [
-  | `Ok of [ `Ok of state | `Eof | `Alert of Packet.alert_type ]
-         * [ `Response of Cstruct.t option ]
-         * [ `Data of Cstruct.t option ]
-  | `Fail of failure * [ `Response of Cstruct.t ]
-]
+type ok = [ `Ok of state | `Eof | `Alert of Packet.alert_type ]
+          * [ `Response of Cstruct.t option ]
+          * [ `Data of Cstruct.t option ]
+
+type fail = failure * [ `Response of Cstruct.t ]
+
+type ret = [ `Ok of ok | `Fail of fail ]
 
 (** [handle_tls state buffer] is [ret], depending on incoming [state]
     and [buffer], the result is the appropriate {!ret} *)
@@ -152,6 +153,11 @@ val send_close_notify     : state -> state * Cstruct.t
     or hello request (depending on which communication endpoint [tls]
     is). *)
 val reneg                 : state -> (state * Cstruct.t) option
+
+(** {1 Protocol exploration} *)
+val handle_tls_nd : state -> Cstruct.t -> (ok, fail) Control.Amb.t
+val reneg_nd      : state -> (state * Cstruct.t, unit) Control.Amb.t
+
 
 (** {1 Session information} *)
 
