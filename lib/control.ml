@@ -101,3 +101,121 @@ struct
   let or_else m a = match m with Ok x -> x | _ -> a
   let or_else_f m f b = match m with Ok x -> x | _ -> f b
 end
+
+
+(** Lazy streams for reflecting the effect of ambiguous operator.
+
+    NOTE: This is for interacting with alternatives; computing in the stream
+    domain is (asymptotically) worse than doing the same in the amb domain!
+ *)
+module Stream = struct
+  let force = Lazy.force
+  type 'a t = Nil | Cons of 'a * 'a t Lazy.t
+  let nil = Nil
+  let cons a s = Cons (a, s)
+  let lnil = lazy Nil
+  let sg a = Cons (a, lnil)
+  let rec map f = function
+    | Cons (x, xs) -> Cons (f x, lazy (force xs |> map f))
+    | Nil          -> Nil
+  let rec fold f acc = function
+    | Cons (x, xs) -> force xs |> fold f (f acc x) | Nil -> acc
+  let rec iter f = function
+    | Cons (x, xs) -> f x; force xs |> iter f | Nil -> ()
+end
+
+module type Amb = sig
+
+  type 'err effect
+  type ('a, 'err) t = ('a, 'err effect) Eff.t
+
+  include S.Monad2 with type ('a, 'e) t := ('a, 'e) t
+
+  val refl  : ('a, 'e) t -> ('a, 'e) result Stream.t
+  val refl1 : ('a, 'e) t -> ('a, 'e) result
+
+  val fail  : 'e -> ('a, 'e) t
+  val guard : bool -> 'e -> (unit, 'e) t
+  val catch : ('a, 'e1) t -> ('e1 -> ('a, 'e2) t) -> ('a, 'e2) t
+  val map_err : ('e1 -> 'e2) -> ('a, 'e1) t -> ('a, 'e2) t
+
+  val amb : 'a list -> ('a, 'e) t
+
+  module Operators : sig
+    include S.Monad2 with type ('a, 'e) t := ('a, 'e) t
+    val fail : 'e -> ('a, 'e) t
+    val guard : bool -> 'e -> (unit, 'e) t
+  end
+
+  val foldM : ('a -> 'b -> ('a, 'e) t) -> 'a -> 'b list -> ('a, 'e) t
+end
+
+(** Hand-fused Amb + Error (for simplicity and performance) over the
+   "freer monad." Error-parametric. *)
+module Amb : Amb = struct
+
+  open Eff
+
+  type (_, _) req = 
+    | Amb : 'a list -> ('a, 'e) req
+    | Err : 'e -> ('a, 'e) req
+  module Req = Higher.Newtype2 (struct type ('a, 'b) t = ('a, 'b) req end)
+
+  type 'err effect = ('err, Req.t) Higher.app
+  type ('a, 'err) t   = ('a, 'err effect) Eff.t
+
+  let fail err = Req.inj (Err err) |> req
+  let amb  xs  = Req.inj (Amb xs) |> req
+
+  let return_unit = Pure ()
+
+  let guard p err = if p then return_unit else fail err
+
+  let rec catch t f = match t with
+    | Pure a          -> Pure a
+    | Impure (req, k) ->
+        match Req.prj req with
+        | Err err -> f err
+        | Amb xs  -> Impure (Req.inj (Amb xs), after k (fun m -> catch m f))
+
+  let map_err f t = catch t (fun e -> fail (f e))
+
+  let refl xs =
+    let rec go : type a e. (a, e) t ->
+                  (a, e) result Stream.t Lazy.t ->
+                  (a, e) result Stream.t =
+      fun t rest -> match t with
+      | Pure a          -> Stream.sg (Ok a)
+      | Impure (req, k) ->
+          match Req.prj req with
+          | Err err -> Stream.cons (Error err) rest
+          | Amb xs  ->
+              let rec enum = function
+                | []    -> Lazy.force rest
+                | x::xs -> go (app k x) (lazy (enum xs)) in
+              enum xs in
+    go xs Stream.lnil
+
+  (** [refl1 x] is an *assertion* that [x] is non-empty. Its value is the
+      liftmost branch in [x]. *)
+  let refl1 xs =
+    let open Stream in match refl xs with
+    | Cons (h, _) -> h
+    | Nil         -> failwith "Static invariant broken: empty choice"
+
+  module Operators = struct
+
+    let ((>>=), (>|=), return) = Eff.((>>=), (>|=), return)
+    let fail  = fail
+    let guard = guard
+  end
+
+  include Operators
+
+  (** We can get higher-kinded polymorphism, but we cannot be kind-polymorphic.
+      Bits of [Monad_ext] actually used in the code. *)
+
+  let rec foldM f z = function
+    | []    -> return z
+    | x::xs -> f z x >>= fun z' -> foldM f z' xs
+end
