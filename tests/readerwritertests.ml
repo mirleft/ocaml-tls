@@ -1,18 +1,19 @@
-open OUnit2
+open Result
 open Tls
+open OUnit2
 open Testlib
 
 let readerwriter_version v _ =
   let buf = Writer.assemble_protocol_version v in
-  Reader.(match parse_version buf with
-          | Or_error.Ok ver ->
-             assert_equal v ver ;
-             (* lets get crazy and do it one more time *)
-             let buf' = Writer.assemble_protocol_version v in
-             (match parse_version buf' with
-              | Or_error.Ok ver' -> assert_equal v ver'
-              | Or_error.Error _ -> assert_failure "read and write version broken")
-          | Or_error.Error _ -> assert_failure "read and write version broken")
+  match Reader.parse_version buf with
+  | Ok ver ->
+      assert_equal v ver ;
+      (* lets get crazy and do it one more time *)
+      let buf' = Writer.assemble_protocol_version v in
+      (match Reader.parse_version buf' with
+      | Ok ver' -> assert_equal v ver'
+      | Error _ -> assert_failure "read and write version broken")
+  | Error _ -> assert_failure "read and write version broken"
 
 let version_tests =
   [ "ReadWrite version TLS-1.0" >:: readerwriter_version Core.TLS_1_0 ;
@@ -21,9 +22,8 @@ let version_tests =
 
 let readerwriter_header (v, ct, cs) _ =
   let buf = Writer.assemble_hdr v (ct, cs) in
-  let open Reader in
-  match parse_record buf with
-  | Or_error.Ok (`Record ((hdr, payload), f)) ->
+  match Reader.parse_record buf with
+  | Ok (`Record ((hdr, payload), f)) ->
     let open Core in
     assert_equal 0 (Cstruct.len f) ;
     assert_equal (Supported v) hdr.version ;
@@ -33,7 +33,7 @@ let readerwriter_header (v, ct, cs) _ =
      | Supported v' ->
        let buf' = Writer.assemble_hdr v' (hdr.content_type, payload) in
        (match Reader.parse_record buf' with
-        | Or_error.Ok (`Record ((hdr, payload), f)) ->
+        | Ok (`Record ((hdr, payload), f)) ->
           assert_equal 0 (Cstruct.len f) ;
           assert_equal (Supported v) hdr.version ;
           assert_equal ct hdr.content_type ;
@@ -70,16 +70,16 @@ let readerwriter_alert (lvl, typ) _ =
     | None -> (Writer.assemble_alert typ, Packet.FATAL)
     | Some l -> (Writer.assemble_alert ~level:l typ, l)
   in
-  Reader.(match parse_alert buf with
-          | Or_error.Ok (l', t') ->
-             assert_equal expl l' ;
-             assert_equal typ t' ;
-             (* lets get crazy and do it one more time *)
-             let buf' = Writer.assemble_alert ~level:l' t' in
-             (match parse_alert buf' with
-              | Or_error.Ok (l'', t'') -> assert_equal expl l'' ; assert_equal typ t''
-              | Or_error.Error _ -> assert_failure "inner read and write alert broken")
-          | Or_error.Error _ -> assert_failure "read and write alert broken")
+  (match Reader.parse_alert buf with
+  | Ok (l', t') ->
+      assert_equal expl l' ;
+      assert_equal typ t' ;
+      (* lets get crazy and do it one more time *)
+      let buf' = Writer.assemble_alert ~level:l' t' in
+      (match Reader.parse_alert buf' with
+      | Ok (l'', t'') -> assert_equal expl l'' ; assert_equal typ t''
+      | Error _ -> assert_failure "inner read and write alert broken")
+  | Error _ -> assert_failure "read and write alert broken")
 
 let rw_alert_tests = Packet.([
   ( None,  CLOSE_NOTIFY ) ;
@@ -188,20 +188,20 @@ let assert_dh_eq a b =
 
 let readerwriter_dh_params params _ =
   let buf = Writer.assemble_dh_parameters params in
-  Reader.(match parse_dh_parameters buf with
-          | Or_error.Ok (p, raw, rst) ->
-             assert_equal (Cstruct.len rst) 0 ;
-             assert_dh_eq p params ;
-             assert_equal buf raw ;
-             (* lets get crazy and do it one more time *)
-             let buf' = Writer.assemble_dh_parameters p in
-             (match parse_dh_parameters buf' with
-              | Or_error.Ok (p', raw', rst') ->
-                 assert_equal (Cstruct.len rst') 0 ;
-                 assert_dh_eq p' params ;
-                 assert_equal buf raw' ;
-              | Or_error.Error _ -> assert_failure "inner read and write dh params broken")
-          | Or_error.Error _ -> assert_failure "read and write dh params broken")
+  match Reader.parse_dh_parameters buf with
+  | Ok (p, raw, rst) ->
+      assert_equal (Cstruct.len rst) 0 ;
+      assert_dh_eq p params ;
+      assert_equal buf raw ;
+      (* lets get crazy and do it one more time *)
+      let buf' = Writer.assemble_dh_parameters p in
+      (match Reader.parse_dh_parameters buf' with
+      | Ok (p', raw', rst') ->
+          assert_equal (Cstruct.len rst') 0 ;
+          assert_dh_eq p' params ;
+          assert_equal buf raw' ;
+      | Error _ -> assert_failure "inner read and write dh params broken")
+   | Error _ -> assert_failure "read and write dh params broken"
 
 let rw_dh_params =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
@@ -221,16 +221,15 @@ let rw_dh_tests =
 
 let readerwriter_digitally_signed params _ =
   let buf = Writer.assemble_digitally_signed params in
-  Reader.(match parse_digitally_signed buf with
-          | Or_error.Ok params' ->
-             assert_cs_eq params params' ;
-             (* lets get crazy and do it one more time *)
-             let buf' = Writer.assemble_digitally_signed params' in
-             (match parse_digitally_signed buf' with
-              | Or_error.Ok params'' ->
-                 assert_cs_eq params params''
-              | Or_error.Error _ -> assert_failure "inner read and write digitally signed broken")
-          | Or_error.Error _ -> assert_failure "read and write digitally signed broken")
+  match Reader.parse_digitally_signed buf with
+  | Ok params' ->
+      assert_cs_eq params params' ;
+      (* lets get crazy and do it one more time *)
+      let buf' = Writer.assemble_digitally_signed params' in
+      (match Reader.parse_digitally_signed buf' with
+      | Ok params'' -> assert_cs_eq params params''
+      | Error _ -> assert_failure "inner read and write digitally signed broken")
+  | Error _ -> assert_failure "read and write digitally signed broken"
 
 let rw_ds_params =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
@@ -244,20 +243,20 @@ let rw_ds_tests =
 
 let readerwriter_digitally_signed_1_2 (h, s, params) _ =
   let buf = Writer.assemble_digitally_signed_1_2 h s params in
-  Reader.(match parse_digitally_signed_1_2 buf with
-          | Or_error.Ok (h', s', params') ->
-             assert_equal h h' ;
-             assert_equal s s' ;
-             assert_cs_eq params params' ;
-             (* lets get crazy and do it one more time *)
-             let buf' = Writer.assemble_digitally_signed_1_2 h' s' params' in
-             (match parse_digitally_signed_1_2 buf' with
-              | Or_error.Ok (h'', s'', params'') ->
-                 assert_equal h h'' ;
-                 assert_equal s s'' ;
-                 assert_cs_eq params params''
-              | Or_error.Error _ -> assert_failure "inner read and write digitally signed 1.2 broken")
-          | Or_error.Error _ -> assert_failure "read and write digitally signed 1.2 broken")
+  match Reader.parse_digitally_signed_1_2 buf with
+  | Ok (h', s', params') ->
+      assert_equal h h' ;
+      assert_equal s s' ;
+      assert_cs_eq params params' ;
+      (* lets get crazy and do it one more time *)
+      let buf' = Writer.assemble_digitally_signed_1_2 h' s' params' in
+      (match Reader.parse_digitally_signed_1_2 buf' with
+      | Ok (h'', s'', params'') ->
+          assert_equal h h'' ;
+          assert_equal s s'' ;
+          assert_cs_eq params params''
+      | Error _ -> assert_failure "inner read and write digitally signed 1.2 broken")
+  | Error _ -> assert_failure "read and write digitally signed 1.2 broken"
 
 let rec cartesian_product f a b =
   match b with
@@ -280,15 +279,15 @@ let rw_ds_1_2_tests =
 
 let rw_handshake_no_data hs _ =
   let buf = Writer.assemble_handshake hs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok hs' ->
-             assert_equal hs hs' ;
-             (* lets get crazy and do it one more time *)
-             let buf' = Writer.assemble_handshake hs' in
-             (match parse_handshake buf' with
-              | Or_error.Ok hs'' -> assert_equal hs hs''
-              | Or_error.Error _ -> assert_failure "handshake no data inner failed")
-          | Or_error.Error _ -> assert_failure "handshake no data failed")
+  match Reader.parse_handshake buf with
+  | Ok hs' ->
+      assert_equal hs hs' ;
+      (* lets get crazy and do it one more time *)
+      let buf' = Writer.assemble_handshake hs' in
+      (match Reader.parse_handshake buf' with
+      | Ok hs'' -> assert_equal hs hs''
+      | Error _ -> assert_failure "handshake no data inner failed")
+  | Error _ -> assert_failure "handshake no data failed"
 
 let rw_handshakes_no_data_vals = [ Core.HelloRequest ; Core.ServerHelloDone ]
 
@@ -299,15 +298,15 @@ let rw_handshake_no_data_tests =
 
 let rw_handshake_cstruct_data hs _ =
   let buf = Writer.assemble_handshake hs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok hs' ->
-             Readertests.cmp_handshake_cstruct hs hs' ;
-             (* lets get crazy and do it one more time *)
-             let buf' = Writer.assemble_handshake hs' in
-             (match parse_handshake buf' with
-              | Or_error.Ok hs'' -> Readertests.cmp_handshake_cstruct hs hs'
-              | Or_error.Error _ -> assert_failure "handshake cstruct data inner failed")
-          | Or_error.Error _ -> assert_failure "handshake cstruct data failed")
+  match Reader.parse_handshake buf with
+  | Ok hs' ->
+      Readertests.cmp_handshake_cstruct hs hs' ;
+      (* lets get crazy and do it one more time *)
+      let buf' = Writer.assemble_handshake hs' in
+      (match Reader.parse_handshake buf' with
+      | Ok hs'' -> Readertests.cmp_handshake_cstruct hs hs'
+      | Error _ -> assert_failure "handshake cstruct data inner failed")
+  | Error _ -> assert_failure "handshake cstruct data failed"
 
 let rw_handshake_cstruct_data_vals =
   let data_cs = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
@@ -334,22 +333,22 @@ let rw_handshake_cstruct_data_tests =
 
 let rw_handshake_client_hello hs _ =
   let buf = Writer.assemble_handshake hs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok hs' ->
-             Core.(match hs, hs' with
-                   | ClientHello ch, ClientHello ch' ->
-                      Readertests.cmp_client_hellos ch ch' ;
-                   | _ -> assert_failure "handshake client hello broken") ;
-             (* lets get crazy and do it one more time *)
-             let buf' = Writer.assemble_handshake hs' in
-             (match parse_handshake buf' with
-              | Or_error.Ok hs'' ->
-                 Core.(match hs, hs'' with
-                       | ClientHello ch, ClientHello ch'' ->
-                          Readertests.cmp_client_hellos ch ch'' ;
-                       | _ -> assert_failure "handshake client hello broken")
-              | Or_error.Error _ -> assert_failure "handshake client hello inner failed")
-          | Or_error.Error _ -> assert_failure "handshake client hello failed")
+  match Reader.parse_handshake buf with
+  | Ok hs' ->
+      Core.(match hs, hs' with
+           | ClientHello ch, ClientHello ch' ->
+               Readertests.cmp_client_hellos ch ch' ;
+           | _ -> assert_failure "handshake client hello broken") ;
+      (* lets get crazy and do it one more time *)
+      let buf' = Writer.assemble_handshake hs' in
+      (match Reader.parse_handshake buf' with
+      | Ok hs'' ->
+          Core.(match hs, hs'' with
+               | ClientHello ch, ClientHello ch'' ->
+                   Readertests.cmp_client_hellos ch ch'' ;
+               | _ -> assert_failure "handshake client hello broken")
+      | Error _ -> assert_failure "handshake client hello inner failed")
+  | Error _ -> assert_failure "handshake client hello failed"
 
 let rw_handshake_client_hello_vals =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
@@ -423,22 +422,22 @@ let rw_handshake_client_hello_tests =
 
 let rw_handshake_server_hello hs _ =
   let buf = Writer.assemble_handshake hs in
-  Reader.(match parse_handshake buf with
-          | Or_error.Ok hs' ->
-             Core.(match hs, hs' with
-                   | ServerHello sh, ServerHello sh' ->
-                      Readertests.cmp_server_hellos sh sh' ;
-                   | _ -> assert_failure "handshake server hello broken") ;
-             (* lets get crazy and do it one more time *)
-             let buf' = Writer.assemble_handshake hs' in
-             (match parse_handshake buf' with
-              | Or_error.Ok hs'' ->
-                 Core.(match hs, hs'' with
-                       | ServerHello sh, ServerHello sh'' ->
-                          Readertests.cmp_server_hellos sh sh'' ;
-                       | _ -> assert_failure "handshake server hello broken")
-              | Or_error.Error _ -> assert_failure "handshake server hello inner failed")
-          | Or_error.Error _ -> assert_failure "handshake server hello failed")
+  (match Reader.parse_handshake buf with
+  | Ok hs' ->
+      Core.(match hs, hs' with
+           | ServerHello sh, ServerHello sh' ->
+               Readertests.cmp_server_hellos sh sh' ;
+           | _ -> assert_failure "handshake server hello broken") ;
+           (* lets get crazy and do it one more time *)
+           let buf' = Writer.assemble_handshake hs' in
+           (match Reader.parse_handshake buf' with
+           | Ok hs'' ->
+               Core.(match hs, hs'' with
+                    | ServerHello sh, ServerHello sh'' ->
+                        Readertests.cmp_server_hellos sh sh'' ;
+                    | _ -> assert_failure "handshake server hello broken")
+           | Error _ -> assert_failure "handshake server hello inner failed")
+  | Error _ -> assert_failure "handshake server hello failed")
 
 let rw_handshake_server_hello_vals =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in

@@ -29,8 +29,8 @@ Library "tls"
                     State, Handshake_common, Handshake_crypto,
                     Handshake_server, Handshake_client
   Pack            : true
-  BuildDepends    : cstruct.syntax, sexplib.syntax, nocrypto, x509
-  XMETARequires   : cstruct, sexplib, nocrypto, x509
+  BuildDepends    : cstruct.syntax, sexplib.syntax, result, nocrypto, x509
+  XMETARequires   : cstruct, sexplib, result, nocrypto, x509
 #, bisect
 
 Library "tests"

@@ -177,16 +177,16 @@ let verify_digitally_signed version hashes data signature_data certificate =
     match version with
     | TLS_1_0 | TLS_1_1 ->
       ( match parse_digitally_signed data with
-        | Or_error.Ok signature ->
+        | Ok signature ->
           let compare_hashes should data =
             let computed_sig = Hash.MD5.digest data <+> Hash.SHA1.digest data in
             guard (Cs.equal should computed_sig) (`Fatal `RSASignatureMismatch)
           in
           return (signature, compare_hashes)
-        | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
+        | Error re -> fail (`Fatal (`ReaderError re)) )
     | TLS_1_2 ->
       ( match parse_digitally_signed_1_2 data with
-        | Or_error.Ok (hash_algo, Packet.RSA, signature) ->
+        | Ok (hash_algo, Packet.RSA, signature) ->
           guard (List.mem hash_algo hashes) (`Error (`NoConfiguredHash hashes)) >>= fun () ->
           let compare_hashes should data =
             match X509.Encoding.pkcs1_digest_info_of_cstruct should with
@@ -195,8 +195,8 @@ let verify_digitally_signed version hashes data signature_data certificate =
             | _ -> fail (`Fatal `HashAlgorithmMismatch)
           in
           return (signature, compare_hashes)
-        | Or_error.Ok _ -> fail (`Fatal `NotRSASignature)
-        | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
+        | Ok _ -> fail (`Fatal `NotRSASignature)
+        | Error re -> fail (`Fatal (`ReaderError re)) )
 
   and signature pubkey raw_signature =
     match Rsa.PKCS1.sig_decode pubkey raw_signature with

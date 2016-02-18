@@ -195,11 +195,10 @@ let answer_certificate_DHE_RSA state session cs raw log =
   ({ state with machina = Client machina }, [])
 
 let answer_server_key_exchange_DHE_RSA state session kex raw log =
-  let open Reader in
   let dh_params kex =
-    match parse_dh_parameters kex with
-    | Or_error.Ok data  -> return data
-    | Or_error.Error re -> fail (`Fatal (`ReaderError re))
+    match Reader.parse_dh_parameters kex with
+    | Ok data  -> return data
+    | Error re -> fail (`Fatal (`ReaderError re))
   in
 
   dh_params kex >>= fun (dh_params, raw_dh_params, leftover) ->
@@ -220,16 +219,15 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
 
 let answer_certificate_request state session cr kex pms raw log =
   let cfg = state.config in
-  let open Reader in
   ( match state.protocol_version with
     | TLS_1_0 | TLS_1_1 ->
-       ( match parse_certificate_request cr with
-         | Or_error.Ok (types, cas) -> return (types, None, cas)
-         | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
+       ( match Reader.parse_certificate_request cr with
+         | Ok (types, cas) -> return (types, None, cas)
+         | Error re -> fail (`Fatal (`ReaderError re)) )
     | TLS_1_2 ->
        ( match Reader.parse_certificate_request_1_2 cr with
-         | Or_error.Ok (types, sigalgs, cas) -> return (types, Some sigalgs, cas)
-         | Or_error.Error re -> fail (`Fatal (`ReaderError re)) )
+         | Ok (types, sigalgs, cas) -> return (types, Some sigalgs, cas)
+         | Error re -> fail (`Fatal (`ReaderError re)) )
   ) >|= fun (types, sigalgs, cas) ->
   (* TODO: respect cas, maybe multiple client certificates? *)
   let own_certificate, own_private_key =
@@ -350,14 +348,13 @@ let answer_hello_request state =
     return (state, [`Record (Packet.ALERT, no_reneg)])
 
 let handle_change_cipher_spec cs state packet =
-  let open Reader in
-  match parse_change_cipher_spec packet, cs with
-  | Or_error.Ok (), AwaitServerChangeCipherSpec (session, server_ctx, client_verify, log) ->
+  match Reader.parse_change_cipher_spec packet, cs with
+  | Ok (), AwaitServerChangeCipherSpec (session, server_ctx, client_verify, log) ->
      guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
      let machina = AwaitServerFinished (session, client_verify, log) in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      ({ state with machina = Client machina }, [`Change_dec (Some server_ctx)])
-  | Or_error.Ok (), AwaitServerChangeCipherSpecResume (session, client_ctx, server_ctx, log) ->
+  | Ok (), AwaitServerChangeCipherSpecResume (session, client_ctx, server_ctx, log) ->
      guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
      let ccs = change_cipher_spec in
      let machina = AwaitServerFinishedResume (session, log) in
@@ -365,13 +362,13 @@ let handle_change_cipher_spec cs state packet =
      Tracing.cs ~tag:"change-cipher-spec-out" packet ;
      ({ state with machina = Client machina },
       [`Record ccs ; `Change_enc (Some client_ctx); `Change_dec (Some server_ctx)])
-  | Or_error.Error re, _ -> fail (`Fatal (`ReaderError re))
+  | Error re, _ -> fail (`Fatal (`ReaderError re))
   | _ -> fail (`Fatal `UnexpectedCCS)
 
 let handle_handshake cs hs buf =
   let open Reader in
   match parse_handshake buf with
-  | Or_error.Ok handshake ->
+  | Ok handshake ->
     (* Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake ; *)
      ( match cs, handshake with
        | AwaitServerHello (ch, log), ServerHello sh ->
@@ -397,5 +394,5 @@ let handle_handshake cs hs buf =
        | Established, HelloRequest ->
           answer_hello_request hs
        | _, hs -> fail (`Fatal (`UnexpectedHandshake hs)) )
-  | Or_error.Error re -> fail (`Fatal (`ReaderError re))
+  | Error re -> fail (`Fatal (`ReaderError re))
 
