@@ -99,6 +99,14 @@ Executable "echo_server"
   MainIs          : echo_server.ml
   BuildDepends    : tls.lwt
 
+Executable "resume_echo_server"
+  Build          $: flag(lwt) && flag(tests)
+  Path            : lwt/examples/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : resume_echo_server.ml
+  BuildDepends    : tls.lwt
+
 Executable "echo_server_sni"
   Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
@@ -113,6 +121,14 @@ Executable "echo_client"
   Install         : false
   CompiledObject  : native
   MainIs          : echo_client.ml
+  BuildDepends    : tls.lwt
+
+Executable "resume_client"
+  Build          $: flag(lwt) && flag(tests)
+  Path            : lwt/examples/
+  Install         : false
+  CompiledObject  : native
+  MainIs          : resume_client.ml
   BuildDepends    : tls.lwt
 
 Executable "http_client"
