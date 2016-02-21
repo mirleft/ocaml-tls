@@ -115,6 +115,7 @@ module Stream = struct
   let cons a s = Cons (a, s)
   let lnil = lazy Nil
   let sg a = Cons (a, lnil)
+  let uncons = function Nil -> None | Cons (x, xs) -> Some (x, xs)
   let rec map f = function
     | Cons (x, xs) -> Cons (f x, lazy (force xs |> map f))
     | Nil          -> Nil
@@ -122,6 +123,12 @@ module Stream = struct
     | Cons (x, xs) -> force xs |> fold f (f acc x) | Nil -> acc
   let rec iter f = function
     | Cons (x, xs) -> f x; force xs |> iter f | Nil -> ()
+  let rec append xs lys = match xs with
+    | Cons (x, xs) -> Cons (x, lazy (append (force xs) lys))
+    | Nil          -> force lys
+  let rec (>>=) a fb = match a with
+    | Nil          -> Nil
+    | Cons (x, xs) -> append (fb x) (lazy (force xs >>= fb))
 end
 
 module type Amb = sig
@@ -181,11 +188,9 @@ module Amb : Amb = struct
   let map_err f t = catch t (fun e -> fail (f e))
 
   let refl xs =
-    let rec go : type a e. (a, e) t ->
-                  (a, e) result Stream.t Lazy.t ->
-                  (a, e) result Stream.t =
+    let rec go : type a e. (a, e) t -> (a, e) result Stream.t Lazy.t -> (a, e) result Stream.t =
       fun t rest -> match t with
-      | Pure a          -> Stream.sg (Ok a)
+      | Pure a          -> Stream.cons (Ok a) rest
       | Impure (req, k) ->
           match Req.prj req with
           | Err err -> Stream.cons (Error err) rest
@@ -199,9 +204,9 @@ module Amb : Amb = struct
   (** [refl1 x] is an *assertion* that [x] is non-empty. Its value is the
       liftmost branch in [x]. *)
   let refl1 xs =
-    let open Stream in match refl xs with
-    | Cons (h, _) -> h
-    | Nil         -> failwith "Static invariant broken: empty choice"
+    match Stream.uncons (refl xs) with
+    | Some (h, _) -> h
+    | None        -> failwith "Static invariant broken: empty choice"
 
   module Operators = struct
 
