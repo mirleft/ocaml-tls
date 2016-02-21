@@ -94,7 +94,7 @@ Executable "starttls_server"
 Executable "echo_server"
   Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
-  Install         : false
+  Install         : true
   CompiledObject  : native
   MainIs          : echo_server.ml
   BuildDepends    : tls.lwt
@@ -102,7 +102,7 @@ Executable "echo_server"
 Executable "resume_echo_server"
   Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
-  Install         : false
+  Install         : true
   CompiledObject  : native
   MainIs          : resume_echo_server.ml
   BuildDepends    : tls.lwt
@@ -110,7 +110,7 @@ Executable "resume_echo_server"
 Executable "echo_server_sni"
   Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
-  Install         : false
+  Install         : true
   CompiledObject  : native
   MainIs          : echo_server_sni.ml
   BuildDepends    : tls.lwt
@@ -118,7 +118,7 @@ Executable "echo_server_sni"
 Executable "echo_client"
   Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
-  Install         : false
+  Install         : true
   CompiledObject  : native
   MainIs          : echo_client.ml
   BuildDepends    : tls.lwt
@@ -126,7 +126,7 @@ Executable "echo_client"
 Executable "resume_client"
   Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
-  Install         : false
+  Install         : true
   CompiledObject  : native
   MainIs          : resume_client.ml
   BuildDepends    : tls.lwt
@@ -134,7 +134,7 @@ Executable "resume_client"
 Executable "http_client"
   Build          $: flag(lwt) && flag(tests)
   Path            : lwt/examples/
-  Install         : false
+  Install         : true
   CompiledObject  : native
   MainIs          : http_client.ml
   BuildDepends    : tls.lwt
