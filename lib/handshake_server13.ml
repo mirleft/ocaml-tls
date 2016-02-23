@@ -109,6 +109,8 @@ let answer_client_hello state ch raw log =
     let master_secret = master_secret dhe_psk_cipher es ss log in
     Tracing.cs ~tag:"master-secret" master_secret ;
 
+    let traffic_secret = traffic_secret dhe_psk_cipher master_secret log in
+
     let f_data = finished dhe_psk_cipher master_secret true log in
     let fin = Finished f_data in
     let fin_raw = Writer.assemble_handshake fin in
@@ -116,7 +118,7 @@ let answer_client_hello state ch raw log =
     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
 
     let log = log <+> fin_raw in
-    let server_app_ctx, client_app_ctx = app_ctx dhe_psk_cipher log master_secret in
+    let server_app_ctx, client_app_ctx = app_ctx dhe_psk_cipher log traffic_secret in
 
     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
 
@@ -153,6 +155,8 @@ let answer_client_hello state ch raw log =
     let master_secret = master_secret psk_cipher es ss log in
     Tracing.cs ~tag:"master-secret" master_secret ;
 
+    let traffic_secret = traffic_secret psk_cipher master_secret log in
+
     let f_data = finished psk_cipher master_secret true log in
     let fin = Finished f_data in
     let fin_raw = Writer.assemble_handshake fin in
@@ -160,7 +164,7 @@ let answer_client_hello state ch raw log =
     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
 
     let log = log <+> fin_raw in
-    let server_app_ctx, client_app_ctx = app_ctx psk_cipher log master_secret in
+    let server_app_ctx, client_app_ctx = app_ctx psk_cipher log traffic_secret in
 
     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
 
@@ -225,6 +229,8 @@ let answer_client_hello state ch raw log =
     Tracing.cs ~tag:"master-secret" master_secret ;
     let resumption_secret = resumption_secret cipher master_secret log in
 
+    let traffic_secret = traffic_secret cipher master_secret log in
+
     let f_data = finished cipher master_secret true log in
     let fin = Finished f_data in
     let fin_raw = Writer.assemble_handshake fin in
@@ -232,7 +238,7 @@ let answer_client_hello state ch raw log =
     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
 
     let log = log <+> fin_raw in
-    let server_app_ctx, client_app_ctx = app_ctx cipher log master_secret in
+    let server_app_ctx, client_app_ctx = app_ctx cipher log traffic_secret in
 
     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
 

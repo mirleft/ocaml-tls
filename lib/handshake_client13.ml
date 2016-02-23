@@ -152,8 +152,10 @@ let answer_finished state (session : session_data) exts es ss fin raw log =
   guard (Cs.equal fin cfin) (`Fatal `BadFinished) >>= fun () ->
   guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
 
+  let traffic_secret = traffic_secret session.ciphersuite master_secret log in
+
   let log = log <+> raw in
-  let server_app_ctx, client_app_ctx = app_ctx session.ciphersuite log master_secret in
+  let server_app_ctx, client_app_ctx = app_ctx session.ciphersuite log traffic_secret in
   let myfin = finished session.ciphersuite master_secret false log in
   let mfin = Writer.assemble_handshake (Finished myfin) in
   let sd = { session with master_secret ; resumption_secret } in

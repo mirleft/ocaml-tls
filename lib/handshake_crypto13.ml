@@ -48,9 +48,12 @@ let hs_ctx cs log es =
   let log = Hash.digest hash log in
   ctx cs "handshake key expansion, " xes log
 
-let traffic_secret hash master_secret log =
-  let l = Hash.digest_size hash in
-  expand_label hash master_secret "traffic secret" log l
+let traffic_secret cs master_secret log =
+  let hash = Ciphersuite.hash_of cs in
+  let d = Hash.digest hash log
+  and l = Hash.digest_size hash
+  in
+  expand_label hash master_secret "traffic secret" d l
 
 let resumption_secret cs master_secret log =
   let hash = Ciphersuite.hash_of cs in
@@ -59,11 +62,10 @@ let resumption_secret cs master_secret log =
   in
   expand_label hash master_secret "resumption master secret" d l
 
-let app_ctx cs log ms =
+let app_ctx cs log traffic_secret =
   let hash = Ciphersuite.hash_of cs in
   let log = Hash.digest hash log in
-  let sec = traffic_secret hash ms log in
-  ctx cs "application data key expansion, " sec log
+  ctx cs "application data key expansion, " traffic_secret log
 
 let master_secret cs es ss hlog =
   let hash = Ciphersuite.hash_of cs in
