@@ -162,6 +162,7 @@ let client_hello_valid (ch : client_hello) =
        ( let good_sig_alg =
            List.exists
              (function
+               | (`SHA256, Packet.RSA) (* XXX: remove *)
                | (`SHA256, Packet.RSAPSS)
                | (`SHA384, Packet.RSAPSS)
                | (`SHA512, Packet.RSAPSS) -> true
@@ -251,24 +252,35 @@ let signature version ?context_string data sig_algs hashes private_key =
        | Some x -> Cstruct.of_string x <+> stop
      in
      ( match sig_algs with
-       | None              -> return `SHA256
+       | None              -> return (`PSS `SHA256)
        | Some client_algos ->
-          let client_hashes =
+          let pss_client_hashes =
             List.(map fst @@ filter (fun (_, x) -> x = Packet.RSAPSS) client_algos)
           in
-          let my_hashes = List.filter (fun x ->
-              List.mem x Config.tls13_hashes)
-              hashes
+          let rsa_client_hashes =
+            List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) client_algos)
           in
-          match first_match client_hashes my_hashes with
-          | None      -> fail (`Error (`NoConfiguredHash client_hashes))
-          | Some hash -> return hash ) >|= fun hash_algo ->
-     let module H = (val (Hash.module_of hash_algo)) in
-     let module PSS = Rsa.PSS(H) in
-     let data = H.digest data in (* XXX See #407 https://github.com/tlswg/tls13-spec/issues/407 *)
-     let to_sign = H.digest (prefix <+> ctx <+> data) in
-     let signature = PSS.sign ~key:private_key to_sign in
-     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSAPSS signature
+          let my_hashes = List.filter (fun x -> List.mem x Config.tls13_hashes) hashes in
+          match
+            first_match pss_client_hashes my_hashes,
+            first_match rsa_client_hashes my_hashes
+          with
+          | None, None -> fail (`Error (`NoConfiguredHash pss_client_hashes))
+          | Some hash, _ -> return (`PSS hash)
+          | None, Some hash -> return (`PKCS hash) ) >|= function
+     | `PSS hash_algo ->
+       let module H = (val (Hash.module_of hash_algo)) in
+       let module PSS = Rsa.PSS(H) in
+       let data = H.digest data in (* XXX See #407 https://github.com/tlswg/tls13-spec/issues/407 *)
+       let to_sign = H.digest (prefix <+> ctx <+> data) in
+       let signature = PSS.sign ~key:private_key to_sign in
+       Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSAPSS signature
+     | `PKCS hash_algo -> (* XXX: remove!!! *)
+       let hash = Hash.digest hash_algo data in
+       let cs = X509.Encoding.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
+       let sign = Rsa.PKCS1.sig_encode private_key cs in
+       Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
+
 
 let peer_rsa_key = function
   | None -> fail (`Fatal `NoCertificateReceived)
