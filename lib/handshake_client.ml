@@ -37,7 +37,7 @@ let default_client_hello config =
     client_random  = Rng.generate 32 ;
     sessionid      = sessionid ;
     ciphersuites   = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
-    extensions     = host @ signature_algos @ [`ExtendedMasterSecret]
+    extensions     = `ExtendedMasterSecret :: host @ signature_algos
   }
   in
   (ch , version)
@@ -331,7 +331,7 @@ let answer_server_finished_resume state session fin raw log =
 let answer_hello_request state =
   let produce_client_hello session config exts =
      let dch, _ = default_client_hello config in
-     let ch = { dch with extensions = exts @ dch.extensions ; sessionid = None } in
+     let ch = { dch with extensions = dch.extensions @ exts ; sessionid = None } in
      let raw = Writer.assemble_handshake (ClientHello ch) in
      let machina = AwaitServerHelloRenegotiate (session, ch, [raw]) in
      (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello ch) ; *)

@@ -516,7 +516,7 @@ let client config =
   let client_hello =
     { dch with
         ciphersuites = dch.ciphersuites @ ciphers ;
-        extensions   = extensions @ dch.extensions }
+        extensions   = dch.extensions @ extensions }
   in
 
   let ch = ClientHello client_hello in
