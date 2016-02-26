@@ -1,4 +1,7 @@
 master:
+* sort client extensions, there are servers which dislike an extension without
+  data at the end, thus try to send extensions with data at the end (#319)
+* initial GCM support (#310)
 * fix `hs_can_handle_appdata` (#315):
     Initially we allowed application data always after the first handshake.
 
@@ -26,6 +29,8 @@ master:
 * durinng verification of a digitally signed: checked that the used hash
   algorithm is one of the configured ones (#313)
 * unify return type of handshake and change cipher spec handler (#314)
+* separate client and server extensions (#317)
+* type equality (no longer generative error type), use result (#318)
 * removed Printer (was barely useful)
 
 0.7.0 (2015-12-04):
