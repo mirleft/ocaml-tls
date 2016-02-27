@@ -4,22 +4,20 @@ open Ex_common
 
 let http_client ?ca ?fp host port =
   let port          = int_of_string port in
-  lwt authenticator = X509_lwt.authenticator
+  X509_lwt.authenticator
     ( match ca, fp with
       | None, Some fp  -> `Hex_key_fingerprints (`SHA256, [(host, fp)])
       | None, _        -> `Ca_dir ca_cert_dir
       | Some "NONE", _ -> `No_authentication_I'M_STUPID
-      | Some f, _      -> `Ca_file f )
-  in
-  lwt (ic, oc) =
-    Tls_lwt.connect_ext
-      ~trace:eprint_sexp
-      (Tls.Config.client ~authenticator ())
-      (host, port) in
+      | Some f, _      -> `Ca_file f ) >>= fun authenticator ->
+  Tls_lwt.connect_ext
+    ~trace:eprint_sexp
+    (Tls.Config.client ~authenticator ())
+    (host, port) >>= fun (ic, oc) ->
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ host ; "Connection: close" ; "" ; ""
   ] in
-  Lwt_io.(write oc req >> read ic >>= print >> printf "++ done.\n%!")
+  Lwt_io.(write oc req >>= fun () -> read ic >>= print >>= fun () -> printf "++ done.\n%!")
 
 let () =
   try

@@ -29,7 +29,7 @@ let accept sock =
 
 let start_server () =
   let write oc buff =
-    Lwt_io.write oc buff >> Lwt_io.flush oc
+    Lwt_io.write oc buff >>= fun () -> Lwt_io.flush oc
   in
   let read ic =
     Lwt_io.read ic ~count:2048 >>= fun buff ->
@@ -48,26 +48,26 @@ let start_server () =
     let tag,cmd = parse buff in
     match cmd with
     | "CAPABILITY" ->
-      write oc ("* " ^ capability ^ tag ^ " OK CAPABILITY\r\n") >>
+      write oc ("* " ^ capability ^ tag ^ " OK CAPABILITY\r\n") >>= fun () ->
       wait_cmd sock_cl ic oc
     | "STARTTLS" ->
-      write oc (tag ^ ok_starttls) >>
+      write oc (tag ^ ok_starttls) >>= fun () ->
       Lwt_io.close ic >>= fun () ->
       Lwt_io.close oc >>= fun () ->
       cert () >>= fun cert ->
       Tls_lwt.Unix.server_of_fd 
        (Tls.Config.server ~certificates:(`Single cert) ()) sock_cl >>= fun s ->
       let ic,oc = Tls_lwt.of_t s in
-      write oc ("* OK " ^ capability) >>
+      write oc ("* OK " ^ capability) >>= fun () ->
       wait_cmd sock_cl ic oc
     | _ ->
-      write oc ("BAD\r\n") >>
+      write oc ("BAD\r\n") >>= fun () ->
       wait_cmd sock_cl ic oc
   in
   let sock = create_srv_socket "127.0.0.1" 143 in
   accept sock >>= fun ((ic,oc), addr, sock_cl) ->
-  write oc ("* OK " ^ capability) >>
+  write oc ("* OK " ^ capability) >>= fun () ->
   wait_cmd sock_cl ic oc
 
 let () =
-  Lwt_main.run (start_server())
+  Lwt_main.run (start_server ())

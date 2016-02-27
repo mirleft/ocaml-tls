@@ -4,7 +4,7 @@
 type key_exchange_algorithm =
   | RSA
   | DHE_RSA
-  with sexp
+  [@@deriving sexp]
 
 (** [needs_certificate kex] is a predicate which is true if the [kex] requires a server certificate *)
 let needs_certificate = function
@@ -22,26 +22,26 @@ let required_keytype_and_usage = function
 
 type stream_cipher =
   | RC4_128
-  with sexp
+  [@@deriving sexp]
 
 type block_cipher =
   | TRIPLE_DES_EDE_CBC
   | AES_128_CBC
   | AES_256_CBC
-  with sexp
+  [@@deriving sexp]
 
 type aead_cipher =
   | AES_128_CCM
   | AES_256_CCM
   | AES_128_GCM
   | AES_256_GCM
-  with sexp
+  [@@deriving sexp]
 
 type payload_protection =
   | Stream of stream_cipher * Nocrypto.Hash.hash
   | Block of block_cipher * Nocrypto.Hash.hash
   | AEAD of aead_cipher
-  with sexp
+  [@@deriving sexp]
 
 (** [key_length iv payload_protection] is [(key size, IV size, mac size)] where key IV, and mac sizes are the required bytes for the given [payload_protection] *)
 let key_length iv pp =
@@ -84,7 +84,7 @@ type ciphersuite = [
   | `TLS_DHE_RSA_WITH_AES_128_CCM
   | `TLS_RSA_WITH_AES_256_CCM
   | `TLS_RSA_WITH_AES_128_CCM
-]  with sexp
+]  [@@deriving sexp]
 
 let any_ciphersuite_to_ciphersuite = function
   | Packet.TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 -> Some `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256

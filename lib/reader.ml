@@ -12,7 +12,7 @@ type error =
   | Overflow       of int
   | UnknownVersion of (int * int)
   | UnknownContent of int
-with sexp
+  [@@deriving sexp]
 
 include Control.Or_error_make (struct type err = error end)
 type 'a result = ('a, error) Result.result

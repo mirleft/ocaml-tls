@@ -123,9 +123,9 @@ let answer_client_key_exchange_DHE_RSA state session (group, secret) kex raw log
   | Some pms -> return (establish_master_secret state session pms raw log)
 
 let sig_algs (client_hello : client_hello) =
-  map_find client_hello.extensions ~f:function
-           | `SignatureAlgorithms xs -> Some xs
-           | _                       -> None
+  map_find client_hello.extensions ~f:(function
+      | `SignatureAlgorithms xs -> Some xs
+      | _                       -> None)
 
 let rec find_matching host certs =
   match certs with
@@ -331,7 +331,8 @@ let answer_client_hello state (ch : client_hello) raw =
 
     match option None state.config.session_cache ch.sessionid with
     | Some epoch when epoch_matches epoch state.protocol_version ch.ciphersuites ch.extensions ->
-      Some { session_of_epoch epoch with
+      let session = session_of_epoch epoch in
+      Some { session with
              client_random = ch.client_random ;
              client_version = ch.client_version ;
              client_auth = (epoch.peer_certificate <> None) ;

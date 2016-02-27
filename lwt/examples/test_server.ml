@@ -6,11 +6,9 @@ let serve_ssl port callback =
 
   let tag = "server" in
 
-  lwt certificate =
-    X509_lwt.private_of_pems
-      ~cert:server_cert
-      ~priv_key:server_key
-  in
+  X509_lwt.private_of_pems
+    ~cert:server_cert
+    ~priv_key:server_key >>= fun certificate ->
   let config =
     Tls.Config.(server ~certificates:(`Single certificate) ~ciphers:Ciphers.supported ()) in
 
@@ -22,21 +20,17 @@ let serve_ssl port callback =
     listen s 10 ;
     s in
 
-  yap ~tag ("-> start @ " ^ string_of_int port)
-  >>
-  lwt (channels, addr) = Tls_lwt.accept_ext config server_s in
-  yap ~tag "-> connect"
-  >>
-  callback channels addr
-  >>
+  yap ~tag ("-> start @ " ^ string_of_int port) >>= fun () ->
+  Tls_lwt.accept_ext config server_s >>= fun (channels, addr) ->
+  yap ~tag "-> connect" >>= fun () ->
+  callback channels addr >>= fun () ->
   yap ~tag "<- handler done"
 
 
 let test_server port =
   serve_ssl port @@ fun (ic, oc) addr ->
     Lwt_io.read_line ic >>= fun line ->
-    yap "handler" ("+ " ^ line)
-    >>
+    yap "handler" ("+ " ^ line) >>= fun () ->
     Lwt_io.write_line oc line
 
 let () =

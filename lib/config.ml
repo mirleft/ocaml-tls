@@ -6,14 +6,14 @@ open Core
 open Sexplib.Std
 
 
-type certchain = X509.t list * Rsa.priv with sexp
+type certchain = X509.t list * Rsa.priv [@@deriving sexp]
 
 type own_cert = [
   | `None
   | `Single of certchain
   | `Multiple of certchain list
   | `Multiple_default of certchain * certchain list
-] with sexp
+] [@@deriving sexp]
 
 type session_cache = SessionID.t -> epoch_data option
 let session_cache_of_sexp _ = fun _ -> None
@@ -30,7 +30,7 @@ type config = {
   own_certificates  : own_cert ;
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
-} with sexp
+} [@@deriving sexp]
 
 module Ciphers = struct
 
@@ -206,8 +206,8 @@ let validate_server config =
   (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
 
 
-type client = config with sexp
-type server = config with sexp
+type client = config [@@deriving sexp]
+type server = config [@@deriving sexp]
 
 let of_server conf = conf
 and of_client conf = conf

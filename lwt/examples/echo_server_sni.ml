@@ -6,15 +6,13 @@ let serve_ssl port callback =
 
   let tag = "server" in
 
-  lwt barcert =
-    X509_lwt.private_of_pems
-      ~cert:(ca_cert_dir ^ "/bar.pem")
-      ~priv_key:server_key in
+  X509_lwt.private_of_pems
+    ~cert:(ca_cert_dir ^ "/bar.pem")
+    ~priv_key:server_key >>= fun barcert ->
 
-  lwt foocert =
-    X509_lwt.private_of_pems
-      ~cert:(ca_cert_dir ^ "/foo.pem")
-      ~priv_key:server_key in
+  X509_lwt.private_of_pems
+    ~cert:(ca_cert_dir ^ "/foo.pem")
+    ~priv_key:server_key >>= fun foocert ->
 
   let server_s =
     let open Lwt_unix in
@@ -31,22 +29,19 @@ let serve_ssl port callback =
       | `Error   -> "no session"
     in
     async @@ fun () ->
-      try_lwt
-        callback host channels addr >> yap ~tag "<- handler done"
-      with
-      | Tls_lwt.Tls_alert a ->
+    Lwt.catch (fun () -> callback host channels addr >>= fun () -> yap ~tag "<- handler done")
+      (function
+        | Tls_lwt.Tls_alert a ->
           yap ~tag @@ "handler: " ^ Tls.Packet.alert_type_to_string a
-      | exn -> yap ~tag "handler: exception" >> fail exn
+        | exn -> yap ~tag "handler: exception" >>= fun () -> fail exn)
   in
 
   let ps = string_of_int port in
-  yap ~tag ("-> start @ " ^ ps ^ " (use `openssl s_client -connect host:" ^ ps ^ " -servername foo` (or -servername bar))")
-  >>
+  yap ~tag ("-> start @ " ^ ps ^ " (use `openssl s_client -connect host:" ^ ps ^ " -servername foo` (or -servername bar))") >>= fun () ->
   let rec loop () =
     let config = Tls.Config.server ~certificates:(`Multiple [barcert ; foocert]) () in
-    lwt (t, addr) = Tls_lwt.Unix.accept ~trace:eprint_sexp config server_s in
-    yap ~tag "-> connect"
-    >>
+    Tls_lwt.Unix.accept ~trace:eprint_sexp config server_s >>= fun (t, addr) ->
+    yap ~tag "-> connect" >>= fun () ->
     ( handle (Tls_lwt.Unix.epoch t) (Tls_lwt.of_t t) addr ; loop () )
   in
   loop ()
@@ -55,7 +50,8 @@ let serve_ssl port callback =
 let echo_server port =
   serve_ssl port @@ fun host (ic, oc) addr ->
     lines ic |> Lwt_stream.iter_s (fun line ->
-      yap ("handler " ^ host) ("+ " ^ line) >> Lwt_io.write_line oc line)
+      yap ("handler " ^ host) ("+ " ^ line) >>= fun () ->
+      Lwt_io.write_line oc line)
 
 let () =
   let port =

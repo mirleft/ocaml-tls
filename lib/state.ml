@@ -20,7 +20,7 @@ type 'k stream_state = {
 type iv_mode =
   | Iv of Cstruct.t  (* traditional CBC (reusing last cipherblock) *)
   | Random_iv        (* TLS 1.1 and higher explicit IV (we use random) *)
-  with sexp
+  [@@deriving sexp]
 
 type 'k cbc_cipher    = (module Cipher_block.S.CBC with type key = 'k)
 type 'k cbc_state = {
@@ -63,16 +63,15 @@ let cipher_st_of_sexp =
 type crypto_context = {
   sequence  : int64 ; (* sequence number *)
   cipher_st : cipher_st ; (* cipher state *)
-} with sexp
+} [@@deriving sexp]
 
 (* the raw handshake log we need to carry around *)
-type hs_log = Cstruct.t list with sexp
+type hs_log = Cstruct.t list [@@deriving sexp]
 (* diffie hellman group and secret *)
-type dh_sent = Dh.group * Dh.secret with sexp
+type dh_sent = Dh.group * Dh.secret [@@deriving sexp]
 
 (* a collection of client and server verify bytes for renegotiation *)
-type reneg_params = Cstruct.t * Cstruct.t
-  with sexp
+type reneg_params = Cstruct.t * Cstruct.t [@@deriving sexp]
 
 type session_data = {
   server_random          : Cstruct.t ; (* 32 bytes random from the server hello *)
@@ -91,7 +90,7 @@ type session_data = {
   client_auth            : bool ;
   session_id             : Cstruct.t ;
   extended_ms            : bool ;
-} with sexp
+} [@@deriving sexp]
 
 (* state machine of the server *)
 type server_handshake_state =
@@ -107,7 +106,7 @@ type server_handshake_state =
   | AwaitClientFinished of session_data * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
   | AwaitClientFinishedResume of session_data * Cstruct.t * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
-  with sexp
+  [@@deriving sexp]
 
 (* state machine of the client *)
 type client_handshake_state =
@@ -124,12 +123,12 @@ type client_handshake_state =
   | AwaitServerFinished of session_data * Cstruct.t * hs_log (* finished expected with a hmac over all handshake packets *)
   | AwaitServerFinishedResume of session_data * hs_log (* finished expected with a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
-  with sexp
+  [@@deriving sexp]
 
 type handshake_machina_state =
   | Client of client_handshake_state
   | Server of server_handshake_state
-  with sexp
+  [@@deriving sexp]
 
 (* state during a handshake, used in the handlers *)
 type handshake_state = {
@@ -138,14 +137,13 @@ type handshake_state = {
   machina          : handshake_machina_state ; (* state machine state *)
   config           : Config.config ; (* given config *)
   hs_fragment      : Cstruct.t (* handshake messages can be fragmented, leftover from before *)
-} with sexp
+} [@@deriving sexp]
 
 (* connection state: initially None, after handshake a crypto context *)
-type crypto_state = crypto_context option
-  with sexp
+type crypto_state = crypto_context option [@@deriving sexp]
 
 (* record consisting of a content type and a byte vector *)
-type record = Packet.content_type * Cstruct.t with sexp
+type record = Packet.content_type * Cstruct.t [@@deriving sexp]
 
 (* response returned by a handler *)
 type rec_resp = [
@@ -163,7 +161,7 @@ type state = {
   decryptor : crypto_state ; (* the current decryption state *)
   encryptor : crypto_state ; (* the current encryption state *)
   fragment  : Cstruct.t ; (* the leftover fragment from TCP fragmentation *)
-} with sexp
+} [@@deriving sexp]
 
 type error = [
   | `AuthenticationFailure of X509.Validation.validation_error
@@ -173,7 +171,7 @@ type error = [
   | `NoMatchingCertificateFound of string
   | `NoCertificateConfigured
   | `CouldntSelectCertificate
-] with sexp
+] [@@deriving sexp]
 
 type fatal = [
   | `NoSecureRenegotiation
@@ -209,12 +207,12 @@ type fatal = [
   | `InvalidCertificateUsage
   | `InvalidCertificateExtendedUsage
   | `InvalidSession
-] with sexp
+] [@@deriving sexp]
 
 type failure = [
   | `Error of error
   | `Fatal of fatal
-] with sexp
+] [@@deriving sexp]
 
 (* Monadic control-flow core. *)
 include Control.Or_error_make (struct type err = failure end)
