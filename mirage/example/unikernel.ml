@@ -69,7 +69,7 @@ struct
       | `Error e -> L.log_error c (TLS.error_message e)
       | `Eof     -> L.log_trace c "eof."
 
-  let start c stack kv =
+  let start c stack kv _ =
     lwt cert = X509.certificate kv `Default in
     let conf = Tls.Config.server ~certificates:(`Single cert) () in
     S.listen_tcpv4 stack 4433 (accept c conf handle) ;

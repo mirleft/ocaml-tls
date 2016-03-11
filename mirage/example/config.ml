@@ -9,37 +9,15 @@ let build =
     | "server" -> `Server
   with Not_found -> `Server
 
-let disk =
-  match get_mode () with
-  | `Unix -> direct_kv_ro secrets_dir
-  | `Xen  -> crunch secrets_dir
+let disk = generic_kv_ro secrets_dir
 
-let net =
-  try match Sys.getenv "NET" with
-    | "direct" -> `Direct
-    | _        -> `Socket
-  with Not_found ->
-    match get_mode () with
-    | `Unix -> `Socket
-    | `Xen -> `Direct
-
-let dhcp =
-  try match Sys.getenv "ADDR" with
-    | "dhcp"   -> `Dhcp
-    | "static" -> `Static
-  with Not_found -> `Static
-
-let stack console =
-  match net, dhcp with
-  | `Direct, `Dhcp   -> direct_stackv4_with_dhcp console tap0
-  | `Direct, `Static -> direct_stackv4_with_default_ipv4 console tap0
-  | `Socket, _       -> socket_stackv4 console [Ipaddr.V4.any]
+let stack console = generic_stackv4 console tap0
 
 let server =
-  foreign "Unikernel.Server" @@ console @-> stackv4 @-> kv_ro @-> job
+  foreign ~deps:[abstract nocrypto] "Unikernel.Server" @@ console @-> stackv4 @-> kv_ro @-> job
 
 let client =
-  foreign "Unikernel.Client" @@ console @-> stackv4 @-> kv_ro @-> job
+  foreign ~deps:[abstract nocrypto] "Unikernel.Client" @@ console @-> stackv4 @-> kv_ro @-> job
 
 let () =
   let platform =
