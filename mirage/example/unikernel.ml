@@ -44,11 +44,12 @@ let make_tracer dump =
 
 module Server (C  : CONSOLE)
               (S  : STACKV4)
-              (KV : KV_RO) =
+              (KV : KV_RO)
+              (CL : CLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
-  module X509 = Tls_mirage.X509 (KV) (Clock)
+  module X509 = Tls_mirage.X509 (KV) (CL)
   module L    = Log (C)
 
   let rec handle c flush tls =
@@ -69,7 +70,7 @@ struct
       | `Error e -> L.log_error c (TLS.error_message e)
       | `Eof     -> L.log_trace c "eof."
 
-  let start c stack kv _ =
+  let start c stack kv _ _ =
     lwt cert = X509.certificate kv `Default in
     let conf = Tls.Config.server ~certificates:(`Single cert) () in
     S.listen_tcpv4 stack 4433 (accept c conf handle) ;
@@ -79,11 +80,12 @@ end
 
 module Client (C  : CONSOLE)
               (S  : STACKV4)
-              (KV : KV_RO) =
+              (KV : KV_RO)
+              (CL : CLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
-  module X509 = Tls_mirage.X509 (KV) (Clock)
+  module X509 = Tls_mirage.X509 (KV) (CL)
   module L    = Log (C)
 
   open Ipaddr
@@ -104,7 +106,7 @@ struct
         L.log_data c "recv" buf >> dump () in
     TLS.write tls initial >> dump ()
 
-  let start c stack kv =
+  let start c stack kv _ =
     lwt authenticator = X509.authenticator kv `CAs in
     let conf          = Tls.Config.client ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer)
