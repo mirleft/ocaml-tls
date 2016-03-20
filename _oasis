@@ -29,7 +29,7 @@ Library "tls"
                     State, Handshake_common, Handshake_crypto,
                     Handshake_server, Handshake_client
   Pack            : true
-  BuildDepends    : cstruct.syntax, sexplib.syntax, result, nocrypto, x509
+  BuildDepends    : cstruct, cstruct.ppx, ppx_sexp_conv, result, nocrypto, x509
   XMETARequires   : cstruct, sexplib, result, nocrypto, x509
 #, bisect
 
@@ -46,7 +46,7 @@ Library "tls-lwt"
   FindlibParent   : tls
   Path            : lwt
   Modules         : Tls_lwt, X509_lwt
-  BuildDepends    : x509, tls, lwt.syntax, lwt.unix, cstruct.lwt, nocrypto.lwt
+  BuildDepends    : x509, tls, lwt.unix, cstruct.lwt, nocrypto.lwt
   XMETARequires   : x509, tls, lwt, lwt.unix, cstruct.lwt, nocrypto.lwt
 
 Library "tls-mirage"
@@ -55,7 +55,7 @@ Library "tls-mirage"
   FindlibParent   : tls
   Path            : mirage
   Modules         : Tls_mirage
-  BuildDepends    : x509, tls, mirage-types, ipaddr, lwt, lwt.syntax
+  BuildDepends    : x509, tls, mirage-types, ipaddr, lwt
   XMETARequires   : x509, tls, mirage-types, ipaddr, lwt
 
 Executable "test_runner"

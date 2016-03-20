@@ -74,7 +74,8 @@ let answer_server_hello state (ch : client_hello) sh raw log =
 
   match state.config.cached_session with
   | Some epoch when epoch_matches epoch ->
-    let session = { session_of_epoch epoch with
+    let session = session_of_epoch epoch in
+    let session = { session with
                     client_random = ch.client_random ;
                     server_random = sh.server_random ;
                     client_version = ch.client_version ;

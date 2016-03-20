@@ -9,10 +9,9 @@ let serve_ssl port callback =
 
   let tag = "server" in
 
-  lwt cert =
-    X509_lwt.private_of_pems
-      ~cert:server_cert
-      ~priv_key:server_key in
+  X509_lwt.private_of_pems
+    ~cert:server_cert
+    ~priv_key:server_key >>= fun cert ->
 
   let server_s () =
     let open Lwt_unix in
@@ -24,43 +23,40 @@ let serve_ssl port callback =
 
   let handle channels addr =
     async @@ fun () ->
-      try_lwt
-        callback channels addr >> yap ~tag "<- handler done"
-      with
-      | Tls_lwt.Tls_alert a ->
-        yap ~tag @@ "handler: " ^ Tls.Packet.alert_type_to_string a
-      | Tls_lwt.Tls_failure a ->
-        yap ~tag @@ "handler: " ^ Tls.Engine.string_of_failure a
-      | Unix.Unix_error (e, f, p) ->
-        yap ~tag @@ "handler: " ^ (string_of_unix_err e f p)
-      | exn -> yap ~tag "handler: exception"
+      Lwt.catch (fun () -> callback channels addr >>= fun () -> yap ~tag "<- handler done")
+        (function
+          | Tls_lwt.Tls_alert a ->
+            yap ~tag @@ "handler: " ^ Tls.Packet.alert_type_to_string a
+          | Tls_lwt.Tls_failure a ->
+            yap ~tag @@ "handler: " ^ Tls.Engine.string_of_failure a
+          | Unix.Unix_error (e, f, p) ->
+            yap ~tag @@ "handler: " ^ (string_of_unix_err e f p)
+          | exn -> yap ~tag "handler: exception")
   in
 
-  yap ~tag ("-> start @ " ^ string_of_int port)
-  >>
+  yap ~tag ("-> start @ " ^ string_of_int port) >>= fun () ->
   let rec loop s =
-    lwt authenticator = X509_lwt.authenticator `No_authentication_I'M_STUPID in
+    X509_lwt.authenticator `No_authentication_I'M_STUPID >>= fun authenticator ->
     let config = Tls.Config.server ~certificates:(`Single cert) ~authenticator () in
-    match_lwt
-      try_lwt
-        Tls_lwt.accept_ext ~trace:eprint_sexp config s >|= fun r -> `R r
-      with
-        | Unix.Unix_error (e, f, p) -> return (`L (string_of_unix_err e f p))
-        | Tls_lwt.Tls_alert a -> return (`L (Tls.Packet.alert_type_to_string a))
-        | Tls_lwt.Tls_failure f -> return (`L (Tls.Engine.string_of_failure f))
-        | exn -> return (`L "loop: exception")
-    with
+    (Lwt.catch
+       (fun () -> Tls_lwt.accept_ext ~trace:eprint_sexp config s >|= fun r -> `R r)
+       (function
+         | Unix.Unix_error (e, f, p) -> return (`L (string_of_unix_err e f p))
+         | Tls_lwt.Tls_alert a -> return (`L (Tls.Packet.alert_type_to_string a))
+         | Tls_lwt.Tls_failure f -> return (`L (Tls.Engine.string_of_failure f))
+         | exn -> return (`L "loop: exception"))) >>= function
     | `R (channels, addr) ->
-        yap ~tag "-> connect" >> ( handle channels addr ; loop s )
+      yap ~tag "-> connect" >>= fun () -> ( handle channels addr ; loop s )
     | `L (msg) ->
-        yap ~tag ("server socket: " ^ msg) >> loop s
+      yap ~tag ("server socket: " ^ msg) >>= fun () -> loop s
     in
     loop (server_s ())
 
 let echo_server port =
   serve_ssl port @@ fun (ic, oc) addr ->
     lines ic |> Lwt_stream.iter_s (fun line ->
-      yap "handler" ("+ " ^ line) >> Lwt_io.write_line oc line)
+      yap "handler" ("+ " ^ line) >>= fun () ->
+      Lwt_io.write_line oc line)
 
 let () =
   let port =

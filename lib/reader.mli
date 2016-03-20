@@ -7,7 +7,9 @@ type error =
   | Overflow       of int
   | UnknownVersion of (int * int)
   | UnknownContent of int
-with sexp
+
+val error_of_sexp : Sexplib.Sexp.t -> error
+val sexp_of_error : error -> Sexplib.Sexp.t
 
 type 'a result = ('a, error) Result.result
 

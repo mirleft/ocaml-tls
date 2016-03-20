@@ -10,7 +10,7 @@ type tls_version =
   | TLS_1_0
   | TLS_1_1
   | TLS_1_2
-  with sexp
+  [@@deriving sexp]
 
 let pair_of_tls_version = function
   | TLS_1_0   -> (3, 1)
@@ -27,7 +27,7 @@ type tls_any_version =
   | SSL_3
   | Supported of tls_version
   | TLS_1_X of int
-  with sexp
+  [@@deriving sexp]
 
 let any_version_to_version = function
   | Supported v -> Some v
@@ -64,10 +64,10 @@ let min_protocol_version (lo, _) = lo
 type tls_hdr = {
   content_type : content_type;
   version      : tls_any_version;
-} with sexp
+} [@@deriving sexp]
 
 module SessionID = struct
-  type t = Cstruct.t with sexp
+  type t = Cstruct.t [@@deriving sexp]
   let compare = Cstruct.compare
   let hash t = Hashtbl.hash (Cstruct.to_bigarray t)
   let equal = Cstruct.equal
@@ -83,7 +83,7 @@ type client_extension = [
   | `SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
   | `UnknownExtension of (int * Cstruct.t)
   | `ExtendedMasterSecret
-] with sexp
+] [@@deriving sexp]
 
 type server_extension = [
   | `Hostname
@@ -92,7 +92,7 @@ type server_extension = [
   | `SecureRenegotiation of Cstruct.t
   | `UnknownExtension of (int * Cstruct.t)
   | `ExtendedMasterSecret
-] with sexp
+] [@@deriving sexp]
 
 type client_hello = {
   client_version : tls_any_version;
@@ -100,7 +100,7 @@ type client_hello = {
   sessionid      : SessionID.t option;
   ciphersuites   : any_ciphersuite list;
   extensions     : client_extension list
-} with sexp
+} [@@deriving sexp]
 
 type server_hello = {
   server_version : tls_version;
@@ -108,18 +108,18 @@ type server_hello = {
   sessionid      : SessionID.t option;
   ciphersuite    : ciphersuite;
   extensions     : server_extension list
-} with sexp
+} [@@deriving sexp]
 
 type dh_parameters = {
   dh_p  : Cstruct.t;
   dh_g  : Cstruct.t;
   dh_Ys : Cstruct.t;
-} with sexp
+} [@@deriving sexp]
 
 type ec_curve = {
   a : Cstruct.t;
   b : Cstruct.t
-} with sexp
+} [@@deriving sexp]
 
 type ec_prime_parameters = {
   prime    : Cstruct.t;
@@ -128,7 +128,7 @@ type ec_prime_parameters = {
   order    : Cstruct.t;
   cofactor : Cstruct.t;
   public   : Cstruct.t
-} with sexp
+} [@@deriving sexp]
 
 type ec_char_parameters = {
   m        : int;
@@ -139,13 +139,13 @@ type ec_char_parameters = {
   order    : Cstruct.t;
   cofactor : Cstruct.t;
   public   : Cstruct.t
-} with sexp
+} [@@deriving sexp]
 
 type ec_parameters =
   | ExplicitPrimeParameters of ec_prime_parameters
   | ExplicitCharParameters of ec_char_parameters
   | NamedCurveParameters of (named_curve_type * Cstruct.t)
-  with sexp
+  [@@deriving sexp]
 
 type tls_handshake =
   | HelloRequest
@@ -158,20 +158,19 @@ type tls_handshake =
   | ClientKeyExchange of Cstruct.t
   | CertificateVerify of Cstruct.t
   | Finished of Cstruct.t
-  with sexp
+  [@@deriving sexp]
 
-type tls_alert = alert_level * alert_type
-  with sexp
+type tls_alert = alert_level * alert_type [@@deriving sexp]
 
 type tls_body =
   | TLS_ChangeCipherSpec
   | TLS_ApplicationData
   | TLS_Alert of tls_alert
   | TLS_Handshake of tls_handshake
-  with sexp
+  [@@deriving sexp]
 
 (** the master secret of a TLS connection *)
-type master_secret = Cstruct.t with sexp
+type master_secret = Cstruct.t [@@deriving sexp]
 
 (** information about an open session *)
 type epoch_data = {
@@ -190,4 +189,4 @@ type epoch_data = {
   master_secret          : master_secret ;
   session_id             : SessionID.t ;
   extended_ms            : bool ;
-} with sexp
+} [@@deriving sexp]

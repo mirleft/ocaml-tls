@@ -10,8 +10,8 @@ type tracer = Sexplib.Sexp.t -> unit
 (* This really belongs just about anywhere else: generic unix name resolution. *)
 let resolve host service =
   let open Lwt_unix in
-  lwt tcp = getprotobyname "tcp" in
-  match_lwt getaddrinfo host service [AI_PROTOCOL tcp.p_proto] with
+  getprotobyname "tcp" >>= fun tcp ->
+  getaddrinfo host service [AI_PROTOCOL tcp.p_proto] >>= function
   | []    ->
       let msg = Printf.sprintf "no address for %s:%s" host service in
       fail (Invalid_argument msg)
@@ -23,7 +23,7 @@ let gettimeofday = Unix.gettimeofday
 module Lwt_cs = struct
 
   let naked ~name f fd cs =
-    lwt res = Cstruct.(f fd cs.buffer cs.off cs.len) in
+    Cstruct.(f fd cs.buffer cs.off cs.len) >>= fun res ->
     match Lwt_unix.getsockopt_error fd with
     | None     -> return res
     | Some err -> fail @@ Unix.Unix_error (err, name, "")
@@ -48,13 +48,15 @@ module Unix = struct
   }
 
   let safely th =
-    try_lwt (th >> return_unit) with _ -> return_unit
+    Lwt.catch (fun () -> th >>= fun _ -> return_unit) (fun _ -> return_unit)
 
   let (read_t, write_t) =
     let recording_errors op t cs =
-      try_lwt op t.fd cs with exn ->
-        t.state <- `Error exn ;
-        fail exn
+      Lwt.catch
+        (fun () -> op t.fd cs)
+        (fun exn ->
+           t.state <- `Error exn ;
+           fail exn)
     in
     (recording_errors Lwt_cs.read, recording_errors Lwt_cs.write_full)
 
@@ -80,18 +82,18 @@ module Unix = struct
             | `Alert a -> `Error (Tls_alert a)
           in
           t.state <- state' ;
-          (resp |> when_some (write_t t)) >> return (`Ok data)
+          (resp |> when_some (write_t t)) >>= fun () -> return (`Ok data)
 
       | `Fail (alert, `Response resp) ->
           t.state <- `Error (Tls_failure alert) ;
-          write_t t resp >> read_react t
+          write_t t resp >>= fun () -> read_react t
     in
 
     match t.state with
     | `Error e  -> fail e
     | `Eof      -> return `Eof
     | `Active _ ->
-        lwt n = read_t t recv_buf in
+        read_t t recv_buf >>= fun n ->
         match (t.state, n) with
         | (`Active _  , 0) -> t.state <- `Eof ; return `Eof
         | (`Active tls, n) -> handle tls (Cstruct.sub recv_buf 0 n)
@@ -161,7 +163,9 @@ module Unix = struct
         | None -> fail @@ Invalid_argument "tls: can't renegotiate"
         | Some (tls', buf) ->
            t.state <- `Active tls' ;
-           write_t t buf >> drain_handshake t >> return_unit
+           write_t t buf >>= fun () ->
+           drain_handshake t >>= fun _ ->
+           return_unit
 
   let close_tls t =
     match t.state with
@@ -173,7 +177,7 @@ module Unix = struct
     | _ -> return_unit
 
   let close t =
-    safely (close_tls t) >> Lwt_unix.close t.fd
+    safely (close_tls t) >>= fun () -> Lwt_unix.close t.fd
 
   let server_of_fd ?trace config fd =
     drain_handshake {
@@ -192,19 +196,20 @@ module Unix = struct
       linger = None ;
       tracer = trace ;
     } in
-    write_t t init >> drain_handshake t
+    write_t t init >>= fun () ->
+    drain_handshake t
 
 
   let accept ?trace conf fd =
-    lwt (fd', addr) = Lwt_unix.accept fd in
-    try_lwt (server_of_fd conf ?trace fd' >|= fun t -> (t, addr))
-    with exn -> safely (Lwt_unix.close fd') >> fail exn
+    Lwt_unix.accept fd >>= fun (fd', addr) ->
+    Lwt.catch (fun () -> server_of_fd conf ?trace fd' >|= fun t -> (t, addr))
+      (fun exn -> safely (Lwt_unix.close fd') >>= fun () -> fail exn)
 
   let connect ?trace conf (host, port) =
-    lwt addr = resolve host (string_of_int port) in
-    let fd   = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
-    try_lwt (Lwt_unix.connect fd addr >> client_of_fd ?trace conf ~host fd)
-    with exn -> safely (Lwt_unix.close fd) >> fail exn
+    resolve host (string_of_int port) >>= fun addr ->
+    let fd = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
+    Lwt.catch (fun () -> Lwt_unix.connect fd addr >>= fun () -> client_of_fd ?trace conf ~host fd)
+      (fun exn -> safely (Lwt_unix.close fd) >>= fun () -> fail exn)
 
   let read_bytes t bs off len =
     read t (Cstruct.of_bigarray ~off ~len bs)
@@ -232,7 +237,7 @@ let of_t ?close t =
   in
   (Lwt_io.make ~close ~mode:Lwt_io.Input (Unix.read_bytes t)),
   (Lwt_io.make ~close ~mode:Lwt_io.Output @@
-    fun a b c -> Unix.write_bytes t a b c >> return c)
+    fun a b c -> Unix.write_bytes t a b c >>= fun () -> return c)
 
 let accept_ext ?trace conf fd =
   Unix.accept ?trace conf fd >|= fun (t, peer) -> (of_t t, peer)

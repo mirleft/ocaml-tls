@@ -9,7 +9,7 @@ type state = State.state
 
 type error = State.error
 type fatal = State.fatal
-type failure = State.failure with sexp
+type failure = State.failure [@@deriving sexp]
 
 let alert_of_authentication_failure = function
   | `Leaf (`LeafCertificateExpired _) -> Packet.CERTIFICATE_EXPIRED
@@ -100,7 +100,7 @@ let new_state config role =
     fragment  = Cstruct.create 0 ;
   }
 
-type raw_record = tls_hdr * Cstruct.t with sexp
+type raw_record = tls_hdr * Cstruct.t [@@deriving sexp]
 
 (* well-behaved pure encryptor *)
 let encrypt (version : tls_version) (st : crypto_state) ty buf =
@@ -550,7 +550,7 @@ open Sexplib.Conv
 type epoch = [
   | `InitialEpoch
   | `Epoch of epoch_data
-] with sexp
+] [@@deriving sexp]
 
 let epoch state =
   let hs = state.handshake in

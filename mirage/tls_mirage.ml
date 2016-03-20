@@ -45,7 +45,7 @@ module Make (F : V1_LWT.FLOW) = struct
     ( match (flow.state, res) with
       | (`Active _, (`Eof | `Error _ as e)) ->
           flow.state <- e ; FLOW.close flow.flow
-      | _ -> return_unit ) >>
+      | _ -> return_unit ) >>= fun () ->
     return res
 
   let tracing flow f =
@@ -66,15 +66,15 @@ module Make (F : V1_LWT.FLOW) = struct
             | `Alert alert -> tls_alert alert );
           ( match resp with
             | None     -> return_ok
-            | Some buf -> FLOW.write flow.flow buf >>= check_write flow ) >>
+            | Some buf -> FLOW.write flow.flow buf >>= check_write flow ) >>= fun _ ->
           ( match res with
             | `Ok _ -> return_unit
-            | _     -> FLOW.close flow.flow ) >>
+            | _     -> FLOW.close flow.flow ) >>= fun () ->
           return (`Ok data)
       | `Fail (fail, `Response resp) ->
           let reason = tls_fail fail in
           flow.state <- reason ;
-          FLOW.(write flow.flow resp >> close flow.flow) >> return reason
+          FLOW.(write flow.flow resp >>= fun _ -> close flow.flow) >>= fun () -> return reason
     in
     match flow.state with
     | `Eof | `Error _ as e -> return e
@@ -142,7 +142,8 @@ module Make (F : V1_LWT.FLOW) = struct
             invalid_arg "Renegotiation already in progress"
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
-            match_lwt FLOW.write flow.flow buf >> drain_handshake flow with
+            FLOW.write flow.flow buf >>= fun _ ->
+            drain_handshake flow >>= function
             | `Ok _                -> return (`Ok ())
             | `Error _ | `Eof as e -> return e
 
@@ -152,7 +153,7 @@ module Make (F : V1_LWT.FLOW) = struct
       flow.state <- `Eof ;
       let (_, buf) = tracing flow @@ fun () ->
         Tls.Engine.send_close_notify tls in
-      FLOW.(write flow.flow buf >> close flow.flow)
+      FLOW.(write flow.flow buf >>= fun _ -> close flow.flow)
     | _           -> return_unit
 
   let client_of_flow ?trace conf host flow =
@@ -164,7 +165,7 @@ module Make (F : V1_LWT.FLOW) = struct
       linger = [] ;
       tracer = trace ;
     } in
-    FLOW.write flow init >> drain_handshake tls_flow
+    FLOW.write flow init >>= fun _ -> drain_handshake tls_flow
 
   let server_of_flow ?trace conf flow =
     let tls_flow = {
@@ -225,13 +226,10 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) = struct
 
   let certificate kv =
     let read name =
-      lwt certs =
-        read_full kv (name ^ ".pem") >|= Certificate.of_pem_cstruct
-      and pk =
-        read_full kv (name ^ ".key") >|= fun pem ->
-        match Private_key.of_pem_cstruct1 pem with
-        | `RSA key -> key
-      in
+      read_full kv (name ^ ".pem") >|= Certificate.of_pem_cstruct >>= fun certs ->
+      (read_full kv (name ^ ".key") >|= fun pem ->
+       match Private_key.of_pem_cstruct1 pem with
+       | `RSA key -> key) >>= fun pk ->
       return (certs, pk)
     in function | `Default   -> read default_cert
                 | `Name name -> read name

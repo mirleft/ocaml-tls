@@ -9,9 +9,10 @@ type authenticator = X509.Authenticator.a
 let failure msg = fail @@ Failure msg
 
 let catch_invalid_arg th h =
-  try_lwt th with
-  | Invalid_argument msg -> h msg
-  | exn                  -> fail exn
+  Lwt.catch (fun () -> th)
+    (function
+      | Invalid_argument msg -> h msg
+      | exn                  -> fail exn)
 
 
 let (</>) a b = a ^ "/" ^ b
@@ -20,21 +21,23 @@ let o f g x = f (g x)
 
 let read_file path =
   let open Lwt_io in
-  lwt file = open_file ~mode:Input path in
-  lwt cs   = read file >|= Cstruct.of_string in
-  close file >> return cs
+  open_file ~mode:Input path >>= fun file ->
+  read file >|= Cstruct.of_string >>= fun cs ->
+  close file >|= fun () ->
+  cs
 
 let read_dir path =
   let open Lwt_unix in
   let rec collect acc d =
-    match_lwt
-      try_lwt readdir d >|= fun e -> Some e with End_of_file -> return None
-    with
+    (Lwt.catch
+       (fun () -> readdir d >|= fun e -> Some e)
+       (function End_of_file -> return None)) >>= function
     | Some e -> collect (e :: acc) d
     | None   -> return acc in
-  lwt dir     = opendir path in
-  lwt entries = collect [] dir in
-  closedir dir >> return entries
+  opendir path >>= fun dir ->
+  collect [] dir >>= fun entries ->
+  closedir dir >|= fun () ->
+  entries
 
 let extension str =
   let n = String.length str in
@@ -48,17 +51,15 @@ let extension str =
 
 let private_of_pems ~cert ~priv_key =
   let open X509.Encoding.Pem in
-  lwt certs =
-    catch_invalid_arg
-      (read_file cert >|= Certificate.of_pem_cstruct)
-      (o failure @@ Printf.sprintf "Private certificates (%s): %s" cert)
-  and pk =
-    catch_invalid_arg
-      (read_file priv_key >|= fun pem ->
-       match Private_key.of_pem_cstruct1 pem with
-       | `RSA key -> key)
-      (o failure @@ Printf.sprintf "Private key (%s): %s" priv_key)
-  in return (certs, pk)
+  catch_invalid_arg
+    (read_file cert >|= Certificate.of_pem_cstruct)
+    (o failure @@ Printf.sprintf "Private certificates (%s): %s" cert) >>= fun certs ->
+  catch_invalid_arg
+    (read_file priv_key >|= fun pem ->
+     match Private_key.of_pem_cstruct1 pem with
+     | `RSA key -> key)
+    (o failure @@ Printf.sprintf "Private key (%s): %s" priv_key) >>= fun pk ->
+  return (certs, pk)
 
 let certs_of_pem path =
   catch_invalid_arg
