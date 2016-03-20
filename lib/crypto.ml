@@ -17,10 +17,6 @@ and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
   let z_of_cs = Numeric.Z.of_cstruct_be ?bits:None in
   ({ Dh.p = z_of_cs dh_p ; gg = z_of_cs dh_g ; q = None }, dh_Ys)
 
-let dh_shared group secret public =
-  try Some (Dh.shared group secret public)
-  with Dh.Invalid_public_key -> None
-
 module Ciphers = struct
 
   (* I'm not sure how to get rid of this type, but would welcome a solution *)

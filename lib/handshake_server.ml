@@ -118,7 +118,7 @@ let answer_client_key_exchange_RSA state session kex raw log =
   establish_master_secret state session pms raw log
 
 let answer_client_key_exchange_DHE_RSA state session (group, secret) kex raw log =
-  match Crypto.dh_shared group secret kex with
+  match Dh.shared group secret kex with
   | None     -> fail (`Fatal `InvalidDH)
   | Some pms -> return (establish_master_secret state session pms raw log)
 

@@ -210,7 +210,7 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
   >>= fun () ->
 
   let secret, kex = Dh.gen_key group in
-  match Crypto.dh_shared group secret shared with
+  match Dh.shared group secret shared with
   | None     -> fail (`Fatal `InvalidDH)
   | Some pms -> let machina =
                   AwaitCertificateRequestOrServerHelloDone
