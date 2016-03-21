@@ -1,7 +1,7 @@
 #!/bin/sh
 
 port=4455
-polarssl="/opt/bin/polarssl_ssl_client2 auth_mode=none server_port="
+polarssl="/opt/bin/mbedtls_ssl_client2 auth_mode=none server_port="
 
 extra_args=""
 statfile="/tmp/test_server.status"
@@ -72,10 +72,14 @@ TLS-DHE-RSA-WITH-AES-256-CCM
 TLS-DHE-RSA-WITH-AES-128-CCM
 TLS-DHE-RSA-WITH-AES-256-CBC-SHA256
 TLS-DHE-RSA-WITH-AES-128-CBC-SHA256
+TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
+TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 TLS-RSA-WITH-AES-256-CCM
-TLS-RSA-WITH-AES-256-CBC-SHA256
 TLS-RSA-WITH-AES-128-CCM
-TLS-RSA-WITH-AES-128-CBC-SHA256"
+TLS-RSA-WITH-AES-256-CBC-SHA256
+TLS-RSA-WITH-AES-128-CBC-SHA256
+TLS-RSA-WITH-AES-256-GCM-SHA384
+TLS-RSA-WITH-AES-128-GCM-SHA256"
 for i in $tls12_ciphers; do
     extra_args="force_ciphersuite=$i"
     testit
