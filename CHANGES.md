@@ -1,4 +1,5 @@
-master:
+0.7.1 (2016-03-21):
+* remove camlp4 dependency (use cstruct ppx and sexplib ppx instead)
 * sort client extensions, there are servers which dislike an extension without
   data at the end, thus try to send extensions with data at the end (#319)
 * initial GCM support (#310)
@@ -26,7 +27,7 @@ master:
 
     In the end, it is a pretty academic thing anyways, since nobody uses
     renegotiation with OCaml-TLS in the field.
-* durinng verification of a digitally signed: checked that the used hash
+* during verification of a digitally signed: checked that the used hash
   algorithm is one of the configured ones (#313)
 * unify return type of handshake and change cipher spec handler (#314)
 * separate client and server extensions (#317)

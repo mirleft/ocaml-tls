@@ -1,4 +1,4 @@
-open Lwt
+open Lwt.Infix
 
 open V1
 open V1_LWT
@@ -9,7 +9,7 @@ type ('a, 'e, 'c) m = ([< `Ok of 'a | `Error of 'e | `Eof ] as 'c) Lwt.t
 let (>>==) (a : ('a, 'e, _) m) (f : 'a -> ('b, 'e, _) m) : ('b, 'e, _) m =
   a >>= function
     | `Ok x                -> f x
-    | `Error _ | `Eof as e -> return e
+    | `Error _ | `Eof as e -> Lwt.return e
 
 
 module Color = struct
@@ -53,27 +53,29 @@ struct
   module L    = Log (C)
 
   let rec handle c flush tls =
-    lwt res = TLS.read tls in
-    flush () >> match res with
-      | `Ok buf ->
-          L.log_data c "recv" buf
-          >> TLS.write tls buf >> handle c flush tls
-      | err     -> return err
+    TLS.read tls >>= fun res ->
+    flush () >>= fun () ->
+    match res with
+    | `Ok buf ->
+      L.log_data c "recv" buf >>= fun () ->
+      TLS.write tls buf >>== fun () ->
+      handle c flush tls
+    | err     -> Lwt.return err
 
   let accept c conf k flow =
     let (trace, flush_trace) = make_tracer (C.log_s c) in
-    L.log_trace c "accepted." >>
+    L.log_trace c "accepted." >>= fun () ->
     TLS.server_of_flow ~trace conf flow
-    >>== (fun tls -> L.log_trace c "shook hands" >> k c flush_trace tls)
+    >>== (fun tls -> L.log_trace c "shook hands" >>= fun () -> k c flush_trace tls)
     >>= function
       | `Ok _    -> assert false
       | `Error e -> L.log_error c (TLS.error_message e)
       | `Eof     -> L.log_trace c "eof."
 
   let start c stack kv _ _ =
-    lwt cert = X509.certificate kv `Default in
+    X509.certificate kv `Default >>= fun cert ->
     let conf = Tls.Config.server ~certificates:(`Single cert) () in
-    S.listen_tcpv4 stack 4433 (accept c conf handle) ;
+    S.listen_tcpv4 stack ~port:4433 (accept c conf handle) ;
     S.listen stack
 
 end
@@ -103,12 +105,14 @@ struct
   let chat c tls =
     let rec dump () =
       TLS.read tls >>== fun buf ->
-        L.log_data c "recv" buf >> dump () in
-    TLS.write tls initial >> dump ()
+      L.log_data c "recv" buf >>= fun () ->
+      dump ()
+    in
+    TLS.write tls initial >>== dump
 
-  let start c stack kv _ =
-    lwt authenticator = X509.authenticator kv `CAs in
-    let conf          = Tls.Config.client ~authenticator () in
+  let start c stack kv _ _ =
+    X509.authenticator kv `CAs >>= fun authenticator ->
+    let conf = Tls.Config.client ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer)
     >>= function
     | `Error e -> L.log_error c (S.TCPV4.error_message e)
