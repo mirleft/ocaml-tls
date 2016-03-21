@@ -18,6 +18,7 @@ remove: [ "ocamlfind" "remove" "tls" ]
 
 depends: [
   "ocamlfind" {build}
+  "oasis" {build}
   "ocamlbuild" {build}
   "result"
   "ppx_tools"
