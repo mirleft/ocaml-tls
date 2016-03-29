@@ -333,9 +333,9 @@ let assemble_digitally_signed_1_2 hashalgo sigalgo signature =
   (assemble_hash_signature (hashalgo, sigalgo)) <+>
     (assemble_digitally_signed signature)
 
-let assemble_session_ticket_1_3 hint id =
+let assemble_session_ticket_1_3 lifetime id =
   let buf = create 4 in
-  BE.set_uint32 buf 0 hint ;
+  BE.set_uint32 buf 0 lifetime ;
   let idlen = create 2 in
   BE.set_uint16 idlen 0 (len id) ;
   buf <+> idlen <+> id
