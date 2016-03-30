@@ -54,7 +54,7 @@ let answer_client_hello state ch raw log =
     in
     let session =
       let s = match epoch with None -> empty_session | Some e -> session_of_epoch e in
-      { s with ciphersuite ; client_random = ch.client_random ; client_version = ch.client_version ; server_random = sh.server_random }
+      { s with ciphersuite ; client_random = ch.client_random ; client_version = ch.client_version ; server_random = sh.server_random ; extended_ms = true }
     in
     (sh, session)
   and resumed_session =

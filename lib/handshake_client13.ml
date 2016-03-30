@@ -26,7 +26,7 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
 
         let session =
           let s = session_of_epoch e in
-          { s with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite }
+          { s with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite ; extended_ms = true }
         in
 
         let group, secret = List.find (fun (g, ks) -> g = group) secrets in
@@ -52,7 +52,7 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
 
         let session =
           let s = session_of_epoch e in
-          { s with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite }
+          { s with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite ; extended_ms = true }
         in
 
         let ss = e.resumption_secret in
@@ -74,7 +74,7 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
 
       let _, secret = List.find (fun (g, ks) -> g = group) secrets in
 
-      let session = { empty_session with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite } in
+      let session = { empty_session with client_random = ch.client_random ; server_random = sh.server_random ; client_version = ch.client_version ; ciphersuite = sh.ciphersuite ; extended_ms = true } in
 
     ( match Nocrypto.Dh.shared group secret keyshare with
       | None -> fail (`Fatal `InvalidDH)
