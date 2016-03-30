@@ -36,7 +36,7 @@ let default_client_hello config =
           List.combine config.groups secrets)
        in
        let exts =
-         [`SignatureAlgorithms sig_alg ; `SupportedGroups groups ; `KeyShare keyshares ]
+         [`SignatureAlgorithms sig_alg ; `SupportedGroups groups ; `KeyShare keyshares ; `Draft draft ]
        in
        let psk = match config.cached_session with
          | Some { psk_id ; _ } when Cstruct.len psk_id > 0 -> [`PreSharedKey [ psk_id ]]

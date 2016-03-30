@@ -391,14 +391,19 @@ let answer_client_hello state (ch : client_hello) raw =
     ensure_reneg cciphers theirs
   in
 
+  let process protocol_version =
+    process_client_hello state.config ch protocol_version >>= fun () ->
+    let state = { state with protocol_version } in
+    (match resume ch state with
+     | None -> answer_client_hello_common state None ch raw
+     | Some session -> answer_resumption session state)
+  in
+
   agreed_version state.config.protocol_versions ch.client_version >>= function
-   | TLS_1_0 | TLS_1_1 | TLS_1_2 as protocol_version ->
-     process_client_hello state.config ch protocol_version >>= fun () ->
-     let state = { state with protocol_version } in
-     (match resume ch state with
-      | None -> answer_client_hello_common state None ch raw
-      | Some session -> answer_resumption session state)
-   | TLS_1_3 -> Handshake_server13.answer_client_hello state ch raw (Cstruct.create 0)
+   | TLS_1_3 when List.mem (`Draft draft) ch.extensions  ->
+     Handshake_server13.answer_client_hello state ch raw (Cstruct.create 0)
+   | TLS_1_3 -> process TLS_1_2
+   | protocol_version -> process protocol_version
 
 let answer_client_hello_reneg state (ch : client_hello) raw =
   (* ensure reneg allowed and supplied *)

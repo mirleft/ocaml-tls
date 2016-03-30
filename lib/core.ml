@@ -26,6 +26,8 @@ let tls_version_of_pair = function
   | (3, 4) -> Some TLS_1_3
   | _      -> None
 
+let draft = 0x000c
+
 type tls_any_version =
   | SSL_3
   | Supported of tls_version
@@ -106,6 +108,7 @@ type client_extension = [
   | `KeyShare of (named_group * Cstruct.t) list
   | `EarlyDataIndication of early_data
   | `PreSharedKey of psk_identity list
+  | `Draft of int
   | `UnknownExtension of (int * Cstruct.t)
 ] [@@deriving sexp]
 
@@ -118,6 +121,7 @@ type server_extension = [
   | `KeyShare of (group * Cstruct.t)
   | `EarlyDataIndication
   | `PreSharedKey of psk_identity
+  | `Draft of int
   | `UnknownExtension of (int * Cstruct.t)
 ] [@@deriving sexp]
 

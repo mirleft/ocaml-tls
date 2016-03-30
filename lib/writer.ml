@@ -203,7 +203,11 @@ let assemble_extension = function
      let buf = create 1 in
      set_uint8 buf 0 (len x);
      (buf <+> x, RENEGOTIATION_INFO)
-  | `ExtendedMasterSecret -> (Cstruct.create 0, EXTENDED_MASTER_SECRET)
+  | `ExtendedMasterSecret -> (create 0, EXTENDED_MASTER_SECRET)
+  | `Draft ver ->
+    let b = create 2 in
+    BE.set_uint16 b 0 ver ;
+    (b, DRAFT_SUPPORT)
   | _ -> invalid_arg "unknown extension"
 
 let assemble_client_extension e =

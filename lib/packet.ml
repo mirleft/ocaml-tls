@@ -150,6 +150,7 @@ type extension_type =
   | PRE_SHARED_KEY                         [@id 41] (*TLS 1.3*)
   | EARLY_DATA                             [@id 42] (*TLS 1.3*)
   | RENEGOTIATION_INFO                     [@id 0xFF01] (*RFC5746*)
+  | DRAFT_SUPPORT                          [@id 0xFF02] (*draft*)
   [@@uint16_t] [@@sexp]
 ]
 

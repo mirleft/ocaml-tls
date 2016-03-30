@@ -257,6 +257,11 @@ let parse_extension buf = function
          raise_trailing_bytes "extended master secret"
        else
          `ExtendedMasterSecret
+  | DRAFT_SUPPORT ->
+      if len buf <> 2 then
+         raise_trailing_bytes "extended master secret"
+       else
+         `Draft (BE.get_uint16 buf 0)
   | x -> `UnknownExtension (extension_type_to_int x, buf)
 
 let parse_keyshare_entry buf =
