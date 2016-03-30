@@ -20,6 +20,30 @@ let serve_ssl port callback =
     ~cert:server_cert
     ~priv_key:server_key >>= fun cert ->
 
+  let epoch =
+    let hex = Nocrypto.Uncommon.Cs.of_hex in
+    {
+      Tls.Core.protocol_version = Tls.Core.TLS_1_3 ;
+      ciphersuite = `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 ;
+      peer_random = hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" ;
+      peer_certificate = None ;
+      peer_certificate_chain = [] ;
+      peer_name = None ;
+      trust_anchor = None ;
+      received_certificates = [] ;
+      own_random = hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" ;
+      own_certificate = fst cert ;
+      own_private_key = Some (snd cert) ;
+      own_name = Some "tls13test.nqsb.io" ;
+      master_secret = hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" ;
+      session_id = Cstruct.create 0 ;
+      extended_ms = true ;
+      resumption_secret = hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" ;
+      psk_id = hex "0000"
+    }
+  in
+  cache_psk epoch ;
+
   let server_s () =
     let open Lwt_unix in
     let s = socket PF_INET SOCK_STREAM 0 in
