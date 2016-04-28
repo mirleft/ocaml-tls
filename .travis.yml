@@ -2,8 +2,8 @@ language: c
 install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-opam.sh
 script: bash -ex .travis-opam.sh
 env:
-  - PACKAGE="tls" OCAML_VERSION=latest PINS="nocrypto asn1-combinators x509"
-  - PACKAGE="tls" OCAML_VERSION=latest DEPOPTS=lwt PINS="nocrypto asn1-combinators x509"
-  - PACKAGE="tls" OCAML_VERSION=latest DEPOPTS=mirage-types-lwt PINS="nocrypto asn1-combinators x509" POST_INSTALL_HOOK="./.travis-test-mirage.sh"
+  - PACKAGE="tls" OCAML_VERSION=4.02 PINS="nocrypto asn1-combinators x509"
+  - PACKAGE="tls" OCAML_VERSION=4.02 DEPOPTS=lwt PINS="nocrypto asn1-combinators x509"
+  - PACKAGE="tls" OCAML_VERSION=4.02 DEPOPTS=mirage-types-lwt PINS="nocrypto asn1-combinators x509" POST_INSTALL_HOOK="./.travis-test-mirage.sh"
 notifications:
   email: false
