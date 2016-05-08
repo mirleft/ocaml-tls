@@ -5,7 +5,7 @@ Synopsis:    TLS support for OCaml
 Authors:     Hannes Mehnert <hannes@mehnert.org>, David Kaloper <david@numm.org>
 Maintainers: David Kaloper <david@numm.org>, Hannes Mehnert <hannes@mehnert.org>
 Homepage:    https://github.com/mirleft/ocaml-tls
-License:     FreeBSD
+License:     BSD-2-clause
 Plugins:     META (0.4)
 BuildTools:  ocamlbuild
 Description:
