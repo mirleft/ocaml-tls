@@ -16,7 +16,7 @@ let echo_client ?ca host port =
     ~priv_key:server_key >>= fun certificate ->
   Tls_lwt.connect_ext
     ~trace:eprint_sexp
-    Tls.Config.(client ~authenticator ~certificates:(`Single certificate) ~ciphers:Ciphers.supported ())
+    Tls.Config.(client ~authenticator ~certificates:(`Single certificate) ())
     (host, port) >>= fun (ic, oc) ->
   Lwt.join [
     lines ic    |> Lwt_stream.iter_s (printf "+ %s\n%!") ;
