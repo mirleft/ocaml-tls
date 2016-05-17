@@ -18,13 +18,13 @@ remove: [ "ocamlfind" "remove" "tls" ]
 
 depends: [
   "ocamlfind" {build}
-  "oasis" {build}
   "ocamlbuild" {build}
+  "oasis" {build}
+  "ppx_tools" {build}
+  "ppx_sexp_conv" {build}
   "result"
-  "ppx_tools"
   "cstruct" {>= "1.9.0"}
   "sexplib"
-  "ppx_sexp_conv"
   "nocrypto" {>= "0.5.3"}
   "x509" {>= "0.5.0"}
   "ounit" {test}
