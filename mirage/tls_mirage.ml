@@ -156,6 +156,13 @@ module Make (F : V1_LWT.FLOW) = struct
       FLOW.(write flow.flow buf >>= fun _ -> close flow.flow)
     | _           -> return_unit
 
+  let disconnect flow =
+    ( match flow.state with
+      | `Active tls ->
+        flow.state <- `Eof
+      | _ -> () );
+    FLOW.disconnect flow.flow
+
   let client_of_flow ?trace conf host flow =
     let (tls, init) = Tls.Engine.client conf in
     let tls_flow = {
