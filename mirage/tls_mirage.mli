@@ -45,7 +45,7 @@ end
 
 
 (** X.509 handling given a key value store and a clock *)
-module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) : sig
+module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) : sig
   (** [authenticator store typ] creates an [authenticator], either
       using the given certificate authorities in the [store] or
       null. *)
