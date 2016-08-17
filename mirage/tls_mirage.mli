@@ -45,11 +45,11 @@ end
 
 
 (** X.509 handling given a key value store and a clock *)
-module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) : sig
-  (** [authenticator store typ] creates an [authenticator], either
+module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) : sig
+  (** [authenticator store clock typ] creates an [authenticator], either
       using the given certificate authorities in the [store] or
       null. *)
-  val authenticator : KV.t -> [< `Noop | `CAs ] -> X509.Authenticator.a Lwt.t
+  val authenticator : KV.t -> C.t -> [< `Noop | `CAs ] -> X509.Authenticator.a Lwt.t
 
   (** [certificate store typ] unmarshals a certificate chain and
       private key material from the [store]. *)

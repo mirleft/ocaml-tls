@@ -55,8 +55,8 @@ Library "tls-mirage"
   FindlibParent   : tls
   Path            : mirage
   Modules         : Tls_mirage
-  BuildDepends    : x509, tls, mirage-types, ipaddr, lwt
-  XMETARequires   : x509, tls, mirage-types, ipaddr, lwt
+  BuildDepends    : x509, tls, mirage-types, ipaddr, lwt, ptime
+  XMETARequires   : x509, tls, mirage-types, ipaddr, lwt, ptime
 
 Executable "test_runner"
   Build          $: flag(tests)
