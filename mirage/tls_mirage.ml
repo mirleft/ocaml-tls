@@ -216,10 +216,10 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) = struct
 
   open X509.Encoding.Pem
 
-  let authenticator kv = function
+  let authenticator kv clock = function
     | `Noop -> return X509.Authenticator.null
     | `CAs  ->
-        let time = Ptime.unsafe_of_d_ps (C.now_d_ps ()) |> Ptime.to_float_s in
+        let time = Ptime.v (C.now_d_ps clock) |> Ptime.to_float_s in
         read_full kv ca_roots_file
         >|= Certificate.of_pem_cstruct
         >|= X509.Authenticator.chain_of_trust ~time
