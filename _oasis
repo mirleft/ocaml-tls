@@ -46,8 +46,8 @@ Library "tls-lwt"
   FindlibParent   : tls
   Path            : lwt
   Modules         : Tls_lwt, X509_lwt
-  BuildDepends    : x509, tls, lwt.unix, cstruct.lwt, nocrypto.lwt
-  XMETARequires   : x509, tls, lwt, lwt.unix, cstruct.lwt, nocrypto.lwt
+  BuildDepends    : x509, tls, lwt.unix, cstruct.lwt, nocrypto.lwt, ptime
+  XMETARequires   : x509, tls, lwt, lwt.unix, cstruct.lwt, nocrypto.lwt, ptime
 
 Library "tls-mirage"
   Build          $: flag(mirage)
