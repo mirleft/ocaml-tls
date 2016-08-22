@@ -198,7 +198,7 @@ module Make (F : V1_LWT.FLOW) = struct
 
 end
 
-module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) = struct
+module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) = struct
 
   let ca_roots_file = "ca-roots.crt"
   let default_cert  = "server"
@@ -216,10 +216,10 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.CLOCK) = struct
 
   open X509.Encoding.Pem
 
-  let authenticator kv = function
+  let authenticator kv clock = function
     | `Noop -> return X509.Authenticator.null
     | `CAs  ->
-        let time = C.time () in
+        let time = Ptime.v (C.now_d_ps clock) |> Ptime.to_float_s in
         read_full kv ca_roots_file
         >|= Certificate.of_pem_cstruct
         >|= X509.Authenticator.chain_of_trust ~time
