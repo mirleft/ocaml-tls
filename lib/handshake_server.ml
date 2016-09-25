@@ -238,14 +238,18 @@ let answer_client_hello_common state reneg ch raw =
     match config.authenticator with
     | None -> ([], session)
     | Some _ ->
-       (* TODO: extract DN from authenticator and send to client *)
+       let cas =
+         List.map X509.Encoding.cs_of_distinguished_name config.acceptable_cas
+       in
        let certreq = match version with
          | TLS_1_0 | TLS_1_1 ->
-            let data = assemble_certificate_request [Packet.RSA_SIGN] [] in
+            let data = assemble_certificate_request [Packet.RSA_SIGN] cas in
             CertificateRequest data
          | TLS_1_2 ->
             let sigalgs = List.map (fun h -> (h, Packet.RSA)) config.hashes in
-            let data = assemble_certificate_request_1_2 [Packet.RSA_SIGN] sigalgs [] in
+            let data =
+              assemble_certificate_request_1_2 [Packet.RSA_SIGN] sigalgs cas
+            in
             CertificateRequest data
        in
        (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake certreq ; *)
