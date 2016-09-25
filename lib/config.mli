@@ -27,6 +27,7 @@ type config = private {
   authenticator     : X509.Authenticator.a option ; (** optional X509 authenticator *)
   peer_name         : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
   own_certificates  : own_cert ; (** optional default certificate chain and other certificate chains *)
+  accepted_cas      : X509.t list ; (** ordered list of accepted certificate authorities *)
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
 }
@@ -60,7 +61,7 @@ val client :
   ?cached_session : epoch_data ->
   unit -> client
 
-(** [server ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator] is [server] configuration with the given parameters *)
+(** [server ?ciphers ?version ?hashes ?reneg ?certificates ?accepted_cas ?authenticator] is [server] configuration with the given parameters *)
 (** @raise Invalid_argument if the configuration is invalid *)
 val server :
   ?ciphers       : Ciphersuite.ciphersuite list ->
@@ -68,6 +69,7 @@ val server :
   ?hashes        : Hash.hash list ->
   ?reneg         : bool ->
   ?certificates  : own_cert ->
+  ?accepted_cas  : X509.t list ->
   ?authenticator : X509.Authenticator.a ->
   ?session_cache : session_cache ->
   unit -> server

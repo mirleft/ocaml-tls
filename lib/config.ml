@@ -28,6 +28,7 @@ type config = {
   authenticator     : X509.Authenticator.a option ;
   peer_name         : string option ;
   own_certificates  : own_cert ;
+  accepted_cas      : X509.t list ;
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
 } [@@deriving sexp]
@@ -91,6 +92,7 @@ let default_config = {
   authenticator     = None ;
   peer_name         = None ;
   own_certificates  = `None ;
+  accepted_cas      = [] ;
   session_cache     = (fun _ -> None) ;
   cached_session    = None ;
 }
@@ -231,7 +233,7 @@ let client
   ( validate_common config ; validate_client config ; config )
 
 let server
-  ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator ?session_cache () =
+  ?ciphers ?version ?hashes ?reneg ?certificates ?accepted_cas ?authenticator ?session_cache () =
   let config =
     { default_config with
         ciphers           = ciphers       <?> default_config.ciphers ;
@@ -239,6 +241,7 @@ let server
         hashes            = hashes        <?> default_config.hashes ;
         use_reneg         = reneg         <?> default_config.use_reneg ;
         own_certificates  = certificates  <?> default_config.own_certificates ;
+        accepted_cas      = accepted_cas  <?> default_config.accepted_cas ;
         authenticator     = authenticator ;
         session_cache     = session_cache <?> default_config.session_cache ;
     } in
