@@ -117,7 +117,7 @@ struct
     >>= function
     | `Error e -> L.log_error c (S.TCPV4.error_message e)
     | `Ok tcp  ->
-        TLS.client_of_flow conf (snd peer) tcp
+        TLS.client_of_flow conf ~host:(snd peer) tcp
         >>== chat c
         >>= function
         | `Error e -> L.log_error c (TLS.error_message e)
