@@ -24,11 +24,10 @@ module Make (F : V1_LWT.FLOW) : sig
   (** [reneg flow] renegotiates the session. *)
   val reneg  : flow -> [ `Ok of unit | `Eof | `Error of error ] Lwt.t
 
-  (** [client_of_flow ?trace client hostname flow] upgrades the
-      existing connection to TLS using the [client] configuration and
-      given [hostname]. *)
+  (** [client_of_flow ~trace client ~host flow] upgrades the existing connection
+      to TLS using the [client] configuration, using [host] as peer name. *)
   val client_of_flow :
-    ?trace:tracer -> Tls.Config.client -> string -> FLOW.flow ->
+    ?trace:tracer -> Tls.Config.client -> ?host:string -> FLOW.flow ->
     [> `Ok of flow | `Error of error | `Eof ] Lwt.t
 
   (** [server_of_flow ?tracer server flow] upgrades the flow to a TLS

@@ -156,8 +156,12 @@ module Make (F : V1_LWT.FLOW) = struct
       FLOW.(write flow.flow buf >>= fun _ -> close flow.flow)
     | _           -> return_unit
 
-  let client_of_flow ?trace conf host flow =
-    let (tls, init) = Tls.Engine.client conf in
+  let client_of_flow ?trace conf ?host flow =
+    let conf' = match host with
+      | None -> conf
+      | Some host -> Tls.Config.peer conf host
+    in
+    let (tls, init) = Tls.Engine.client conf' in
     let tls_flow = {
       role   = `Client ;
       flow   = flow ;
