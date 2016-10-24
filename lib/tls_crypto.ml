@@ -2,18 +2,18 @@
 open Nocrypto
 open Nocrypto.Uncommon
 
-open Ciphersuite
-open Packet
+open Tls_ciphersuite
+open Tls_packet
 
-let (<+>) = Utils.Cs.(<+>)
+let (<+>) = Tls_utils.Cs.(<+>)
 
 
 (* on-the-wire dh_params <-> (group, pub_message) *)
 let dh_params_pack { Dh.p; gg } message =
   let cs_of_z = Numeric.Z.to_cstruct_be ?size:None in
-  { Core.dh_p = cs_of_z p ; dh_g = cs_of_z gg ; dh_Ys = message }
+  { Tls_core.dh_p = cs_of_z p ; dh_g = cs_of_z gg ; dh_Ys = message }
 
-and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
+and dh_params_unpack { Tls_core.dh_p ; dh_g ; dh_Ys } =
   let z_of_cs = Numeric.Z.of_cstruct_be ?bits:None in
   ({ Dh.p = z_of_cs dh_p ; gg = z_of_cs dh_g ; q = None }, dh_Ys)
 
@@ -21,7 +21,7 @@ module Ciphers = struct
 
   (* I'm not sure how to get rid of this type, but would welcome a solution *)
   (* only used as result of get_block, which is called by get_cipher below *)
-  type keyed = | K_CBC : 'k State.cbc_cipher * (Cstruct.t -> 'k) -> keyed
+  type keyed = | K_CBC : 'k Tls_state.cbc_cipher * (Cstruct.t -> 'k) -> keyed
 
   let get_block = function
     | TRIPLE_DES_EDE_CBC ->
@@ -44,13 +44,13 @@ module Ciphers = struct
         let open Cipher_stream in
         let cipher = (module ARC4 : Cipher_stream.S with type key = ARC4.key) in
         let cipher_secret = ARC4.of_secret secret in
-        State.(Stream { cipher ; cipher_secret ; hmac ; hmac_secret })
+        Tls_state.(Stream { cipher ; cipher_secret ; hmac ; hmac_secret })
 
     | Block (cipher, hmac) ->
        ( match get_block cipher with
          | K_CBC (cipher, sec) ->
             let cipher_secret = sec secret in
-            State.(CBC { cipher ; cipher_secret ; iv_mode ; hmac ; hmac_secret })
+            Tls_state.(CBC { cipher ; cipher_secret ; iv_mode ; hmac ; hmac_secret })
        )
 
     | AEAD cipher ->
@@ -59,15 +59,15 @@ module Ciphers = struct
        | AES_128_CCM | AES_256_CCM ->
          let cipher = (module CCM : Cipher_block.S.CCM with type key = CCM.key) in
          let cipher_secret = CCM.of_secret ~maclen:16 secret in
-         State.(AEAD { cipher = CCM cipher ; cipher_secret ; nonce })
+         Tls_state.(AEAD { cipher = CCM cipher ; cipher_secret ; nonce })
        | AES_128_GCM | AES_256_GCM ->
          let cipher = (module GCM : Cipher_block.S.GCM with type key = GCM.key) in
          let cipher_secret = GCM.of_secret secret in
-         State.(AEAD { cipher = GCM cipher ; cipher_secret ; nonce })
+         Tls_state.(AEAD { cipher = GCM cipher ; cipher_secret ; nonce })
 end
 
 let digest_eq fn ~target cs =
-  Utils.Cs.equal target (Hash.digest fn cs)
+  Tls_utils.Cs.equal target (Hash.digest fn cs)
 
 let sequence_buf seq =
   let open Cstruct in
@@ -78,7 +78,7 @@ let sequence_buf seq =
 let pseudo_header seq ty (v_major, v_minor) length =
   let open Cstruct in
   let prefix = create 5 in
-  set_uint8 prefix 0 (Packet.content_type_to_int ty);
+  set_uint8 prefix 0 (Tls_packet.content_type_to_int ty);
   set_uint8 prefix 1 v_major;
   set_uint8 prefix 2 v_minor;
   BE.set_uint16 prefix 3 length;
@@ -135,20 +135,20 @@ let cbc_unpad ~block data =
 
 let encrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
   match cipher with
-  | State.CCM cipher ->
+  | Tls_state.CCM cipher ->
      let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
      C.encrypt ~key ~nonce ?adata data
-  | State.GCM cipher ->
+  | Tls_state.GCM cipher ->
      let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
      let { C.message ; tag } = C.encrypt ~key ~iv:nonce ?adata data in
      message <+> tag
 
 let decrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
   match cipher with
-  | State.CCM cipher ->
+  | Tls_state.CCM cipher ->
      let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
      C.decrypt ~key ~nonce ?adata data
-  | State.GCM cipher ->
+  | Tls_state.GCM cipher ->
      let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
      if Cstruct.len data <= 16 then
        None

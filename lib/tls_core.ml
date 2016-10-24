@@ -3,8 +3,8 @@
 open Sexplib.Conv
 open Nocrypto
 
-open Packet
-open Ciphersuite
+open Tls_packet
+open Tls_ciphersuite
 
 type tls_version =
   | TLS_1_0
@@ -175,7 +175,7 @@ type master_secret = Cstruct.t [@@deriving sexp]
 (** information about an open session *)
 type epoch_data = {
   protocol_version       : tls_version ;
-  ciphersuite            : Ciphersuite.ciphersuite ;
+  ciphersuite            : Tls_ciphersuite.ciphersuite ;
   peer_random            : Cstruct.t ;
   peer_certificate_chain : X509.t list ;
   peer_certificate       : X509.t option ;

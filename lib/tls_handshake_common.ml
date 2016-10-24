@@ -1,13 +1,13 @@
-open Utils
-open Core
-open State
+open Tls_utils
+open Tls_core
+open Tls_state
 
 open Nocrypto
 
 let empty = function [] -> true | _ -> false
 
 let change_cipher_spec =
-  (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
+  (Tls_packet.CHANGE_CIPHER_SPEC, Tls_writer.assemble_change_cipher_spec)
 
 let hostname (h : client_hello) : string option =
   map_find ~f:(function `Hostname s -> Some s | _ -> None) h.extensions
@@ -94,7 +94,7 @@ let server_exts_subset_of_client sexts cexts =
   List_set.subset sexts' cexts'
 
 let client_hello_valid ch =
-  let open Ciphersuite in
+  let open Tls_ciphersuite in
 
   (* match ch.version with
     | TLS_1_0 ->
@@ -132,7 +132,7 @@ let client_hello_valid ch =
         not has_sig_algo )
 
 let server_hello_valid sh =
-  let open Ciphersuite in
+  let open Tls_ciphersuite in
 
   List_set.is_proper_set (extension_types to_server_ext_type sh.extensions)
   (* TODO:
@@ -146,7 +146,7 @@ let signature version data sig_algs hashes private_key =
   | TLS_1_0 | TLS_1_1 ->
     let data = Hash.MD5.digest data <+> Hash.SHA1.digest data in
     let signed = Rsa.PKCS1.sig_encode private_key data in
-    return (Writer.assemble_digitally_signed signed)
+    return (Tls_writer.assemble_digitally_signed signed)
   | TLS_1_2 ->
     (* if no signature_algorithms extension is sent by the client,
        support for md5 and sha1 can be safely assumed! *)
@@ -154,7 +154,7 @@ let signature version data sig_algs hashes private_key =
       | None              -> return `SHA1
       | Some client_algos ->
         let client_hashes =
-          List.(map fst @@ filter (fun (_, x) -> x = Packet.RSA) client_algos)
+          List.(map fst @@ filter (fun (_, x) -> x = Tls_packet.RSA) client_algos)
         in
         match first_match client_hashes hashes with
         | None      -> fail (`Error (`NoConfiguredHash client_hashes))
@@ -162,7 +162,7 @@ let signature version data sig_algs hashes private_key =
     let hash = Hash.digest hash_algo data in
     let cs = X509.Encoding.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
     let sign = Rsa.PKCS1.sig_encode private_key cs in
-    Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
+    Tls_writer.assemble_digitally_signed_1_2 hash_algo Tls_packet.RSA sign
 
 let peer_rsa_key = function
   | None -> fail (`Fatal `NoCertificateReceived)
@@ -173,7 +173,7 @@ let peer_rsa_key = function
 
 let verify_digitally_signed version hashes data signature_data certificate =
   let signature_verifier version data =
-    let open Reader in
+    let open Tls_reader in
     match version with
     | TLS_1_0 | TLS_1_1 ->
       ( match parse_digitally_signed data with
@@ -186,12 +186,12 @@ let verify_digitally_signed version hashes data signature_data certificate =
         | Error re -> fail (`Fatal (`ReaderError re)) )
     | TLS_1_2 ->
       ( match parse_digitally_signed_1_2 data with
-        | Ok (hash_algo, Packet.RSA, signature) ->
+        | Ok (hash_algo, Tls_packet.RSA, signature) ->
           guard (List.mem hash_algo hashes) (`Error (`NoConfiguredHash hashes)) >>= fun () ->
           let compare_hashes should data =
             match X509.Encoding.pkcs1_digest_info_of_cstruct should with
             | Some (hash_algo', target) when hash_algo = hash_algo' ->
-              guard (Crypto.digest_eq hash_algo ~target data) (`Fatal `RSASignatureMismatch)
+              guard (Tls_crypto.digest_eq hash_algo ~target data) (`Fatal `RSASignatureMismatch)
             | _ -> fail (`Fatal `HashAlgorithmMismatch)
           in
           return (signature, compare_hashes)
@@ -241,8 +241,8 @@ let validate_chain authenticator certificates hostname =
   | None -> return (server, certs, [], None)
   | Some authenticator ->
     authenticate authenticator hostname certs >>= fun anchor ->
-    key_size Config.min_rsa_key_size certs >|= fun () ->
-    Utils.option
+    key_size Tls_config.min_rsa_key_size certs >|= fun () ->
+    Tls_utils.option
       (server, certs, [], None)
       (fun (chain, anchor) -> (server, certs, chain, Some anchor))
       anchor

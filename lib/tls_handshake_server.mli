@@ -1,5 +1,5 @@
-open Core
-open State
+open Tls_core
+open Tls_state
 
 val hello_request : handshake_state -> handshake_return eff
 

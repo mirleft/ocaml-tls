@@ -4,13 +4,13 @@ true : package(result cstruct sexplib nocrypto x509)
 
 "lib" : include
 
-<lib/packet.ml> : package(ppx_sexp_conv cstruct.ppx)
-<lib/ciphersuite.ml> : package(ppx_sexp_conv)
-<lib/config.ml> : package(ppx_sexp_conv)
-<lib/core.ml> : package(ppx_sexp_conv)
-<lib/engine.ml> : package(ppx_sexp_conv)
-<lib/reader.ml> : package(ppx_sexp_conv)
-<lib/state.ml> : package(ppx_sexp_conv)
+<lib/tls_packet.ml> : package(ppx_sexp_conv cstruct.ppx)
+<lib/tls_ciphersuite.ml> : package(ppx_sexp_conv)
+<lib/tls_config.ml> : package(ppx_sexp_conv)
+<lib/tls_core.ml> : package(ppx_sexp_conv)
+<lib/tls_engine.ml> : package(ppx_sexp_conv)
+<lib/tls_reader.ml> : package(ppx_sexp_conv)
+<lib/tls_state.ml> : package(ppx_sexp_conv)
 <lib/tls.mli> : package(ppx_sexp_conv cstruct.ppx)
 
 <lwt/*.{ml,mli}> : package(lwt lwt.unix nocrypto.lwt)

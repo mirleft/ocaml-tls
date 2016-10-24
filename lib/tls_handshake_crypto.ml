@@ -2,10 +2,10 @@ open Nocrypto
 open Nocrypto.Uncommon
 open Nocrypto.Hash
 
-open Core
-open State
+open Tls_core
+open Tls_state
 
-let (<+>) = Utils.Cs.(<+>)
+let (<+>) = Tls_utils.Cs.(<+>)
 
 let halve secret =
   let size = Cstruct.len secret in
@@ -48,7 +48,7 @@ let hash version cipher data =
                H.digest data
 
 let finished version cipher master_secret label ps =
-  let data = Utils.Cs.appends ps in
+  let data = Tls_utils.Cs.appends ps in
   let seed = hash version cipher data in
   pseudo_random_function version cipher 12 master_secret label seed
 
@@ -66,7 +66,7 @@ let derive_master_secret version session premaster log =
   let prf = pseudo_random_function version session.ciphersuite 48 premaster in
   if session.extended_ms then
     let session_hash =
-      let data = Utils.Cs.appends log in
+      let data = Tls_utils.Cs.appends log in
       hash version session.ciphersuite data
     in
     prf "extended master secret" session_hash
@@ -74,7 +74,7 @@ let derive_master_secret version session premaster log =
     prf "master secret" (session.client_random <+> session.server_random)
 
 let initialise_crypto_ctx version session =
-  let open Ciphersuite in
+  let open Tls_ciphersuite in
   let client_random = session.client_random
   and server_random = session.server_random
   and master = session.master_secret
@@ -88,7 +88,7 @@ let initialise_crypto_ctx version session =
       | TLS_1_0 -> Some ()
       | _       -> None
     in
-    let key_len, iv_len, mac_len = Ciphersuite.key_length iv_l pp in
+    let key_len, iv_len, mac_len = Tls_ciphersuite.key_length iv_l pp in
     let kblen = 2 * key_len + 2 * mac_len + 2 * iv_len
     and rand = server_random <+> client_random
     in
@@ -97,7 +97,7 @@ let initialise_crypto_ctx version session =
   in
 
   let context cipher_k iv mac_k =
-    let open Crypto.Ciphers in
+    let open Tls_crypto.Ciphers in
     let cipher_st =
       let iv_mode = match version with
         | TLS_1_0 -> Iv iv

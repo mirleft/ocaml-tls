@@ -1,5 +1,5 @@
-open Packet
-open Core
+open Tls_packet
+open Tls_core
 open Cstruct
 
 open Sexplib.Conv
@@ -14,7 +14,7 @@ type error =
   | UnknownContent of int
   [@@deriving sexp]
 
-include Control.Or_error_make (struct type err = error end)
+include Tls_control.Or_error_make (struct type err = error end)
 type 'a result = ('a, error) Result.result
 
 exception Reader_error of error
@@ -79,7 +79,7 @@ let parse_record buf =
         return (`Record (({ content_type ; version }, payload), rest))
 
 let validate_alert (lvl, typ) =
-  let open Packet in
+  let open Tls_packet in
   match lvl, typ with
   (* from RFC, find out which ones must be always FATAL
      and report if this does not meet the expectations *)
@@ -157,7 +157,7 @@ let parse_any_ciphersuites buf =
 let parse_ciphersuite buf =
   match parse_any_ciphersuite buf with
   | None   , buf' -> (None, buf')
-  | Some cs, buf' -> match Ciphersuite.any_ciphersuite_to_ciphersuite cs with
+  | Some cs, buf' -> match Tls_ciphersuite.any_ciphersuite_to_ciphersuite cs with
                        | None     -> (None, buf')
                        | Some cs' -> (Some cs', buf')
 

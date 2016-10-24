@@ -1,7 +1,7 @@
 open Nocrypto
 
-open Utils
-open Core
+open Tls_utils
+open Tls_core
 
 open Sexplib.Std
 
@@ -20,7 +20,7 @@ let session_cache_of_sexp _ = fun _ -> None
 let sexp_of_session_cache _ = Sexplib.Sexp.Atom "SESSION_CACHE"
 
 type config = {
-  ciphers           : Ciphersuite.ciphersuite list ;
+  ciphers           : Tls_ciphersuite.ciphersuite list ;
   protocol_versions : tls_version * tls_version ;
   hashes            : Hash.hash list ;
   (* signatures        : Packet.signature_algorithm_type list ; *)
@@ -33,9 +33,6 @@ type config = {
 } [@@deriving sexp]
 
 module Ciphers = struct
-
-  open Ciphersuite
-
   (* A good place for various pre-baked cipher lists and helper functions to
    * slice and groom those lists. *)
 
@@ -65,10 +62,9 @@ module Ciphers = struct
     `TLS_RSA_WITH_RC4_128_MD5
     ]
 
-  let fs_of = List.filter Ciphersuite.ciphersuite_fs
+  let fs_of a = List.filter Tls_ciphersuite.ciphersuite_fs a
 
   let fs = fs_of default
-
 end
 
 let default_hashes =
@@ -167,7 +163,7 @@ let non_overlapping cs =
   check namessets
 
 let validate_server config =
-  let open Ciphersuite in
+  let open Tls_ciphersuite in
   let typeusage =
     let tylist =
       List.map ciphersuite_kex config.ciphers |>
