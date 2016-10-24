@@ -1,28 +1,15 @@
 local/
 
-_tags
-myocamlbuild.ml
-setup.ml
-*/META
-*/*.mllib
-*/*.mldylib
-*/*.clib
-
-_tags.local
-myocamlbuild.ml.local
-
 _build/
-setup.data
-setup.log
-log
 
 main.ml
 *.native
 *.byte
+*.install
 *.docdir
 mir-*-*
 *-*.xl
 *-*.xe
 *-*_libvirt.xml
 *.cmt
-mirage/*/Makefile
+Makefile
