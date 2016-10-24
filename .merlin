@@ -10,5 +10,4 @@ PKG sexplib
 PKG nocrypto
 PKG x509
 
-EXT sexplib
-EXT lwt
+PKG ppx_sexp_conv cstruct.ppx

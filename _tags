@@ -1,0 +1,23 @@
+true : bin_annot
+true : warn(+A-4-6-41-42-44-48-58)
+true : package(result cstruct sexplib nocrypto x509)
+
+"lib" : include
+
+<lib/packet.ml> : package(ppx_sexp_conv cstruct.ppx)
+<lib/ciphersuite.ml> : package(ppx_sexp_conv)
+<lib/config.ml> : package(ppx_sexp_conv)
+<lib/core.ml> : package(ppx_sexp_conv)
+<lib/engine.ml> : package(ppx_sexp_conv)
+<lib/reader.ml> : package(ppx_sexp_conv)
+<lib/state.ml> : package(ppx_sexp_conv)
+<lib/tls.mli> : package(ppx_sexp_conv cstruct.ppx)
+
+<lwt/*.{ml,mli}> : package(lwt lwt.unix nocrypto.lwt)
+
+<mirage/*.{ml,mli}> : package(lwt mirage-types ptime)
+
+<tests/*.{ml,native,byte}> : package(oUnit cstruct.unix)
+
+"lwt" : include
+<lwt/examples/*.{ml,native,byte}> : package(lwt lwt.unix nocrypto.lwt str)

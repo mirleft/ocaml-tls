@@ -63,7 +63,7 @@ let loop_chatter ~certificate ~loops ~size =
     in
     let (srv, cli) = handshake (`S server) (`C client) init in
     let message' = chat srv cli message loops in
-    if Tls.Utils.Cs.equal message message' then ()
+    if Cstruct.equal message message' then ()
     else failwith @@ "the message got corrupted :("
 
 

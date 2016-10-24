@@ -1,0 +1,30 @@
+version = "%%VERSION_NUM%%"
+description = "TLS implementation in pure OCaml"
+requires = "cstruct sexplib result nocrypto x509"
+archive(byte) = "tls.cma"
+plugin(byte) = "tls.cma"
+archive(native) = "tls.cmxa"
+plugin(native) = "tls.cmxs"
+exists_if = "tls.cma"
+
+package "lwt" (
+ version = "%%VERSION_NUM%%"
+ description = "Effectful layer for TLS using Lwt"
+ requires = "x509 tls lwt lwt.unix nocrypto.lwt"
+ archive(byte) = "tls-lwt.cma"
+ plugin(byte) = "tls-lwt.cma"
+ archive(native) = "tls-lwt.cmxa"
+ plugin(native) = "tls-lwt.cmxs"
+ exists_if = "tls-lwt.cma"
+)
+
+package "mirage" (
+ version = "%%VERSION_NUM%%"
+ description = "Effectful layer for TLS using mirage"
+ requires = "x509 tls mirage-types ipaddr lwt ptime"
+ archive(byte) = "tls-mirage.cma"
+ plugin(byte) = "tls-mirage.cma"
+ archive(native) = "tls-mirage.cmxa"
+ plugin(native) = "tls-mirage.cmxs"
+ exists_if = "tls-mirage.cma"
+)
