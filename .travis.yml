@@ -8,9 +8,9 @@ env:
   matrix:
     - OCAML_VERSION=4.02
     - OCAML_VERSION=4.02 DEPOPTS=lwt
-    - OCAML_VERSION=4.02 DEPOPTS=mirage-types-lwt POST_INSTALL_HOOK="./.travis-test-mirage.sh" TESTS=false
+    - OCAML_VERSION=4.02 EXTRA_REMOTES="https://github.com/mirage/mirage-dev.git" DEPOPTS=mirage-types-lwt POST_INSTALL_HOOK="./.travis-test-mirage.sh" TESTS=false
     - OCAML_VERSION=4.03
     - OCAML_VERSION=4.03 DEPOPTS=lwt
-    - OCAML_VERSION=4.03 DEPOPTS=mirage-types-lwt POST_INSTALL_HOOK="./.travis-test-mirage.sh" TESTS=false
+    - OCAML_VERSION=4.03 EXTRA_REMOTES="https://github.com/mirage/mirage-dev.git" DEPOPTS=mirage-types-lwt POST_INSTALL_HOOK="./.travis-test-mirage.sh" TESTS=false
 notifications:
   email: false
