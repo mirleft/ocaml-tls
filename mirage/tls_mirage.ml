@@ -94,7 +94,7 @@ module Make (F : V1_LWT.FLOW) = struct
           | `Eof | `Error _ as e -> return e )
     | bufs ->
         flow.linger <- [] ;
-        return (`Ok (Tls.Utils.Cs.appends @@ List.rev bufs))
+        return (`Ok (Cstruct.concat @@ List.rev bufs))
 
   let writev flow bufs =
     match flow.state with
@@ -216,7 +216,7 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) = struct
 
   let read_full kv ~name =
     KV.size kv name   >|== Int64.to_int >>=
-    KV.read kv name 0 >|== Tls.Utils.Cs.appends
+    KV.read kv name 0 >|== Cstruct.concat
 
   open X509.Encoding.Pem
 

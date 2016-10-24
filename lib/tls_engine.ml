@@ -1,63 +1,63 @@
 open Nocrypto
 
-open Utils
-open Core
-open State
+open Tls_utils
+open Tls_core
+open Tls_state
 
 
-type state = State.state
+type state = Tls_state.state
 
-type error = State.error
-type fatal = State.fatal
-type failure = State.failure [@@deriving sexp]
+type error = Tls_state.error
+type fatal = Tls_state.fatal
+type failure = Tls_state.failure [@@deriving sexp]
 
 let alert_of_authentication_failure = function
-  | `Leaf (`LeafCertificateExpired _) -> Packet.CERTIFICATE_EXPIRED
-  | _ -> Packet.BAD_CERTIFICATE
+  | `Leaf (`LeafCertificateExpired _) -> Tls_packet.CERTIFICATE_EXPIRED
+  | _ -> Tls_packet.BAD_CERTIFICATE
 
 let alert_of_error = function
-  | `NoConfiguredVersion _ -> Packet.PROTOCOL_VERSION
-  | `NoConfiguredCiphersuite _ -> Packet.HANDSHAKE_FAILURE
-  | `NoConfiguredHash _ -> Packet.HANDSHAKE_FAILURE
+  | `NoConfiguredVersion _ -> Tls_packet.PROTOCOL_VERSION
+  | `NoConfiguredCiphersuite _ -> Tls_packet.HANDSHAKE_FAILURE
+  | `NoConfiguredHash _ -> Tls_packet.HANDSHAKE_FAILURE
   | `AuthenticationFailure err -> alert_of_authentication_failure err
-  | `NoMatchingCertificateFound _ -> Packet.UNRECOGNIZED_NAME
-  | `NoCertificateConfigured -> Packet.HANDSHAKE_FAILURE
-  | `CouldntSelectCertificate -> Packet.HANDSHAKE_FAILURE
+  | `NoMatchingCertificateFound _ -> Tls_packet.UNRECOGNIZED_NAME
+  | `NoCertificateConfigured -> Tls_packet.HANDSHAKE_FAILURE
+  | `CouldntSelectCertificate -> Tls_packet.HANDSHAKE_FAILURE
 
 let alert_of_fatal = function
-  | `NoSecureRenegotiation -> Packet.HANDSHAKE_FAILURE
-  | `MACUnderflow -> Packet.BAD_RECORD_MAC
-  | `MACMismatch -> Packet.BAD_RECORD_MAC
-  | `RecordOverflow _ -> Packet.RECORD_OVERFLOW
-  | `UnknownRecordVersion _ -> Packet.PROTOCOL_VERSION
-  | `UnknownContentType _ -> Packet.UNEXPECTED_MESSAGE
-  | `ReaderError _ -> Packet.ILLEGAL_PARAMETER
-  | `CannotHandleApplicationDataYet -> Packet.UNEXPECTED_MESSAGE
-  | `NoHeartbeat -> Packet.UNEXPECTED_MESSAGE
-  | `BadRecordVersion _ -> Packet.PROTOCOL_VERSION
-  | `InvalidRenegotiation -> Packet.HANDSHAKE_FAILURE
-  | `InvalidServerHello -> Packet.UNSUPPORTED_EXTENSION
-  | `InvalidRenegotiationVersion _ -> Packet.HANDSHAKE_FAILURE
-  | `NoCertificateReceived -> Packet.HANDSHAKE_FAILURE
-  | `NotRSACertificate -> Packet.BAD_CERTIFICATE
-  | `InvalidCertificateUsage -> Packet.BAD_CERTIFICATE
-  | `InvalidCertificateExtendedUsage -> Packet.BAD_CERTIFICATE
-  | `NoVersion _ -> Packet.PROTOCOL_VERSION
-  | `InvalidDH -> Packet.INSUFFICIENT_SECURITY
-  | `BadFinished -> Packet.HANDSHAKE_FAILURE
-  | `HandshakeFragmentsNotEmpty -> Packet.HANDSHAKE_FAILURE
-  | `InvalidSession -> Packet.HANDSHAKE_FAILURE
-  | `UnexpectedCCS -> Packet.UNEXPECTED_MESSAGE
-  | `UnexpectedHandshake _ -> Packet.UNEXPECTED_MESSAGE
-  | `RSASignatureMismatch -> Packet.HANDSHAKE_FAILURE
-  | `HashAlgorithmMismatch -> Packet.HANDSHAKE_FAILURE
-  | `NotRSASignature -> Packet.HANDSHAKE_FAILURE
-  | `RSASignatureVerificationFailed -> Packet.HANDSHAKE_FAILURE
-  | `KeyTooSmall -> Packet.INSUFFICIENT_SECURITY
-  | `BadCertificateChain -> Packet.BAD_CERTIFICATE
-  | `NoCiphersuite _ -> Packet.HANDSHAKE_FAILURE
-  | `InvalidClientHello -> Packet.HANDSHAKE_FAILURE
-  | `InappropriateFallback -> Packet.INAPPROPRIATE_FALLBACK
+  | `NoSecureRenegotiation -> Tls_packet.HANDSHAKE_FAILURE
+  | `MACUnderflow -> Tls_packet.BAD_RECORD_MAC
+  | `MACMismatch -> Tls_packet.BAD_RECORD_MAC
+  | `RecordOverflow _ -> Tls_packet.RECORD_OVERFLOW
+  | `UnknownRecordVersion _ -> Tls_packet.PROTOCOL_VERSION
+  | `UnknownContentType _ -> Tls_packet.UNEXPECTED_MESSAGE
+  | `ReaderError _ -> Tls_packet.ILLEGAL_PARAMETER
+  | `CannotHandleApplicationDataYet -> Tls_packet.UNEXPECTED_MESSAGE
+  | `NoHeartbeat -> Tls_packet.UNEXPECTED_MESSAGE
+  | `BadRecordVersion _ -> Tls_packet.PROTOCOL_VERSION
+  | `InvalidRenegotiation -> Tls_packet.HANDSHAKE_FAILURE
+  | `InvalidServerHello -> Tls_packet.UNSUPPORTED_EXTENSION
+  | `InvalidRenegotiationVersion _ -> Tls_packet.HANDSHAKE_FAILURE
+  | `NoCertificateReceived -> Tls_packet.HANDSHAKE_FAILURE
+  | `NotRSACertificate -> Tls_packet.BAD_CERTIFICATE
+  | `InvalidCertificateUsage -> Tls_packet.BAD_CERTIFICATE
+  | `InvalidCertificateExtendedUsage -> Tls_packet.BAD_CERTIFICATE
+  | `NoVersion _ -> Tls_packet.PROTOCOL_VERSION
+  | `InvalidDH -> Tls_packet.INSUFFICIENT_SECURITY
+  | `BadFinished -> Tls_packet.HANDSHAKE_FAILURE
+  | `HandshakeFragmentsNotEmpty -> Tls_packet.HANDSHAKE_FAILURE
+  | `InvalidSession -> Tls_packet.HANDSHAKE_FAILURE
+  | `UnexpectedCCS -> Tls_packet.UNEXPECTED_MESSAGE
+  | `UnexpectedHandshake _ -> Tls_packet.UNEXPECTED_MESSAGE
+  | `RSASignatureMismatch -> Tls_packet.HANDSHAKE_FAILURE
+  | `HashAlgorithmMismatch -> Tls_packet.HANDSHAKE_FAILURE
+  | `NotRSASignature -> Tls_packet.HANDSHAKE_FAILURE
+  | `RSASignatureVerificationFailed -> Tls_packet.HANDSHAKE_FAILURE
+  | `KeyTooSmall -> Tls_packet.INSUFFICIENT_SECURITY
+  | `BadCertificateChain -> Tls_packet.BAD_CERTIFICATE
+  | `NoCiphersuite _ -> Tls_packet.HANDSHAKE_FAILURE
+  | `InvalidClientHello -> Tls_packet.HANDSHAKE_FAILURE
+  | `InappropriateFallback -> Tls_packet.INAPPROPRIATE_FALLBACK
 
 let alert_of_failure = function
   | `Error x -> alert_of_error x
@@ -69,7 +69,7 @@ let string_of_failure = function
 
 type ret = [
 
-  | `Ok of [ `Ok of state | `Eof | `Alert of Packet.alert_type ]
+  | `Ok of [ `Ok of state | `Eof | `Alert of Tls_packet.alert_type ]
          * [ `Response of Cstruct.t option ]
          * [ `Data of Cstruct.t option ]
 
@@ -84,7 +84,7 @@ let new_state config role =
     | `Client -> Client ClientInitial
     | `Server -> Server AwaitClientHello
   in
-  let version = max_protocol_version Config.(config.protocol_versions) in
+  let version = max_protocol_version Tls_config.(config.protocol_versions) in
   let handshake = {
     session          = [] ;
     protocol_version = version ;
@@ -111,10 +111,10 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
         let seq = ctx.sequence
         and ver = pair_of_tls_version version
         in
-        Crypto.pseudo_header seq ty ver (Cstruct.len buf)
+        Tls_crypto.pseudo_header seq ty ver (Cstruct.len buf)
       in
       let to_encrypt mac mac_k =
-        let signature = Crypto.mac mac mac_k pseudo_hdr buf in
+        let signature = Tls_crypto.mac mac mac_k pseudo_hdr buf in
         buf <+> signature
       in
       let c_st, enc =
@@ -122,17 +122,17 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
         | Stream s ->
            let to_encrypt = to_encrypt s.hmac s.hmac_secret in
            let (message, key') =
-             Crypto.encrypt_stream ~cipher:s.cipher ~key:s.cipher_secret to_encrypt in
+             Tls_crypto.encrypt_stream ~cipher:s.cipher ~key:s.cipher_secret to_encrypt in
            (Stream { s with cipher_secret = key'}, message)
 
         | CBC c ->
            let enc iv =
              let to_encrypt = to_encrypt c.hmac c.hmac_secret in
-             Crypto.encrypt_cbc ~cipher:c.cipher ~key:c.cipher_secret ~iv to_encrypt
+             Tls_crypto.encrypt_cbc ~cipher:c.cipher ~key:c.cipher_secret ~iv to_encrypt
            in
            ( match c.iv_mode with
              | Random_iv ->
-                let iv = Rng.generate (Crypto.cbc_block c.cipher) in
+                let iv = Rng.generate (Tls_crypto.cbc_block c.cipher) in
                 let m, _ = enc iv in
                 (CBC c, iv <+> m)
              | Iv iv ->
@@ -140,11 +140,11 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
                 (CBC { c with iv_mode = Iv iv' }, m) )
 
         | AEAD c ->
-           let explicit_nonce = Crypto.sequence_buf ctx.sequence in
+           let explicit_nonce = Tls_crypto.sequence_buf ctx.sequence in
            let nonce = c.nonce <+> explicit_nonce
            in
            let msg =
-             Crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
+             Tls_crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
            in
            (AEAD c, explicit_nonce <+> msg)
       in
@@ -157,8 +157,8 @@ let verify_mac sequence mac mac_k ty ver decrypted =
   let (body, mmac) = Cstruct.split decrypted macstart in
   let cmac =
     let ver = pair_of_tls_version ver in
-    let hdr = Crypto.pseudo_header sequence ty ver (Cstruct.len body) in
-    Crypto.mac mac mac_k hdr body in
+    let hdr = Tls_crypto.pseudo_header sequence ty ver (Cstruct.len body) in
+    Tls_crypto.mac mac mac_k hdr body in
   guard (Cs.equal cmac mmac) (`Fatal `MACMismatch) >|= fun () ->
   body
 
@@ -183,13 +183,13 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
     let seq = ctx.sequence in
     match ctx.cipher_st with
     | Stream s ->
-        let (message, key') = Crypto.decrypt_stream ~cipher:s.cipher ~key:s.cipher_secret buf in
+        let (message, key') = Tls_crypto.decrypt_stream ~cipher:s.cipher ~key:s.cipher_secret buf in
         compute_mac seq s.hmac s.hmac_secret message >|= fun msg ->
         (Stream { s with cipher_secret = key' }, msg)
 
     | CBC c ->
        let dec iv buf =
-         match Crypto.decrypt_cbc ~cipher:c.cipher ~key:c.cipher_secret ~iv buf with
+         match Tls_crypto.decrypt_cbc ~cipher:c.cipher ~key:c.cipher_secret ~iv buf with
          | None ->
             mask_decrypt_failure seq c.hmac c.hmac_secret
          | Some (dec, iv') ->
@@ -201,10 +201,10 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
             dec iv buf >|= fun (msg, iv') ->
             CBC { c with iv_mode = Iv iv' }, msg
          | Random_iv ->
-            if Cstruct.len buf < Crypto.cbc_block c.cipher then
+            if Cstruct.len buf < Tls_crypto.cbc_block c.cipher then
               fail (`Fatal `MACUnderflow)
             else
-              let iv, buf = Cstruct.split buf (Crypto.cbc_block c.cipher) in
+              let iv, buf = Cstruct.split buf (Tls_crypto.cbc_block c.cipher) in
               dec iv buf >|= fun (msg, _) ->
               (CBC c, msg) )
 
@@ -215,10 +215,10 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
          let explicit_nonce, buf = Cstruct.split buf 8 in
          let adata =
            let ver = pair_of_tls_version version in
-           Crypto.pseudo_header seq ty ver (Cstruct.len buf - 16)
+           Tls_crypto.pseudo_header seq ty ver (Cstruct.len buf - 16)
          and nonce = c.nonce <+> explicit_nonce
          in
-         match Crypto.decrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
+         match Tls_crypto.decrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
          | None -> fail (`Fatal `MACMismatch)
          | Some x -> return (AEAD c, x)
   in
@@ -236,23 +236,23 @@ let decrypt (version : tls_version) (st : crypto_state) ty buf =
 (* party time *)
 let rec separate_records : Cstruct.t ->  ((tls_hdr * Cstruct.t) list * Cstruct.t) eff
 = fun buf ->
-  let open Reader in
+  let open Tls_reader in
   match parse_record buf with
   | Ok (`Fragment b) -> return ([], b)
   | Ok (`Record (packet, fragment)) ->
     separate_records fragment >|= fun (tl, frag) ->
     (packet :: tl, frag)
   | Error (Overflow x) ->
-    Tracing.cs ~tag:"buf-in" buf ;
+    Tls_tracing.cs ~tag:"buf-in" buf ;
     fail (`Fatal (`RecordOverflow x))
   | Error (UnknownVersion v) ->
-    Tracing.cs ~tag:"buf-in" buf ;
+    Tls_tracing.cs ~tag:"buf-in" buf ;
     fail (`Fatal (`UnknownRecordVersion v))
   | Error (UnknownContent c) ->
-    Tracing.cs ~tag:"buf-in" buf ;
+    Tls_tracing.cs ~tag:"buf-in" buf ;
     fail (`Fatal (`UnknownContentType c))
   | Error e ->
-    Tracing.cs ~tag:"buf-in" buf ;
+    Tls_tracing.cs ~tag:"buf-in" buf ;
     fail (`Fatal (`ReaderError e))
 
 
@@ -275,16 +275,16 @@ let encrypt_records encryptor version records =
 
 module Alert = struct
 
-  open Packet
+  open Tls_packet
 
-  let make ?level typ = (ALERT, Writer.assemble_alert ?level typ)
+  let make ?level typ = (ALERT, Tls_writer.assemble_alert ?level typ)
 
   let close_notify = make ~level:WARNING CLOSE_NOTIFY
 
   let handle buf =
-    match Reader.parse_alert buf with
+    match Tls_reader.parse_alert buf with
     | Ok (_, a_type as alert) ->
-        Tracing.sexpf ~tag:"alert-in" ~f:sexp_of_tls_alert alert ;
+        Tls_tracing.sexpf ~tag:"alert-in" ~f:sexp_of_tls_alert alert ;
         let err = match a_type with
           | CLOSE_NOTIFY -> `Eof
           | _            -> `Alert a_type in
@@ -305,19 +305,19 @@ let hs_can_handle_appdata s =
   | _ -> false
 
 let rec separate_handshakes buf =
-  match Reader.parse_handshake_frame buf with
+  match Tls_reader.parse_handshake_frame buf with
   | None, rest   -> return ([], rest)
   | Some hs, rest ->
     separate_handshakes rest >|= fun (rt, frag) ->
     (hs :: rt, frag)
 
 let handle_change_cipher_spec = function
-  | Client cs -> Handshake_client.handle_change_cipher_spec cs
-  | Server ss -> Handshake_server.handle_change_cipher_spec ss
+  | Client cs -> Tls_handshake_client.handle_change_cipher_spec cs
+  | Server ss -> Tls_handshake_server.handle_change_cipher_spec ss
 
 and handle_handshake = function
-  | Client cs -> Handshake_client.handle_handshake cs
-  | Server ss -> Handshake_server.handle_handshake ss
+  | Client cs -> Tls_handshake_client.handle_handshake cs
+  | Server ss -> Tls_handshake_server.handle_handshake ss
 
 let non_empty cs =
   if Cstruct.len cs = 0 then None else Some cs
@@ -330,22 +330,22 @@ let handle_packet hs buf = function
    traffic analysis countermeasure.
  *)
 
-  | Packet.ALERT ->
+  | Tls_packet.ALERT ->
       Alert.handle buf >|= fun (err, out) ->
         (hs, out, None, err)
 
-  | Packet.APPLICATION_DATA ->
+  | Tls_packet.APPLICATION_DATA ->
     if hs_can_handle_appdata hs then
-      (Tracing.cs ~tag:"application-data-in" buf;
+      (Tls_tracing.cs ~tag:"application-data-in" buf;
        return (hs, [], non_empty buf, `No_err))
     else
       fail (`Fatal `CannotHandleApplicationDataYet)
 
-  | Packet.CHANGE_CIPHER_SPEC ->
+  | Tls_packet.CHANGE_CIPHER_SPEC ->
       handle_change_cipher_spec hs.machina hs buf
       >|= fun (hs, items) -> (hs, items, None, `No_err)
 
-  | Packet.HANDSHAKE ->
+  | Tls_packet.HANDSHAKE ->
      separate_handshakes (hs.hs_fragment <+> buf)
      >>= fun (hss, hs_fragment) ->
        foldM (fun (hs, items) raw ->
@@ -355,13 +355,13 @@ let handle_packet hs buf = function
      >|= fun (hs, items) ->
        ({ hs with hs_fragment }, items, None, `No_err)
 
-  | Packet.HEARTBEAT -> fail (`Fatal `NoHeartbeat)
+  | Tls_packet.HEARTBEAT -> fail (`Fatal `NoHeartbeat)
 
 
 (* the main thingy *)
 let handle_raw_record state (hdr, buf as record : raw_record) =
 
-  Tracing.sexpf ~tag:"record-in" ~f:sexp_of_raw_record record ;
+  Tls_tracing.sexpf ~tag:"record-in" ~f:sexp_of_raw_record record ;
 
   let hs = state.handshake in
   let version = hs.protocol_version in
@@ -387,7 +387,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   in
   let state' = { state with handshake ; encryptor ; decryptor } in
 
-  Tracing.sexpfs ~tag:"record-out" ~f:sexp_of_record encs ;
+  Tls_tracing.sexpfs ~tag:"record-out" ~f:sexp_of_record encs ;
 
   (state', encs, data, err)
 
@@ -398,12 +398,12 @@ let maybe_app a b = match a, b with
   | None  , None   -> None
 
 let assemble_records (version : tls_version) : record list -> Cstruct.t =
-  o Cs.appends @@ List.map @@ Writer.assemble_hdr version
+  o Cs.appends @@ List.map @@ Tls_writer.assemble_hdr version
 
 (* main entry point *)
 let handle_tls state buf =
 
-  (* Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ; *)
+  (* Tls_tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ; *)
 
   let rec handle_records st = function
     | []    -> return (st, [], None, `No_err)
@@ -428,13 +428,13 @@ let handle_tls state buf =
   | Ok (state, resp, data, err) ->
       let res = match err with
         | `Eof ->
-          Tracing.sexpf ~tag:"eof-out" ~f:Sexplib.Conv.sexp_of_unit () ;
+          Tls_tracing.sexpf ~tag:"eof-out" ~f:Sexplib.Conv.sexp_of_unit () ;
           `Eof
         | `Alert al ->
-          Tracing.sexpf ~tag:"ok-alert-out" ~f:Packet.sexp_of_alert_type al ;
+          Tls_tracing.sexpf ~tag:"ok-alert-out" ~f:Tls_packet.sexp_of_alert_type al ;
           `Alert al
         | `No_err ->
-          Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
+          Tls_tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
           `Ok state
       in
       `Ok (res, `Response resp, `Data data)
@@ -444,8 +444,8 @@ let handle_tls state buf =
       let record  = Alert.make alert in
       let _, enc  = encrypt_records state.encryptor version [record] in
       let resp    = assemble_records version enc in
-      Tracing.sexpf ~tag:"fail-alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, alert) ;
-      Tracing.sexpf ~tag:"failure" ~f:sexp_of_failure x ;
+      Tls_tracing.sexpf ~tag:"fail-alert-out" ~f:sexp_of_tls_alert (Tls_packet.FATAL, alert) ;
+      Tls_tracing.sexpf ~tag:"failure" ~f:sexp_of_failure x ;
       `Fail (x, `Response resp)
 
 let send_records (st : state) records =
@@ -462,13 +462,13 @@ let can_handle_appdata s = hs_can_handle_appdata s.handshake
 let send_application_data st css =
   match can_handle_appdata st with
   | true ->
-     Tracing.css ~tag:"application-data-out" css ;
+     Tls_tracing.css ~tag:"application-data-out" css ;
      let datas = match st.encryptor with
        (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
        | Some { cipher_st = CBC { iv_mode = Iv _ } } -> Cstruct.create 0 :: css
        | _                                           -> css
      in
-     let ty = Packet.APPLICATION_DATA in
+     let ty = Tls_packet.APPLICATION_DATA in
      let data = List.map (fun cs -> (ty, cs)) datas in
      Some (send_records st data)
   | false -> None
@@ -479,19 +479,19 @@ let reneg st =
   let hs = st.handshake in
   match hs.machina with
   | Server Established ->
-     ( match Handshake_server.hello_request hs with
+     ( match Tls_handshake_server.hello_request hs with
        | Ok (handshake, [`Record hr]) -> Some (send_records { st with handshake } [hr])
        | _                            -> None )
   | Client Established ->
-     ( match Handshake_client.answer_hello_request hs with
+     ( match Tls_handshake_client.answer_hello_request hs with
        | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
        | _                            -> None )
   | _                        -> None
 
 let client config =
-  let config = Config.of_client config in
+  let config = Tls_config.of_client config in
   let state = new_state config `Client in
-  let dch, version = Handshake_client.default_client_hello config in
+  let dch, version = Tls_handshake_client.default_client_hello config in
   let ciphers, extensions = match version with
       (* from RFC 5746 section 3.3:
    Both the SSLv3 and TLS 1.0/TLS 1.1 specifications require
@@ -509,7 +509,7 @@ let client config =
    described in the following sections.  Because SSLv3 and TLS
    implementations reliably ignore unknown cipher suites, the SCSV may
    be safely sent to any server. *)
-    | TLS_1_0 -> ([Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
+    | TLS_1_0 -> ([Tls_packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
     | TLS_1_1 | TLS_1_2 -> ([], [`SecureRenegotiation (Cstruct.create 0)])
   in
 
@@ -520,7 +520,7 @@ let client config =
   in
 
   let ch = ClientHello client_hello in
-  let raw = Writer.assemble_handshake ch in
+  let raw = Tls_writer.assemble_handshake ch in
   let machina = AwaitServerHello (client_hello, [raw]) in
 
     (* from RFC5246, appendix E.1
@@ -530,7 +530,7 @@ let client config =
    and the value of ClientHello.client_version.  No single value will
    guarantee interoperability with all old servers, but this is a
    complex topic beyond the scope of this document. *)
-  let version = min_protocol_version Config.(config.protocol_versions) in
+  let version = min_protocol_version Tls_config.(config.protocol_versions) in
   let handshake = {
     state.handshake with
       machina          = Client machina ;
@@ -538,11 +538,11 @@ let client config =
   } in
   let state = { state with handshake } in
 
-  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ; *)
-  Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
-  send_records state [(Packet.HANDSHAKE, raw)]
+  (* Tls_tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ; *)
+  Tls_tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
+  send_records state [(Tls_packet.HANDSHAKE, raw)]
 
-let server config = new_state Config.(of_server config) `Server
+let server config = new_state Tls_config.(of_server config) `Server
 
 open Sexplib
 open Sexplib.Conv
@@ -568,7 +568,7 @@ let epoch state =
         peer_random ;
         peer_certificate       = session.peer_certificate ;
         peer_certificate_chain = session.peer_certificate_chain ;
-        peer_name              = Config.(hs.config.peer_name) ;
+        peer_name              = Tls_config.(hs.config.peer_name) ;
         trust_anchor           = session.trust_anchor ;
         own_random ;
         own_certificate        = session.own_certificate ;

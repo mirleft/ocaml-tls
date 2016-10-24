@@ -4,7 +4,7 @@
 open Sexplib
 open Sexplib.Conv
 
-open Core
+open Tls_core
 open Nocrypto
 
 type hmac_key = Cstruct.t
@@ -77,7 +77,7 @@ type session_data = {
   server_random          : Cstruct.t ; (* 32 bytes random from the server hello *)
   client_random          : Cstruct.t ; (* 32 bytes random from the client hello *)
   client_version         : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
-  ciphersuite            : Ciphersuite.ciphersuite ;
+  ciphersuite            : Tls_ciphersuite.ciphersuite ;
   peer_certificate_chain : X509.t list ;
   peer_certificate       : X509.t option ;
   trust_anchor           : X509.t option ;
@@ -117,7 +117,7 @@ type client_handshake_state =
   | AwaitCertificate_DHE_RSA of session_data * hs_log (* certificate expected with DHE_RSA key exchange *)
   | AwaitServerKeyExchange_DHE_RSA of session_data * hs_log (* server key exchange expected with DHE_RSA *)
   | AwaitCertificateRequestOrServerHelloDone of session_data * Cstruct.t * Cstruct.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
-  | AwaitServerHelloDone of session_data * (Hash.hash * Packet.signature_algorithm_type) list option * Cstruct.t * Cstruct.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
+  | AwaitServerHelloDone of session_data * (Hash.hash * Tls_packet.signature_algorithm_type) list option * Cstruct.t * Cstruct.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
   | AwaitServerChangeCipherSpec of session_data * crypto_context * Cstruct.t * hs_log (* change cipher spec expected *)
   | AwaitServerChangeCipherSpecResume of session_data * crypto_context * crypto_context * hs_log (* change cipher spec expected *)
   | AwaitServerFinished of session_data * Cstruct.t * hs_log (* finished expected with a hmac over all handshake packets *)
@@ -135,7 +135,7 @@ type handshake_state = {
   session          : session_data list ;
   protocol_version : tls_version ;
   machina          : handshake_machina_state ; (* state machine state *)
-  config           : Config.config ; (* given config *)
+  config           : Tls_config.config ; (* given config *)
   hs_fragment      : Cstruct.t (* handshake messages can be fragmented, leftover from before *)
 } [@@deriving sexp]
 
@@ -143,7 +143,7 @@ type handshake_state = {
 type crypto_state = crypto_context option [@@deriving sexp]
 
 (* record consisting of a content type and a byte vector *)
-type record = Packet.content_type * Cstruct.t [@@deriving sexp]
+type record = Tls_packet.content_type * Cstruct.t [@@deriving sexp]
 
 (* response returned by a handler *)
 type rec_resp = [
@@ -165,7 +165,7 @@ type state = {
 
 type error = [
   | `AuthenticationFailure of X509.Validation.validation_error
-  | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
+  | `NoConfiguredCiphersuite of Tls_ciphersuite.ciphersuite list
   | `NoConfiguredVersion of tls_version
   | `NoConfiguredHash of Hash.hash list
   | `NoMatchingCertificateFound of string
@@ -175,9 +175,9 @@ type error = [
 
 type fatal = [
   | `NoSecureRenegotiation
-  | `NoCiphersuite of Packet.any_ciphersuite list
+  | `NoCiphersuite of Tls_packet.any_ciphersuite list
   | `NoVersion of tls_any_version
-  | `ReaderError of Reader.error
+  | `ReaderError of Tls_reader.error
   | `NoCertificateReceived
   | `NotRSACertificate
   | `NotRSASignature
@@ -215,6 +215,6 @@ type failure = [
 ] [@@deriving sexp]
 
 (* Monadic control-flow core. *)
-include Control.Or_error_make (struct type err = failure end)
+include Tls_control.Or_error_make (struct type err = failure end)
 type 'a eff = 'a t
 include Result

@@ -4,7 +4,7 @@ open V1_LWT
 module Main (C  : CONSOLE)
             (S  : STACKV4)
             (KV : KV_RO)
-            (CL : V1.CLOCK) =
+            (CL : PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)

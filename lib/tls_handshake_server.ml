@@ -1,44 +1,44 @@
 open Nocrypto
 
-open Utils
+open Tls_utils
 
-open Core
-open State
-open Handshake_common
-open Config
+open Tls_core
+open Tls_state
+open Tls_handshake_common
+open Tls_config
 
 let (<+>) = Cs.(<+>)
 
 let hello_request state =
   if state.config.use_reneg then
     let hr = HelloRequest in
-    (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ; *)
+    (* Tls_tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ; *)
     let state = { state with machina = Server AwaitClientHelloRenegotiate } in
-    return (state, [`Record (Packet.HANDSHAKE, Writer.assemble_handshake hr)])
+    return (state, [`Record (Tls_packet.HANDSHAKE, Tls_writer.assemble_handshake hr)])
   else
     fail (`Fatal `InvalidSession)
 
 
 let answer_client_finished state session client_fin raw log =
   let client, server =
-    let checksum = Handshake_crypto.finished state.protocol_version session.ciphersuite session.master_secret in
+    let checksum = Tls_handshake_crypto.finished state.protocol_version session.ciphersuite session.master_secret in
     (checksum "client finished" log, checksum "server finished" (log @ [raw]))
   in
   guard (Cs.equal client client_fin) (`Fatal `BadFinished) >>= fun () ->
   let fin = Finished server in
-  let fin_raw = Writer.assemble_handshake fin in
+  let fin_raw = Tls_writer.assemble_handshake fin in
   (* we really do not want to have any leftover handshake fragments *)
   guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
   let session = { session with renegotiation = (client, server) }
   and machina = Server Established
   in
-  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ; *)
+  (* Tls_tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ; *)
   ({ state with machina ; session = session :: state.session },
-   [`Record (Packet.HANDSHAKE, fin_raw)])
+   [`Record (Tls_packet.HANDSHAKE, fin_raw)])
 
 let answer_client_finished_resume state session server_verify client_fin raw log =
   let client_verify =
-    Handshake_crypto.finished state.protocol_version session.ciphersuite session.master_secret "client finished" log
+    Tls_handshake_crypto.finished state.protocol_version session.ciphersuite session.master_secret "client finished" log
   in
   guard (Cs.equal client_verify client_fin) (`Fatal `BadFinished) >>= fun () ->
   (* we really do not want to have any leftover handshake fragments *)
@@ -46,24 +46,24 @@ let answer_client_finished_resume state session server_verify client_fin raw log
   let session = { session with renegotiation = (client_verify, server_verify) }
   and machina = Server Established
   in
-  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ; *)
+  (* Tls_tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ; *)
   ({ state with machina ; session = session :: state.session }, [])
 
 let establish_master_secret state session premastersecret raw log =
   let log = log @ [raw] in
-  let master_secret = Handshake_crypto.derive_master_secret
+  let master_secret = Tls_handshake_crypto.derive_master_secret
       state.protocol_version session premastersecret log
   in
   let session = { session with master_secret = master_secret } in
   let client_ctx, server_ctx =
-    Handshake_crypto.initialise_crypto_ctx state.protocol_version session
+    Tls_handshake_crypto.initialise_crypto_ctx state.protocol_version session
   in
   let machina =
     match session.peer_certificate with
     | None -> AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log)
     | Some _ -> AwaitClientCertificateVerify (session, server_ctx, client_ctx, log)
   in
-  (* Tracing.cs ~tag:"master-secret" master_secret ; *)
+  (* Tls_tracing.cs ~tag:"master-secret" master_secret ; *)
   ({ state with machina = Server machina }, [])
 
 let private_key session =
@@ -94,7 +94,7 @@ let answer_client_certificate_verify state session sctx cctx verify raw log =
 let answer_client_key_exchange_RSA state session kex raw log =
   (* due to bleichenbacher attach, we should use a random pms *)
   (* then we do not leak any decryption or padding errors! *)
-  let other = Writer.assemble_protocol_version state.protocol_version <+> Rng.generate 46 in
+  let other = Tls_writer.assemble_protocol_version state.protocol_version <+> Rng.generate 46 in
   let validate_premastersecret k =
     (* Client implementations MUST always send the correct version number in
        PreMasterSecret.  If ClientHello.client_version is TLS 1.1 or higher,
@@ -104,7 +104,7 @@ let answer_client_key_exchange_RSA state session kex raw log =
        configuration option to disable the check.  Note that if the check
        fails, the PreMasterSecret SHOULD be randomized as described below *)
     (* we do not provide an option to disable the version checking (yet!) *)
-    match Cstruct.len k == 48, Reader.parse_any_version k with
+    match Cstruct.len k == 48, Tls_reader.parse_any_version k with
     | true, Ok c_ver when c_ver = session.client_version -> k
     | _                                                                  -> other
   in
@@ -159,7 +159,7 @@ let agreed_cert certs hostname =
 let agreed_cipher cert requested =
   let type_usage_matches cipher =
     let cstyp, csusage =
-      Ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher)
+      Tls_ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher)
     in
     X509.(supports_keytype cert cstyp &&
           Extension.supports_usage ~not_present:true cert csusage)
@@ -189,15 +189,15 @@ let server_hello session version reneg =
         ciphersuite    = session.ciphersuite ;
         extensions     = secren :: host @ ems }
   in
-  (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ; *)
-  (Writer.assemble_handshake sh,
+  (* Tls_tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ; *)
+  (Tls_writer.assemble_handshake sh,
    { session with server_random ; session_id })
 
 let answer_client_hello_common state reneg ch raw =
   let process_client_hello ch config =
     let host = hostname ch
-    and cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites
-    and tst = Ciphersuite.(o needs_certificate ciphersuite_kex) in
+    and cciphers = filter_map ~f:Tls_ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites
+    and tst = Tls_ciphersuite.(o needs_certificate ciphersuite_kex) in
     ( if List.for_all tst cciphers then
         agreed_cert config.own_certificates host >>= function
         | (c::cs, priv) -> let cciphers = agreed_cipher c cciphers in
@@ -208,13 +208,13 @@ let answer_client_hello_common state reneg ch raw =
 
     ( match first_match cciphers config.ciphers with
       | Some x -> return x
-      | None   -> match first_match cciphers Config.Ciphers.supported with
+      | None   -> match first_match cciphers Tls_config.Ciphers.supported with
         | Some _ -> fail (`Error (`NoConfiguredCiphersuite cciphers))
         | None -> fail (`Fatal (`NoCiphersuite ch.ciphersuites)) ) >|= fun cipher ->
 
     let extended_ms = List.mem `ExtendedMasterSecret ch.extensions in
 
-    (* Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ; *)
+    (* Tls_tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ; *)
 
     { empty_session with
       client_random    = ch.client_random ;
@@ -230,53 +230,53 @@ let answer_client_hello_common state reneg ch raw =
     | []    -> []
     | certs ->
        let cert = Certificate (List.map X509.Encoding.cs_of_cert certs) in
-       (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ; *)
-       [ Writer.assemble_handshake cert ]
+       (* Tls_tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ; *)
+       [ Tls_writer.assemble_handshake cert ]
 
   and cert_request version config session =
-    let open Writer in
+    let open Tls_writer in
     match config.authenticator with
     | None -> ([], session)
     | Some _ ->
        (* TODO: extract DN from authenticator and send to client *)
        let certreq = match version with
          | TLS_1_0 | TLS_1_1 ->
-            let data = assemble_certificate_request [Packet.RSA_SIGN] [] in
+            let data = assemble_certificate_request [Tls_packet.RSA_SIGN] [] in
             CertificateRequest data
          | TLS_1_2 ->
-            let sigalgs = List.map (fun h -> (h, Packet.RSA)) config.hashes in
-            let data = assemble_certificate_request_1_2 [Packet.RSA_SIGN] sigalgs [] in
+            let sigalgs = List.map (fun h -> (h, Tls_packet.RSA)) config.hashes in
+            let data = assemble_certificate_request_1_2 [Tls_packet.RSA_SIGN] sigalgs [] in
             CertificateRequest data
        in
-       (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake certreq ; *)
+       (* Tls_tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake certreq ; *)
        ([ assemble_handshake certreq ], { session with client_auth = true })
 
   and kex_dhe_rsa config session version sig_algs =
-    let group         = Config.dh_group in
+    let group         = Tls_config.dh_group in
     let (secret, msg) = Dh.gen_key group in
     let dh_state      = group, secret in
     let written =
-      let dh_param = Crypto.dh_params_pack group msg in
-      Writer.assemble_dh_parameters dh_param in
+      let dh_param = Tls_crypto.dh_params_pack group msg in
+      Tls_writer.assemble_dh_parameters dh_param in
 
     let data = session.client_random <+> session.server_random <+> written in
 
     private_key session >>= fun priv ->
     signature version data sig_algs config.hashes priv >|= fun sgn ->
     let kex = ServerKeyExchange (written <+> sgn) in
-    let hs = Writer.assemble_handshake kex in
-    (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ; *)
+    let hs = Tls_writer.assemble_handshake kex in
+    (* Tls_tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ; *)
     (hs, dh_state) in
 
   process_client_hello ch state.config >>= fun session ->
   let sh, session = server_hello session state.protocol_version reneg in
   let certificates = server_cert session
   and cert_req, session = cert_request state.protocol_version state.config session
-  and hello_done = Writer.assemble_handshake ServerHelloDone
+  and hello_done = Tls_writer.assemble_handshake ServerHelloDone
   in
 
-  ( match Ciphersuite.ciphersuite_kex session.ciphersuite with
-    | Ciphersuite.DHE_RSA ->
+  ( match Tls_ciphersuite.ciphersuite_kex session.ciphersuite with
+    | Tls_ciphersuite.DHE_RSA ->
         kex_dhe_rsa state.config session state.protocol_version (sig_algs ch) >>= fun (kex, dh) ->
         let outs = sh :: certificates @ [ kex ] @ cert_req @ [ hello_done ] in
         let log = raw :: outs in
@@ -286,9 +286,9 @@ let answer_client_hello_common state reneg ch raw =
           else
             AwaitClientKeyExchange_DHE_RSA (session, dh, log)
         in
-        (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ; *)
+        (* Tls_tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ; *)
         return (outs, machina)
-    | Ciphersuite.RSA ->
+    | Tls_ciphersuite.RSA ->
         let outs = sh :: certificates @ cert_req @ [ hello_done ] in
         let log = raw :: outs in
         let machina =
@@ -297,12 +297,12 @@ let answer_client_hello_common state reneg ch raw =
           else
             AwaitClientKeyExchange_RSA (session, log)
         in
-        (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ; *)
+        (* Tls_tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ; *)
         return (outs, machina)
     ) >|= fun (out_recs, machina) ->
 
   ({ state with machina = Server machina },
-   [`Record (Packet.HANDSHAKE, Cs.appends out_recs)])
+   [`Record (Tls_packet.HANDSHAKE, Cs.appends out_recs)])
 
 let agreed_version supported requested =
   match supported_protocol_version supported requested with
@@ -313,7 +313,7 @@ let agreed_version supported requested =
 
 let answer_client_hello state (ch : client_hello) raw =
   let ensure_reneg ciphers their_data  =
-    let reneg_cs = List.mem Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
+    let reneg_cs = List.mem Tls_packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
     match reneg_cs, their_data with
     | _, Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
     | true, _ -> return ()
@@ -321,8 +321,8 @@ let answer_client_hello state (ch : client_hello) raw =
 
 
   and resume (ch : client_hello) state =
-    let epoch_matches (epoch : Core.epoch_data) version ciphers extensions =
-      let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ciphers in
+    let epoch_matches (epoch : Tls_core.epoch_data) version ciphers extensions =
+      let cciphers = filter_map ~f:Tls_ciphersuite.any_ciphersuite_to_ciphersuite ciphers in
       List.mem epoch.ciphersuite cciphers &&
         version = epoch.protocol_version &&
           (not state.config.use_reneg ||
@@ -345,35 +345,35 @@ let answer_client_hello state (ch : client_hello) raw =
     (* we really do not want to have any leftover handshake fragments *)
     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
     let client_ctx, server_ctx =
-      Handshake_crypto.initialise_crypto_ctx version session
+      Tls_handshake_crypto.initialise_crypto_ctx version session
     in
     let ccs = change_cipher_spec in
     let log = [ raw ; sh ] in
     let server =
-      Handshake_crypto.finished
+      Tls_handshake_crypto.finished
         version session.ciphersuite session.master_secret "server finished" log
     in
     let fin = Finished server in
-    let fin_raw = Writer.assemble_handshake fin in
+    let fin_raw = Tls_writer.assemble_handshake fin in
     let machina = AwaitClientChangeCipherSpecResume (session, client_ctx, server, log @ [fin_raw]) in
     ({ state with machina = Server machina },
-     [ `Record (Packet.HANDSHAKE, sh) ;
+     [ `Record (Tls_packet.HANDSHAKE, sh) ;
        `Record ccs ;
        `Change_enc (Some server_ctx) ;
-       `Record (Packet.HANDSHAKE, fin_raw)])
+       `Record (Tls_packet.HANDSHAKE, fin_raw)])
   in
 
   let process_client_hello config ch =
     let cciphers = ch.ciphersuites in
     guard (client_hello_valid ch) (`Fatal `InvalidClientHello) >>= fun () ->
     agreed_version config.protocol_versions ch.client_version >>= fun version ->
-    guard (not (List.mem Packet.TLS_FALLBACK_SCSV cciphers) ||
+    guard (not (List.mem Tls_packet.TLS_FALLBACK_SCSV cciphers) ||
            version = max_protocol_version config.protocol_versions)
       (`Fatal `InappropriateFallback) >>= fun () ->
     let theirs = get_secure_renegotiation ch.extensions in
     ensure_reneg cciphers theirs >|= fun () ->
 
-    (* Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ; *)
+    (* Tls_tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ; *)
 
     version
   in
@@ -398,7 +398,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
     guard (version = oldversion) (`Fatal (`InvalidRenegotiationVersion version)) >>= fun () ->
     let theirs = get_secure_renegotiation ch.extensions in
     ensure_reneg ours theirs >|= fun () ->
-    (* Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ; *)
+    (* Tls_tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ; *)
     version
   in
 
@@ -409,20 +409,20 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
      process_client_hello config state.protocol_version reneg ch >>= fun version ->
      answer_client_hello_common state (Some reneg) ch raw
   | false, _             ->
-    let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
-    return (state, [`Record (Packet.ALERT, no_reneg)])
+    let no_reneg = Tls_writer.assemble_alert ~level:Tls_packet.WARNING Tls_packet.NO_RENEGOTIATION in
+    return (state, [`Record (Tls_packet.ALERT, no_reneg)])
   | true , _             -> fail (`Fatal `InvalidSession) (* I'm pretty sure this can be an assert false *)
 
 let handle_change_cipher_spec ss state packet =
-  match Reader.parse_change_cipher_spec packet, ss with
+  match Tls_reader.parse_change_cipher_spec packet, ss with
   | Ok (), AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log) ->
      guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty)
      >>= fun () ->
      let ccs = change_cipher_spec in
      let machina = AwaitClientFinished (session, log)
      in
-     Tracing.cs ~tag:"change-cipher-spec-in" packet ;
-     Tracing.cs ~tag:"change-cipher-spec-out" packet ;
+     Tls_tracing.cs ~tag:"change-cipher-spec-in" packet ;
+     Tls_tracing.cs ~tag:"change-cipher-spec-out" packet ;
 
      return ({ state with machina = Server machina },
              [`Record ccs; `Change_enc (Some server_ctx); `Change_dec (Some client_ctx)])
@@ -430,8 +430,8 @@ let handle_change_cipher_spec ss state packet =
      guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
      let machina = AwaitClientFinishedResume (session, server_verify, log)
      in
-     Tracing.cs ~tag:"change-cipher-spec-in" packet ;
-     Tracing.cs ~tag:"change-cipher-spec-out" packet ;
+     Tls_tracing.cs ~tag:"change-cipher-spec-in" packet ;
+     Tls_tracing.cs ~tag:"change-cipher-spec-out" packet ;
 
      ({ state with machina = Server machina },
       [`Change_dec (Some client_ctx)])
@@ -439,9 +439,9 @@ let handle_change_cipher_spec ss state packet =
   | _ -> fail (`Fatal `UnexpectedCCS)
 
 let handle_handshake ss hs buf =
-  match Reader.parse_handshake buf with
+  match Tls_reader.parse_handshake buf with
   | Ok handshake ->
-    (* Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake; *)
+    (* Tls_tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake; *)
      ( match ss, handshake with
        | AwaitClientHello, ClientHello ch ->
           answer_client_hello hs ch buf

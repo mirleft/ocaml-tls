@@ -1,8 +1,8 @@
-open Packet
-open Core
+open Tls_packet
+open Tls_core
 open Cstruct
 
-let (<+>) = Utils.Cs.(<+>)
+let (<+>) = Tls_utils.Cs.(<+>)
 
 let assemble_protocol_version_int buf version =
   let major, minor = pair_of_tls_version version in
@@ -46,7 +46,7 @@ let assemble_list ?none_if_empty lenb f elements =
        set_uint24_len l (len body) ;
        l
   in
-  let b es = Utils.Cs.appends (List.map f es) in
+  let b es = Tls_utils.Cs.appends (List.map f es) in
   let full es =
     let body = b es in
     length body <+> body
@@ -83,7 +83,7 @@ let assemble_any_ciphersuites cs =
   assemble_list Two assemble_any_ciphersuite cs
 
 let assemble_ciphersuite c =
-  let acs = Ciphersuite.ciphersuite_to_any_ciphersuite c in
+  let acs = Tls_ciphersuite.ciphersuite_to_any_ciphersuite c in
   assemble_any_ciphersuite acs
 
 let assemble_hostname host =
@@ -293,7 +293,7 @@ let assemble_handshake hs =
   set_uint24_len (shift buf 1) pay_len;
   buf <+> payload
 
-let assemble_alert ?(level = Packet.FATAL) typ =
+let assemble_alert ?(level = Tls_packet.FATAL) typ =
   let buf = create 2 in
   set_uint8 buf 1 (alert_type_to_int typ);
   set_uint8 buf 0 (alert_level_to_int level) ;

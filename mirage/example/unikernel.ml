@@ -1,6 +1,5 @@
 open Lwt.Infix
 
-open V1
 open V1_LWT
 
 
@@ -45,7 +44,7 @@ let make_tracer dump =
 module Server (C  : CONSOLE)
               (S  : STACKV4)
               (KV : KV_RO)
-              (CL : CLOCK) =
+              (CL : PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
@@ -83,7 +82,7 @@ end
 module Client (C  : CONSOLE)
               (S  : STACKV4)
               (KV : KV_RO)
-              (CL : CLOCK) =
+              (CL : PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
@@ -110,8 +109,8 @@ struct
     in
     TLS.write tls initial >>== dump
 
-  let start c stack kv _ _ =
-    X509.authenticator kv `CAs >>= fun authenticator ->
+  let start c stack kv clock _ =
+    X509.authenticator kv clock `CAs >>= fun authenticator ->
     let conf = Tls.Config.client ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer)
     >>= function

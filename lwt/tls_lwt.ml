@@ -140,11 +140,10 @@ module Unix = struct
    * *)
   let rec drain_handshake t =
     let push_linger t mcs =
-      let open Tls.Utils.Cs in
       match (mcs, t.linger) with
       | (None, _)         -> ()
       | (scs, None)       -> t.linger <- scs
-      | (Some cs, Some l) -> t.linger <- Some (l <+> cs)
+      | (Some cs, Some l) -> t.linger <- Some (Cstruct.append l cs)
     in
     match t.state with
     | `Active tls when Tls.Engine.can_handle_appdata tls ->
