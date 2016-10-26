@@ -1,8 +1,7 @@
 open Lwt.Infix
 open V1_LWT
 
-module Main (C  : CONSOLE)
-            (S  : STACKV4)
+module Main (S  : STACKV4)
             (KV : KV_RO)
             (CL : PCLOCK) =
 struct
@@ -13,7 +12,7 @@ struct
 
   module Body = Cohttp_lwt_body
 
-  let handle c conn req body =
+  let callback _conn req body =
     let resp = Cohttp.Response.make ~status:`OK () in
     (match Cohttp.Request.meth req with
      | `POST ->
@@ -27,17 +26,17 @@ struct
     in
     (resp, body)
 
-  let upgrade c conf tcp =
+  let upgrade conf tcp =
     TLS.server_of_flow conf tcp >>= function
     | `Error _  | `Eof -> Lwt.fail (Failure "tls init")
     | `Ok tls  ->
-      let t = Http.make (handle c) () in
+      let t = Http.make ~callback () in
       Http.listen t tls
 
-  let start c stack kv _ _ =
+  let start stack kv _ _ =
     X509.certificate kv `Default >>= fun cert ->
     let conf = Tls.Config.server ~certificates:(`Single cert) () in
-    S.listen_tcpv4 stack ~port:4433 (upgrade c conf) ;
+    S.listen_tcpv4 stack ~port:4433 (upgrade conf) ;
     S.listen stack
 
 end
