@@ -4,7 +4,7 @@ script: bash -ex .travis-opam.sh
 env:
   global:
     - PACKAGE="tls"
-    - PINS="nocrypto asn1-combinators x509"
+    - PINS="nocrypto asn1-combinators x509 cpuid ocb-stubblr"
   matrix:
     - OCAML_VERSION=4.02
     - OCAML_VERSION=4.02 DEPOPTS=lwt
