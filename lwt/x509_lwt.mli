@@ -28,4 +28,3 @@ val authenticator :
   | `Hex_key_fingerprints of Nocrypto.Hash.hash * (string * string) list
   | `No_authentication_I'M_STUPID ]
   -> authenticator Lwt.t
-

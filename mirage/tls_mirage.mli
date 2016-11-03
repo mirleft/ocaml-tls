@@ -1,9 +1,9 @@
 (** Effectful operations usign mirage for pure TLS. *)
 
-(** TLS module given a flow*)
+(** TLS module given a flow *)
 module Make (F : V1_LWT.FLOW) : sig
 
-  module FLOW    : V1_LWT.FLOW
+  module FLOW : V1_LWT.FLOW
 
   (** possible errors: incoming alert, processing failure, or a
       problem in the underlying flow. *)
@@ -22,7 +22,7 @@ module Make (F : V1_LWT.FLOW) : sig
      and type buffer := buffer
 
   (** [reneg flow] renegotiates the session. *)
-  val reneg  : flow -> [ `Ok of unit | `Eof | `Error of error ] Lwt.t
+  val reneg : flow -> [ `Ok of unit | `Eof | `Error of error ] Lwt.t
 
   (** [client_of_flow ~trace client ~host flow] upgrades the existing connection
       to TLS using the [client] configuration, using [host] as peer name. *)

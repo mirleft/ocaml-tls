@@ -1,4 +1,3 @@
-
 (* This is so not thread-safe it's not even funny. *)
 
 let current = ref None
