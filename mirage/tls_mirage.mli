@@ -1,4 +1,4 @@
-(** Effectful operations usign mirage for pure TLS. *)
+(** Effectful operations using Mirage for pure TLS. *)
 
 (** TLS module given a flow *)
 module Make (F : V1_LWT.FLOW) : sig

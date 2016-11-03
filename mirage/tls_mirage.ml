@@ -107,7 +107,7 @@ module Make (F : V1_LWT.FLOW) = struct
             flow.state <- `Active tls ;
             FLOW.write flow.flow answer >>= check_write flow
         | None ->
-            (* "Impossible" due to handhake draining. *)
+            (* "Impossible" due to handshake draining. *)
             assert false
 
   let write flow buf = writev flow [buf]
