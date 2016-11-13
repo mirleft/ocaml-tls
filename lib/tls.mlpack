@@ -1,5 +1,3 @@
-# OASIS_START
-# DO NOT EDIT (digest: efbb28bc0a4c8c5a420e7c8cd95c5321)
 Tracing
 Ciphersuite
 Packet
@@ -16,4 +14,3 @@ Handshake_common
 Handshake_crypto
 Handshake_server
 Handshake_client
-# OASIS_STOP

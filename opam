@@ -3,23 +3,26 @@ name:         "tls"
 homepage:     "https://github.com/mirleft/ocaml-tls"
 dev-repo:     "https://github.com/mirleft/ocaml-tls.git"
 bug-reports:  "https://github.com/mirleft/ocaml-tls/issues"
+doc:          "https://mirleft.github.io/ocaml-tls/doc"
 author:       ["David Kaloper <david@numm.org>" "Hannes Mehnert <hannes@mehnert.org>"]
 maintainer:   ["Hannes Mehnert <hannes@mehnert.org>" "David Kaloper <david@numm.org>"]
 license:      "BSD2"
 
 build: [
-  [ "./configure" "--prefix" prefix
-    "--%{lwt:enable}%-lwt"
-    "--%{mirage-types-lwt+ipaddr:enable}%-mirage" ]
-  [ make ]
+  [ "ocaml" "pkg/pkg.ml" "build" "--pinned" "%{pinned}%"
+    "--tests" "false"
+    "--with-lwt" "%{lwt:installed}%"
+    "--with-mirage" "%{mirage-types-lwt:installed}%" ]
 ]
-install: [ make "install"]
-remove: [ "ocamlfind" "remove" "tls" ]
+build-test: [
+  ["ocaml" "pkg/pkg.ml" "build" "--pinned" "%{pinned}%" "--tests" "true"]
+  ["ocaml" "pkg/pkg.ml" "test"]
+]
 
 depends: [
   "ocamlfind" {build}
   "ocamlbuild" {build}
-  "oasis" {build}
+  "topkg" {build}
   "ppx_tools" {build}
   "ppx_sexp_conv" {build}
   "result"
@@ -38,11 +41,6 @@ conflicts: [
   "lwt" {<"2.4.8"}
   "mirage-types-lwt" {<"2.3.0"}
   "mirage-net-xen" {<"1.3.0"}
-]
-
-build-test: [
-  [ "./configure" "--%{ounit:enable}%-tests" ]
-  [ make "test" ]
 ]
 
 tags: [ "org:mirage"]

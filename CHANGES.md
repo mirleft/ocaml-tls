@@ -1,4 +1,5 @@
-0.7.1 (2016-03-21):
+## 0.7.1 (2016-03-21)
+
 * remove camlp4 dependency (use cstruct ppx and sexplib ppx instead)
 * sort client extensions, there are servers which dislike an extension without
   data at the end, thus try to send extensions with data at the end (#319)
@@ -34,26 +35,28 @@
 * type equality (no longer generative error type), use result (#318)
 * removed Printer (was barely useful)
 
-0.7.0 (2015-12-04):
+## 0.7.0 (2015-12-04)
+
 * session resumption (via session ID) support (#283)
   Config contains `session_cache : SessionID.t -> epoch_data option`
   and `cached_session : epoch_data option`
 * session hash and extended master secret (RFC 7627) support (#287)
 
-semantic changes
+### semantic changes
 * disable renegotiation by default (#300)
 * blocking semantics (both Mirage and Lwt) while renegotiating (#304)
 * `Engine.handshake_in_progress` no longer exist
 * `Hex_fingerprint / `Fingerprint authenticators no longer exist
 * Mirage X509 does no longer prefix keys and trust anchors with "tls/" in the path
 
-minor fixes
+### minor fixes
 * fix concurrent read/write in tls_mirage (#303)
 * expose own_random and peer_random in epoch_data (@cfcs, #297)
 * public key pinning (X509_lwt) via `Hex_key_fingerprint / `Key_fingerprint (#301)
 * certificate chain and peer certificate are exposed via epoch_data (new path-building X.509 interface)
 
-0.6.0 (2015-07-02):
+## 0.6.0 (2015-07-02)
+
 * API: dropped 'perfect' from forward secrecy in Config.Ciphers:
   fs instead of pfs, fs_of instead of pfs_of
 * API: type epoch_data moved from Engine to Core
@@ -71,12 +74,14 @@ minor fixes
   bytes, treat as a fragment. exactly 5 bytes might already be a valid
   application data frame
 
-0.5.0 (2015-05-02):
+## 0.5.0 (2015-05-02)
+
 * updates to extension enum (contributed by Dave Garrett #264)
 * removed entropy feeding (done by nocrypto) #265
 * Tls_lwt file descriptor lifecycle: not eagerly close file descriptors #266
 
-0.4.0 (2015-03-19):
+## 0.4.0 (2015-03-19)
+
 * client authentication (both client and server side)
 * server side SNI configuration (see sni.md)
 * SCSV server-side downgrade prevention (by Gabriel de Perthuis @g2p #5)
@@ -89,7 +94,8 @@ minor fixes
 * error reporting (type failure in engine.mli) #246
 * hook into Lwt event loop to feed RNG #254
 
-0.3.0 (2014-12-21):
+## 0.3.0 (2014-12-21)
+
 * X509_lwt provides `Fingerprints and `Hex_fingerprints constructor for
   checking fingerprints of certificates instead of trusting trust
   anchors #206 #207
@@ -100,7 +106,8 @@ minor fixes
 * cleanups of mirage interface #213
 * nocrypto-0.3.0 compatibility #194 #209 #210
 
-0.2.0 (2014-10-30):
+## 0.2.0 (2014-10-30)
+
 * distinguish between supported hash and mac algorithms (using Nocrypto.Hash)
   and those which may occur on the wire #189
 * expose trust anchor when authenticating certificate (requires x509 >=0.2) #178
@@ -115,5 +122,6 @@ minor fixes
 * send minimal protocol version in record layer of client hello
   (maximum version is in the client hello itself) (RFC5246, E.1) #165
 
-0.1.0 (2014-07-08):
+## 0.1.0 (2014-07-08)
+
 * initial beta release
