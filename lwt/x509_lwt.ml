@@ -72,7 +72,7 @@ let certs_of_pem_dir path =
   >|= List.concat
 
 let authenticator param =
-  let now = Unix.gettimeofday () in
+  let now = Ptime_clock.now () in
   let of_cas cas =
     X509.Authenticator.chain_of_trust ~time:now cas
   and dotted_hex_to_cs hex =

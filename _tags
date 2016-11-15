@@ -15,8 +15,8 @@ true : package(cstruct nocrypto result x509 sexplib)
 
 <tests/*> : package(oUnit cstruct.unix)
 
-<lwt/*> : package(lwt lwt.unix)
+<lwt/**/*> : package(lwt lwt.unix ptime.clock.os)
 <lwt> : include
-<lwt/examples/*> : package(lwt lwt.unix str nocrypto.lwt)
+<lwt/examples/*> : package(str nocrypto.lwt)
 
 <mirage/*> : package(mirage-flow-lwt mirage-kv-lwt mirage-clock lwt ptime)
