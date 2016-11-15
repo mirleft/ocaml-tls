@@ -28,11 +28,9 @@ let read_file path =
 let read_dir path =
   let open Lwt_unix in
   let rec collect acc d =
-    (Lwt.catch
-       (fun () -> readdir d >|= fun e -> Some e)
-       (function End_of_file -> return None)) >>= function
-    | Some e -> collect (e :: acc) d
-    | None   -> return acc in
+    readdir_n d 10 >>= function
+      | [||] -> return acc
+      | xs   -> collect (Array.to_list xs @ acc) d in
   opendir path >>= fun dir ->
   collect [] dir >>= fun entries ->
   closedir dir >|= fun () ->
@@ -72,7 +70,7 @@ let certs_of_pem_dir path =
   >|= List.concat
 
 let authenticator param =
-  let now = Unix.gettimeofday () in
+  let now = Ptime_clock.now () in
   let of_cas cas =
     X509.Authenticator.chain_of_trust ~time:now cas
   and dotted_hex_to_cs hex =

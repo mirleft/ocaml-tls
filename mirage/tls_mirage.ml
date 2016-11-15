@@ -1,5 +1,4 @@
 open Lwt
-open Nocrypto
 
 module Make (F : V1_LWT.FLOW) = struct
 
@@ -210,7 +209,7 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) = struct
   let (>>==) a f =
     a >>= function
       | `Ok x -> f x
-      | `Error (KV.Unknown_key key) -> fail (Invalid_argument key)
+      | `Error (KV.Unknown_key e|KV.Failure e) -> fail (Invalid_argument e)
 
   let (>|==) a f = a >>== fun x -> return (f x)
 
@@ -223,15 +222,16 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) = struct
   let authenticator kv clock = function
     | `Noop -> return X509.Authenticator.null
     | `CAs  ->
-        let time = Ptime.v (C.now_d_ps clock) |> Ptime.to_float_s in
-        read_full kv ca_roots_file
+        let time = Ptime.v (C.now_d_ps clock) in
+        read_full kv ~name:ca_roots_file
         >|= Certificate.of_pem_cstruct
         >|= X509.Authenticator.chain_of_trust ~time
 
   let certificate kv =
     let read name =
-      read_full kv (name ^ ".pem") >|= Certificate.of_pem_cstruct >>= fun certs ->
-      (read_full kv (name ^ ".key") >|= fun pem ->
+      read_full kv ~name:(name ^ ".pem") >|=
+        Certificate.of_pem_cstruct >>= fun certs ->
+      (read_full kv ~name:(name ^ ".key") >|= fun pem ->
        match Private_key.of_pem_cstruct1 pem with
        | `RSA key -> key) >>= fun pk ->
       return (certs, pk)
