@@ -21,6 +21,8 @@ module Make (F : V1_LWT.FLOW) : sig
     with type 'a io  := 'a io
      and type buffer := buffer
 
+  val error_message : error -> string
+
   (** [reneg flow] renegotiates the session. *)
   val reneg : flow -> (unit, V1.Flow.write_error) result Lwt.t
 
