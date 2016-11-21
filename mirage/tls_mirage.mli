@@ -9,7 +9,8 @@ module Make (F : V1_LWT.FLOW) : sig
       problem in the underlying flow. *)
   type error  = [ `Tls_alert   of Tls.Packet.alert_type
                 | `Tls_failure of Tls.Engine.failure
-                | `Flow        of FLOW.error ]
+                | `Flow        of [ `Read of V1.Flow.error
+                                  | `Write of V1.Flow.write_error ] ]
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
 
@@ -17,27 +18,26 @@ module Make (F : V1_LWT.FLOW) : sig
 
   (** we provide the FLOW interface *)
   include V1_LWT.FLOW
-    with type error  := error
-     and type 'a io  := 'a io
+    with type 'a io  := 'a io
      and type buffer := buffer
 
   (** [reneg flow] renegotiates the session. *)
-  val reneg : flow -> [ `Ok of unit | `Eof | `Error of error ] Lwt.t
+  val reneg : flow -> (unit, V1.Flow.write_error) result Lwt.t
 
   (** [client_of_flow ~trace client ~host flow] upgrades the existing connection
       to TLS using the [client] configuration, using [host] as peer name. *)
   val client_of_flow :
     ?trace:tracer -> Tls.Config.client -> ?host:string -> FLOW.flow ->
-    [> `Ok of flow | `Error of error | `Eof ] Lwt.t
+    (flow, V1.Flow.write_error) Result.result Lwt.t
 
   (** [server_of_flow ?tracer server flow] upgrades the flow to a TLS
       connection using the [server] configuration. *)
   val server_of_flow :
     ?trace:tracer -> Tls.Config.server -> FLOW.flow ->
-    [> `Ok of flow | `Error of error | `Eof ] Lwt.t
+    (flow, V1.Flow.write_error) Result.result Lwt.t
 
   (** [epoch flow] extracts information of the established session. *)
-  val epoch : flow -> [ `Ok of Tls.Core.epoch_data | `Error ]
+  val epoch : flow -> (Tls.Core.epoch_data, unit) Result.result
 
 end
   with module FLOW = F
