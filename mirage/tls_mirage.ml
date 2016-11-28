@@ -242,14 +242,15 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) = struct
 
   let (>>==) a f =
     a >>= function
-      | `Ok x -> f x
-      | `Error (KV.Unknown_key key) -> fail (Invalid_argument key)
+      | Ok x -> f x
+      | Error `Unknown_key -> fail (Invalid_argument "a required key was missing from the key-value store")
+      | Error (`Msg s) -> fail (Invalid_argument s)
 
   let (>|==) a f = a >>== fun x -> return (f x)
 
   let read_full kv ~name =
-    KV.size kv name   >|== Int64.to_int >>=
-    KV.read kv name 0 >|== Tls.Utils.Cs.appends
+    KV.size kv name    >>==
+    KV.read kv name 0L >|== Tls.Utils.Cs.appends
 
   open X509.Encoding.Pem
 
