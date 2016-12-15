@@ -1,21 +1,42 @@
 open Lwt
 open Nocrypto
 
+open Result
+
 module Make (F : V1_LWT.FLOW) = struct
 
   module FLOW = F
 
-  type error  = [ `Tls_alert   of Tls.Packet.alert_type
-                | `Tls_failure of Tls.Engine.failure
-                | `Flow        of [`Read of V1.Flow.error | `Write of V1.Flow.write_error] ]
+  type tls_error = [
+    | `Tls_alert   of Tls.Packet.alert_type
+    | `Tls_failure of Tls.Engine.failure
+  ]
+
+  type error  = [ tls_error
+                | `Msg of string
+                | `Flow of FLOW.error ]
+  type write_error = [ tls_error
+                     | `Closed
+                     | `Msg of string
+                     | `Flow of FLOW.write_error ]
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
 
-  let error_message = function
-    | `Tls_failure f -> Tls.Engine.string_of_failure f
-    | `Tls_alert a -> Tls.Packet.alert_type_to_string a
-    | `Flow (`Read e) -> Format.asprintf "%a" Mirage_pp.pp_flow_error e
-    | `Flow (`Write e) -> Format.asprintf "%a" Mirage_pp.pp_flow_write_error e
+
+  let pp_tls_error pp = function
+    | `Tls_failure f -> Format.fprintf pp "%s" (Tls.Engine.string_of_failure f)
+    | `Tls_alert a -> Format.fprintf  pp "%s" (Tls.Packet.alert_type_to_string a)
+
+  let pp_error pp = function
+    | #tls_error as e -> pp_tls_error pp e
+    | `Flow e -> FLOW.pp_error pp e
+    | `Msg e -> Format.fprintf pp "%s" e
+
+  let pp_write_error pp = function
+    | #tls_error as e -> pp_tls_error pp e
+    | `Flow e -> FLOW.pp_write_error pp e
+    | `Msg e -> Format.fprintf pp "%s" e
+    | `Closed -> Format.fprintf pp "closed"
 
   type tracer = Sexplib.Sexp.t -> unit
 
@@ -23,48 +44,28 @@ module Make (F : V1_LWT.FLOW) = struct
     role           : [ `Server | `Client ] ;
     flow           : FLOW.flow ;
     tracer         : tracer option ;
-    mutable state  : [ `Active of Tls.Engine.state
-                     | `Eof
-                     | `Error of error ] ;
+    mutable state  : [ `Active of Tls.Engine.state | `Eof | `Error of tls_error ] ;
     mutable linger : Cstruct.t list ;
   }
 
-  let tls_alert a = `Error (`Tls_alert a)
-  let tls_fail f  = `Error (`Tls_failure f)
-
-  let return_error e     = return (`Error e)
-  let return_ok          = return (`Ok ())
-
   let list_of_option = function None -> [] | Some x -> [x]
 
-  let check_write flow (f_res : (unit, V1.Flow.write_error) Result.result) :
-          [ `Error of [ `Flow of [ `Write of V1.Flow.write_error ] ]
-          | `Eof
-          | `Ok of unit ] Lwt.t
-          =
-    let res = match f_res with
-    | Ok () -> `Ok ()
-    | Error `Closed -> `Eof
-    | Error p -> `Error (`Flow (`Write p))
-    in
-    ( match (flow.state, res) with
-      | (`Active _, (`Eof | `Error _ as e)) ->
-          flow.state <- e ; FLOW.close flow.flow
-      | _ -> return_unit ) >>= fun () ->
-    return res
-
-  let flow_result_of_check_write = function
-  | `Ok p -> Ok p
-  | `Eof -> Error `Closed
-  | `Error (`Flow (`Write p)) -> Error p
+  let check_write flow (res : (unit, FLOW.write_error) result) =
+    match flow.state, res with
+    | `Active _, Error `Closed -> flow.state <- `Eof ; FLOW.close flow.flow
+    | `Active _, Error (`Msg m) -> flow.state <- `Eof ; FLOW.close flow.flow
+    | _ -> return_unit
 
   let tracing flow f =
     match flow.tracer with
     | None      -> f ()
     | Some hook -> Tls.Tracing.active ~hook f
 
-  let read_react flow =
+  let lift_tls_err : tls_error -> [ error | `Closed ] = function
+    | `Tls_failure x -> `Tls_failure x
+    | `Tls_alert x -> `Tls_alert x
 
+  let read_react flow : (Cstruct.t option, [ error | `Closed ]) result Lwt.t =
     let handle tls buf =
       match
         tracing flow @@ fun () -> Tls.Engine.handle_tls tls buf
@@ -73,64 +74,74 @@ module Make (F : V1_LWT.FLOW) = struct
           flow.state <- ( match res with
             | `Ok tls      -> `Active tls
             | `Eof         -> `Eof
-            | `Alert alert -> tls_alert alert );
+            | `Alert alert -> `Error (`Tls_alert alert) );
           ( match resp with
-            | None     -> return_ok
-            | Some buf -> FLOW.write flow.flow buf >>= check_write flow ) >>= fun _ ->
+            | None     -> Lwt.return_unit
+            | Some buf -> FLOW.write flow.flow buf >>= check_write flow ) >>= fun () ->
           ( match res with
             | `Ok _ -> return_unit
             | _     -> FLOW.close flow.flow ) >>= fun () ->
-          return (`Ok data)
+          return (Ok data)
       | `Fail (fail, `Response resp) ->
-          let reason = tls_fail fail in
-          flow.state <- reason ;
-          FLOW.(write flow.flow resp >>= fun _ -> close flow.flow) >>= fun () -> return reason
-    in
-    let lift_read_result = function
-          | Ok (`Data buf) -> `Ok buf
-          | Ok `Eof        -> `Eof
-          | Error e        -> `Error (`Flow (`Read e))
+          let reason = `Tls_failure fail in
+          flow.state <- `Error reason ;
+          FLOW.(write flow.flow resp >>= fun _ -> close flow.flow) >|= fun () -> Error reason
     in
     match flow.state with
-    | `Eof | `Error _ as e -> return e
-    | `Active _            ->
-        FLOW.read flow.flow >|= lift_read_result
-          >>= function
-          | `Eof | `Error _ as e -> flow.state <- e ; return e
-          | `Ok buf              -> match flow.state with
-                                    | `Active tls          -> handle tls buf
-                                    | `Eof | `Error _ as e -> return e
+    | `Eof -> return (Error `Closed)
+    | `Error e -> return (Error (lift_tls_err e))
+    | `Active _ ->
+      FLOW.read flow.flow >>= function
+      | Ok `Eof -> flow.state <- `Eof ; return (Error `Closed)
+      | Error e -> flow.state <- `Eof ; return (Error (`Flow e))
+      | Ok (`Data buf) -> match flow.state with
+        | `Active tls -> handle tls buf
+        | `Eof -> return (Error `Closed)
+        | `Error e -> return (Error (lift_tls_err e))
 
   let rec read flow =
     match flow.linger with
     | [] ->
       ( read_react flow >>= function
-          | `Ok None                 -> read flow
-          | `Ok (Some buf)           -> return (Ok (`Data buf))
-          | `Eof                     -> return (Ok `Eof)
-          | `Error (`Flow (`Read e)) -> return (Error e))
+          | Ok None       -> read flow
+          | Ok (Some buf) -> return (Ok (`Data buf))
+          | Error `Closed -> return (Ok `Eof)
+          | Error (`Flow x) -> return (Error (`Flow x))
+          | Error (`Msg m) -> return (Error (`Msg m))
+          | Error (#tls_error as e) -> return (Error e))
     | bufs ->
         flow.linger <- [] ;
         return (Ok (`Data (Tls.Utils.Cs.appends @@ List.rev bufs)))
 
-  let writev flow bufs : (unit, V1.Flow.write_error) Result.result Lwt.t =
+  let lift_tls_err_w : tls_error -> write_error = function
+    | `Tls_alert a -> `Tls_alert a
+    | `Tls_failure f -> `Tls_failure f
+
+  let writev flow bufs =
     match flow.state with
-    | `Eof
-      -> return @@ flow_result_of_check_write `Eof
-    | `Error (`Flow (`Write p)) as e
-      -> return @@ flow_result_of_check_write e
+    | `Eof -> return (Error `Closed)
+    | `Error e -> return (Error (lift_tls_err_w e))
     | `Active tls ->
         match
           tracing flow @@ fun () -> Tls.Engine.send_application_data tls bufs
         with
         | Some (tls, answer) ->
             flow.state <- `Active tls ;
-            FLOW.write flow.flow answer >>= check_write flow >|= flow_result_of_check_write
+            FLOW.write flow.flow answer >>= fun r -> check_write flow r >|= fun () ->
+            ( match r with
+              | Ok () -> Ok ()
+              | Error e -> Error (`Flow e) )
         | None ->
             (* "Impossible" due to handshake draining. *)
             assert false
 
   let write flow buf = writev flow [buf]
+
+  let lift_r_to_w : [ error | `Closed ] -> write_error = function
+    | #tls_error as e -> e
+    | `Msg m -> `Msg m
+    | `Closed -> `Closed
+    | `Flow (`Msg m) -> `Flow (`Msg m)
 
   (*
    * XXX bad XXX
@@ -141,26 +152,19 @@ module Make (F : V1_LWT.FLOW) = struct
    * *)
   let rec drain_handshake flow =
     match flow.state with
-    | `Active tls when Tls.Engine.can_handle_appdata tls ->
-        return (`Ok flow)
+    | `Active tls when Tls.Engine.can_handle_appdata tls -> return (Ok flow)
     | _ ->
       (* read_react re-throws *)
         read_react flow >>= function
-        | `Ok mbuf ->
-            flow.linger <- list_of_option mbuf @ flow.linger ;
-            drain_handshake flow
-        | `Error e -> return_error e
-        | `Eof     -> return `Eof
-
-  let flow_result_of_drain_handshake = function
-    | `Ok _                -> return (Ok ())
-    | `Eof -> return @@ Error `Closed
-    | `Error (`Flow (`Write e)) -> return @@ Error e
+        | Ok mbuf ->
+          flow.linger <- list_of_option mbuf @ flow.linger ;
+          drain_handshake flow
+        | Error e -> return (Error (lift_r_to_w e))
 
   let reneg flow =
     match flow.state with
-    | `Eof -> return @@ Error `Closed
-    | `Error (`Flow (`Write e)) -> return @@ Error e
+    | `Eof -> return (Error `Closed)
+    | `Error e -> return (Error (lift_tls_err_w e))
     | `Active tls ->
         match tracing flow @@ fun () -> Tls.Engine.reneg tls with
         | None             ->
@@ -169,10 +173,9 @@ module Make (F : V1_LWT.FLOW) = struct
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
             FLOW.write flow.flow buf >>= fun _ ->
-            drain_handshake flow >>= function
-            | `Ok _                -> return (Ok ())
-            | `Eof -> return @@ Error `Closed
-            | `Error (`Flow (`Write e)) -> return @@ Error e
+            drain_handshake flow >|= function
+            | Ok _ -> Ok ()
+            | Error e -> Error e
 
   let close flow =
     match flow.state with
@@ -196,10 +199,7 @@ module Make (F : V1_LWT.FLOW) = struct
       linger = [] ;
       tracer = trace ;
     } in
-    FLOW.write flow init >>= fun _ -> drain_handshake tls_flow >>= function
-            | `Ok flow -> return (Ok flow)
-            | `Eof -> return @@ Error `Closed
-            | `Error (`Flow (`Write e)) -> return @@ Error e
+    FLOW.write flow init >>= fun _ -> drain_handshake tls_flow
 
   let server_of_flow ?trace conf flow =
     let tls_flow = {
@@ -209,10 +209,7 @@ module Make (F : V1_LWT.FLOW) = struct
       linger = [] ;
       tracer = trace ;
     } in
-    drain_handshake tls_flow >>= function
-            | `Ok flow -> return (Ok flow)
-            | `Eof -> return @@ Error `Closed
-            | `Error (`Flow (`Write e)) -> return @@ Error e
+    drain_handshake tls_flow
 
   let epoch flow =
     match flow.state with
