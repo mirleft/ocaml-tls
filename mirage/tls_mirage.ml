@@ -7,15 +7,19 @@ module Make (F : V1_LWT.FLOW) = struct
 
   type error  = [ `Tls_alert   of Tls.Packet.alert_type
                 | `Tls_failure of Tls.Engine.failure
-                | `Flow        of [`Read of V1.Flow.error | `Write of V1.Flow.write_error] ]
+                | `Flow        of [`Read of F.error | `Write of F.write_error] ]
+
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
 
-  let error_message = function
-    | `Tls_failure f -> Tls.Engine.string_of_failure f
-    | `Tls_alert a -> Tls.Packet.alert_type_to_string a
-    | `Flow (`Read e) -> Format.asprintf "%a" Mirage_pp.pp_flow_error e
-    | `Flow (`Write e) -> Format.asprintf "%a" Mirage_pp.pp_flow_write_error e
+  let pp_error ppf = function
+    | `Tls_failure f   -> Fmt.string ppf @@ Tls.Engine.string_of_failure f
+    | `Tls_alert a     -> Fmt.string ppf @@ Tls.Packet.alert_type_to_string a
+    | `Flow (`Read e)  -> F.pp_error ppf e
+    | `Flow (`Write e) -> F.pp_write_error ppf e
+
+  type write_error = F.write_error
+  let pp_write_error = F.pp_write_error
 
   type tracer = Sexplib.Sexp.t -> unit
 
@@ -37,15 +41,15 @@ module Make (F : V1_LWT.FLOW) = struct
 
   let list_of_option = function None -> [] | Some x -> [x]
 
-  let check_write flow (f_res : (unit, V1.Flow.write_error) Result.result) :
-          [ `Error of [ `Flow of [ `Write of V1.Flow.write_error ] ]
+  let check_write flow (f_res : (unit, F.write_error) Result.result) :
+          [ `Error of [ `Flow of [ `Write of F.write_error ] ]
           | `Eof
           | `Ok of unit ] Lwt.t
           =
     let res = match f_res with
     | Ok () -> `Ok ()
     | Error `Closed -> `Eof
-    | Error p -> `Error (`Flow (`Write p))
+    | Error e -> `Error (`Flow (`Write e))
     in
     ( match (flow.state, res) with
       | (`Active _, (`Eof | `Error _ as e)) ->
@@ -105,15 +109,15 @@ module Make (F : V1_LWT.FLOW) = struct
     match flow.linger with
     | [] ->
       ( read_react flow >>= function
-          | `Ok None                 -> read flow
-          | `Ok (Some buf)           -> return (Ok (`Data buf))
-          | `Eof                     -> return (Ok `Eof)
-          | `Error (`Flow (`Read e)) -> return (Error e))
+          | `Ok None       -> read flow
+          | `Ok (Some buf) -> return (Ok (`Data buf))
+          | `Eof           -> return (Ok `Eof)
+          | `Error e       -> return (Error e))
     | bufs ->
         flow.linger <- [] ;
         return (Ok (`Data (Tls.Utils.Cs.appends @@ List.rev bufs)))
 
-  let writev flow bufs : (unit, V1.Flow.write_error) Result.result Lwt.t =
+  let writev flow bufs : (unit, write_error) Result.result Lwt.t =
     match flow.state with
     | `Eof
       -> return @@ flow_result_of_check_write `Eof
@@ -243,8 +247,7 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) = struct
   let (>>==) a f =
     a >>= function
       | Ok x -> f x
-      | Error `Unknown_key -> fail (Invalid_argument "a required key was missing from the key-value store")
-      | Error (`Msg s) -> fail (Invalid_argument s)
+      | Error e -> Fmt.kstrf fail_with "%a" KV.pp_error e
 
   let (>|==) a f = a >>== fun x -> return (f x)
 
