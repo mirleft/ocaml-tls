@@ -9,10 +9,10 @@ module Make (F : V1_LWT.FLOW) : sig
       problem in the underlying flow. *)
   type error  = [ `Tls_alert   of Tls.Packet.alert_type
                 | `Tls_failure of Tls.Engine.failure
-                | `Flow        of [ `Read of F.error
-                                  | `Write of F.write_error ] ]
+                | `Read of F.error
+                | `Write of F.write_error ]
 
-  type write_error = F.write_error
+  type write_error = [ `Closed | error ]
   (** The type for write errors. *)
 
   type buffer = Cstruct.t
