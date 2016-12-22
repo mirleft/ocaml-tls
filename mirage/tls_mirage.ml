@@ -1,4 +1,5 @@
 open Lwt
+open Result
 
 module Make (F : V1_LWT.FLOW) = struct
 
