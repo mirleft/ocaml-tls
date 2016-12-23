@@ -9,6 +9,7 @@ PKG cstruct
 PKG sexplib
 PKG nocrypto
 PKG x509
+PKG mirage-types-lwt mirage-flow mirage-runtime ptime
 
 EXT sexplib
 EXT lwt

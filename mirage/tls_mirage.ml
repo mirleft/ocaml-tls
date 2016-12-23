@@ -1,5 +1,5 @@
 open Lwt
-open Nocrypto
+open Result
 
 module Make (F : V1_LWT.FLOW) = struct
 
@@ -7,14 +7,23 @@ module Make (F : V1_LWT.FLOW) = struct
 
   type error  = [ `Tls_alert   of Tls.Packet.alert_type
                 | `Tls_failure of Tls.Engine.failure
-                | `Flow        of FLOW.error ]
+                | `Read of F.error
+                | `Write of F.write_error ]
+
+  type write_error = [ Mirage_flow.write_error | error ]
+
   type buffer = Cstruct.t
   type +'a io = 'a Lwt.t
 
-  let error_message = function
-    | `Tls_failure f -> Tls.Engine.string_of_failure f
-    | `Tls_alert a -> Tls.Packet.alert_type_to_string a
-    | `Flow err -> F.error_message err
+  let pp_error ppf = function
+    | `Tls_failure f -> Fmt.string ppf @@ Tls.Engine.string_of_failure f
+    | `Tls_alert a   -> Fmt.string ppf @@ Tls.Packet.alert_type_to_string a
+    | `Read  e        -> F.pp_error ppf e
+    | `Write e        -> F.pp_write_error ppf e
+
+  let pp_write_error ppf = function
+    | #Mirage_flow.write_error as e -> Mirage_flow.pp_write_error ppf e
+    | #error as e                   -> pp_error ppf e
 
   type tracer = Sexplib.Sexp.t -> unit
 
@@ -31,22 +40,28 @@ module Make (F : V1_LWT.FLOW) = struct
   let tls_alert a = `Error (`Tls_alert a)
   let tls_fail f  = `Error (`Tls_failure f)
 
-  let return_error e     = return (`Error e)
-  let return_ok          = return (`Ok ())
+  let return_error e     = return (Error e)
+  let return_ok          = return (Ok ())
 
   let list_of_option = function None -> [] | Some x -> [x]
 
-  let lift_result = function
-    | `Error e          -> `Error (`Flow e)
-    | `Eof | `Ok _ as r -> r
+  let lift_read_result = function
+    | Ok (`Data _ | `Eof as x) -> x
+    | Error e -> `Error (`Read e)
+
+  let lift_write_result = function
+    | Ok ()    -> `Ok ()
+    | Error e  -> `Error (`Write e)
 
   let check_write flow f_res =
-    let res = lift_result f_res in
+    let res = lift_write_result f_res in
     ( match (flow.state, res) with
       | (`Active _, (`Eof | `Error _ as e)) ->
           flow.state <- e ; FLOW.close flow.flow
-      | _ -> return_unit ) >>= fun () ->
-    return res
+      | _ -> return_unit ) >|= fun () ->
+    match f_res with
+    | Ok ()   -> Ok ()
+    | Error e -> Error (`Write e :> write_error)
 
   let tracing flow f =
     match flow.tracer with
@@ -79,26 +94,29 @@ module Make (F : V1_LWT.FLOW) = struct
     match flow.state with
     | `Eof | `Error _ as e -> return e
     | `Active _            ->
-        FLOW.read flow.flow >|= lift_result >>= function
-          | `Eof | `Error _ as e -> flow.state <- e ; return e
-          | `Ok buf              -> match flow.state with
-                                    | `Active tls          -> handle tls buf
-                                    | `Eof | `Error _ as e -> return e
+        FLOW.read flow.flow >|= lift_read_result
+        >>= function
+        | `Eof | `Error _ as e -> flow.state <- e ; return e
+        | `Data buf              -> match flow.state with
+          | `Active tls          -> handle tls buf
+          | `Eof | `Error _ as e -> return e
 
   let rec read flow =
     match flow.linger with
     | [] ->
       ( read_react flow >>= function
-          | `Ok None             -> read flow
-          | `Ok (Some buf)       -> return (`Ok buf)
-          | `Eof | `Error _ as e -> return e )
+          | `Ok None       -> read flow
+          | `Ok (Some buf) -> return (Ok (`Data buf))
+          | `Eof           -> return (Ok `Eof)
+          | `Error e       -> return (Error e))
     | bufs ->
-        flow.linger <- [] ;
-        return (`Ok (Tls.Utils.Cs.appends @@ List.rev bufs))
+      flow.linger <- [] ;
+      return (Ok (`Data (Tls.Utils.Cs.appends @@ List.rev bufs)))
 
   let writev flow bufs =
     match flow.state with
-    | `Eof | `Error _ as e -> return e
+    | `Eof     -> return @@ Error `Closed
+    | `Error e -> return @@ Error (e :> write_error)
     | `Active tls ->
         match
           tracing flow @@ fun () -> Tls.Engine.send_application_data tls bufs
@@ -122,19 +140,20 @@ module Make (F : V1_LWT.FLOW) = struct
   let rec drain_handshake flow =
     match flow.state with
     | `Active tls when Tls.Engine.can_handle_appdata tls ->
-        return (`Ok flow)
+        return (Ok flow)
     | _ ->
       (* read_react re-throws *)
         read_react flow >>= function
         | `Ok mbuf ->
             flow.linger <- list_of_option mbuf @ flow.linger ;
             drain_handshake flow
-        | `Error e -> return_error e
-        | `Eof     -> return `Eof
+        | `Error e -> return_error (e :> write_error)
+        | `Eof     -> return_error `Closed
 
   let reneg flow =
     match flow.state with
-    | `Eof | `Error _ as e -> return e
+    | `Eof     -> return @@ Error `Closed
+    | `Error e -> return @@ Error (e :> write_error)
     | `Active tls ->
         match tracing flow @@ fun () -> Tls.Engine.reneg tls with
         | None             ->
@@ -143,9 +162,9 @@ module Make (F : V1_LWT.FLOW) = struct
         | Some (tls', buf) ->
             flow.state <- `Active tls' ;
             FLOW.write flow.flow buf >>= fun _ ->
-            drain_handshake flow >>= function
-            | `Ok _                -> return (`Ok ())
-            | `Error _ | `Eof as e -> return e
+            drain_handshake flow >|= function
+            | Ok _         -> Ok ()
+            | Error _ as e -> e
 
   let close flow =
     match flow.state with
@@ -183,11 +202,11 @@ module Make (F : V1_LWT.FLOW) = struct
 
   let epoch flow =
     match flow.state with
-    | `Eof | `Error _ -> `Error
+    | `Eof | `Error _ -> Error ()
     | `Active tls     ->
         match Tls.Engine.epoch tls with
         | `InitialEpoch -> assert false (* `drain_handshake` invariant. *)
-        | `Epoch e      -> `Ok e
+        | `Epoch e      -> Ok e
 
 (*   let create_connection t tls_params host (addr, port) =
     |+ XXX addr -> (host : string) +|
@@ -209,14 +228,14 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) = struct
 
   let (>>==) a f =
     a >>= function
-      | `Ok x -> f x
-      | `Error (KV.Unknown_key key) -> fail (Invalid_argument key)
+      | Ok x -> f x
+      | Error e -> Fmt.kstrf fail_with "%a" KV.pp_error e
 
   let (>|==) a f = a >>== fun x -> return (f x)
 
   let read_full kv ~name =
-    KV.size kv name   >|== Int64.to_int >>=
-    KV.read kv name 0 >|== Tls.Utils.Cs.appends
+    KV.size kv name    >>==
+    KV.read kv name 0L >|== Tls.Utils.Cs.appends
 
   open X509.Encoding.Pem
 
@@ -224,14 +243,15 @@ module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) = struct
     | `Noop -> return X509.Authenticator.null
     | `CAs  ->
         let time = Ptime.v (C.now_d_ps clock) |> Ptime.to_float_s in
-        read_full kv ca_roots_file
+        read_full kv ~name:ca_roots_file
         >|= Certificate.of_pem_cstruct
         >|= X509.Authenticator.chain_of_trust ~time
 
   let certificate kv =
     let read name =
-      read_full kv (name ^ ".pem") >|= Certificate.of_pem_cstruct >>= fun certs ->
-      (read_full kv (name ^ ".key") >|= fun pem ->
+      read_full kv ~name:(name ^ ".pem") >|= Certificate.of_pem_cstruct
+      >>= fun certs ->
+      (read_full kv ~name:(name ^ ".key") >|= fun pem ->
        match Private_key.of_pem_cstruct1 pem with
        | `RSA key -> key) >>= fun pk ->
       return (certs, pk)

@@ -19,4 +19,4 @@ true : package(cstruct nocrypto result x509 sexplib)
 <lwt> : include
 <lwt/examples/*> : package(lwt lwt.unix str nocrypto.lwt)
 
-<mirage/*> : package(mirage-types lwt ipaddr ptime)
+<mirage/*> : package(mirage-types mirage-types-lwt lwt ipaddr ptime mirage-runtime)
