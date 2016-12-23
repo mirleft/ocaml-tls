@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh -ex
 
 eval `opam config env`
 
@@ -6,8 +6,8 @@ opam install mirage
 
 cd mirage/example
 
-mirage clean && mirage configure -t unix --net=socket && make
-export BUILD=client && mirage clean && mirage configure -t unix --net=socket && make && ./mir-tls-client
+mirage configure -t unix --net=socket && make depend && mirage build && mirage clean
+export BUILD=client && mirage configure -t unix --net=socket && make depend && mirage build && _build/main.native && mirage clean
 
 cd ../example2
-mirage clean && mirage configure && make
+mirage configure && make depend && mirage build && mirage clean

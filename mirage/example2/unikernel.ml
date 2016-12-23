@@ -3,7 +3,7 @@ open V1_LWT
 
 module Main (S  : STACKV4)
             (KV : KV_RO)
-            (CL : PCLOCK) =
+            (CL : V1.PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
@@ -28,8 +28,8 @@ struct
 
   let upgrade conf tcp =
     TLS.server_of_flow conf tcp >>= function
-    | `Error _  | `Eof -> Lwt.fail (Failure "tls init")
-    | `Ok tls  ->
+    | Error _  -> Lwt.fail (Failure "tls init")
+    | Ok tls  ->
       let t = Http.make ~callback () in
       Http.listen t tls
 
