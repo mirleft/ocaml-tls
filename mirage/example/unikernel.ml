@@ -3,33 +3,7 @@ open Lwt.Infix
 open V1_LWT
 
 
-type ('a, 'e, 'c) m = ([< `Ok of 'a | `Error of 'e | `Eof ] as 'c) Lwt.t
-
-let (>>==) (a : ('a, 'e, _) m) (f : 'a -> ('b, 'e, _) m) : ('b, 'e, _) m =
-  a >>= function
-    | `Ok x                -> f x
-    | `Error _ | `Eof as e -> Lwt.return e
-
-
-module Color = struct
-  open Printf
-  let red    fmt = sprintf ("\027[31m"^^fmt^^"\027[m")
-  let green  fmt = sprintf ("\027[32m"^^fmt^^"\027[m")
-  let yellow fmt = sprintf ("\027[33m"^^fmt^^"\027[m")
-  let blue   fmt = sprintf ("\027[36m"^^fmt^^"\027[m")
-end
-
-
-module Log (C: CONSOLE) = struct
-
-  let log_trace c str = C.log_s c (Color.green "+ %s" str)
-
-  and log_data c str buf =
-    let repr = String.escaped (Cstruct.to_string buf) in
-    C.log_s c (Color.blue "  %s: " str ^ repr)
-  and log_error c e = C.log_s c (Color.red "+ err: %s" e)
-
-end
+let escape_data buf = String.escaped (Cstruct.to_string buf)
 
 let make_tracer dump =
   let traces = ref [] in
@@ -41,53 +15,50 @@ let make_tracer dump =
     Lwt_list.iter_s dump msgs in
   (trace, flush)
 
-module Server (C  : CONSOLE)
-              (S  : STACKV4)
+module Server (S  : STACKV4)
               (KV : KV_RO)
-              (CL : PCLOCK) =
+              (CL : V1.PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
   module X509 = Tls_mirage.X509 (KV) (CL)
-  module L    = Log (C)
 
-  let rec handle c flush tls =
+  let rec handle flush tls =
     TLS.read tls >>= fun res ->
     flush () >>= fun () ->
     match res with
-    | `Ok buf ->
-      L.log_data c "recv" buf >>= fun () ->
-      TLS.write tls buf >>== fun () ->
-      handle c flush tls
-    | err     -> Lwt.return err
+    | Ok (`Data buf) ->
+      Logs_lwt.info (fun p -> p "recv %s" (escape_data buf)) >>= fun () ->
+      (TLS.write tls buf >>= function
+        | Ok () -> handle flush tls
+        | Error e -> Logs_lwt.err (fun p -> p "write error %a" TLS.pp_write_error e))
+    | Ok `Eof -> Logs_lwt.info (fun p -> p "eof from server")
+    | Error e -> Logs_lwt.err (fun p -> p "read error %a" TLS.pp_error e)
 
-  let accept c conf k flow =
-    let (trace, flush_trace) = make_tracer (C.log_s c) in
-    L.log_trace c "accepted." >>= fun () ->
-    TLS.server_of_flow ~trace conf flow
-    >>== (fun tls -> L.log_trace c "shook hands" >>= fun () -> k c flush_trace tls)
-    >>= function
-      | `Ok _    -> assert false
-      | `Error e -> L.log_error c (TLS.error_message e)
-      | `Eof     -> L.log_trace c "eof."
+  let accept conf k flow =
+    let trace, flush_trace =
+      make_tracer (fun s -> Logs_lwt.debug (fun p -> p "%s" s))
+    in
+    Logs_lwt.info (fun p -> p "accepted.") >>= fun () ->
+    TLS.server_of_flow ~trace conf flow >>= function
+    | Ok tls -> Logs_lwt.info (fun p -> p "shook hands") >>= fun () -> k flush_trace tls
+    | Error e -> Logs_lwt.err (fun p -> p "%a" TLS.pp_write_error e)
 
-  let start c stack kv _ _ =
+  let start stack kv _ _ =
     X509.certificate kv `Default >>= fun cert ->
     let conf = Tls.Config.server ~certificates:(`Single cert) () in
-    S.listen_tcpv4 stack ~port:4433 (accept c conf handle) ;
+    S.listen_tcpv4 stack ~port:4433 (accept conf handle) ;
     S.listen stack
 
 end
 
-module Client (C  : CONSOLE)
-              (S  : STACKV4)
+module Client (S  : STACKV4)
               (KV : KV_RO)
-              (CL : PCLOCK) =
+              (CL : V1.PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
   module X509 = Tls_mirage.X509 (KV) (CL)
-  module L    = Log (C)
 
   open Ipaddr
 
@@ -101,26 +72,26 @@ struct
   let initial = Cstruct.of_string @@
     "GET / HTTP/1.1\r\nConnection: Close\r\nHost: " ^ snd peer ^ "\r\n\r\n"
 
-  let chat c tls =
+  let chat tls =
     let rec dump () =
-      TLS.read tls >>== fun buf ->
-      L.log_data c "recv" buf >>= fun () ->
-      dump ()
+      TLS.read tls >>= function
+      | Ok (`Data buf) -> Logs_lwt.info (fun p -> p "recv %s" (escape_data buf)) >>= dump
+      | Ok `Eof -> Logs_lwt.info (fun p -> p "eof")
+      | Error e -> Logs_lwt.err (fun p -> p "chat err %a" TLS.pp_error e)
     in
-    TLS.write tls initial >>== dump
+    TLS.write tls initial >>= function
+    | Ok () -> dump ()
+    | Error e -> Logs_lwt.err (fun p -> p "write error %a" TLS.pp_write_error e)
 
-  let start c stack kv clock _ =
+  let start stack kv clock _ =
     X509.authenticator kv clock `CAs >>= fun authenticator ->
     let conf = Tls.Config.client ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer)
     >>= function
-    | `Error e -> L.log_error c (S.TCPV4.error_message e)
-    | `Ok tcp  ->
-        TLS.client_of_flow conf ~host:(snd peer) tcp
-        >>== chat c
-        >>= function
-        | `Error e -> L.log_error c (TLS.error_message e)
-        | `Eof     -> L.log_trace c "eof."
-        | `Ok _    -> assert false
+    | Error e -> Logs_lwt.err (fun p -> p "%a" S.TCPV4.pp_error e)
+    | Ok tcp  ->
+      TLS.client_of_flow conf ~host:(snd peer) tcp >>= function
+      | Ok tls -> chat tls
+      | Error e -> Logs_lwt.err (fun p -> p "%a" TLS.pp_write_error e)
 
 end
