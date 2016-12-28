@@ -3,9 +3,9 @@
 open Result
 
 (** TLS module given a flow *)
-module Make (F : V1_LWT.FLOW) : sig
+module Make (F : Mirage_flow_lwt.S) : sig
 
-  module FLOW : V1_LWT.FLOW
+  module FLOW : Mirage_flow_lwt.S
 
   (** possible errors: incoming alert, processing failure, or a
       problem in the underlying flow. *)
@@ -23,7 +23,7 @@ module Make (F : V1_LWT.FLOW) : sig
   type tracer = Sexplib.Sexp.t -> unit
 
   (** we provide the FLOW interface *)
-  include V1_LWT.FLOW
+  include Mirage_flow_lwt.S
     with type 'a io  := 'a io
      and type buffer := buffer
      and type error := error
@@ -52,7 +52,7 @@ end
 
 
 (** X.509 handling given a key value store and a clock *)
-module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) : sig
+module X509 (KV : Mirage_kv_lwt.RO) (C : Mirage_clock.PCLOCK) : sig
   (** [authenticator store clock typ] creates an [authenticator], either
       using the given certificate authorities in the [store] or
       null. *)

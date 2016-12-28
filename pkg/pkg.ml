@@ -8,7 +8,7 @@ let mirage  = Conf.with_pkg ~default:false "mirage"
 
 let opams =
   let lint_deps_excluding =
-    Some ["ounit"; "oUnit"; "mirage-types"; "mirage-types-lwt"; "ipaddr"; "ppx_tools"]
+    Some ["ounit"; "oUnit"; "ipaddr"; "ppx_tools"]
   in
   [Pkg.opam_file ~lint_deps_excluding "opam"]
 
