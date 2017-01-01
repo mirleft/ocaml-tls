@@ -10,7 +10,7 @@ exists_if = "tls.cma"
 package "mirage" (
  version = "%%VERSION_NUM%%"
  description = "Effectful mirage layer for TLS"
- requires = "x509 tls mirage-flow-lwt mirage-kv-lwt mirage-clock ipaddr lwt ptime"
+ requires = "x509 tls mirage-flow-lwt mirage-kv-lwt mirage-clock lwt ptime"
  archive(byte) = "tls-mirage.cma"
  plugin(byte) = "tls-mirage.cma"
  archive(native) = "tls-mirage.cmxa"
