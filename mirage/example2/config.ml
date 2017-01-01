@@ -11,7 +11,6 @@ let packages = [
   package ~sublibs:["lwt-core"] "cohttp" ;
   package ~sublibs:["mirage"] "tls" ;
   package "tcpip" ;
-  package "channel"
 ]
 let server = foreign ~deps:[abstract nocrypto] ~packages "Unikernel.Main" @@ stackv4 @-> kv_ro @-> pclock @-> job
 
