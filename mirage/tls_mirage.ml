@@ -1,7 +1,7 @@
 open Lwt
 open Result
 
-module Make (F : V1_LWT.FLOW) = struct
+module Make (F : Mirage_flow_lwt.S) = struct
 
   module FLOW = F
 
@@ -219,7 +219,7 @@ module Make (F : V1_LWT.FLOW) = struct
 
 end
 
-module X509 (KV : V1_LWT.KV_RO) (C : V1.PCLOCK) = struct
+module X509 (KV : Mirage_kv_lwt.RO) (C: Mirage_clock.PCLOCK) = struct
 
   let ca_roots_file = "ca-roots.crt"
   let default_cert  = "server"
