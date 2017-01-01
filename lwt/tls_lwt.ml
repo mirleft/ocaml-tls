@@ -235,8 +235,8 @@ type oc = Lwt_io.output_channel
 
 let of_t ?close t =
   let close = match close with
-    | None   -> (fun () -> Unix.close t)
-    | Some f -> f
+    | None   -> (fun () -> Unix.(safely (close t)))
+    | Some f -> (fun () -> Unix.safely (f ()))
   in
   (Lwt_io.make ~close ~mode:Lwt_io.Input (Unix.read_bytes t)),
   (Lwt_io.make ~close ~mode:Lwt_io.Output @@
