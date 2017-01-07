@@ -29,7 +29,10 @@
 
     This library consists of a core, implemented in a purely
     functional matter ({!Engine}, this module), and effectful parts:
-    {!Tls_lwt} and {!Tls_mirage}. *)
+    {!Tls_lwt} and {!Tls_mirage}.
+
+    {e %%VERSION%% - {{:%%PKG_HOMEPAGE%% }homepage}} *)
+
 
 (** {1 Abstract state type} *)
 
