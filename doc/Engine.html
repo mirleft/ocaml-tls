@@ -1,0 +1,199 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="Start" href="index.html">
+<link rel="next" href="Config.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Engine" rel="Chapter" href="Engine.html">
+<link title="Config" rel="Chapter" href="Config.html">
+<link title="Packet" rel="Chapter" href="Packet.html">
+<link title="Ciphersuite" rel="Chapter" href="Ciphersuite.html">
+<link title="Core" rel="Chapter" href="Core.html">
+<link title="Tls_lwt" rel="Chapter" href="Tls_lwt.html">
+<link title="X509_lwt" rel="Chapter" href="X509_lwt.html">
+<link title="Tls_mirage" rel="Chapter" href="Tls_mirage.html"><link title="Abstract state type" rel="Section" href="#1_Abstractstatetype">
+<link title="Constructors" rel="Section" href="#1_Constructors">
+<link title="Protocol failures" rel="Section" href="#1_Protocolfailures">
+<link title="Protocol handling" rel="Section" href="#1_Protocolhandling">
+<link title="Session information" rel="Section" href="#1_Sessioninformation">
+<title>Engine</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Config.html" title="Config">Next</a>
+</div>
+<h1>Module <a href="type_Engine.html">Engine</a></h1>
+
+<pre><span class="keyword">module</span> Engine: <code class="code"><span class="keyword">sig</span></code> <a href="Engine.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+Transport layer security
+<p>
+
+    <code class="code"><span class="constructor">TLS</span></code> is an implementation of
+    <a href="https://en.wikipedia.org/wiki/Transport_Layer_Security">transport
+    layer security</a> in OCaml.  TLS is a widely used security protocol
+    which establishes an end-to-end secure channel (with optional
+    (mutual) authentication) between two endpoints.  It uses TCP/IP as
+    transport.  This library supports all three versions of TLS:
+    <a href="https://tools.ietf.org/html/rfc5246">1.2, RFC5246</a>,
+    <a href="https://tools.ietf.org/html/rfc4346">1.1, RFC4346</a>, and
+    <a href="https://tools.ietf.org/html/rfc2246">1.0, RFC2246</a>.  SSL, the
+    previous protocol definition, is not supported.
+<p>
+
+    TLS is algorithmically agile: protocol version, key exchange
+    algorithm, symmetric cipher, and message authentication code are
+    negotiated upon connection.
+<p>
+
+    This library implements several extensions of TLS,
+    <a href="https://tools.ietf.org/html/rfc3268">AES ciphers</a>,
+    <a href="https://tools.ietf.org/html/rfc4366">TLS extensions</a> (such as
+    server name indication, SNI),
+    <a href="https://tools.ietf.org/html/rfc5746">Renegotiation extension</a>,
+    <a href="https://tools.ietf.org/html/rfc7627">Session Hash and Extended
+    Master Secret Extension</a>.
+<p>
+
+    This library does not contain insecure cipher suites (such as
+    single DES, export ciphers, ...).  It does not expose the server
+    time in the server random, requires secure renegotiation.
+<p>
+
+    This library consists of a core, implemented in a purely
+    functional matter (<a href="Engine.html"><code class="code"><span class="constructor">Engine</span></code></a>, this module), and effectful parts:
+    <a href="Tls_lwt.html"><code class="code"><span class="constructor">Tls_lwt</span></code></a> and <a href="Tls_mirage.html"><code class="code"><span class="constructor">Tls_mirage</span></code></a>.
+<p>
+
+    <em>1ae6d7a - <a href="https://github.com/mirleft/ocaml-tls ">homepage</a></em><br>
+</div>
+<hr width="100%">
+<br>
+<h1 id="1_Abstractstatetype">Abstract state type</h1><br>
+
+<pre><span id="TYPEstate"><span class="keyword">type</span> <code class="type"></code>state</span> </pre>
+<div class="info ">
+The abstract type of a TLS state, with
+    encoding and decoding to PEM.<br>
+</div>
+
+<br>
+<h1 id="1_Constructors">Constructors</h1><br>
+
+<pre><span id="VALclient"><span class="keyword">val</span> client</span> : <code class="type"><a href="Config.html#TYPEclient">Config.client</a> -> <a href="Engine.html#TYPEstate">state</a> * Cstruct.t</code></pre><div class="info ">
+<code class="code">client&nbsp;client</code> is <code class="code">tls&nbsp;*&nbsp;out</code> where <code class="code">tls</code> is the initial state,
+    and <code class="code">out</code> the initial client hello<br>
+</div>
+
+<pre><span id="VALserver"><span class="keyword">val</span> server</span> : <code class="type"><a href="Config.html#TYPEserver">Config.server</a> -> <a href="Engine.html#TYPEstate">state</a></code></pre><div class="info ">
+<code class="code">server&nbsp;server</code> is <code class="code">tls</code> where <code class="code">tls</code> is the initial server
+    state<br>
+</div>
+<br>
+<h1 id="1_Protocolfailures">Protocol failures</h1><br>
+
+<pre><span id="TYPEerror"><span class="keyword">type</span> <code class="type"></code>error</span> = <code class="type">[ `AuthenticationFailure of X509.Validation.validation_error<br>       | `CouldntSelectCertificate<br>       | `NoCertificateConfigured<br>       | `NoConfiguredCiphersuite of <a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list<br>       | `NoConfiguredHash of Nocrypto.Hash.hash list<br>       | `NoConfiguredVersion of <a href="Core.html#TYPEtls_version">Core.tls_version</a><br>       | `NoMatchingCertificateFound of string ]</code> </pre>
+<div class="info ">
+failures which can be mitigated by reconfiguration<br>
+</div>
+
+
+<pre><span id="TYPEfatal"><span class="keyword">type</span> <code class="type"></code>fatal</span> = <code class="type">[ `BadCertificateChain<br>       | `BadFinished<br>       | `BadRecordVersion of <a href="Core.html#TYPEtls_any_version">Core.tls_any_version</a><br>       | `CannotHandleApplicationDataYet<br>       | `HandshakeFragmentsNotEmpty<br>       | `HashAlgorithmMismatch<br>       | `InappropriateFallback<br>       | `InvalidCertificateExtendedUsage<br>       | `InvalidCertificateUsage<br>       | `InvalidClientHello<br>       | `InvalidDH<br>       | `InvalidRenegotiation<br>       | `InvalidRenegotiationVersion of <a href="Core.html#TYPEtls_version">Core.tls_version</a><br>       | `InvalidServerHello<br>       | `InvalidSession<br>       | `KeyTooSmall<br>       | `MACMismatch<br>       | `MACUnderflow<br>       | `NoCertificateReceived<br>       | `NoCiphersuite of <a href="Packet.html#TYPEany_ciphersuite">Packet.any_ciphersuite</a> list<br>       | `NoHeartbeat<br>       | `NoSecureRenegotiation<br>       | `NoVersion of <a href="Core.html#TYPEtls_any_version">Core.tls_any_version</a><br>       | `NotRSACertificate<br>       | `NotRSASignature<br>       | `RSASignatureMismatch<br>       | `RSASignatureVerificationFailed<br>       | `ReaderError of Reader.error<br>       | `RecordOverflow of int<br>       | `UnexpectedCCS<br>       | `UnexpectedHandshake of <a href="Core.html#TYPEtls_handshake">Core.tls_handshake</a><br>       | `UnknownContentType of int<br>       | `UnknownRecordVersion of int * int ]</code> </pre>
+<div class="info ">
+failures from received garbage or lack of features<br>
+</div>
+
+
+<pre><span id="TYPEfailure"><span class="keyword">type</span> <code class="type"></code>failure</span> = <code class="type">[ `Error of <a href="Engine.html#TYPEerror">error</a> | `Fatal of <a href="Engine.html#TYPEfatal">fatal</a> ]</code> </pre>
+<div class="info ">
+type of failures<br>
+</div>
+
+
+<pre><span id="VALalert_of_failure"><span class="keyword">val</span> alert_of_failure</span> : <code class="type"><a href="Engine.html#TYPEfailure">failure</a> -> <a href="Packet.html#TYPEalert_type">Packet.alert_type</a></code></pre><div class="info ">
+<code class="code">alert_of_failure&nbsp;failure</code> is <code class="code">alert</code>, the TLS alert type for this failure.<br>
+</div>
+
+<pre><span id="VALstring_of_failure"><span class="keyword">val</span> string_of_failure</span> : <code class="type"><a href="Engine.html#TYPEfailure">failure</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_failure&nbsp;failure</code> is <code class="code">string</code>, the string representation of the <code class="code">failure</code>.<br>
+</div>
+
+<pre><span id="VALfailure_of_sexp"><span class="keyword">val</span> failure_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Engine.html#TYPEfailure">failure</a></code></pre><div class="info ">
+<code class="code">failure_of_sexp&nbsp;sexp</code> is <code class="code">failure</code>, the unmarshalled <code class="code">sexp</code>.<br>
+</div>
+
+<pre><span id="VALsexp_of_failure"><span class="keyword">val</span> sexp_of_failure</span> : <code class="type"><a href="Engine.html#TYPEfailure">failure</a> -> Sexplib.Sexp.t</code></pre><div class="info ">
+<code class="code">sexp_of_failure&nbsp;failure</code> is <code class="code">sexp</code>, the marshalled <code class="code">failure</code>.<br>
+</div>
+<br>
+<h1 id="1_Protocolhandling">Protocol handling</h1><br>
+
+<pre><span id="TYPEret"><span class="keyword">type</span> <code class="type"></code>ret</span> = <code class="type">[ `Fail of <a href="Engine.html#TYPEfailure">failure</a> * [ `Response of Cstruct.t ]<br>       | `Ok of<br>           [ `Alert of <a href="Packet.html#TYPEalert_type">Packet.alert_type</a> | `Eof | `Ok of <a href="Engine.html#TYPEstate">state</a> ] *<br>           [ `Response of Cstruct.t option ] * [ `Data of Cstruct.t option ] ]</code> </pre>
+<div class="info ">
+result type of <a href="Engine.html#VALhandle_tls"><code class="code"><span class="constructor">Engine</span>.handle_tls</code></a>: either failed to handle the incoming
+    buffer (<code class="code"><span class="keywordsign">`</span><span class="constructor">Fail</span></code>) with <a href="Engine.html#TYPEfailure"><code class="code"><span class="constructor">Engine</span>.failure</code></a> and potentially a message to send
+    to the other endpoint, or sucessful operation (<code class="code"><span class="keywordsign">`</span><span class="constructor">Ok</span></code>) with a new
+    <a href="Engine.html#TYPEstate"><code class="code"><span class="constructor">Engine</span>.state</code></a>, an end of file (<code class="code"><span class="keywordsign">`</span><span class="constructor">Eof</span></code>), or an incoming (<code class="code"><span class="keywordsign">`</span><span class="constructor">Alert</span></code>).
+    Possibly some <code class="code"><span class="keywordsign">`</span><span class="constructor">Response</span></code> to the other endpoint is needed, and
+    potentially some <code class="code"><span class="keywordsign">`</span><span class="constructor">Data</span></code> for the application was received.<br>
+</div>
+
+
+<pre><span id="VALhandle_tls"><span class="keyword">val</span> handle_tls</span> : <code class="type"><a href="Engine.html#TYPEstate">state</a> -> Cstruct.t -> <a href="Engine.html#TYPEret">ret</a></code></pre><div class="info ">
+<code class="code">handle_tls&nbsp;state&nbsp;buffer</code> is <code class="code">ret</code>, depending on incoming <code class="code">state</code>
+    and <code class="code">buffer</code>, the result is the appropriate <a href="Engine.html#TYPEret"><code class="code"><span class="constructor">Engine</span>.ret</code></a><br>
+</div>
+
+<pre><span id="VALcan_handle_appdata"><span class="keyword">val</span> can_handle_appdata</span> : <code class="type"><a href="Engine.html#TYPEstate">state</a> -> bool</code></pre><div class="info ">
+<code class="code">can_handle_appdata&nbsp;state</code> is a predicate which indicates when the
+    connection has already completed a handshake.<br>
+</div>
+
+<pre><span id="VALsend_application_data"><span class="keyword">val</span> send_application_data</span> : <code class="type"><a href="Engine.html#TYPEstate">state</a> -> Cstruct.t list -> (<a href="Engine.html#TYPEstate">state</a> * Cstruct.t) option</code></pre><div class="info ">
+<code class="code">send_application_data&nbsp;tls&nbsp;outs</code> is <code class="code">(tls'&nbsp;*&nbsp;out)&nbsp;option</code> where
+    <code class="code">tls'</code> is the new tls state, and <code class="code">out</code> the cstruct to send over the
+    wire (encrypted <code class="code">outs</code>).<br>
+</div>
+
+<pre><span id="VALsend_close_notify"><span class="keyword">val</span> send_close_notify</span> : <code class="type"><a href="Engine.html#TYPEstate">state</a> -> <a href="Engine.html#TYPEstate">state</a> * Cstruct.t</code></pre><div class="info ">
+<code class="code">send_close_notify&nbsp;tls</code> is <code class="code">tls'&nbsp;*&nbsp;out</code> where <code class="code">tls'</code> is the new
+    tls state, and out the (possible encrypted) close notify alert.<br>
+</div>
+
+<pre><span id="VALreneg"><span class="keyword">val</span> reneg</span> : <code class="type"><a href="Engine.html#TYPEstate">state</a> -> (<a href="Engine.html#TYPEstate">state</a> * Cstruct.t) option</code></pre><div class="info ">
+<code class="code">reneg&nbsp;tls</code> initiates a renegotation on <code class="code">tls</code>. It is <code class="code">tls'&nbsp;*&nbsp;out</code>
+    where <code class="code">tls'</code> is the new tls state, and <code class="code">out</code> either a client hello
+    or hello request (depending on which communication endpoint <code class="code">tls</code>
+    is).<br>
+</div>
+<br>
+<h1 id="1_Sessioninformation">Session information</h1><br>
+
+<pre><span id="TYPEepoch"><span class="keyword">type</span> <code class="type"></code>epoch</span> = <code class="type">[ `Epoch of <a href="Core.html#TYPEepoch_data">Core.epoch_data</a> | `InitialEpoch ]</code> </pre>
+<div class="info ">
+polymorphic variant of session information.  The first variant
+    <code class="code"><span class="keywordsign">`</span><span class="constructor">InitialEpoch</span></code> will only be used for TLS states without completed
+    handshake.  The second variant, <code class="code"><span class="keywordsign">`</span><span class="constructor">Epoch</span></code>, contains actual session
+    data.<br>
+</div>
+
+
+<pre><span id="VALepoch_of_sexp"><span class="keyword">val</span> epoch_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Engine.html#TYPEepoch">epoch</a></code></pre><div class="info ">
+<code class="code">epoch_of_sexp&nbsp;sexp</code> is <code class="code">epoch</code>, the unmarshalled <code class="code">sexp</code>.<br>
+</div>
+
+<pre><span id="VALsexp_of_epoch"><span class="keyword">val</span> sexp_of_epoch</span> : <code class="type"><a href="Engine.html#TYPEepoch">epoch</a> -> Sexplib.Sexp.t</code></pre><div class="info ">
+<code class="code">sexp_of_epoch&nbsp;epoch</code> is <code class="code">sexp</code>, the marshalled <code class="code">epoch</code>.<br>
+</div>
+
+<pre><span id="VALepoch"><span class="keyword">val</span> epoch</span> : <code class="type"><a href="Engine.html#TYPEstate">state</a> -> <a href="Engine.html#TYPEepoch">epoch</a></code></pre><div class="info ">
+<code class="code">epoch&nbsp;state</code> is <code class="code">epoch</code>, which contains the session
+    information.<br>
+</div>
+</body></html>
