@@ -2,7 +2,7 @@ open Nocrypto
 
 open Utils
 
-open Core
+open Types
 open State
 open Handshake_common
 open Config
@@ -321,7 +321,7 @@ let answer_client_hello state (ch : client_hello) raw =
 
 
   and resume (ch : client_hello) state =
-    let epoch_matches (epoch : Core.epoch_data) version ciphers extensions =
+    let epoch_matches (epoch : Types.epoch_data) version ciphers extensions =
       let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ciphers in
       List.mem epoch.ciphersuite cciphers &&
         version = epoch.protocol_version &&

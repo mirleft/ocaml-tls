@@ -6,7 +6,7 @@ let version_assembler (ver, res) _ =
   let buf = Writer.assemble_protocol_version ver in
   assert_cs_eq buf res
 
-let version_assembler_tests = Core.([
+let version_assembler_tests = Types.([
  (TLS_1_0, list_to_cstruct [3; 1]) ;
  (TLS_1_1, list_to_cstruct [3; 2]) ;
  (TLS_1_2, list_to_cstruct [3; 3]) ;
@@ -22,7 +22,7 @@ let hdr_assembler (ver, ct, cs, res) _ =
   let res' = list_to_cstruct res in
   assert_cs_eq buf res'
 
-let hdr_assembler_tests = Core.([
+let hdr_assembler_tests = Types.([
   (TLS_1_2, Packet.CHANGE_CIPHER_SPEC, [], [20; 3; 3; 0; 0]) ;
   (TLS_1_1, Packet.CHANGE_CIPHER_SPEC, [], [20; 3; 2; 0; 0]) ;
   (TLS_1_0, Packet.CHANGE_CIPHER_SPEC, [], [20; 3; 1; 0; 0]) ;
@@ -175,7 +175,7 @@ let dh_assembler_tests =
   let le = list_to_cstruct [ 0; 16 ] in
   let le2 = list_to_cstruct [ 0; 32 ] in
   let emp, empl = (list_to_cstruct [], list_to_cstruct [ 0; 0 ]) in
-  Core.([
+  Types.([
     ( { dh_p = a ; dh_g = a ; dh_Ys = a },
       le <+> a <+> le <+> a <+> le <+> a ) ;
     ( { dh_p = a <+> a ; dh_g = a ; dh_Ys = a <+> a },
@@ -246,7 +246,7 @@ let handshake_assembler_tests =
   let le = [ 0; 0; 16 ] in
   let le2 = [ 0; 0; 32 ] in
   let emp, empl = (list_to_cstruct [], [ 0; 0; 0 ]) in
-  Core.([
+  Types.([
    ( HelloRequest , [ 0; 0; 0; 0 ]) ;
    ( ServerHelloDone , [ 14; 0; 0; 0 ]) ;
 

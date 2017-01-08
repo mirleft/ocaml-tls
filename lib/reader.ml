@@ -1,5 +1,5 @@
 open Packet
-open Core
+open Types
 open Cstruct
 
 open Sexplib.Conv

@@ -16,15 +16,15 @@ let readerwriter_version v _ =
   | Error _ -> assert_failure "read and write version broken"
 
 let version_tests =
-  [ "ReadWrite version TLS-1.0" >:: readerwriter_version Core.TLS_1_0 ;
-    "ReadWrite version TLS-1.1" >:: readerwriter_version Core.TLS_1_1 ;
-    "ReadWrite version TLS-1.2" >:: readerwriter_version Core.TLS_1_2 ]
+  [ "ReadWrite version TLS-1.0" >:: readerwriter_version Types.TLS_1_0 ;
+    "ReadWrite version TLS-1.1" >:: readerwriter_version Types.TLS_1_1 ;
+    "ReadWrite version TLS-1.2" >:: readerwriter_version Types.TLS_1_2 ]
 
 let readerwriter_header (v, ct, cs) _ =
   let buf = Writer.assemble_hdr v (ct, cs) in
   match Reader.parse_record buf with
   | Ok (`Record ((hdr, payload), f)) ->
-    let open Core in
+    let open Types in
     assert_equal 0 (Cstruct.len f) ;
     assert_equal (Supported v) hdr.version ;
     assert_equal ct hdr.content_type ;
@@ -44,25 +44,25 @@ let readerwriter_header (v, ct, cs) _ =
 
 let header_tests =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
-  [ "ReadWrite header" >:: readerwriter_header (Core.TLS_1_0, Packet.HANDSHAKE, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_1, Packet.HANDSHAKE, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_2, Packet.HANDSHAKE, a) ;
+  [ "ReadWrite header" >:: readerwriter_header (Types.TLS_1_0, Packet.HANDSHAKE, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_1, Packet.HANDSHAKE, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_2, Packet.HANDSHAKE, a) ;
 
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_0, Packet.APPLICATION_DATA, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_1, Packet.APPLICATION_DATA, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_2, Packet.APPLICATION_DATA, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_0, Packet.APPLICATION_DATA, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_1, Packet.APPLICATION_DATA, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_2, Packet.APPLICATION_DATA, a) ;
 
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_0, Packet.CHANGE_CIPHER_SPEC, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_1, Packet.CHANGE_CIPHER_SPEC, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_2, Packet.CHANGE_CIPHER_SPEC, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_0, Packet.CHANGE_CIPHER_SPEC, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_1, Packet.CHANGE_CIPHER_SPEC, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_2, Packet.CHANGE_CIPHER_SPEC, a) ;
 
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_0, Packet.HEARTBEAT, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_1, Packet.HEARTBEAT, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_2, Packet.HEARTBEAT, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_0, Packet.HEARTBEAT, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_1, Packet.HEARTBEAT, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_2, Packet.HEARTBEAT, a) ;
 
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_0, Packet.ALERT, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_1, Packet.ALERT, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_2, Packet.ALERT, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_0, Packet.ALERT, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_1, Packet.ALERT, a) ;
+    "ReadWrite header" >:: readerwriter_header (Types.TLS_1_2, Packet.ALERT, a) ;
  ]
 
 let readerwriter_alert (lvl, typ) _ =
@@ -182,9 +182,9 @@ let rw_alert_tests =
     rw_alert_tests
 
 let assert_dh_eq a b =
-  Core.(assert_cs_eq a.dh_p b.dh_p) ;
-  Core.(assert_cs_eq a.dh_g b.dh_g) ;
-  Core.(assert_cs_eq a.dh_Ys b.dh_Ys)
+  Types.(assert_cs_eq a.dh_p b.dh_p) ;
+  Types.(assert_cs_eq a.dh_g b.dh_g) ;
+  Types.(assert_cs_eq a.dh_Ys b.dh_Ys)
 
 let readerwriter_dh_params params _ =
   let buf = Writer.assemble_dh_parameters params in
@@ -206,7 +206,7 @@ let readerwriter_dh_params params _ =
 let rw_dh_params =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let emp = list_to_cstruct [] in
-  Core.([
+  Types.([
          { dh_p = emp ; dh_g = emp ; dh_Ys = emp } ;
          { dh_p = a ; dh_g = emp ; dh_Ys = emp } ;
          { dh_p = emp ; dh_g = a ; dh_Ys = emp } ;
@@ -289,7 +289,7 @@ let rw_handshake_no_data hs _ =
       | Error _ -> assert_failure "handshake no data inner failed")
   | Error _ -> assert_failure "handshake no data failed"
 
-let rw_handshakes_no_data_vals = [ Core.HelloRequest ; Core.ServerHelloDone ]
+let rw_handshakes_no_data_vals = [ Types.HelloRequest ; Types.ServerHelloDone ]
 
 let rw_handshake_no_data_tests =
   List.mapi
@@ -311,7 +311,7 @@ let rw_handshake_cstruct_data hs _ =
 let rw_handshake_cstruct_data_vals =
   let data_cs = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
   let emp = list_to_cstruct [ ] in
-  Core.([ ServerKeyExchange emp ;
+  Types.([ ServerKeyExchange emp ;
           ServerKeyExchange data_cs ;
           Finished emp ;
           Finished data_cs ;
@@ -335,7 +335,7 @@ let rw_handshake_client_hello hs _ =
   let buf = Writer.assemble_handshake hs in
   match Reader.parse_handshake buf with
   | Ok hs' ->
-      Core.(match hs, hs' with
+      Types.(match hs, hs' with
            | ClientHello ch, ClientHello ch' ->
                Readertests.cmp_client_hellos ch ch' ;
            | _ -> assert_failure "handshake client hello broken") ;
@@ -343,7 +343,7 @@ let rw_handshake_client_hello hs _ =
       let buf' = Writer.assemble_handshake hs' in
       (match Reader.parse_handshake buf' with
       | Ok hs'' ->
-          Core.(match hs, hs'' with
+          Types.(match hs, hs'' with
                | ClientHello ch, ClientHello ch'' ->
                    Readertests.cmp_client_hellos ch ch'' ;
                | _ -> assert_failure "handshake client hello broken")
@@ -353,7 +353,7 @@ let rw_handshake_client_hello hs _ =
 let rw_handshake_client_hello_vals =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let client_random = list_to_cstruct (rnd @ rnd) in
-  Core.(let ch : client_hello =
+  Types.(let ch : client_hello =
           { client_version = Supported TLS_1_2 ;
             client_random ;
             sessionid = None ;
@@ -424,7 +424,7 @@ let rw_handshake_server_hello hs _ =
   let buf = Writer.assemble_handshake hs in
   (match Reader.parse_handshake buf with
   | Ok hs' ->
-      Core.(match hs, hs' with
+      Types.(match hs, hs' with
            | ServerHello sh, ServerHello sh' ->
                Readertests.cmp_server_hellos sh sh' ;
            | _ -> assert_failure "handshake server hello broken") ;
@@ -432,7 +432,7 @@ let rw_handshake_server_hello hs _ =
            let buf' = Writer.assemble_handshake hs' in
            (match Reader.parse_handshake buf' with
            | Ok hs'' ->
-               Core.(match hs, hs'' with
+               Types.(match hs, hs'' with
                     | ServerHello sh, ServerHello sh'' ->
                         Readertests.cmp_server_hellos sh sh'' ;
                     | _ -> assert_failure "handshake server hello broken")
@@ -442,7 +442,7 @@ let rw_handshake_server_hello hs _ =
 let rw_handshake_server_hello_vals =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let server_random = list_to_cstruct (rnd @ rnd) in
-  Core.(let sh : server_hello =
+  Types.(let sh : server_hello =
           { server_version = TLS_1_2 ;
             server_random ;
             sessionid = None ;

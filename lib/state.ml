@@ -4,7 +4,7 @@
 open Sexplib
 open Sexplib.Conv
 
-open Core
+open Types
 open Nocrypto
 
 type hmac_key = Cstruct.t

@@ -49,7 +49,7 @@ let assert_sessionid_equal a b =
   | _ -> assert_failure "session id not equal"
 
 let assert_client_extension_equal a b =
-  Core.(match a, b with
+  Types.(match a, b with
         | `Hostname a, `Hostname b -> assert_equal a b
         | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
         | `EllipticCurves a, `EllipticCurves b -> assert_lists_eq assert_equal a b
@@ -61,7 +61,7 @@ let assert_client_extension_equal a b =
         | _ -> assert_failure "extensions did not match")
 
 let assert_server_extension_equal a b =
-  Core.(match a, b with
+  Types.(match a, b with
         | `Hostname, `Hostname -> ()
         | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
         | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b

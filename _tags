@@ -7,7 +7,7 @@ true : package(cstruct nocrypto result x509 sexplib)
 <lib/reader.ml> : package(ppx_sexp_conv)
 <lib/config.ml> : package(ppx_sexp_conv)
 <lib/ciphersuite.ml> : package(ppx_sexp_conv)
-<lib/core.ml> : package(ppx_sexp_conv)
+<lib/types.ml> : package(ppx_sexp_conv)
 <lib/state.ml> : package(ppx_sexp_conv)
 <lib/engine.ml> : package(ppx_sexp_conv)
 

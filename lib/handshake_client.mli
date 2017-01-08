@@ -1,4 +1,4 @@
-open Core
+open Types
 open State
 
 val default_client_hello : Config.config -> (client_hello * tls_version)

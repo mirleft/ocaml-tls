@@ -1,4 +1,4 @@
-open Core
+open Types
 open State
 
 val hello_request : handshake_state -> handshake_return eff

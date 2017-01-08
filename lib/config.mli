@@ -1,5 +1,5 @@
 open Nocrypto
-open Core
+open Types
 
 (** Configuration of the TLS stack *)
 

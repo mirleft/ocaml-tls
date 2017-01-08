@@ -11,9 +11,9 @@ let (<+>) = Utils.Cs.(<+>)
 (* on-the-wire dh_params <-> (group, pub_message) *)
 let dh_params_pack { Dh.p; gg } message =
   let cs_of_z = Numeric.Z.to_cstruct_be ?size:None in
-  { Core.dh_p = cs_of_z p ; dh_g = cs_of_z gg ; dh_Ys = message }
+  { Types.dh_p = cs_of_z p ; dh_g = cs_of_z gg ; dh_Ys = message }
 
-and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
+and dh_params_unpack { Types.dh_p ; dh_g ; dh_Ys } =
   let z_of_cs = Numeric.Z.of_cstruct_be ?bits:None in
   ({ Dh.p = z_of_cs dh_p ; gg = z_of_cs dh_g ; q = None }, dh_Ys)
 

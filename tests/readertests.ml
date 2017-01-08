@@ -23,12 +23,12 @@ let parse_any_version_too_short _ =
   | Error _ -> ()
 
 let any_version_parser_tests = [
-  good_any_version_parser 3 0 Core.SSL_3 ;
-  good_any_version_parser 3 1 Core.(Supported TLS_1_0) ;
-  good_any_version_parser 3 2 Core.(Supported TLS_1_1) ;
-  good_any_version_parser 3 3 Core.(Supported TLS_1_2) ;
-  good_any_version_parser 3 4 (Core.TLS_1_X 4) ;
-  good_any_version_parser 3 42 (Core.TLS_1_X 42);
+  good_any_version_parser 3 0 Types.SSL_3 ;
+  good_any_version_parser 3 1 Types.(Supported TLS_1_0) ;
+  good_any_version_parser 3 2 Types.(Supported TLS_1_1) ;
+  good_any_version_parser 3 3 Types.(Supported TLS_1_2) ;
+  good_any_version_parser 3 4 (Types.TLS_1_X 4) ;
+  good_any_version_parser 3 42 (Types.TLS_1_X 42);
 
   bad_any_version_parser 2 4 ;
   bad_any_version_parser 4 4 ;
@@ -61,9 +61,9 @@ let parse_version_too_short _ =
   | Error _ -> ()
 
 let version_parser_tests = [
-  good_version_parser 3 1 Core.TLS_1_0 ;
-  good_version_parser 3 2 Core.TLS_1_1 ;
-  good_version_parser 3 3 Core.TLS_1_2 ;
+  good_version_parser 3 1 Types.TLS_1_0 ;
+  good_version_parser 3 2 Types.TLS_1_1 ;
+  good_version_parser 3 3 Types.TLS_1_2 ;
 
   bad_version_parser 3 0 ;
   bad_version_parser 3 4 ;
@@ -96,7 +96,7 @@ let good_record_parser (bytes, result) _ =
   | _ -> assert_failure "record parser broken"
 
 let good_records =
-  let open Core in
+  let open Types in
   let open Packet in
   let empty = Cstruct.create 0 in
   [
@@ -681,8 +681,8 @@ let good_handshake_hdr_tests =
 
 (* 1byte type ; 3 byte length ; data *)
 let good_handshakes_no_data = [
-  ([0; 0; 0; 0] , Core.HelloRequest) ;
-  ([14; 0; 0; 0] , Core.ServerHelloDone) ;
+  ([0; 0; 0; 0] , Types.HelloRequest) ;
+  ([14; 0; 0; 0] , Types.ServerHelloDone) ;
 ]
 
 let good_handshake_no_data_parser (xs, res) _ =
@@ -893,14 +893,14 @@ let good_handshake_cstruct_data =
 0x27; 0xf1; 0x35; 0x28; 0x13; 0xab; 0x26; 0x7e; 0xd5; 0xf7; 0x7a ] in
 
 
-  [ ([12; 0; 0; 12] @ data , (Core.ServerKeyExchange data_cs)) ;
-    ([20; 0; 0; 12] @ data , (Core.Finished data_cs)) ;
-    ([16; 0; 0; 14; 0; 12] @ data , (Core.ClientKeyExchange data_cs)) ;
+  [ ([12; 0; 0; 12] @ data , (Types.ServerKeyExchange data_cs)) ;
+    ([20; 0; 0; 12] @ data , (Types.Finished data_cs)) ;
+    ([16; 0; 0; 14; 0; 12] @ data , (Types.ClientKeyExchange data_cs)) ;
 
-    ([11; 0; 0; 3; 0; 0; 0] , (Core.Certificate [])) ;
-    ([11; 0; 0; 18; 0; 0; 15; 0; 0; 12] @ data , (Core.Certificate [data_cs])) ;
+    ([11; 0; 0; 3; 0; 0; 0] , (Types.Certificate [])) ;
+    ([11; 0; 0; 18; 0; 0; 15; 0; 0; 12] @ data , (Types.Certificate [data_cs])) ;
     ([11; 0; 0; 33; 0; 0; 30; 0; 0; 12] @ data @ [0; 0; 12] @ data ,
-     (Core.Certificate [data_cs; data_cs])) ;
+     (Types.Certificate [data_cs; data_cs])) ;
 
 ([
 0x0b; 0x00; 0x0a; 0xa7;
@@ -1078,13 +1078,13 @@ let good_handshake_cstruct_data =
 0xa8; 0x45; 0x3b; 0xf4; 0xe5; 0xf6; 0xa2; 0x51; 0xdd; 0xc7; 0x7b; 0x62; 0xe8; 0x6f; 0x0c; 0x74;
 0xeb; 0xb8; 0xda; 0xf8; 0xbf; 0x87; 0x0d; 0x79; 0x50; 0x91; 0x90; 0x9b; 0x18; 0x3b; 0x91; 0x59;
 0x27; 0xf1; 0x35; 0x28; 0x13; 0xab; 0x26; 0x7e; 0xd5; 0xf7; 0x7a ],
- Core.Certificate [gh1 ; gh2] )
+ Types.Certificate [gh1 ; gh2] )
 
 
   ]
 
 let cmp_handshake_cstruct hs hs' =
-  Core.(match hs, hs' with
+  Types.(match hs, hs' with
         | Finished xs, Finished ys -> assert_cs_eq xs ys
         | ServerKeyExchange xs, ServerKeyExchange ys -> assert_cs_eq xs ys
         | Certificate xs, Certificate ys -> assert_lists_eq assert_cs_eq xs ys
@@ -1139,7 +1139,7 @@ let good_client_hellos =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
   let client_random = list_to_cstruct rand in
-  Core.(let ch : client_hello =
+  Types.(let ch : client_hello =
           { client_version = Supported TLS_1_2 ;
             client_random ;
             sessionid = None ;
@@ -1340,7 +1340,7 @@ let good_client_hellos =
 ])
 
 let cmp_client_hellos ch ch' =
-  let open Core in
+  let open Types in
   assert_equal ch.client_version ch'.client_version ;
   assert_cs_eq ch.client_random ch'.client_random ;
   assert_sessionid_equal ch.sessionid ch'.sessionid ;
@@ -1350,7 +1350,7 @@ let cmp_client_hellos ch ch' =
 let good_client_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   match Reader.parse_handshake buf with
-  | Ok (Core.ClientHello ch) -> cmp_client_hellos ch res
+  | Ok (Types.ClientHello ch) -> cmp_client_hellos ch res
   | _ -> assert_failure "handshake client hello parser failed"
 
 let good_client_hellos_tests =
@@ -1362,7 +1362,7 @@ let bad_client_hellos =
   (* I rolled the dice 16 times *)
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
-  Core.([
+  Types.([
          (* versions *)
          [1; 0; 0; 38; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
          (* invalid length *)
@@ -1430,7 +1430,7 @@ let bad_client_hellos =
        ])
 
 let bad_client_hello_parser xs _ =
-  let open Core in
+  let open Types in
   let buf = list_to_cstruct xs in
   match Reader.parse_handshake buf with
   | Ok _ -> assert_failure "bad client hello parser won"
@@ -1446,7 +1446,7 @@ let good_server_hellos =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
   let server_random = list_to_cstruct rand in
-  Core.(let sh : server_hello =
+  Types.(let sh : server_hello =
           { server_version = TLS_1_2 ;
             server_random ;
             sessionid = None ;
@@ -1524,7 +1524,7 @@ let good_server_hellos =
        ])
 
 let cmp_server_hellos sh sh' =
-  let open Core in
+  let open Types in
   assert_equal sh.server_version sh'.server_version ;
   assert_cs_eq sh.server_random sh'.server_random ;
   assert_sessionid_equal sh.sessionid sh'.sessionid ;
@@ -1534,7 +1534,7 @@ let cmp_server_hellos sh sh' =
 let good_server_hellos_parser (xs, res) _ =
   let buf = list_to_cstruct xs in
   match Reader.parse_handshake buf with
-  | Ok (Core.ServerHello sh) -> cmp_server_hellos sh res
+  | Ok (Types.ServerHello sh) -> cmp_server_hellos sh res
   | _ -> assert_failure "handshake server hello parser failed"
 
 let good_server_hellos_tests =
@@ -1546,7 +1546,7 @@ let bad_server_hellos =
   (* I rolled the dice 16 times *)
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
-  Core.([
+  Types.([
          [2; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
          [2; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
 
@@ -1568,7 +1568,7 @@ let bad_server_hellos =
        ])
 
 let bad_server_hellos_parser xs _ =
-  let open Core in
+  let open Types in
   let buf = list_to_cstruct xs in
   match Reader.parse_handshake buf with
   | Ok _ -> assert_failure "handshake server hello parser succeeded"

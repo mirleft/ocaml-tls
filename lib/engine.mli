@@ -56,7 +56,7 @@ val server : Config.server -> state
 type error = [
   | `AuthenticationFailure of X509.Validation.validation_error
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
-  | `NoConfiguredVersion of Core.tls_version
+  | `NoConfiguredVersion of Types.tls_version
   | `NoConfiguredHash of Nocrypto.Hash.hash list
   | `NoMatchingCertificateFound of string
   | `NoCertificateConfigured
@@ -67,7 +67,7 @@ type error = [
 type fatal = [
   | `NoSecureRenegotiation
   | `NoCiphersuite of Packet.any_ciphersuite list
-  | `NoVersion of Core.tls_any_version
+  | `NoVersion of Types.tls_any_version
   | `ReaderError of Reader.error
   | `NoCertificateReceived
   | `NotRSACertificate
@@ -84,17 +84,17 @@ type fatal = [
   | `UnknownContentType of int
   | `CannotHandleApplicationDataYet
   | `NoHeartbeat
-  | `BadRecordVersion of Core.tls_any_version
+  | `BadRecordVersion of Types.tls_any_version
   | `BadFinished
   | `HandshakeFragmentsNotEmpty
   | `InvalidDH
   | `InvalidRenegotiation
   | `InvalidClientHello
   | `InvalidServerHello
-  | `InvalidRenegotiationVersion of Core.tls_version
+  | `InvalidRenegotiationVersion of Types.tls_version
   | `InappropriateFallback
   | `UnexpectedCCS
-  | `UnexpectedHandshake of Core.tls_handshake
+  | `UnexpectedHandshake of Types.tls_handshake
   | `InvalidCertificateUsage
   | `InvalidCertificateExtendedUsage
   | `InvalidSession
@@ -164,7 +164,7 @@ val reneg                 : state -> (state * Cstruct.t) option
     data. *)
 type epoch = [
   | `InitialEpoch
-  | `Epoch of Core.epoch_data
+  | `Epoch of Types.epoch_data
 ]
 
 (** [epoch_of_sexp sexp] is [epoch], the unmarshalled [sexp]. *)
