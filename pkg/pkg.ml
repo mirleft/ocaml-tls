@@ -4,6 +4,7 @@
 open Topkg
 
 let lwt = Conf.with_pkg ~default:false "lwt"
+let async = Conf.with_pkg ~default:false "async"
 let mirage = Conf.with_pkg ~default:false "mirage"
 
 let opams =
@@ -14,13 +15,14 @@ let opams =
 
 let () =
   Pkg.describe ~opams "tls" @@ fun c ->
-  let lwt = Conf.value c lwt
-  and mirage = Conf.value c mirage
-  in
+  let lwt = Conf.value c lwt in
+  let async = Conf.value c async in
+  let mirage = Conf.value c mirage in
   let exts = Exts.(cmx @ library @ exts [".cmi" ; ".cmt" ]) in
   Ok [
     Pkg.lib ~exts "lib/tls" ;
     Pkg.mllib ~cond:lwt "lwt/tls-lwt.mllib" ;
+    Pkg.mllib ~cond:async "async/tls-async.mllib" ;
     Pkg.mllib ~cond:mirage "mirage/tls-mirage.mllib" ;
     Pkg.test "tests/unittestrunner" ;
     Pkg.test ~run:false "tests/feedback" ;
@@ -30,4 +32,11 @@ let () =
     Pkg.test ~run:false ~cond:lwt "lwt/examples/echo_client" ;
     Pkg.test ~run:false ~cond:lwt "lwt/examples/test_server" ;
     Pkg.test ~run:false ~cond:lwt "lwt/examples/test_client" ;
+
+    Pkg.test ~run:false ~cond:async "async/examples/starttls_server" ;
+    (* Pkg.test ~run:false ~cond:async "async/examples/echo_server" ; *)
+    (* Pkg.test ~run:false ~cond:async "async/examples/echo_server_sni" ; *)
+    (* Pkg.test ~run:false ~cond:async "async/examples/echo_client" ; *)
+    Pkg.test ~run:false ~cond:async "async/examples/test_server" ;
+    Pkg.test ~run:false ~cond:async "async/examples/test_client" ;
   ]
