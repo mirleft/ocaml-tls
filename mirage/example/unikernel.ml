@@ -1,6 +1,6 @@
 open Lwt.Infix
 
-open V1_LWT
+open Mirage_types_lwt
 
 
 let escape_data buf = String.escaped (Cstruct.to_string buf)
@@ -17,7 +17,7 @@ let make_tracer dump =
 
 module Server (S  : STACKV4)
               (KV : KV_RO)
-              (CL : V1.PCLOCK) =
+              (CL : Mirage_types.PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
@@ -54,7 +54,7 @@ end
 
 module Client (S  : STACKV4)
               (KV : KV_RO)
-              (CL : V1.PCLOCK) =
+              (CL : Mirage_types.PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
