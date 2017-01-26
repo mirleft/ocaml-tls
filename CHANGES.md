@@ -1,3 +1,13 @@
+## 0.8.0 (2017-02-01)
+
+* lwt: in Unix.client_of_fd the named argument host is now optional (#336)
+* mirage: in client_of_flow the (positional) hostname argument is now optional (#336)
+* mirage: adapt to PCLOCK interface (@mattgray #329 #331)
+* build system migrated from oasis to topkg (#342)
+* mirage: adapt to MirageOS3 (@yomimono @samoht #338 #349 #350 #351 #353)
+* lwt: do not crash on double close (@vbmithr #345)
+* fixed docstring typos (@mor1 #340)
+
 ## 0.7.1 (2016-03-21)
 
 * remove camlp4 dependency (use cstruct ppx and sexplib ppx instead)
