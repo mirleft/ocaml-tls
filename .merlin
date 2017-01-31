@@ -4,11 +4,9 @@ S mirage
 
 B _build/**
 
-PKG lwt.unix
-PKG result
-PKG cstruct
-PKG sexplib
-PKG nocrypto
-PKG x509
-PKG mirage-kv-lwt mirage-flow-lwt ptime mirage-clock
+PKG cstruct nocrypto result x509 sexplib
+PKG cstruct.ppx ppx_sexp_conv
+PKG oUnit cstruct.unix
+PKG lwt lwt.unix str nocrypto.lwt
+PKG mirage-flow-lwt mirage-kv-lwt mirage-clock ptime
 PKG mirage-types-lwt mirage-types
