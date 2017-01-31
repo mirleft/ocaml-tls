@@ -48,8 +48,8 @@ val sexp_of_server : server -> Sexplib.Sexp.t
 
 (** {1 Constructors} *)
 
-(** [client authenticator ?ciphers ?version ?hashes ?reneg ?certificates] is [client] configuration with the given parameters *)
-(** @raise Invalid_argument if the configuration is invalid *)
+(** [client authenticator ?ciphers ?version ?hashes ?reneg ?certificates] is [client] configuration with the given parameters.
+    @raise Invalid_argument if the configuration is invalid *)
 val client :
   authenticator   : X509.Authenticator.a ->
   ?ciphers        : Ciphersuite.ciphersuite list ->
@@ -60,8 +60,8 @@ val client :
   ?cached_session : epoch_data ->
   unit -> client
 
-(** [server ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator] is [server] configuration with the given parameters *)
-(** @raise Invalid_argument if the configuration is invalid *)
+(** [server ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator] is [server] configuration with the given parameters.
+    @raise Invalid_argument if the configuration is invalid *)
 val server :
   ?ciphers       : Ciphersuite.ciphersuite list ->
   ?version       : tls_version * tls_version ->

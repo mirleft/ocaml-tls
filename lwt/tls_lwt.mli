@@ -27,6 +27,7 @@ module Unix : sig
   type t
 
   (** {2 Constructors} *)
+
   (** [server_of_fd ?tracer server fd] is [t], after server-side TLS
       handshake of [fd] using [server] configuration. *)
   val server_of_fd : ?trace:tracer -> Tls.Config.server -> Lwt_unix.file_descr -> t Lwt.t
