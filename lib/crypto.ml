@@ -1,9 +1,7 @@
 
 open Nocrypto
-open Nocrypto.Uncommon
 
 open Ciphersuite
-open Packet
 
 let (<+>) = Utils.Cs.(<+>)
 
@@ -103,7 +101,7 @@ let decrypt_stream (type a) ~cipher ~key data =
 
 
 (* crazy CBC padding and unpadding for TLS *)
-let cbc_pad ~block data =
+let cbc_pad block data =
   let open Cstruct in
 
   (* 1 is the padding length, encoded as 8 bit at the end of the fragment *)
@@ -118,7 +116,7 @@ let cbc_pad ~block data =
   done;
   pad
 
-let cbc_unpad ~block data =
+let cbc_unpad data =
   let open Cstruct in
 
   let len = len data in
@@ -169,7 +167,7 @@ let decrypt_cbc (type a) ~cipher ~key ~iv data =
   let module C = (val cipher : Cipher_block.S.CBC with type key = a) in
   try
     let message = C.decrypt ~key ~iv data in
-    match cbc_unpad C.block_size message with
+    match cbc_unpad message with
     | Some res -> Some (res, C.next_iv ~iv data)
     | None     -> None
   with

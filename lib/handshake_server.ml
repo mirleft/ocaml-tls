@@ -36,7 +36,7 @@ let answer_client_finished state session client_fin raw log =
   ({ state with machina ; session = session :: state.session },
    [`Record (Packet.HANDSHAKE, fin_raw)])
 
-let answer_client_finished_resume state session server_verify client_fin raw log =
+let answer_client_finished_resume state session server_verify client_fin _raw log =
   let client_verify =
     Handshake_crypto.finished state.protocol_version session.ciphersuite session.master_secret "client finished" log
   in
@@ -111,7 +111,7 @@ let answer_client_key_exchange_RSA state session kex raw log =
 
   private_key session >|= fun priv ->
 
-  let pms = match Rsa.PKCS1.decrypt priv kex with
+  let pms = match Rsa.PKCS1.decrypt ~key:priv kex with
     | None   -> validate_premastersecret other
     | Some k -> validate_premastersecret k
   in
@@ -406,7 +406,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
   match config.use_reneg, state.session with
   | true , session :: _  ->
      let reneg = session.renegotiation in
-     process_client_hello config state.protocol_version reneg ch >>= fun version ->
+     process_client_hello config state.protocol_version reneg ch >>= fun _version ->
      answer_client_hello_common state (Some reneg) ch raw
   | false, _             ->
     let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in

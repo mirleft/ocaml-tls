@@ -105,6 +105,6 @@ let init_and_last list =
   list None
 
 let rec first_match l1 = function
-  | []                       -> None
-  | x::xs when List.mem x l1 -> Some x
-  | _::xs                    -> first_match l1 xs
+  | []                      -> None
+  | x::_ when List.mem x l1 -> Some x
+  | _::xs                   -> first_match l1 xs

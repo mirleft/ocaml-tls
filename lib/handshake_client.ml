@@ -175,7 +175,7 @@ let answer_certificate_RSA state session cs raw log =
   let ver = Writer.assemble_protocol_version version in
   let premaster = ver <+> Rng.generate 46 in
   peer_rsa_key peer_certificate >|= fun pubkey ->
-  let kex = Rsa.PKCS1.encrypt pubkey premaster
+  let kex = Rsa.PKCS1.encrypt ~key:pubkey premaster
   in
 
   let machina =
@@ -229,7 +229,7 @@ let answer_certificate_request state session cr kex pms raw log =
        ( match Reader.parse_certificate_request_1_2 cr with
          | Ok (types, sigalgs, cas) -> return (types, Some sigalgs, cas)
          | Error re -> fail (`Fatal (`ReaderError re)) )
-  ) >|= fun (types, sigalgs, cas) ->
+  ) >|= fun (types, sigalgs, _cas) ->
   (* TODO: respect cas, maybe multiple client certificates? *)
   let own_certificate, own_private_key =
     match
@@ -272,7 +272,7 @@ let answer_server_hello_done state session sigalgs kex premaster raw log =
        return ([cert ; kex], [ccert ; ckex], log @ [ raw ; ccert ; ckex ], None)
     | false, _ ->
        return ([kex], [ckex], log @ [ raw ; ckex ], None) )
-  >|= fun (msgs, raw_msgs, raws, cert_verify) ->
+  >|= fun (_msgs, raw_msgs, raws, cert_verify) ->
 
   let to_fin = raws @ option [] (fun x -> [x]) cert_verify in
 
