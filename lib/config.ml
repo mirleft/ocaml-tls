@@ -34,8 +34,6 @@ type config = {
 
 module Ciphers = struct
 
-  open Ciphersuite
-
   (* A good place for various pre-baked cipher lists and helper functions to
    * slice and groom those lists. *)
 

@@ -36,16 +36,16 @@ module Make (F : Mirage_flow_lwt.S) : sig
       to TLS using the [client] configuration, using [host] as peer name. *)
   val client_of_flow :
     ?trace:tracer -> Tls.Config.client -> ?host:string -> FLOW.flow ->
-    (flow, write_error) Result.result Lwt.t
+    (flow, write_error) result Lwt.t
 
   (** [server_of_flow ?tracer server flow] upgrades the flow to a TLS
       connection using the [server] configuration. *)
   val server_of_flow :
     ?trace:tracer -> Tls.Config.server -> FLOW.flow ->
-    (flow, write_error) Result.result Lwt.t
+    (flow, write_error) result Lwt.t
 
   (** [epoch flow] extracts information of the established session. *)
-  val epoch : flow -> (Tls.Core.epoch_data, unit) Result.result
+  val epoch : flow -> (Tls.Core.epoch_data, unit) result
 
 end
   with module FLOW = F

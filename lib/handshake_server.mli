@@ -1,4 +1,3 @@
-open Core
 open State
 
 val hello_request : handshake_state -> handshake_return eff

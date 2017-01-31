@@ -1,4 +1,3 @@
-open Nocrypto
 open Nocrypto.Uncommon
 open Nocrypto.Hash
 
@@ -12,7 +11,7 @@ let halve secret =
   let half = size - size / 2 in
   Cstruct.(sub secret 0 half, sub secret (size - half) half)
 
-let rec p_hash (hmac, hmac_n) key seed len =
+let p_hash (hmac, hmac_n) key seed len =
   let rec expand a to_go =
     let res = hmac ~key (a <+> seed) in
     if to_go > hmac_n then
