@@ -167,16 +167,14 @@ opaque type of a server configuration<br>
 <pre><span id="VALserver_of_sexp"><span class="keyword">val</span> server_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Config.html#TYPEserver">server</a></code></pre>
 <pre><span id="VALsexp_of_server"><span class="keyword">val</span> sexp_of_server</span> : <code class="type"><a href="Config.html#TYPEserver">server</a> -> Sexplib.Sexp.t</code></pre><br>
 <h1 id="1_Constructors">Constructors</h1><br>
-<br>
-<code class="code">client&nbsp;authenticator&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates</code> is <code class="code">client</code> configuration with the given parameters<br>
 
 <pre><span id="VALclient"><span class="keyword">val</span> client</span> : <code class="type">authenticator:X509.Authenticator.a -><br>       ?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?cached_session:<a href="Core.html#TYPEepoch_data">Core.epoch_data</a> -> unit -> <a href="Config.html#TYPEclient">client</a></code></pre><div class="info ">
+<code class="code">client&nbsp;authenticator&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates</code> is <code class="code">client</code> configuration with the given parameters.<br>
 <b>Raises</b> <code>Invalid_argument</code> if the configuration is invalid<br>
 </div>
-<br>
-<code class="code">server&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?authenticator</code> is <code class="code">server</code> configuration with the given parameters<br>
 
 <pre><span id="VALserver"><span class="keyword">val</span> server</span> : <code class="type">?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?authenticator:X509.Authenticator.a -><br>       ?session_cache:<a href="Config.html#TYPEsession_cache">session_cache</a> -> unit -> <a href="Config.html#TYPEserver">server</a></code></pre><div class="info ">
+<code class="code">server&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?authenticator</code> is <code class="code">server</code> configuration with the given parameters.<br>
 <b>Raises</b> <code>Invalid_argument</code> if the configuration is invalid<br>
 </div>
 
