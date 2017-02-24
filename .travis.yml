@@ -4,7 +4,6 @@ script: bash -ex .travis-opam.sh
 env:
   global:
     - PACKAGE="tls"
-    - EXTRA_REMOTES="https://github.com/mirage/mirageos-3-beta.git"
   matrix:
     - OCAML_VERSION=4.02 DEPOPTS=lwt
     - OCAML_VERSION=4.03
