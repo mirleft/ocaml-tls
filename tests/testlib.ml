@@ -1,5 +1,4 @@
 open OUnit2
-open Tls
 
 let () = Nocrypto.Rng.reseed (Cstruct.of_string "\001\002\003\004")
 
@@ -49,24 +48,24 @@ let assert_sessionid_equal a b =
   | _ -> assert_failure "session id not equal"
 
 let assert_client_extension_equal a b =
-  Core.(match a, b with
-        | `Hostname a, `Hostname b -> assert_equal a b
-        | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
-        | `EllipticCurves a, `EllipticCurves b -> assert_lists_eq assert_equal a b
-        | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
-        | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
-        | `Padding a, `Padding b -> assert_equal a b
-        | `SignatureAlgorithms a, `SignatureAlgorithms b ->
-           assert_lists_eq (fun (h, s) (h', s') -> assert_equal h h' ; assert_equal s s') a b
-        | _ -> assert_failure "extensions did not match")
+  match a, b with
+  | `Hostname a, `Hostname b -> assert_equal a b
+  | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
+  | `EllipticCurves a, `EllipticCurves b -> assert_lists_eq assert_equal a b
+  | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
+  | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
+  | `Padding a, `Padding b -> assert_equal a b
+  | `SignatureAlgorithms a, `SignatureAlgorithms b ->
+    assert_lists_eq (fun (h, s) (h', s') -> assert_equal h h' ; assert_equal s s') a b
+  | _ -> assert_failure "extensions did not match"
 
 let assert_server_extension_equal a b =
-  Core.(match a, b with
-        | `Hostname, `Hostname -> ()
-        | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
-        | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
-        | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
-        | _ -> assert_failure "extensions did not match")
+  match a, b with
+  | `Hostname, `Hostname -> ()
+  | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
+  | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
+  | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
+  | _ -> assert_failure "extensions did not match"
 
 let cs_mmap file =
   Unix_cstruct.of_fd Unix.(openfile file [O_RDONLY] 0)
