@@ -38,16 +38,6 @@ let read_dir path =
   closedir dir >|= fun () ->
   entries
 
-let extension str =
-  let n = String.length str in
-  let rec scan = function
-    | i when i = 0 -> None
-    | i when str.[i - 1] = '.' ->
-        Some (String.sub str i (n - i))
-    | i -> scan (pred i) in
-  scan n
-
-
 let private_of_pems ~cert ~priv_key =
   let open X509.Encoding.Pem in
   catch_invalid_arg
@@ -67,7 +57,7 @@ let certs_of_pem path =
 
 let certs_of_pem_dir path =
   read_dir path
-  >|= List.filter (fun file -> extension file = Some "crt")
+  >|= List.filter (fun file -> Filename.extension file = "crt")
   >>= Lwt_list.map_p (fun file -> certs_of_pem (path </> file))
   >|= List.concat
 
