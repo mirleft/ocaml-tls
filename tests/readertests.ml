@@ -1362,75 +1362,74 @@ let bad_client_hellos =
   (* I rolled the dice 16 times *)
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
-  Core.([
-         (* versions *)
-         [1; 0; 0; 38; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
-         (* invalid length *)
-         [1; 0; 0; 39; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
-         (* should be broken as well due to missing compression_algos *)
-         [1; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 1; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+  [
+    (* versions *)
+    [1; 0; 0; 38; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+    (* invalid length *)
+    [1; 0; 0; 39; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+    (* should be broken as well due to missing compression_algos *)
+    [1; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 1; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
 
-         (* ciphersuites *)
-         [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 1; 0; 0; (* comp *) 0; (* exts *)] ;
-         [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 3; 0; 0; (* comp *) 0; (* exts *)] ;
-         [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 1; 3; 0; 0; (* comp *) 0; (* exts *)] ;
+    (* ciphersuites *)
+    [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 1; 0; 0; (* comp *) 0; (* exts *)] ;
+    [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 3; 0; 0; (* comp *) 0; (* exts *)] ;
+    [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 1; 3; 0; 0; (* comp *) 0; (* exts *)] ;
 
-         (* extensions *)
-         (* empty *)
-         [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
+    (* extensions *)
+    (* empty *)
+    [1; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
 
-         (* some hostname *)
-         [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 4; 102; 111; 111] ;
-         [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 4; 102; 111; 111; 111] ;
-         [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 7; 0; 0; 4; 102; 111; 111; 111] ;
-         [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 9; 0; 7; 0; 0; 4; 102; 111; 111; 111] ;
-         [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 13; 0; 0; 0; 9; 0; 7; 0; 0; 4; 102; 111; 111; 111] ;
-         [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 5; 0; 0; 2; 102; 111; 111] ;
+    (* some hostname *)
+    [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 4; 102; 111; 111] ;
+    [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 4; 102; 111; 111; 111] ;
+    [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 7; 0; 0; 4; 102; 111; 111; 111] ;
+    [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 9; 0; 7; 0; 0; 4; 102; 111; 111; 111] ;
+    [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 13; 0; 0; 0; 9; 0; 7; 0; 0; 4; 102; 111; 111; 111] ;
+    [1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0; 0; 8; 0; 5; 0; 0; 2; 102; 111; 111] ;
 
-         (* multiple hostnames - legal in RFC, not accepted by any implementation *)
-         [1; 0; 0; 58; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 18; 0; 0; 0; 14; 0; 12; 0; 0; 3; 102; 111; 111; 0; 0; 3; 98; 97; 114] ;
+    (* multiple hostnames - legal in RFC, not accepted by any implementation *)
+    [1; 0; 0; 58; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 18; 0; 0; 0; 14; 0; 12; 0; 0; 3; 102; 111; 111; 0; 0; 3; 98; 97; 114] ;
 
-         (* empty EllipticCurves *)
-         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xA; 0; 1; 0; 0] ;
-         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xA; 0; 2; 0; 0] ;
-         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xA; 0; 2; 0; 1] ;
-         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 0xA; 0; 3; 0; 1; 0] ;
-         [1; 0; 0; 50; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 10; 0; 0xA; 0; 6; 0; 2; 0; 25; 0; 20] ;
+    (* empty EllipticCurves *)
+    [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xA; 0; 1; 0; 0] ;
+    [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xA; 0; 2; 0; 0] ;
+    [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xA; 0; 2; 0; 1] ;
+    [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 0xA; 0; 3; 0; 1; 0] ;
+    [1; 0; 0; 50; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 10; 0; 0xA; 0; 6; 0; 2; 0; 25; 0; 20] ;
 
-         (* empty ECPointFormats *)
-         [1; 0; 0; 45; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 3] ;
-         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 3; 1] ;
-         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xB; 0; 1; 3; 1] ;
-         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 0xB; 0; 3; 1; 0; 1] ;
+    (* empty ECPointFormats *)
+    [1; 0; 0; 45; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 3] ;
+    [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 3; 1] ;
+    [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xB; 0; 1; 3; 1] ;
+    [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 0xB; 0; 3; 1; 0; 1] ;
 
-         (* secure renegotiation *)
-         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 5; 2; 1; 2] ;
-         [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 5; 2; 1; 2; 3; 4] ;
-         [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 3; 2; 1; 2; 3; 4] ;
-         [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 5; 10; 1; 2; 3; 4] ;
-         [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 5; 2; 1; 2; 3; 4] ;
+    (* secure renegotiation *)
+    [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 5; 2; 1; 2] ;
+    [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 5; 2; 1; 2; 3; 4] ;
+    [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 3; 2; 1; 2; 3; 4] ;
+    [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 5; 10; 1; 2; 3; 4] ;
+    [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 5; 2; 1; 2; 3; 4] ;
 
-         (* max fragment length *)
-         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 1; 0; 2; 3; 4] ;
-         [1; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 4; 0; 1; 0; 0] ;
-         [1; 0; 0; 45; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 1; 0; 1; 42] ;
+    (* max fragment length *)
+    [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 1; 0; 2; 3; 4] ;
+    [1; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 4; 0; 1; 0; 0] ;
+    [1; 0; 0; 45; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 1; 0; 1; 42] ;
 
 
-         (* Padding *)
-         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 3; 1; 2; 3] ;
-         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 5; 0; 0; 0] ;
-         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0; 21; 0; 5; 0; 0; 0] ;
-         [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0; 21; 0; 5; 0; 0; 0] ;
-         [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 3; 0; 0; 0] ;
-         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 2; 0; 0; 0] ;
+    (* Padding *)
+    [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 3; 1; 2; 3] ;
+    [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 5; 0; 0; 0] ;
+    [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0; 21; 0; 5; 0; 0; 0] ;
+    [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 9; 0; 21; 0; 5; 0; 0; 0] ;
+    [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 3; 0; 0; 0] ;
+    [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 21; 0; 2; 0; 0; 0] ;
 
-         (* sig hash *)
-         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 13; 0; 3; 0; 1; 0] ;
-         [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 13; 0; 3; 0; 0; 0] ;
-       ])
+    (* sig hash *)
+    [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 13; 0; 3; 0; 1; 0] ;
+    [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 13; 0; 3; 0; 0; 0] ;
+  ]
 
 let bad_client_hello_parser xs _ =
-  let open Core in
   let buf = list_to_cstruct xs in
   match Reader.parse_handshake buf with
   | Ok _ -> assert_failure "bad client hello parser won"
@@ -1546,29 +1545,28 @@ let bad_server_hellos =
   (* I rolled the dice 16 times *)
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let rand = rnd @ rnd in
-  Core.([
-         [2; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
-         [2; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+  [
+    [2; 0; 0; 38; 3; 0] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+    [2; 0; 0; 38; 3; 4] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
 
-         [2; 0; 0; 30; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
-         [2; 0; 0; 38; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
-         [2; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+    [2; 0; 0; 30; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+    [2; 0; 0; 38; 4; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+    [2; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
 
-         [2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0xFF; 0xFF; (* comp *) 0; (* exts *)] ;
-         [2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 42; (* exts *)] ;
+    [2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0xFF; 0xFF; (* comp *) 0; (* exts *)] ;
+    [2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 42; (* exts *)] ;
 
-         (* session id *)
-         [2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 3; 1; 2; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
+    (* session id *)
+    [2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 3; 1; 2; (* cipher *) 0; 0; (* comp *) 0; (* exts *)] ;
 
-         (* extensions *)
-         (* empty *)
-         [2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
-         [2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
-         [2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1; 0] ;
-       ])
+    (* extensions *)
+    (* empty *)
+    [2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
+    [2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1] ;
+    [2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 1; 0] ;
+  ]
 
 let bad_server_hellos_parser xs _ =
-  let open Core in
   let buf = list_to_cstruct xs in
   match Reader.parse_handshake buf with
   | Ok _ -> assert_failure "handshake server hello parser succeeded"
