@@ -141,6 +141,10 @@ val handle_tls           : state -> Cstruct.t -> ret
     connection has already completed a handshake. *)
 val can_handle_appdata    : state -> bool
 
+(** [handshake_in_progrss state] is a predicate which indicates whether there
+    is a handshake in progress or scheduled. *)
+val handshake_in_progress : state -> bool
+
 (** [send_application_data tls outs] is [(tls' * out) option] where
     [tls'] is the new tls state, and [out] the cstruct to send over the
     wire (encrypted [outs]). *)

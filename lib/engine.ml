@@ -458,6 +458,10 @@ let send_records (st : state) records =
 (* utility for user *)
 let can_handle_appdata s = hs_can_handle_appdata s.handshake
 
+let handshake_in_progress s = match s.handshake.machina with
+  | Client Established | Server Established -> false
+  | _ -> true
+
 (* another entry for user data *)
 let send_application_data st css =
   match can_handle_appdata st with
