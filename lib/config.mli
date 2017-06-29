@@ -129,3 +129,5 @@ val of_client : client -> config
 (** [of_server server] is a server configuration for [server] *)
 val of_server : server -> config
 
+(** [with_authenticator config auth] is [config] with [auth] as [authenticator] *)
+val with_authenticator : config -> X509.Authenticator.a -> config

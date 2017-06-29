@@ -154,12 +154,12 @@ module Unix = struct
           | `Eof     -> fail End_of_file
           | `Ok cs   -> push_linger t cs ; drain_handshake t
 
-  let reneg t =
+  let reneg ?authenticator t =
     match t.state with
     | `Error err  -> fail err
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
-        match tracing t @@ fun () -> Tls.Engine.reneg tls with
+        match tracing t @@ fun () -> Tls.Engine.reneg ?authenticator tls with
         | None -> fail @@ Invalid_argument "tls: can't renegotiate"
         | Some (tls', buf) ->
            t.state <- `Active tls' ;

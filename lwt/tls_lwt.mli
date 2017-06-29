@@ -71,7 +71,7 @@ module Unix : sig
   val close : t -> unit Lwt.t
 
   (** [reneg t] renegotiates the keys of the session. *)
-  val reneg : t -> unit Lwt.t
+  val reneg : ?authenticator:X509.Authenticator.a -> t -> unit Lwt.t
 
   (** [epoch t] returns [epoch], which contains information of the
       active session. *)

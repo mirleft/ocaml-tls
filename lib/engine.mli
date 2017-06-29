@@ -150,11 +150,11 @@ val send_application_data : state -> Cstruct.t list -> (state * Cstruct.t) optio
     tls state, and out the (possible encrypted) close notify alert. *)
 val send_close_notify     : state -> state * Cstruct.t
 
-(** [reneg tls] initiates a renegotation on [tls]. It is [tls' * out]
-    where [tls'] is the new tls state, and [out] either a client hello
-    or hello request (depending on which communication endpoint [tls]
-    is). *)
-val reneg                 : state -> (state * Cstruct.t) option
+(** [reneg ~authenticator tls] initiates a renegotation on [tls], using the
+    provided [authenticator]. It is [tls' * out] where [tls'] is the new tls
+    state, and [out] either a client hello or hello request (depending on which
+    communication endpoint [tls] is). *)
+val reneg : ?authenticator:X509.Authenticator.a -> state -> (state * Cstruct.t) option
 
 (** {1 Session information} *)
 
