@@ -141,6 +141,10 @@ val handle_tls           : state -> Cstruct.t -> ret
     connection has already completed a handshake. *)
 val can_handle_appdata    : state -> bool
 
+(** [handshake_in_progrss state] is a predicate which indicates whether there
+    is a handshake in progress or scheduled. *)
+val handshake_in_progress : state -> bool
+
 (** [send_application_data tls outs] is [(tls' * out) option] where
     [tls'] is the new tls state, and [out] the cstruct to send over the
     wire (encrypted [outs]). *)
@@ -150,11 +154,13 @@ val send_application_data : state -> Cstruct.t list -> (state * Cstruct.t) optio
     tls state, and out the (possible encrypted) close notify alert. *)
 val send_close_notify     : state -> state * Cstruct.t
 
-(** [reneg tls] initiates a renegotation on [tls]. It is [tls' * out]
-    where [tls'] is the new tls state, and [out] either a client hello
-    or hello request (depending on which communication endpoint [tls]
-    is). *)
-val reneg                 : state -> (state * Cstruct.t) option
+(** [reneg ~authenticator ~acceptable_cas ~cert tls] initiates a renegotation on
+    [tls], using the provided [authenticator]. It is [tls' * out] where [tls']
+    is the new tls state, and [out] either a client hello or hello request
+    (depending on which communication endpoint [tls] is). *)
+val reneg : ?authenticator:X509.Authenticator.a ->
+  ?acceptable_cas:X509.distinguished_name list -> ?cert:Config.own_cert ->
+  state -> (state * Cstruct.t) option
 
 (** {1 Session information} *)
 

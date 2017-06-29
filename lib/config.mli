@@ -131,3 +131,11 @@ val of_client : client -> config
 (** [of_server server] is a server configuration for [server] *)
 val of_server : server -> config
 
+(** [with_authenticator config auth] is [config] with [auth] as [authenticator] *)
+val with_authenticator : config -> X509.Authenticator.a -> config
+
+(** [with_own_certificates config cert] is [config] with [cert] as [own_cert] *)
+val with_own_certificates : config -> own_cert -> config
+
+(** [with_acceptable_cas config cas] is [config] with [cas] as [accepted_cas] *)
+val with_acceptable_cas : config -> X509.distinguished_name list -> config
