@@ -1,0 +1,30 @@
+opam-version: "1.2"
+homepage:     "https://github.com/mirleft/ocaml-tls"
+dev-repo:     "https://github.com/mirleft/ocaml-tls.git"
+bug-reports:  "https://github.com/mirleft/ocaml-tls/issues"
+doc:          "https://mirleft.github.io/ocaml-tls/doc"
+author:       ["David Kaloper <david@numm.org>" "Hannes Mehnert <hannes@mehnert.org>"]
+maintainer:   ["Hannes Mehnert <hannes@mehnert.org>" "David Kaloper <david@numm.org>"]
+license:      "BSD2"
+
+build: [
+  ["jbuilder" "subst" "-n" name] {pinned}
+  ["jbuilder" "build" "-p" name "-j" jobs]
+]
+build-test: [["jbuilder" "runtest" "-p" name "-j" jobs]]
+
+depends: [
+  "jbuilder" {build & >= "1.0+beta10"}
+  "ppx_sexp_conv" {build}
+  "ppx_cstruct" {build}
+  "result"
+  "cstruct" {>= "1.9.0"}
+  "sexplib"
+  "nocrypto" {>= "0.5.4"}
+  "x509" {>= "0.5.0"}
+  "ounit" {test}
+  "cstruct-unix" {test}
+]
+
+tags: [ "org:mirage"]
+available: [ ocaml-version >= "4.02.3" ]
