@@ -1,0 +1,8 @@
+(jbuild_version 1)
+
+(library
+ ((name tls)
+  (public_name tls)
+  (synopsis "Transport layer security (TLS 1.x) purely in OCaml")
+  (preprocess (pps (ppx_cstruct ppx_sexp_conv -no-check)))
+  (libraries (cstruct nocrypto result x509 sexplib))))

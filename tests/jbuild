@@ -1,0 +1,10 @@
+(jbuild_version 1)
+
+(executable
+ ((name unittestrunner)
+  (libraries (tls nocrypto cstruct-unix oUnit))))
+
+(alias
+ ((name runtest)
+  (deps (unittestrunner.exe))
+  (action (run ${<}))))
