@@ -4,7 +4,7 @@ script: bash -ex .travis-opam.sh
 env:
   global:
     - PACKAGE="tls"
-    - PINS="x509"
+    - PINS="x509:https://github.com/hannesm/ocaml-x509.git#newcrl"
   matrix:
     - OCAML_VERSION=4.02 DEPOPTS=lwt
     - OCAML_VERSION=4.03
