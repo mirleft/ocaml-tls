@@ -70,8 +70,13 @@ module Unix : sig
   (** [close t] closes the TLS session and the underlying file descriptor. *)
   val close : t -> unit Lwt.t
 
-  (** [reneg t] renegotiates the keys of the session. *)
-  val reneg : t -> unit Lwt.t
+  (** [reneg ~authenticator ~drop t] renegotiates the keys of the session, and
+      blocks until the renegotiation finished.  Optionally, a new
+      [authenticator] can be used.  If [drop] is [true] (the default),
+      application data received before the renegotiation finished is dropped.
+      If [drop] is [false], application data received in between is available by
+      calling [read] after [reneg] returned. *)
+  val reneg : ?authenticator:X509.Authenticator.a -> ?drop:bool -> t -> unit Lwt.t
 
   (** [epoch t] returns [epoch], which contains information of the
       active session. *)

@@ -212,10 +212,12 @@ and of_client conf = conf
 
 let peer conf name = { conf with peer_name = Some name }
 
+let with_authenticator conf auth = { conf with authenticator = Some auth }
+
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
 let client
-  ~authenticator ?ciphers ?version ?hashes ?reneg ?certificates ?cached_session () =
+  ~authenticator ?peer_name ?ciphers ?version ?hashes ?reneg ?certificates ?cached_session () =
   let config =
     { default_config with
         authenticator     = Some authenticator ;
@@ -224,6 +226,7 @@ let client
         hashes            = hashes        <?> default_config.hashes ;
         use_reneg         = reneg         <?> default_config.use_reneg ;
         own_certificates  = certificates  <?> default_config.own_certificates ;
+        peer_name         = peer_name ;
         cached_session    = cached_session ;
     } in
   ( validate_common config ; validate_client config ; config )

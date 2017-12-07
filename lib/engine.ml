@@ -458,6 +458,10 @@ let send_records (st : state) records =
 (* utility for user *)
 let can_handle_appdata s = hs_can_handle_appdata s.handshake
 
+let handshake_in_progress s = match s.handshake.machina with
+  | Client Established | Server Established -> false
+  | _ -> true
+
 (* another entry for user data *)
 let send_application_data st css =
   match can_handle_appdata st with
@@ -475,15 +479,20 @@ let send_application_data st css =
 
 let send_close_notify st = send_records st [Alert.close_notify]
 
-let reneg st =
-  let hs = st.handshake in
-  match hs.machina with
+let reneg ?authenticator st =
+  let handshake = match authenticator with
+    | None -> st.handshake
+    | Some auth ->
+      let hs = st.handshake in
+      { hs with config = Config.with_authenticator hs.config auth }
+  in
+  match handshake.machina with
   | Server Established ->
-     ( match Handshake_server.hello_request hs with
+     ( match Handshake_server.hello_request handshake with
        | Ok (handshake, [`Record hr]) -> Some (send_records { st with handshake } [hr])
        | _                            -> None )
   | Client Established ->
-     ( match Handshake_client.answer_hello_request hs with
+     ( match Handshake_client.answer_hello_request handshake with
        | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
        | _                            -> None )
   | _                        -> None
