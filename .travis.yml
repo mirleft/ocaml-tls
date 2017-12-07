@@ -4,6 +4,7 @@ script: bash -ex .travis-opam.sh
 env:
   global:
     - PACKAGE="tls"
+    - PINS="x509"
   matrix:
     - OCAML_VERSION=4.02 DEPOPTS=lwt
     - OCAML_VERSION=4.03
@@ -15,5 +16,12 @@ env:
     - OCAML_VERSION=4.04
       DEPOPTS="mirage-flow-lwt mirage-kv-lwt mirage-clock"
       POST_INSTALL_HOOK="./.travis-test-mirage.sh" TESTS=false
+    - OCAML_VERSION=4.05
+    - OCAML_VERSION=4.05 DEPOPTS=lwt
+    - OCAML_VERSION=4.05
+      DEPOPTS="mirage-flow-lwt mirage-kv-lwt mirage-clock"
+      POST_INSTALL_HOOK="./.travis-test-mirage.sh" TESTS=false
+    - OCAML_VERSION=4.06
+    - OCAML_VERSION=4.06 DEPOPTS=lwt
 notifications:
   email: false
