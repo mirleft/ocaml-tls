@@ -36,15 +36,13 @@ let start_server () =
     Printf.printf "%s%!" buff;
     return buff
   in
-  let parse buff = 
-    try 
-      let _ = Str.search_forward (Str.regexp "^\\([^ ]+ \\)\\([^ ]+\\)\r\n$") buff 0
-      in
-      Str.matched_group 1 buff, Str.matched_group 2 buff
-    with _ -> "","" 
+  let parse buff =
+    match Astring.String.cut ~sep:" " buff with
+    | None -> "", ""
+    | Some r -> r
   in
   let rec wait_cmd sock_cl ic oc =
-    read ic >>= fun buff -> 
+    read ic >>= fun buff ->
     let tag,cmd = parse buff in
     match cmd with
     | "CAPABILITY" ->
@@ -55,8 +53,8 @@ let start_server () =
       Lwt_io.close ic >>= fun () ->
       Lwt_io.close oc >>= fun () ->
       cert () >>= fun cert ->
-      Tls_lwt.Unix.server_of_fd 
-       (Tls.Config.server ~certificates:(`Single cert) ()) sock_cl >>= fun s ->
+      Tls_lwt.Unix.server_of_fd
+        (Tls.Config.server ~certificates:(`Single cert) ()) sock_cl >>= fun s ->
       let ic,oc = Tls_lwt.of_t s in
       write oc ("* OK " ^ capability) >>= fun () ->
       wait_cmd sock_cl ic oc
