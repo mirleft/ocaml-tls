@@ -8,9 +8,6 @@ env:
   matrix:
     - OCAML_VERSION=4.02 DEPOPTS="lwt ptime astring"
     - OCAML_VERSION=4.03
-    - OCAML_VERSION=4.03
-      DEPOPTS="mirage-flow-lwt mirage-kv-lwt mirage-clock ptime"
-      POST_INSTALL_HOOK="./.travis-test-mirage.sh" TESTS=false
     - OCAML_VERSION=4.04
     - OCAML_VERSION=4.04 DEPOPTS="lwt ptime astring"
     - OCAML_VERSION=4.04
