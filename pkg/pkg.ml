@@ -7,9 +7,7 @@ let lwt = Conf.with_pkg ~default:false "lwt"
 let mirage = Conf.with_pkg ~default:false "mirage"
 
 let opams =
-  let lint_deps_excluding =
-    Some ["ounit"; "oUnit"; "ppx_tools"]
-  in
+  let lint_deps_excluding = Some ["ounit"; "oUnit"; "ppx_deriving"] in
   [Pkg.opam_file ~lint_deps_excluding "opam"]
 
 let () =

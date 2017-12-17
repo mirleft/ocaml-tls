@@ -3,7 +3,7 @@ true : warn(+A-4-9-41-42-44-45)
 true : package(cstruct nocrypto result x509 sexplib)
 
 <lib/*.ml> : for-pack(Tls)
-<lib/packet.ml> : package(cstruct.ppx)
+<lib/packet.ml> : package(ppx_cstruct)
 <lib/reader.ml> : package(ppx_sexp_conv)
 <lib/config.ml> : package(ppx_sexp_conv)
 <lib/ciphersuite.ml> : package(ppx_sexp_conv)
@@ -13,10 +13,10 @@ true : package(cstruct nocrypto result x509 sexplib)
 
 <lib> : include
 
-<tests/*> : package(oUnit cstruct.unix)
+<tests/*> : package(oUnit cstruct-unix)
 
 <lwt/**/*> : package(lwt lwt.unix ptime.clock.os)
 <lwt> : include
-<lwt/examples/*> : package(str nocrypto.lwt)
+<lwt/examples/*> : package(astring nocrypto.lwt)
 
 <mirage/*> : package(mirage-flow-lwt mirage-kv-lwt mirage-clock lwt ptime)

@@ -7,8 +7,8 @@ and stack = socket_stackv4 [Ipaddr.V4.any]
 
 let packages = [
   package "mirage-clock-unix" ;
-  package "mirage-http" ;
-  package ~sublibs:["lwt-core"] "cohttp" ;
+  package "cohttp-mirage" ;
+  package ~min:"0.99" "cohttp-lwt" ;
   package ~sublibs:["mirage"] "tls" ;
   package "tcpip" ;
 ]

@@ -243,7 +243,7 @@ module X509 (KV : Mirage_kv_lwt.RO) (C: Mirage_clock.PCLOCK) = struct
         let time = Ptime.v (C.now_d_ps clock) in
         read_full kv ca_roots_file
         >|= Certificate.of_pem_cstruct
-        >|= X509.Authenticator.chain_of_trust ~time
+        >|= X509.Authenticator.chain_of_trust ?crls:None ~time
 
   let certificate kv =
     let read name =

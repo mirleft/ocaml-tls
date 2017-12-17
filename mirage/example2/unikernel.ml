@@ -10,7 +10,7 @@ struct
   module X509 = Tls_mirage.X509 (KV) (CL)
   module Http = Cohttp_mirage.Server (TLS)
 
-  module Body = Cohttp_lwt_body
+  module Body = Cohttp_lwt.Body
 
   let callback _conn req body =
     let resp = Cohttp.Response.make ~status:`OK () in

@@ -6,22 +6,19 @@ env:
     - PACKAGE="tls"
     - PINS="x509"
   matrix:
-    - OCAML_VERSION=4.02 DEPOPTS=lwt
+    - OCAML_VERSION=4.02 DEPOPTS="lwt ptime astring"
     - OCAML_VERSION=4.03
-    - OCAML_VERSION=4.03
-      DEPOPTS="mirage-flow-lwt mirage-kv-lwt mirage-clock"
-      POST_INSTALL_HOOK="./.travis-test-mirage.sh" TESTS=false
     - OCAML_VERSION=4.04
-    - OCAML_VERSION=4.04 DEPOPTS=lwt
+    - OCAML_VERSION=4.04 DEPOPTS="lwt ptime astring"
     - OCAML_VERSION=4.04
-      DEPOPTS="mirage-flow-lwt mirage-kv-lwt mirage-clock"
+      DEPOPTS="mirage-flow-lwt mirage-kv-lwt mirage-clock ptime"
       POST_INSTALL_HOOK="./.travis-test-mirage.sh" TESTS=false
     - OCAML_VERSION=4.05
-    - OCAML_VERSION=4.05 DEPOPTS=lwt
+    - OCAML_VERSION=4.05 DEPOPTS="lwt ptime astring"
     - OCAML_VERSION=4.05
-      DEPOPTS="mirage-flow-lwt mirage-kv-lwt mirage-clock"
+      DEPOPTS="mirage-flow-lwt mirage-kv-lwt mirage-clock ptime"
       POST_INSTALL_HOOK="./.travis-test-mirage.sh" TESTS=false
     - OCAML_VERSION=4.06
-    - OCAML_VERSION=4.06 DEPOPTS=lwt
+    - OCAML_VERSION=4.06 DEPOPTS="lwt ptime astring"
 notifications:
   email: false
