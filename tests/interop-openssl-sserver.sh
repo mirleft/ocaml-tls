@@ -11,7 +11,7 @@ testit () {
 
     sleep 0.3
 
-    ../test_client.native > /dev/null
+    ../_build/lwt/examples/test_client.native > /dev/null
 
     if [ $? -eq 0 ]; then
         echo "success with $extra_args"
