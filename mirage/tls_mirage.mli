@@ -29,8 +29,15 @@ module Make (F : Mirage_flow_lwt.S) : sig
      and type error := error
      and type write_error := write_error
 
-  (** [reneg flow] renegotiates the session. *)
-  val reneg : flow -> (unit, write_error) result Lwt.t
+
+  (** [reneg ~authenticator ~acceptable_cas ~cert ~drop t] renegotiates the
+      session, and blocks until the renegotiation finished.  Optionally, a new
+      [authenticator] and [acceptable_cas] can be used.  The own certificate can
+      be adjusted by [cert]. If [drop] is [true] (the default),
+      application data received before the renegotiation finished is dropped. *)
+  val reneg : ?authenticator:X509.Authenticator.a ->
+    ?acceptable_cas:X509.distinguished_name list -> ?cert:Tls.Config.own_cert ->
+    ?drop:bool -> flow -> (unit, write_error) result Lwt.t
 
   (** [client_of_flow ~trace client ~host flow] upgrades the existing connection
       to TLS using the [client] configuration, using [host] as peer name. *)

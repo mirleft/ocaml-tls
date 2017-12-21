@@ -147,21 +147,22 @@ module Unix = struct
       | (Some cs, Some l) -> t.linger <- Some (l <+> cs)
     in
     match t.state with
-    | `Active tls when Tls.Engine.can_handle_appdata tls ->
+    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
         return t
     | _ ->
         read_react t >>= function
           | `Eof     -> fail End_of_file
           | `Ok cs   -> push_linger t cs ; drain_handshake t
 
-  let reneg t =
+  let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
     match t.state with
     | `Error err  -> fail err
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
-        match tracing t @@ fun () -> Tls.Engine.reneg tls with
+        match tracing t @@ fun () -> Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
         | None -> fail @@ Invalid_argument "tls: can't renegotiate"
         | Some (tls', buf) ->
+           if drop then t.linger <- None ;
            t.state <- `Active tls' ;
            write_t t buf >>= fun () ->
            drain_handshake t >>= fun _ ->

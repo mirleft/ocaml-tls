@@ -136,7 +136,7 @@ module Make (F : Mirage_flow_lwt.S) = struct
    * *)
   let rec drain_handshake flow =
     match flow.state with
-    | `Active tls when Tls.Engine.can_handle_appdata tls ->
+    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
         return @@ Ok flow
     | _ ->
       (* read_react re-throws *)
@@ -147,16 +147,17 @@ module Make (F : Mirage_flow_lwt.S) = struct
         | `Error e -> return @@ Error (e :> write_error)
         | `Eof     -> return @@ Error `Closed
 
-  let reneg flow =
+  let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) flow =
     match flow.state with
     | `Eof        -> return @@ Error `Closed
     | `Error e    -> return @@ Error (e :> write_error)
     | `Active tls ->
-        match tracing flow @@ fun () -> Tls.Engine.reneg tls with
+        match tracing flow @@ fun () -> Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
         | None             ->
             (* XXX make this impossible to reach *)
             invalid_arg "Renegotiation already in progress"
         | Some (tls', buf) ->
+            if drop then flow.linger <- [] ;
             flow.state <- `Active tls' ;
             FLOW.write flow.flow buf >>= fun _ ->
             drain_handshake flow >|= function

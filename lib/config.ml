@@ -28,6 +28,7 @@ type config = {
   authenticator     : X509.Authenticator.a option ;
   peer_name         : string option ;
   own_certificates  : own_cert ;
+  acceptable_cas    : X509.distinguished_name list ;
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
 } [@@deriving sexp]
@@ -89,6 +90,7 @@ let default_config = {
   authenticator     = None ;
   peer_name         = None ;
   own_certificates  = `None ;
+  acceptable_cas    = [] ;
   session_cache     = (fun _ -> None) ;
   cached_session    = None ;
 }
@@ -212,6 +214,12 @@ and of_client conf = conf
 
 let peer conf name = { conf with peer_name = Some name }
 
+let with_authenticator conf auth = { conf with authenticator = Some auth }
+
+let with_own_certificates conf own_certificates = { conf with own_certificates }
+
+let with_acceptable_cas conf acceptable_cas = { conf with acceptable_cas }
+
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
 let client
@@ -230,16 +238,17 @@ let client
   ( validate_common config ; validate_client config ; config )
 
 let server
-  ?ciphers ?version ?hashes ?reneg ?certificates ?authenticator ?session_cache () =
+  ?ciphers ?version ?hashes ?reneg ?certificates ?acceptable_cas ?authenticator ?session_cache () =
   let config =
     { default_config with
-        ciphers           = ciphers       <?> default_config.ciphers ;
-        protocol_versions = version       <?> default_config.protocol_versions ;
-        hashes            = hashes        <?> default_config.hashes ;
-        use_reneg         = reneg         <?> default_config.use_reneg ;
-        own_certificates  = certificates  <?> default_config.own_certificates ;
+        ciphers           = ciphers        <?> default_config.ciphers ;
+        protocol_versions = version        <?> default_config.protocol_versions ;
+        hashes            = hashes         <?> default_config.hashes ;
+        use_reneg         = reneg          <?> default_config.use_reneg ;
+        own_certificates  = certificates   <?> default_config.own_certificates ;
+        acceptable_cas    = acceptable_cas <?> default_config.acceptable_cas ;
         authenticator     = authenticator ;
-        session_cache     = session_cache <?> default_config.session_cache ;
+        session_cache     = session_cache  <?> default_config.session_cache ;
     } in
   ( validate_common config ; validate_server config ; config )
 

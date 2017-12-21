@@ -7,7 +7,7 @@ extra_args=""
 statfile="/tmp/test_server.status"
 
 testit () {
-    /bin/sh -c "cd .. && ./test_server.native $port > /dev/null && echo foo > $statfile" &
+    /bin/sh -c "cd .. && ./_build/lwt/examples/test_server.native $port > /dev/null && echo foo > $statfile" &
 
     sleep 0.3
 
