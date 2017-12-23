@@ -32,24 +32,22 @@
 </div>
 <h1>Module <a href="type_Config.html">Config</a></h1>
 
-<pre><span class="keyword">module</span> Config: <code class="code"><span class="keyword">sig</span></code> <a href="Config.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
-Configuration of the TLS stack<br>
-</div>
-<hr width="100%">
-<br>
-Configuration of the TLS stack<br>
-<br>
-<h1 id="1_Configtype">Config type</h1><br>
-
+<pre><span id="MODULEConfig"><span class="keyword">module</span> Config</span>: <code class="code"><span class="keyword">sig</span></code> <a href="Config.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><hr width="100%">
+<p>Configuration of the TLS stack</p>
+<h2 id="1_Configtype">Config type</h2>
 <pre><span id="TYPEcertchain"><span class="keyword">type</span> <code class="type"></code>certchain</span> = <code class="type">X509.t list * Nocrypto.Rsa.priv</code> </pre>
 <div class="info ">
-certificate chain and private key of the first certificate<br>
+<div class="info-desc">
+<p>certificate chain and private key of the first certificate</p>
+</div>
 </div>
 
 
 <pre><span id="TYPEown_cert"><span class="keyword">type</span> <code class="type"></code>own_cert</span> = <code class="type">[ `Multiple of <a href="Config.html#TYPEcertchain">certchain</a> list<br>       | `Multiple_default of <a href="Config.html#TYPEcertchain">certchain</a> * <a href="Config.html#TYPEcertchain">certchain</a> list<br>       | `None<br>       | `Single of <a href="Config.html#TYPEcertchain">certchain</a> ]</code> </pre>
 <div class="info ">
-polymorphic variant of own certificates<br>
+<div class="info-desc">
+<p>polymorphic variant of own certificates</p>
+</div>
 </div>
 
 
@@ -63,7 +61,9 @@ polymorphic variant of own certificates<br>
 <td align="left" valign="top" >
 <code><span id="TYPEELTconfig.ciphers">ciphers</span>&nbsp;: <code class="type"><a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list</code>;</code></td>
 <td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
-ordered list (regarding preference) of supported cipher suites<br>
+<div class="info-desc">
+<p>ordered list (regarding preference) of supported cipher suites</p>
+</div>
 </div>
 </td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
 </tr>
@@ -73,7 +73,9 @@ ordered list (regarding preference) of supported cipher suites<br>
 <td align="left" valign="top" >
 <code><span id="TYPEELTconfig.protocol_versions">protocol_versions</span>&nbsp;: <code class="type"><a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a></code>;</code></td>
 <td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
-supported protocol versions (min, max)<br>
+<div class="info-desc">
+<p>supported protocol versions (min, max)</p>
+</div>
 </div>
 </td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
 </tr>
@@ -83,7 +85,9 @@ supported protocol versions (min, max)<br>
 <td align="left" valign="top" >
 <code><span id="TYPEELTconfig.hashes">hashes</span>&nbsp;: <code class="type">Nocrypto.Hash.hash list</code>;</code></td>
 <td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
-ordered list of supported hash algorithms (regarding preference)<br>
+<div class="info-desc">
+<p>ordered list of supported hash algorithms (regarding preference)</p>
+</div>
 </div>
 </td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
 </tr>
@@ -93,7 +97,9 @@ ordered list of supported hash algorithms (regarding preference)<br>
 <td align="left" valign="top" >
 <code><span id="TYPEELTconfig.use_reneg">use_reneg</span>&nbsp;: <code class="type">bool</code>;</code></td>
 <td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
-endpoint should accept renegotiation requests<br>
+<div class="info-desc">
+<p>endpoint should accept renegotiation requests</p>
+</div>
 </div>
 </td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
 </tr>
@@ -103,7 +109,9 @@ endpoint should accept renegotiation requests<br>
 <td align="left" valign="top" >
 <code><span id="TYPEELTconfig.authenticator">authenticator</span>&nbsp;: <code class="type">X509.Authenticator.a option</code>;</code></td>
 <td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
-optional X509 authenticator<br>
+<div class="info-desc">
+<p>optional X509 authenticator</p>
+</div>
 </div>
 </td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
 </tr>
@@ -113,7 +121,9 @@ optional X509 authenticator<br>
 <td align="left" valign="top" >
 <code><span id="TYPEELTconfig.peer_name">peer_name</span>&nbsp;: <code class="type">string option</code>;</code></td>
 <td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
-optional name of other endpoint (used for SNI RFC4366)<br>
+<div class="info-desc">
+<p>optional name of other endpoint (used for SNI RFC4366)</p>
+</div>
 </div>
 </td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
 </tr>
@@ -123,7 +133,21 @@ optional name of other endpoint (used for SNI RFC4366)<br>
 <td align="left" valign="top" >
 <code><span id="TYPEELTconfig.own_certificates">own_certificates</span>&nbsp;: <code class="type"><a href="Config.html#TYPEown_cert">own_cert</a></code>;</code></td>
 <td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
-optional default certificate chain and other certificate chains<br>
+<div class="info-desc">
+<p>optional default certificate chain and other certificate chains</p>
+</div>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconfig.acceptable_cas">acceptable_cas</span>&nbsp;: <code class="type">X509.distinguished_name list</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+<div class="info-desc">
+<p>ordered list of acceptable certificate authorities</p>
+</div>
 </div>
 </td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
 </tr>
@@ -144,7 +168,9 @@ optional default certificate chain and other certificate chains<br>
 }
 
 <div class="info ">
-configuration parameters<br>
+<div class="info-desc">
+<p>configuration parameters</p>
+</div>
 </div>
 
 
@@ -152,7 +178,9 @@ configuration parameters<br>
 <pre><span id="VALsexp_of_config"><span class="keyword">val</span> sexp_of_config</span> : <code class="type"><a href="Config.html#TYPEconfig">config</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEclient"><span class="keyword">type</span> <code class="type"></code>client</span> </pre>
 <div class="info ">
-opaque type of a client configuration<br>
+<div class="info-desc">
+<p>opaque type of a client configuration</p>
+</div>
 </div>
 
 
@@ -160,64 +188,103 @@ opaque type of a client configuration<br>
 <pre><span id="VALsexp_of_client"><span class="keyword">val</span> sexp_of_client</span> : <code class="type"><a href="Config.html#TYPEclient">client</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEserver"><span class="keyword">type</span> <code class="type"></code>server</span> </pre>
 <div class="info ">
-opaque type of a server configuration<br>
+<div class="info-desc">
+<p>opaque type of a server configuration</p>
+</div>
 </div>
 
 
 <pre><span id="VALserver_of_sexp"><span class="keyword">val</span> server_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Config.html#TYPEserver">server</a></code></pre>
-<pre><span id="VALsexp_of_server"><span class="keyword">val</span> sexp_of_server</span> : <code class="type"><a href="Config.html#TYPEserver">server</a> -> Sexplib.Sexp.t</code></pre><br>
-<h1 id="1_Constructors">Constructors</h1><br>
-
-<pre><span id="VALclient"><span class="keyword">val</span> client</span> : <code class="type">authenticator:X509.Authenticator.a -><br>       ?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?cached_session:<a href="Core.html#TYPEepoch_data">Core.epoch_data</a> -> unit -> <a href="Config.html#TYPEclient">client</a></code></pre><div class="info ">
-<code class="code">client&nbsp;authenticator&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates</code> is <code class="code">client</code> configuration with the given parameters.<br>
-<b>Raises</b> <code>Invalid_argument</code> if the configuration is invalid<br>
+<pre><span id="VALsexp_of_server"><span class="keyword">val</span> sexp_of_server</span> : <code class="type"><a href="Config.html#TYPEserver">server</a> -> Sexplib.Sexp.t</code></pre><h2 id="1_Constructors">Constructors</h2>
+<pre><span id="VALclient"><span class="keyword">val</span> client</span> : <code class="type">authenticator:X509.Authenticator.a -><br>       ?peer_name:string -><br>       ?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?cached_session:<a href="Core.html#TYPEepoch_data">Core.epoch_data</a> -> unit -> <a href="Config.html#TYPEclient">client</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">client&nbsp;authenticator&nbsp;?peer_name&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates</code> is <code class="code">client</code> configuration with the given parameters.</p>
+</div>
+<ul class="info-attributes">
+<li><b>Raises</b> <code>Invalid_argument</code> if the configuration is invalid</li>
+</ul>
 </div>
 
-<pre><span id="VALserver"><span class="keyword">val</span> server</span> : <code class="type">?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?authenticator:X509.Authenticator.a -><br>       ?session_cache:<a href="Config.html#TYPEsession_cache">session_cache</a> -> unit -> <a href="Config.html#TYPEserver">server</a></code></pre><div class="info ">
-<code class="code">server&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?authenticator</code> is <code class="code">server</code> configuration with the given parameters.<br>
-<b>Raises</b> <code>Invalid_argument</code> if the configuration is invalid<br>
+<pre><span id="VALserver"><span class="keyword">val</span> server</span> : <code class="type">?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?acceptable_cas:X509.distinguished_name list -><br>       ?authenticator:X509.Authenticator.a -><br>       ?session_cache:<a href="Config.html#TYPEsession_cache">session_cache</a> -> unit -> <a href="Config.html#TYPEserver">server</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">server&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?acceptable_cas&nbsp;?authenticator</code> is <code class="code">server</code> configuration with the given parameters.</p>
+</div>
+<ul class="info-attributes">
+<li><b>Raises</b> <code>Invalid_argument</code> if the configuration is invalid</li>
+</ul>
 </div>
 
 <pre><span id="VALpeer"><span class="keyword">val</span> peer</span> : <code class="type"><a href="Config.html#TYPEclient">client</a> -> string -> <a href="Config.html#TYPEclient">client</a></code></pre><div class="info ">
-<code class="code">peer&nbsp;client&nbsp;name</code> is <code class="code">client</code> with <code class="code">name</code> as <code class="code">peer_name</code><br>
+<div class="info-desc">
+<p><code class="code">peer&nbsp;client&nbsp;name</code> is <code class="code">client</code> with <code class="code">name</code> as <code class="code">peer_name</code></p>
 </div>
-<br>
-<h1 id="1_Utilityfunctions">Utility functions</h1><br>
-
+</div>
+<h2 id="1_Utilityfunctions">Utility functions</h2>
 <pre><span id="VALdefault_hashes"><span class="keyword">val</span> default_hashes</span> : <code class="type">Nocrypto.Hash.hash list</code></pre><div class="info ">
-<code class="code">default_hashes</code> is a list of hash algorithms used by default<br>
+<div class="info-desc">
+<p><code class="code">default_hashes</code> is a list of hash algorithms used by default</p>
+</div>
 </div>
 
 <pre><span id="VALsupported_hashes"><span class="keyword">val</span> supported_hashes</span> : <code class="type">Nocrypto.Hash.hash list</code></pre><div class="info ">
-<code class="code">supported_hashes</code> is a list of supported hash algorithms by this library<br>
+<div class="info-desc">
+<p><code class="code">supported_hashes</code> is a list of supported hash algorithms by this library</p>
+</div>
 </div>
 
 <pre><span id="VALmin_dh_size"><span class="keyword">val</span> min_dh_size</span> : <code class="type">int</code></pre><div class="info ">
-<code class="code">min_dh_size</code> is minimal diffie hellman group size in bits (currently 1024)<br>
+<div class="info-desc">
+<p><code class="code">min_dh_size</code> is minimal diffie hellman group size in bits (currently 1024)</p>
+</div>
 </div>
 
 <pre><span id="VALdh_group"><span class="keyword">val</span> dh_group</span> : <code class="type">Nocrypto.Dh.group</code></pre><div class="info ">
-<code class="code">dh_group</code> is the default Diffie-Hellman group (currently the
+<div class="info-desc">
+<p><code class="code">dh_group</code> is the default Diffie-Hellman group (currently the
 ffdhe2048 group from
 <a href="https://www.ietf.org/id/draft-ietf-tls-negotiated-ff-dhe-10.txt">Negotiated
-Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)<br>
+Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)</p>
+</div>
 </div>
 
 <pre><span id="VALmin_rsa_key_size"><span class="keyword">val</span> min_rsa_key_size</span> : <code class="type">int</code></pre><div class="info ">
-<code class="code">min_rsa_key_size</code> is minimal RSA modulus key size in bits (currently 1024)<br>
+<div class="info-desc">
+<p><code class="code">min_rsa_key_size</code> is minimal RSA modulus key size in bits (currently 1024)</p>
+</div>
 </div>
 
-<pre><span class="keyword">module</span> <a href="Config.Ciphers.html">Ciphers</a>: <code class="code"><span class="keyword">sig</span></code> <a href="Config.Ciphers.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info">
-Cipher selection
-</div>
-<br>
-<h1 id="1_Internaluseonly">Internal use only</h1><br>
+<pre><span id="MODULECiphers"><span class="keyword">module</span> <a href="Config.Ciphers.html">Ciphers</a></span>: <code class="code"><span class="keyword">sig</span></code> <a href="Config.Ciphers.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info">
+<p>Cipher selection</p>
 
+</div>
+<h2 id="1_Internaluseonly">Internal use only</h2>
 <pre><span id="VALof_client"><span class="keyword">val</span> of_client</span> : <code class="type"><a href="Config.html#TYPEclient">client</a> -> <a href="Config.html#TYPEconfig">config</a></code></pre><div class="info ">
-<code class="code">of_client&nbsp;client</code> is a client configuration for <code class="code">client</code><br>
+<div class="info-desc">
+<p><code class="code">of_client&nbsp;client</code> is a client configuration for <code class="code">client</code></p>
+</div>
 </div>
 
 <pre><span id="VALof_server"><span class="keyword">val</span> of_server</span> : <code class="type"><a href="Config.html#TYPEserver">server</a> -> <a href="Config.html#TYPEconfig">config</a></code></pre><div class="info ">
-<code class="code">of_server&nbsp;server</code> is a server configuration for <code class="code">server</code><br>
+<div class="info-desc">
+<p><code class="code">of_server&nbsp;server</code> is a server configuration for <code class="code">server</code></p>
+</div>
+</div>
+
+<pre><span id="VALwith_authenticator"><span class="keyword">val</span> with_authenticator</span> : <code class="type"><a href="Config.html#TYPEconfig">config</a> -> X509.Authenticator.a -> <a href="Config.html#TYPEconfig">config</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">with_authenticator&nbsp;config&nbsp;auth</code> is <code class="code">config</code> with <code class="code">auth</code> as <code class="code">authenticator</code></p>
+</div>
+</div>
+
+<pre><span id="VALwith_own_certificates"><span class="keyword">val</span> with_own_certificates</span> : <code class="type"><a href="Config.html#TYPEconfig">config</a> -> <a href="Config.html#TYPEown_cert">own_cert</a> -> <a href="Config.html#TYPEconfig">config</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">with_own_certificates&nbsp;config&nbsp;cert</code> is <code class="code">config</code> with <code class="code">cert</code> as <code class="code">own_cert</code></p>
+</div>
+</div>
+
+<pre><span id="VALwith_acceptable_cas"><span class="keyword">val</span> with_acceptable_cas</span> : <code class="type"><a href="Config.html#TYPEconfig">config</a> -> X509.distinguished_name list -> <a href="Config.html#TYPEconfig">config</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">with_acceptable_cas&nbsp;config&nbsp;cas</code> is <code class="code">config</code> with <code class="code">cas</code> as <code class="code">accepted_cas</code></p>
+</div>
 </div>
 </body></html>

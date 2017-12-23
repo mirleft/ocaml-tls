@@ -57,6 +57,10 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;writev&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;buffer&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;<span class="constructor">Result</span>.result&nbsp;io<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;close&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit&nbsp;io<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;reneg&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?authenticator:<span class="constructor">X509</span>.<span class="constructor">Authenticator</span>.a&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?acceptable_cas:<span class="constructor">X509</span>.distinguished_name&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?cert:<span class="constructor">Tls</span>.<span class="constructor">Config</span>.own_cert&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?drop:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;<span class="constructor">Tls_mirage</span>.<span class="constructor">Make</span>.write_error)&nbsp;<span class="constructor">Result</span>.result&nbsp;<span class="constructor">Lwt</span>.t<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;client_of_flow&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?trace:<span class="constructor">Tls_mirage</span>.<span class="constructor">Make</span>.tracer&nbsp;<span class="keywordsign">-&gt;</span><br>

@@ -26,17 +26,21 @@
 &nbsp;</div>
 <h1>Module <a href="type_Tls_mirage.html">Tls_mirage</a></h1>
 
-<pre><span class="keyword">module</span> Tls_mirage: <code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
-Effectful operations using Mirage for pure TLS.<br>
+<pre><span id="MODULETls_mirage"><span class="keyword">module</span> Tls_mirage</span>: <code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+<div class="info-desc">
+<p>Effectful operations using Mirage for pure TLS.</p>
+</div>
 </div>
 <hr width="100%">
 
-<pre><span class="keyword">module</span> <a href="Tls_mirage.Make.html">Make</a>: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">F</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_flow_lwt.S</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.Make.html">..</a> <code class="code"><span class="keyword">end</span></code><code class="type"> 
+<pre><span id="MODULEMake"><span class="keyword">module</span> <a href="Tls_mirage.Make.html">Make</a></span>: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">F</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_flow_lwt.S</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.Make.html">..</a> <code class="code"><span class="keyword">end</span></code><code class="type"> 
   with module FLOW = F</code></div></pre><div class="info">
-TLS module given a flow
+<p>TLS module given a flow</p>
+
 </div>
 
-<pre><span class="keyword">module</span> <a href="Tls_mirage.X509.html">X509</a>: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">KV</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_kv_lwt.RO</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">C</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_clock.PCLOCK</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.X509.html">..</a> <code class="code"><span class="keyword">end</span></code></div></div></pre><div class="info">
-X.509 handling given a key value store and a clock
+<pre><span id="MODULEX509"><span class="keyword">module</span> <a href="Tls_mirage.X509.html">X509</a></span>: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">KV</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_kv_lwt.RO</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">C</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_clock.PCLOCK</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.X509.html">..</a> <code class="code"><span class="keyword">end</span></code></div></div></pre><div class="info">
+<p>X.509 handling given a key value store and a clock</p>
+
 </div>
 </body></html>

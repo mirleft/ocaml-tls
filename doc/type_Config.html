@@ -33,6 +33,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;authenticator&nbsp;:&nbsp;<span class="constructor">X509</span>.<span class="constructor">Authenticator</span>.a&nbsp;option;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;peer_name&nbsp;:&nbsp;string&nbsp;option;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;own_certificates&nbsp;:&nbsp;<span class="constructor">Config</span>.own_cert;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;acceptable_cas&nbsp;:&nbsp;<span class="constructor">X509</span>.distinguished_name&nbsp;list;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;session_cache&nbsp;:&nbsp;<span class="constructor">Config</span>.session_cache;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;cached_session&nbsp;:&nbsp;<span class="constructor">Core</span>.epoch_data&nbsp;option;<br>
 &nbsp;&nbsp;}<br>
@@ -46,6 +47,7 @@
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_server&nbsp;:&nbsp;<span class="constructor">Config</span>.server&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;client&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;authenticator:<span class="constructor">X509</span>.<span class="constructor">Authenticator</span>.a&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?peer_name:string&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?ciphers:<span class="constructor">Ciphersuite</span>.ciphersuite&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?version:<span class="constructor">Core</span>.tls_version&nbsp;*&nbsp;<span class="constructor">Core</span>.tls_version&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?hashes:<span class="constructor">Nocrypto</span>.<span class="constructor">Hash</span>.hash&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
@@ -58,6 +60,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;?hashes:<span class="constructor">Nocrypto</span>.<span class="constructor">Hash</span>.hash&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?reneg:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?certificates:<span class="constructor">Config</span>.own_cert&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?acceptable_cas:<span class="constructor">X509</span>.distinguished_name&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?authenticator:<span class="constructor">X509</span>.<span class="constructor">Authenticator</span>.a&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?session_cache:<span class="constructor">Config</span>.session_cache&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Config</span>.server<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;peer&nbsp;:&nbsp;<span class="constructor">Config</span>.client&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Config</span>.client<br>
@@ -76,4 +79,10 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;of_client&nbsp;:&nbsp;<span class="constructor">Config</span>.client&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Config</span>.config<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;of_server&nbsp;:&nbsp;<span class="constructor">Config</span>.server&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Config</span>.config<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;with_authenticator&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Config</span>.config&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">X509</span>.<span class="constructor">Authenticator</span>.a&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Config</span>.config<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;with_own_certificates&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Config</span>.config&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Config</span>.own_cert&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Config</span>.config<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;with_acceptable_cas&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Config</span>.config&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">X509</span>.distinguished_name&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Config</span>.config<br>
 <span class="keyword">end</span></code></body></html>

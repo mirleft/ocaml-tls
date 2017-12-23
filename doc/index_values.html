@@ -22,32 +22,35 @@
 &nbsp;</div>
 <h1>Index of values</h1>
 <table>
-<tr><td align="left"><br></td></tr>
+<tr><td align="left"><div></div></td></tr>
 <tr><td><a href="Ciphersuite.html#VAL__ciphersuite_of_sexp__">__ciphersuite_of_sexp__</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td></td></tr>
 <tr><td><a href="Core.html#VAL__client_extension_of_sexp__">__client_extension_of_sexp__</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Core.html#VAL__server_extension_of_sexp__">__server_extension_of_sexp__</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>A</td></tr>
+<tr><td align="left"><div>A</div></td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALaccept">accept</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">accept&nbsp;?tracer&nbsp;server&nbsp;fd</code> is <code class="code">t,&nbsp;sockaddr</code>, after accepting a
-      client on <code class="code">fd</code> and upgrading to a TLS connection.
+<p><code class="code">accept&nbsp;?tracer&nbsp;server&nbsp;fd</code> is <code class="code">t,&nbsp;sockaddr</code>, after accepting a
+      client on <code class="code">fd</code> and upgrading to a TLS connection.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.html#VALaccept">accept</a> [<a href="Tls_lwt.html">Tls_lwt</a>]</td>
 <td><div class="info">
-<code class="code">accept&nbsp;?trace&nbsp;own_cert&nbsp;fd</code> is <code class="code">(ic,&nbsp;oc),&nbsp;sockaddr</code>, the input and
+<p><code class="code">accept&nbsp;?trace&nbsp;own_cert&nbsp;fd</code> is <code class="code">(ic,&nbsp;oc),&nbsp;sockaddr</code>, the input and
     output channel from the accepted connection on <code class="code">fd</code>, using the
-    default configuration with the given <code class="code">own_cert</code>.
+    default configuration with the given <code class="code">own_cert</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.html#VALaccept_ext">accept_ext</a> [<a href="Tls_lwt.html">Tls_lwt</a>]</td>
 <td><div class="info">
-<code class="code">accept_ext&nbsp;?trace&nbsp;server&nbsp;fd</code> is <code class="code">(ic,&nbsp;oc),&nbsp;sockaddr</code>, the input
+<p><code class="code">accept_ext&nbsp;?trace&nbsp;server&nbsp;fd</code> is <code class="code">(ic,&nbsp;oc),&nbsp;sockaddr</code>, the input
     and output channel from an accepted connection on the given <code class="code">fd</code>,
-    after upgrading to TLS using the <code class="code">server</code> configuration.
+    after upgrading to TLS using the <code class="code">server</code> configuration.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Ciphersuite.html#VALaead_cipher_of_sexp">aead_cipher_of_sexp</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
@@ -60,7 +63,8 @@
 <td></td></tr>
 <tr><td><a href="Engine.html#VALalert_of_failure">alert_of_failure</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">alert_of_failure&nbsp;failure</code> is <code class="code">alert</code>, the TLS alert type for this failure.
+<p><code class="code">alert_of_failure&nbsp;failure</code> is <code class="code">alert</code>, the TLS alert type for this failure.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Packet.html#VALalert_type_of_sexp">alert_type_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
@@ -81,57 +85,65 @@
 <td></td></tr>
 <tr><td><a href="Tls_mirage.X509.html#VALauthenticator">authenticator</a> [<a href="Tls_mirage.X509.html">Tls_mirage.X509</a>]</td>
 <td><div class="info">
-<code class="code">authenticator&nbsp;store&nbsp;clock&nbsp;typ</code> creates an <code class="code">authenticator</code>, either
+<p><code class="code">authenticator&nbsp;store&nbsp;clock&nbsp;typ</code> creates an <code class="code">authenticator</code>, either
       using the given certificate authorities in the <code class="code">store</code> or
-      null.
+      null.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="X509_lwt.html#VALauthenticator">authenticator</a> [<a href="X509_lwt.html">X509_lwt</a>]</td>
 <td><div class="info">
-<code class="code">authenticator&nbsp;methods</code> constructs an <code class="code">authenticator</code> using the
-    specified method and data.
+<p><code class="code">authenticator&nbsp;methods</code> constructs an <code class="code">authenticator</code> using the
+    specified method and data.</p>
+
 </div>
 </td></tr>
-<tr><td align="left"><br>B</td></tr>
+<tr><td align="left"><div>B</div></td></tr>
 <tr><td><a href="Ciphersuite.html#VALblock_cipher_of_sexp">block_cipher_of_sexp</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>C</td></tr>
+<tr><td align="left"><div>C</div></td></tr>
 <tr><td><a href="Engine.html#VALcan_handle_appdata">can_handle_appdata</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">can_handle_appdata&nbsp;state</code> is a predicate which indicates when the
-    connection has already completed a handshake.
+<p><code class="code">can_handle_appdata&nbsp;state</code> is a predicate which indicates when the
+    connection has already completed a handshake.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_mirage.X509.html#VALcertificate">certificate</a> [<a href="Tls_mirage.X509.html">Tls_mirage.X509</a>]</td>
 <td><div class="info">
-<code class="code">certificate&nbsp;store&nbsp;typ</code> unmarshals a certificate chain and
-      private key material from the <code class="code">store</code>.
+<p><code class="code">certificate&nbsp;store&nbsp;typ</code> unmarshals a certificate chain and
+      private key material from the <code class="code">store</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="X509_lwt.html#VALcerts_of_pem">certs_of_pem</a> [<a href="X509_lwt.html">X509_lwt</a>]</td>
 <td><div class="info">
-<code class="code">certs_of_pem&nbsp;file</code> is <code class="code">certificates</code>, which are read from the
-    PEM-encoded <code class="code">file</code>.
+<p><code class="code">certs_of_pem&nbsp;file</code> is <code class="code">certificates</code>, which are read from the
+    PEM-encoded <code class="code">file</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="X509_lwt.html#VALcerts_of_pem_dir">certs_of_pem_dir</a> [<a href="X509_lwt.html">X509_lwt</a>]</td>
 <td><div class="info">
-<code class="code">certs_of_pem_dir&nbsp;dir</code> is <code class="code">certificates</code>, which are read from all
-    PEM-encoded files in <code class="code">dir</code>.
+<p><code class="code">certs_of_pem_dir&nbsp;dir</code> is <code class="code">certificates</code>, which are read from all
+    PEM-encoded files in <code class="code">dir</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Ciphersuite.html#VALciphersuite_fs">ciphersuite_fs</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td></td></tr>
 <tr><td><a href="Ciphersuite.html#VALciphersuite_kex">ciphersuite_kex</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td><div class="info">
-<code class="code">ciphersuite_kex&nbsp;ciphersuite</code> is <code class="code">kex</code>, first projection of <code class="code">get_kex_privprot</code>
+<p><code class="code">ciphersuite_kex&nbsp;ciphersuite</code> is <code class="code">kex</code>, first projection of <code class="code">get_kex_privprot</code></p>
+
 </div>
 </td></tr>
 <tr><td><a href="Ciphersuite.html#VALciphersuite_of_sexp">ciphersuite_of_sexp</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td></td></tr>
 <tr><td><a href="Ciphersuite.html#VALciphersuite_privprot">ciphersuite_privprot</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td><div class="info">
-<code class="code">ciphersuite_privprot&nbsp;ciphersuite</code> is <code class="code">privprot</code>, second projection of <code class="code">get_kex_privprot</code>
+<p><code class="code">ciphersuite_privprot&nbsp;ciphersuite</code> is <code class="code">privprot</code>, second projection of <code class="code">get_kex_privprot</code></p>
+
 </div>
 </td></tr>
 <tr><td><a href="Ciphersuite.html#VALciphersuite_tls12_only">ciphersuite_tls12_only</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
@@ -142,13 +154,15 @@
 <td></td></tr>
 <tr><td><a href="Config.html#VALclient">client</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">client&nbsp;authenticator&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates</code> is <code class="code">client</code> configuration with the given parameters.
+<p><code class="code">client&nbsp;authenticator&nbsp;?peer_name&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates</code> is <code class="code">client</code> configuration with the given parameters.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Engine.html#VALclient">client</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">client&nbsp;client</code> is <code class="code">tls&nbsp;*&nbsp;out</code> where <code class="code">tls</code> is the initial state,
-    and <code class="code">out</code> the initial client hello
+<p><code class="code">client&nbsp;client</code> is <code class="code">tls&nbsp;*&nbsp;out</code> where <code class="code">tls</code> is the initial state,
+    and <code class="code">out</code> the initial client hello</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Packet.html#VALclient_certificate_type_of_sexp">client_certificate_type_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
@@ -163,26 +177,30 @@
 <td></td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALclient_of_fd">client_of_fd</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">client_of_fd&nbsp;?tracer&nbsp;client&nbsp;~host&nbsp;fd</code> is <code class="code">t</code>, after client-side
-      TLS handshake of <code class="code">fd</code> using <code class="code">client</code> configuration and <code class="code">host</code>.
+<p><code class="code">client_of_fd&nbsp;?tracer&nbsp;client&nbsp;~host&nbsp;fd</code> is <code class="code">t</code>, after client-side
+      TLS handshake of <code class="code">fd</code> using <code class="code">client</code> configuration and <code class="code">host</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_mirage.Make.html#VALclient_of_flow">client_of_flow</a> [<a href="Tls_mirage.Make.html">Tls_mirage.Make</a>]</td>
 <td><div class="info">
-<code class="code">client_of_flow&nbsp;~trace&nbsp;client&nbsp;~host&nbsp;flow</code> upgrades the existing connection
-      to TLS using the <code class="code">client</code> configuration, using <code class="code">host</code> as peer name.
+<p><code class="code">client_of_flow&nbsp;~trace&nbsp;client&nbsp;~host&nbsp;flow</code> upgrades the existing connection
+      to TLS using the <code class="code">client</code> configuration, using <code class="code">host</code> as peer name.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Config.html#VALclient_of_sexp">client_of_sexp</a> [<a href="Config.html">Config</a>]</td>
 <td></td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALclose">close</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">close&nbsp;t</code> closes the TLS session and the underlying file descriptor.
+<p><code class="code">close&nbsp;t</code> closes the TLS session and the underlying file descriptor.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALclose_tls">close_tls</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">close&nbsp;t</code> closes the TLS session by sending a close notify to the peer.
+<p><code class="code">close&nbsp;t</code> closes the TLS session by sending a close notify to the peer.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Core.SessionID.html#VALcompare">compare</a> [<a href="Core.SessionID.html">Core.SessionID</a>]</td>
@@ -197,22 +215,25 @@
 <td></td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALconnect">connect</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">connect&nbsp;?tracer&nbsp;client&nbsp;(host,&nbsp;port)</code> is <code class="code">t</code>, after successful
-      connection to <code class="code">host</code> on <code class="code">port</code> and TLS upgrade.
+<p><code class="code">connect&nbsp;?tracer&nbsp;client&nbsp;(host,&nbsp;port)</code> is <code class="code">t</code>, after successful
+      connection to <code class="code">host</code> on <code class="code">port</code> and TLS upgrade.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.html#VALconnect">connect</a> [<a href="Tls_lwt.html">Tls_lwt</a>]</td>
 <td><div class="info">
-<code class="code">connect&nbsp;?trace&nbsp;authenticator&nbsp;(host,&nbsp;port)</code> is <code class="code">ic,&nbsp;oc</code>, the input
+<p><code class="code">connect&nbsp;?trace&nbsp;authenticator&nbsp;(host,&nbsp;port)</code> is <code class="code">ic,&nbsp;oc</code>, the input
     and output channel of a TLS connection to <code class="code">host</code> on <code class="code">port</code> using the
-    default configuration and the <code class="code">authenticator</code>.
+    default configuration and the <code class="code">authenticator</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.html#VALconnect_ext">connect_ext</a> [<a href="Tls_lwt.html">Tls_lwt</a>]</td>
 <td><div class="info">
-<code class="code">connect_ext&nbsp;?trace&nbsp;client&nbsp;(host,&nbsp;port)</code> is <code class="code">ic,&nbsp;oc</code>, the input
+<p><code class="code">connect_ext&nbsp;?trace&nbsp;client&nbsp;(host,&nbsp;port)</code> is <code class="code">ic,&nbsp;oc</code>, the input
     and output channel of a TLS connection to <code class="code">host</code> on <code class="code">port</code> using
-    the <code class="code">client</code> configuration.
+    the <code class="code">client</code> configuration.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Packet.html#VALcontent_type_of_sexp">content_type_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
@@ -221,28 +242,31 @@
 <td></td></tr>
 <tr><td><a href="Packet.html#VALcontent_type_to_string">content_type_to_string</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>D</td></tr>
+<tr><td align="left"><div>D</div></td></tr>
 <tr><td><a href="Config.Ciphers.html#VALdefault">default</a> [<a href="Config.Ciphers.html">Config.Ciphers</a>]</td>
 <td><div class="info">
-<code class="code">default</code> is a list of ciphersuites this library uses by default.
+<p><code class="code">default</code> is a list of ciphersuites this library uses by default.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Config.html#VALdefault_hashes">default_hashes</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">default_hashes</code> is a list of hash algorithms used by default
+<p><code class="code">default_hashes</code> is a list of hash algorithms used by default</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Config.html#VALdh_group">dh_group</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">dh_group</code> is the default Diffie-Hellman group (currently the
+<p><code class="code">dh_group</code> is the default Diffie-Hellman group (currently the
 ffdhe2048 group from
 <a href="https://www.ietf.org/id/draft-ietf-tls-negotiated-ff-dhe-10.txt">Negotiated
-Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
+Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Core.html#VALdh_parameters_of_sexp">dh_parameters_of_sexp</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>E</td></tr>
+<tr><td align="left"><div>E</div></td></tr>
 <tr><td><a href="Packet.html#VALec_basis_type_of_sexp">ec_basis_type_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALec_basis_type_to_int">ec_basis_type_to_int</a> [<a href="Packet.html">Packet</a>]</td>
@@ -271,26 +295,30 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Tls_mirage.Make.html#VALepoch">epoch</a> [<a href="Tls_mirage.Make.html">Tls_mirage.Make</a>]</td>
 <td><div class="info">
-<code class="code">epoch&nbsp;flow</code> extracts information of the established session.
+<p><code class="code">epoch&nbsp;flow</code> extracts information of the established session.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALepoch">epoch</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">epoch&nbsp;t</code> returns <code class="code">epoch</code>, which contains information of the
-      active session.
+<p><code class="code">epoch&nbsp;t</code> returns <code class="code">epoch</code>, which contains information of the
+      active session.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Engine.html#VALepoch">epoch</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">epoch&nbsp;state</code> is <code class="code">epoch</code>, which contains the session
-    information.
+<p><code class="code">epoch&nbsp;state</code> is <code class="code">epoch</code>, which contains the session
+    information.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Core.html#VALepoch_data_of_sexp">epoch_data_of_sexp</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Engine.html#VALepoch_of_sexp">epoch_of_sexp</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">epoch_of_sexp&nbsp;sexp</code> is <code class="code">epoch</code>, the unmarshalled <code class="code">sexp</code>.
+<p><code class="code">epoch_of_sexp&nbsp;sexp</code> is <code class="code">epoch</code>, the unmarshalled <code class="code">sexp</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Core.SessionID.html#VALequal">equal</a> [<a href="Core.SessionID.html">Core.SessionID</a>]</td>
@@ -301,37 +329,49 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Packet.html#VALextension_type_to_string">extension_type_to_string</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>F</td></tr>
+<tr><td align="left"><div>F</div></td></tr>
 <tr><td><a href="Engine.html#VALfailure_of_sexp">failure_of_sexp</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">failure_of_sexp&nbsp;sexp</code> is <code class="code">failure</code>, the unmarshalled <code class="code">sexp</code>.
+<p><code class="code">failure_of_sexp&nbsp;sexp</code> is <code class="code">failure</code>, the unmarshalled <code class="code">sexp</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Config.Ciphers.html#VALfs">fs</a> [<a href="Config.Ciphers.html">Config.Ciphers</a>]</td>
 <td><div class="info">
-<code class="code">fs</code> is a list of ciphersuites which provide forward secrecy
-      (sublist of <code class="code">default</code>).
+<p><code class="code">fs</code> is a list of ciphersuites which provide forward secrecy
+      (sublist of <code class="code">default</code>).</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Config.Ciphers.html#VALfs_of">fs_of</a> [<a href="Config.Ciphers.html">Config.Ciphers</a>]</td>
 <td><div class="info">
-<code class="code">fs_of&nbsp;ciphers</code> selects all ciphersuites which provide forward
-      secrecy from <code class="code">ciphers</code>.
+<p><code class="code">fs_of&nbsp;ciphers</code> selects all ciphersuites which provide forward
+      secrecy from <code class="code">ciphers</code>.</p>
+
 </div>
 </td></tr>
-<tr><td align="left"><br>G</td></tr>
+<tr><td align="left"><div>G</div></td></tr>
 <tr><td><a href="Ciphersuite.html#VALget_kex_privprot">get_kex_privprot</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td><div class="info">
-<code class="code">get_kex_privprot&nbsp;ciphersuite</code> is <code class="code">(kex,&nbsp;privacy_protection)</code> where it dissects the <code class="code">ciphersuite</code> into a pair containing the key exchange method <code class="code">kex</code>, and its <code class="code">privacy_protection</code>
+<p><code class="code">get_kex_privprot&nbsp;ciphersuite</code> is <code class="code">(kex,&nbsp;privacy_protection)</code> where it dissects the <code class="code">ciphersuite</code> into a pair containing the key exchange method <code class="code">kex</code>, and its <code class="code">privacy_protection</code></p>
+
 </div>
 </td></tr>
 <tr><td><a href="Packet.html#VALget_uint24_len">get_uint24_len</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>H</td></tr>
+<tr><td align="left"><div>H</div></td></tr>
 <tr><td><a href="Engine.html#VALhandle_tls">handle_tls</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">handle_tls&nbsp;state&nbsp;buffer</code> is <code class="code">ret</code>, depending on incoming <code class="code">state</code>
-    and <code class="code">buffer</code>, the result is the appropriate <a href="Engine.html#TYPEret"><code class="code"><span class="constructor">Engine</span>.ret</code></a>
+<p><code class="code">handle_tls&nbsp;state&nbsp;buffer</code> is <code class="code">ret</code>, depending on incoming <code class="code">state</code>
+    and <code class="code">buffer</code>, the result is the appropriate <a href="Engine.html#TYPEret"><code class="code"><span class="constructor">Engine</span>.ret</code></a></p>
+
+</div>
+</td></tr>
+<tr><td><a href="Engine.html#VALhandshake_in_progress">handshake_in_progress</a> [<a href="Engine.html">Engine</a>]</td>
+<td><div class="info">
+<p><code class="code">handshake_in_progrss&nbsp;state</code> is a predicate which indicates whether there
+    is a handshake in progress or scheduled.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Packet.html#VALhandshake_type_of_sexp">handshake_type_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
@@ -350,7 +390,7 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Packet.html#VALhash_algorithm_to_string">hash_algorithm_to_string</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>I</td></tr>
+<tr><td align="left"><div>I</div></td></tr>
 <tr><td><a href="Packet.html#VALint_to_alert_level">int_to_alert_level</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALint_to_alert_type">int_to_alert_type</a> [<a href="Packet.html">Packet</a>]</td>
@@ -381,12 +421,16 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Packet.html#VALint_to_signature_algorithm_type">int_to_signature_algorithm_type</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>K</td></tr>
+<tr><td align="left"><div>K</div></td></tr>
 <tr><td><a href="Ciphersuite.html#VALkey_exchange_algorithm_of_sexp">key_exchange_algorithm_of_sexp</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td></td></tr>
 <tr><td><a href="Ciphersuite.html#VALkey_length">key_length</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
-<td></td></tr>
-<tr><td align="left"><br>M</td></tr>
+<td><div class="info">
+<p><code class="code">key_length&nbsp;iv&nbsp;payload_protection</code> is <code class="code">(key&nbsp;size,&nbsp;<span class="constructor">IV</span>&nbsp;size,&nbsp;mac&nbsp;size)</code> where key IV, and mac sizes are the required bytes for the given <code class="code">payload_protection</code></p>
+
+</div>
+</td></tr>
+<tr><td align="left"><div>M</div></td></tr>
 <tr><td><a href="Core.html#VALmaster_secret_of_sexp">master_secret_of_sexp</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALmax_fragment_length_of_sexp">max_fragment_length_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
@@ -399,17 +443,19 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Config.html#VALmin_dh_size">min_dh_size</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">min_dh_size</code> is minimal diffie hellman group size in bits (currently 1024)
+<p><code class="code">min_dh_size</code> is minimal diffie hellman group size in bits (currently 1024)</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Core.html#VALmin_protocol_version">min_protocol_version</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Config.html#VALmin_rsa_key_size">min_rsa_key_size</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">min_rsa_key_size</code> is minimal RSA modulus key size in bits (currently 1024)
+<p><code class="code">min_rsa_key_size</code> is minimal RSA modulus key size in bits (currently 1024)</p>
+
 </div>
 </td></tr>
-<tr><td align="left"><br>N</td></tr>
+<tr><td align="left"><div>N</div></td></tr>
 <tr><td><a href="Packet.html#VALnamed_curve_type_of_sexp">named_curve_type_of_sexp</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALnamed_curve_type_to_int">named_curve_type_to_int</a> [<a href="Packet.html">Packet</a>]</td>
@@ -417,29 +463,37 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <tr><td><a href="Packet.html#VALnamed_curve_type_to_string">named_curve_type_to_string</a> [<a href="Packet.html">Packet</a>]</td>
 <td></td></tr>
 <tr><td><a href="Ciphersuite.html#VALneeds_certificate">needs_certificate</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
-<td></td></tr>
-<tr><td><a href="Ciphersuite.html#VALneeds_server_kex">needs_server_kex</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td><div class="info">
-<code class="code">needs_server_kex&nbsp;kex</code> is a predicate which is true if the <code class="code">kex</code> requires a server key exchange messag
+<p><code class="code">needs_certificate&nbsp;kex</code> is a predicate which is true if the <code class="code">kex</code> requires a server certificate</p>
+
 </div>
 </td></tr>
-<tr><td align="left"><br>O</td></tr>
+<tr><td><a href="Ciphersuite.html#VALneeds_server_kex">needs_server_kex</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
+<td><div class="info">
+<p><code class="code">needs_server_kex&nbsp;kex</code> is a predicate which is true if the <code class="code">kex</code> requires a server key exchange messag</p>
+
+</div>
+</td></tr>
+<tr><td align="left"><div>O</div></td></tr>
 <tr><td><a href="Config.html#VALof_client">of_client</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">of_client&nbsp;client</code> is a client configuration for <code class="code">client</code>
+<p><code class="code">of_client&nbsp;client</code> is a client configuration for <code class="code">client</code></p>
+
 </div>
 </td></tr>
 <tr><td><a href="Config.html#VALof_server">of_server</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">of_server&nbsp;server</code> is a server configuration for <code class="code">server</code>
+<p><code class="code">of_server&nbsp;server</code> is a server configuration for <code class="code">server</code></p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.html#VALof_t">of_t</a> [<a href="Tls_lwt.html">Tls_lwt</a>]</td>
 <td><div class="info">
-<code class="code">of_t&nbsp;t</code> is <code class="code">ic,&nbsp;oc</code>, the input and output channel.
+<p><code class="code">of_t&nbsp;t</code> is <code class="code">ic,&nbsp;oc</code>, the input and output channel.</p>
+
 </div>
 </td></tr>
-<tr><td align="left"><br>P</td></tr>
+<tr><td align="left"><div>P</div></td></tr>
 <tr><td><a href="Core.html#VALpair_of_tls_any_version">pair_of_tls_any_version</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Core.html#VALpair_of_tls_version">pair_of_tls_version</a> [<a href="Core.html">Core</a>]</td>
@@ -448,72 +502,87 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Config.html#VALpeer">peer</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">peer&nbsp;client&nbsp;name</code> is <code class="code">client</code> with <code class="code">name</code> as <code class="code">peer_name</code>
+<p><code class="code">peer&nbsp;client&nbsp;name</code> is <code class="code">client</code> with <code class="code">name</code> as <code class="code">peer_name</code></p>
+
 </div>
 </td></tr>
 <tr><td><a href="X509_lwt.html#VALprivate_of_pems">private_of_pems</a> [<a href="X509_lwt.html">X509_lwt</a>]</td>
 <td><div class="info">
-<code class="code">private_of_pems&nbsp;~cert&nbsp;~priv_key</code> is <code class="code">priv</code>, after reading the
+<p><code class="code">private_of_pems&nbsp;~cert&nbsp;~priv_key</code> is <code class="code">priv</code>, after reading the
     private key and certificate chain from the given PEM-encoded
-    files.
+    files.</p>
+
 </div>
 </td></tr>
-<tr><td align="left"><br>R</td></tr>
+<tr><td align="left"><div>R</div></td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALread">read</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">read&nbsp;t&nbsp;buffer</code> is <code class="code">length</code>, the number of bytes read into
-      <code class="code">buffer</code>.
+<p><code class="code">read&nbsp;t&nbsp;buffer</code> is <code class="code">length</code>, the number of bytes read into
+      <code class="code">buffer</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALread_bytes">read_bytes</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">read_bytes&nbsp;t&nbsp;bytes&nbsp;offset&nbsp;len</code> is <code class="code">read_bytes</code>, the amount of
-      bytes read.
+<p><code class="code">read_bytes&nbsp;t&nbsp;bytes&nbsp;offset&nbsp;len</code> is <code class="code">read_bytes</code>, the amount of
+      bytes read.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_mirage.Make.html#VALreneg">reneg</a> [<a href="Tls_mirage.Make.html">Tls_mirage.Make</a>]</td>
 <td><div class="info">
-<code class="code">reneg&nbsp;flow</code> renegotiates the session.
+<p><code class="code">reneg&nbsp;~authenticator&nbsp;~acceptable_cas&nbsp;~cert&nbsp;~drop&nbsp;t</code> renegotiates the
+      session, and blocks until the renegotiation finished.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALreneg">reneg</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">reneg&nbsp;t</code> renegotiates the keys of the session.
+<p><code class="code">reneg&nbsp;~authenticator&nbsp;~acceptable_cas&nbsp;~cert&nbsp;~drop&nbsp;t</code> renegotiates the
+      session, and blocks until the renegotiation finished.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Engine.html#VALreneg">reneg</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">reneg&nbsp;tls</code> initiates a renegotation on <code class="code">tls</code>.
+<p><code class="code">reneg&nbsp;~authenticator&nbsp;~acceptable_cas&nbsp;~cert&nbsp;tls</code> initiates a renegotation on
+    <code class="code">tls</code>, using the provided <code class="code">authenticator</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Ciphersuite.html#VALrequired_keytype_and_usage">required_keytype_and_usage</a> [<a href="Ciphersuite.html">Ciphersuite</a>]</td>
 <td><div class="info">
-<code class="code">required_keytype_and_usage&nbsp;kex</code> is <code class="code">(keytype,&nbsp;usage)</code> which a certificate must have if it is used in the given <code class="code">kex</code> method
+<p><code class="code">required_keytype_and_usage&nbsp;kex</code> is <code class="code">(keytype,&nbsp;usage)</code> which a certificate must have if it is used in the given <code class="code">kex</code> method</p>
+
 </div>
 </td></tr>
-<tr><td align="left"><br>S</td></tr>
+<tr><td align="left"><div>S</div></td></tr>
 <tr><td><a href="Engine.html#VALsend_application_data">send_application_data</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">send_application_data&nbsp;tls&nbsp;outs</code> is <code class="code">(tls'&nbsp;*&nbsp;out)&nbsp;option</code> where
+<p><code class="code">send_application_data&nbsp;tls&nbsp;outs</code> is <code class="code">(tls'&nbsp;*&nbsp;out)&nbsp;option</code> where
     <code class="code">tls'</code> is the new tls state, and <code class="code">out</code> the cstruct to send over the
-    wire (encrypted <code class="code">outs</code>).
+    wire (encrypted <code class="code">outs</code>).</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Engine.html#VALsend_close_notify">send_close_notify</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">send_close_notify&nbsp;tls</code> is <code class="code">tls'&nbsp;*&nbsp;out</code> where <code class="code">tls'</code> is the new
-    tls state, and out the (possible encrypted) close notify alert.
+<p><code class="code">send_close_notify&nbsp;tls</code> is <code class="code">tls'&nbsp;*&nbsp;out</code> where <code class="code">tls'</code> is the new
+    tls state, and out the (possible encrypted) close notify alert.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Config.html#VALserver">server</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">server&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?authenticator</code> is <code class="code">server</code> configuration with the given parameters.
+<p><code class="code">server&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?acceptable_cas&nbsp;?authenticator</code> is <code class="code">server</code> configuration with the given parameters.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Engine.html#VALserver">server</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">server&nbsp;server</code> is <code class="code">tls</code> where <code class="code">tls</code> is the initial server
-    state
+<p><code class="code">server&nbsp;server</code> is <code class="code">tls</code> where <code class="code">tls</code> is the initial server
+    state</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Core.html#VALserver_extension_of_sexp">server_extension_of_sexp</a> [<a href="Core.html">Core</a>]</td>
@@ -522,14 +591,16 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALserver_of_fd">server_of_fd</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">server_of_fd&nbsp;?tracer&nbsp;server&nbsp;fd</code> is <code class="code">t</code>, after server-side TLS
-      handshake of <code class="code">fd</code> using <code class="code">server</code> configuration.
+<p><code class="code">server_of_fd&nbsp;?tracer&nbsp;server&nbsp;fd</code> is <code class="code">t</code>, after server-side TLS
+      handshake of <code class="code">fd</code> using <code class="code">server</code> configuration.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_mirage.Make.html#VALserver_of_flow">server_of_flow</a> [<a href="Tls_mirage.Make.html">Tls_mirage.Make</a>]</td>
 <td><div class="info">
-<code class="code">server_of_flow&nbsp;?tracer&nbsp;server&nbsp;flow</code> upgrades the flow to a TLS
-      connection using the <code class="code">server</code> configuration.
+<p><code class="code">server_of_flow&nbsp;?tracer&nbsp;server&nbsp;flow</code> upgrades the flow to a TLS
+      connection using the <code class="code">server</code> configuration.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Config.html#VALserver_of_sexp">server_of_sexp</a> [<a href="Config.html">Config</a>]</td>
@@ -580,7 +651,8 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Engine.html#VALsexp_of_epoch">sexp_of_epoch</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">sexp_of_epoch&nbsp;epoch</code> is <code class="code">sexp</code>, the marshalled <code class="code">epoch</code>.
+<p><code class="code">sexp_of_epoch&nbsp;epoch</code> is <code class="code">sexp</code>, the marshalled <code class="code">epoch</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Core.html#VALsexp_of_epoch_data">sexp_of_epoch_data</a> [<a href="Core.html">Core</a>]</td>
@@ -589,7 +661,8 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Engine.html#VALsexp_of_failure">sexp_of_failure</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">sexp_of_failure&nbsp;failure</code> is <code class="code">sexp</code>, the marshalled <code class="code">failure</code>.
+<p><code class="code">sexp_of_failure&nbsp;failure</code> is <code class="code">sexp</code>, the marshalled <code class="code">failure</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Packet.html#VALsexp_of_handshake_type">sexp_of_handshake_type</a> [<a href="Packet.html">Packet</a>]</td>
@@ -640,7 +713,8 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Engine.html#VALstring_of_failure">string_of_failure</a> [<a href="Engine.html">Engine</a>]</td>
 <td><div class="info">
-<code class="code">string_of_failure&nbsp;failure</code> is <code class="code">string</code>, the string representation of the <code class="code">failure</code>.
+<p><code class="code">string_of_failure&nbsp;failure</code> is <code class="code">string</code>, the string representation of the <code class="code">failure</code>.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Packet.html#VALstring_to_alert_level">string_to_alert_level</a> [<a href="Packet.html">Packet</a>]</td>
@@ -675,21 +749,24 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Config.Ciphers.html#VALsupported">supported</a> [<a href="Config.Ciphers.html">Config.Ciphers</a>]</td>
 <td><div class="info">
-<code class="code">supported</code> is a list of ciphersuites this library supports
-      (larger than <code class="code">default</code>).
+<p><code class="code">supported</code> is a list of ciphersuites this library supports
+      (larger than <code class="code">default</code>).</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Config.html#VALsupported_hashes">supported_hashes</a> [<a href="Config.html">Config</a>]</td>
 <td><div class="info">
-<code class="code">supported_hashes</code> is a list of supported hash algorithms by this library
+<p><code class="code">supported_hashes</code> is a list of supported hash algorithms by this library</p>
+
 </div>
 </td></tr>
-<tr><td align="left"><br>T</td></tr>
+<tr><td align="left"><div>T</div></td></tr>
 <tr><td><a href="Core.SessionID.html#VALt_of_sexp">t_of_sexp</a> [<a href="Core.SessionID.html">Core.SessionID</a>]</td>
 <td></td></tr>
 <tr><td><a href="Packet.html#VALtag_of_hash_algorithm">tag_of_hash_algorithm</a> [<a href="Packet.html">Packet</a>]</td>
 <td><div class="info">
-<code class="code">tag_of_hash_algorithm&nbsp;hash_algorithm</code> is <code class="code">tag</code> for the given <code class="code">hash_algorithm</code>
+<p><code class="code">tag_of_hash_algorithm&nbsp;hash_algorithm</code> is <code class="code">tag</code> for the given <code class="code">hash_algorithm</code></p>
+
 </div>
 </td></tr>
 <tr><td><a href="Core.html#VALtls_alert_of_sexp">tls_alert_of_sexp</a> [<a href="Core.html">Core</a>]</td>
@@ -708,26 +785,47 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)
 <td></td></tr>
 <tr><td><a href="Core.html#VALtls_version_of_sexp">tls_version_of_sexp</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>V</td></tr>
+<tr><td align="left"><div>V</div></td></tr>
 <tr><td><a href="Core.html#VALversion_eq">version_eq</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
 <tr><td><a href="Core.html#VALversion_ge">version_ge</a> [<a href="Core.html">Core</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>W</td></tr>
+<tr><td align="left"><div>W</div></td></tr>
+<tr><td><a href="Config.html#VALwith_acceptable_cas">with_acceptable_cas</a> [<a href="Config.html">Config</a>]</td>
+<td><div class="info">
+<p><code class="code">with_acceptable_cas&nbsp;config&nbsp;cas</code> is <code class="code">config</code> with <code class="code">cas</code> as <code class="code">accepted_cas</code></p>
+
+</div>
+</td></tr>
+<tr><td><a href="Config.html#VALwith_authenticator">with_authenticator</a> [<a href="Config.html">Config</a>]</td>
+<td><div class="info">
+<p><code class="code">with_authenticator&nbsp;config&nbsp;auth</code> is <code class="code">config</code> with <code class="code">auth</code> as <code class="code">authenticator</code></p>
+
+</div>
+</td></tr>
+<tr><td><a href="Config.html#VALwith_own_certificates">with_own_certificates</a> [<a href="Config.html">Config</a>]</td>
+<td><div class="info">
+<p><code class="code">with_own_certificates&nbsp;config&nbsp;cert</code> is <code class="code">config</code> with <code class="code">cert</code> as <code class="code">own_cert</code></p>
+
+</div>
+</td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALwrite">write</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">write&nbsp;t&nbsp;buffer</code> writes the <code class="code">buffer</code> to the session.
+<p><code class="code">write&nbsp;t&nbsp;buffer</code> writes the <code class="code">buffer</code> to the session.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALwrite_bytes">write_bytes</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">write_bytes&nbsp;t&nbsp;bytes&nbsp;offset&nbsp;length</code> writes <code class="code">length</code> bytes of
-      <code class="code">bytes</code> starting at <code class="code">offset</code> to the session.
+<p><code class="code">write_bytes&nbsp;t&nbsp;bytes&nbsp;offset&nbsp;length</code> writes <code class="code">length</code> bytes of
+      <code class="code">bytes</code> starting at <code class="code">offset</code> to the session.</p>
+
 </div>
 </td></tr>
 <tr><td><a href="Tls_lwt.Unix.html#VALwritev">writev</a> [<a href="Tls_lwt.Unix.html">Tls_lwt.Unix</a>]</td>
 <td><div class="info">
-<code class="code">writev&nbsp;t&nbsp;buffers</code> writes the <code class="code">buffers</code> to the session.
+<p><code class="code">writev&nbsp;t&nbsp;buffers</code> writes the <code class="code">buffers</code> to the session.</p>
+
 </div>
 </td></tr>
 </table>

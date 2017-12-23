@@ -25,31 +25,38 @@
 &nbsp;</div>
 <h1>Module <a href="type_Config.Ciphers.html">Config.Ciphers</a></h1>
 
-<pre><span class="keyword">module</span> Ciphers: <code class="code"><span class="keyword">sig</span></code> <a href="Config.Ciphers.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
-Cipher selection<br>
+<pre><span id="MODULECiphers"><span class="keyword">module</span> Ciphers</span>: <code class="code"><span class="keyword">sig</span></code> <a href="Config.Ciphers.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+<div class="info-desc">
+<p>Cipher selection</p>
+</div>
 </div>
 <hr width="100%">
-<br>
-Cipher selection related utilities.<br>
-<br>
-<h1 id="1_Cipherselection">Cipher selection</h1><br>
-
+<p>Cipher selection related utilities.</p>
+<h2 id="1_Cipherselection">Cipher selection</h2>
 <pre><span id="VALdefault"><span class="keyword">val</span> default</span> : <code class="type"><a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list</code></pre><div class="info ">
-<code class="code">default</code> is a list of ciphersuites this library uses by default.<br>
+<div class="info-desc">
+<p><code class="code">default</code> is a list of ciphersuites this library uses by default.</p>
+</div>
 </div>
 
 <pre><span id="VALsupported"><span class="keyword">val</span> supported</span> : <code class="type"><a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list</code></pre><div class="info ">
-<code class="code">supported</code> is a list of ciphersuites this library supports
-      (larger than <code class="code">default</code>).<br>
+<div class="info-desc">
+<p><code class="code">supported</code> is a list of ciphersuites this library supports
+      (larger than <code class="code">default</code>).</p>
+</div>
 </div>
 
 <pre><span id="VALfs"><span class="keyword">val</span> fs</span> : <code class="type"><a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list</code></pre><div class="info ">
-<code class="code">fs</code> is a list of ciphersuites which provide forward secrecy
-      (sublist of <code class="code">default</code>).<br>
+<div class="info-desc">
+<p><code class="code">fs</code> is a list of ciphersuites which provide forward secrecy
+      (sublist of <code class="code">default</code>).</p>
+</div>
 </div>
 
 <pre><span id="VALfs_of"><span class="keyword">val</span> fs_of</span> : <code class="type"><a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -> <a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list</code></pre><div class="info ">
-<code class="code">fs_of&nbsp;ciphers</code> selects all ciphersuites which provide forward
-      secrecy from <code class="code">ciphers</code>.<br>
+<div class="info-desc">
+<p><code class="code">fs_of&nbsp;ciphers</code> selects all ciphersuites which provide forward
+      secrecy from <code class="code">ciphers</code>.</p>
+</div>
 </div>
 </body></html>

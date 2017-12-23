@@ -28,8 +28,10 @@
 </div>
 <h1>Module <a href="type_Core.html">Core</a></h1>
 
-<pre><span class="keyword">module</span> Core: <code class="code"><span class="keyword">sig</span></code> <a href="Core.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
-Core type definitions<br>
+<pre><span id="MODULECore"><span class="keyword">module</span> Core</span>: <code class="code"><span class="keyword">sig</span></code> <a href="Core.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+<div class="info-desc">
+<p>Core type definitions</p>
+</div>
 </div>
 <hr width="100%">
 
@@ -117,7 +119,7 @@ Core type definitions<br>
 
 <pre><span id="VALtls_hdr_of_sexp"><span class="keyword">val</span> tls_hdr_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEtls_hdr">tls_hdr</a></code></pre>
 <pre><span id="VALsexp_of_tls_hdr"><span class="keyword">val</span> sexp_of_tls_hdr</span> : <code class="type"><a href="Core.html#TYPEtls_hdr">tls_hdr</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span class="keyword">module</span> <a href="Core.SessionID.html">SessionID</a>: <code class="code"><span class="keyword">sig</span></code> <a href="Core.SessionID.html">..</a> <code class="code"><span class="keyword">end</span></code></pre>
+<pre><span id="MODULESessionID"><span class="keyword">module</span> <a href="Core.SessionID.html">SessionID</a></span>: <code class="code"><span class="keyword">sig</span></code> <a href="Core.SessionID.html">..</a> <code class="code"><span class="keyword">end</span></code></pre>
 <pre><span id="TYPEclient_extension"><span class="keyword">type</span> <code class="type"></code>client_extension</span> = <code class="type">[ `ECPointFormats of <a href="Packet.html#TYPEec_point_format">Packet.ec_point_format</a> list<br>       | `EllipticCurves of <a href="Packet.html#TYPEnamed_curve_type">Packet.named_curve_type</a> list<br>       | `ExtendedMasterSecret<br>       | `Hostname of string<br>       | `MaxFragmentLength of <a href="Packet.html#TYPEmax_fragment_length">Packet.max_fragment_length</a><br>       | `Padding of int<br>       | `SecureRenegotiation of Cstruct.t<br>       | `SignatureAlgorithms of<br>           (Nocrypto.Hash.hash * <a href="Packet.html#TYPEsignature_algorithm_type">Packet.signature_algorithm_type</a>) list<br>       | `UnknownExtension of int * Cstruct.t ]</code> </pre>
 
 
@@ -518,6 +520,11 @@ Core type definitions<br>
 <pre><span id="VALtls_body_of_sexp"><span class="keyword">val</span> tls_body_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEtls_body">tls_body</a></code></pre>
 <pre><span id="VALsexp_of_tls_body"><span class="keyword">val</span> sexp_of_tls_body</span> : <code class="type"><a href="Core.html#TYPEtls_body">tls_body</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEmaster_secret"><span class="keyword">type</span> <code class="type"></code>master_secret</span> = <code class="type">Cstruct.t</code> </pre>
+<div class="info ">
+<div class="info-desc">
+<p>the master secret of a TLS connection</p>
+</div>
+</div>
 
 
 <pre><span id="VALmaster_secret_of_sexp"><span class="keyword">val</span> master_secret_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEmaster_secret">master_secret</a></code></pre>
@@ -630,6 +637,11 @@ Core type definitions<br>
 </tr></table>
 }
 
+<div class="info ">
+<div class="info-desc">
+<p>information about an open session</p>
+</div>
+</div>
 
 
 <pre><span id="VALepoch_data_of_sexp"><span class="keyword">val</span> epoch_data_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Core.html#TYPEepoch_data">epoch_data</a></code></pre>

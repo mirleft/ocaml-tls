@@ -28,8 +28,10 @@
 </div>
 <h1>Module <a href="type_Ciphersuite.html">Ciphersuite</a></h1>
 
-<pre><span class="keyword">module</span> Ciphersuite: <code class="code"><span class="keyword">sig</span></code> <a href="Ciphersuite.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
-Ciphersuite definitions and some helper functions.<br>
+<pre><span id="MODULECiphersuite"><span class="keyword">module</span> Ciphersuite</span>: <code class="code"><span class="keyword">sig</span></code> <a href="Ciphersuite.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+<div class="info-desc">
+<p>Ciphersuite definitions and some helper functions.</p>
+</div>
 </div>
 <hr width="100%">
 
@@ -50,19 +52,30 @@ Ciphersuite definitions and some helper functions.<br>
 </tr></table>
 
 <div class="info ">
-sum type of all possible key exchange methods<br>
+<div class="info-desc">
+<p>sum type of all possible key exchange methods</p>
+</div>
 </div>
 
 
 <pre><span id="VALkey_exchange_algorithm_of_sexp"><span class="keyword">val</span> key_exchange_algorithm_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Ciphersuite.html#TYPEkey_exchange_algorithm">key_exchange_algorithm</a></code></pre>
 <pre><span id="VALsexp_of_key_exchange_algorithm"><span class="keyword">val</span> sexp_of_key_exchange_algorithm</span> : <code class="type"><a href="Ciphersuite.html#TYPEkey_exchange_algorithm">key_exchange_algorithm</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALneeds_certificate"><span class="keyword">val</span> needs_certificate</span> : <code class="type"><a href="Ciphersuite.html#TYPEkey_exchange_algorithm">key_exchange_algorithm</a> -> bool</code></pre>
+<pre><span id="VALneeds_certificate"><span class="keyword">val</span> needs_certificate</span> : <code class="type"><a href="Ciphersuite.html#TYPEkey_exchange_algorithm">key_exchange_algorithm</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">needs_certificate&nbsp;kex</code> is a predicate which is true if the <code class="code">kex</code> requires a server certificate</p>
+</div>
+</div>
+
 <pre><span id="VALneeds_server_kex"><span class="keyword">val</span> needs_server_kex</span> : <code class="type"><a href="Ciphersuite.html#TYPEkey_exchange_algorithm">key_exchange_algorithm</a> -> bool</code></pre><div class="info ">
-<code class="code">needs_server_kex&nbsp;kex</code> is a predicate which is true if the <code class="code">kex</code> requires a server key exchange messag<br>
+<div class="info-desc">
+<p><code class="code">needs_server_kex&nbsp;kex</code> is a predicate which is true if the <code class="code">kex</code> requires a server key exchange messag</p>
+</div>
 </div>
 
 <pre><span id="VALrequired_keytype_and_usage"><span class="keyword">val</span> required_keytype_and_usage</span> : <code class="type"><a href="Ciphersuite.html#TYPEkey_exchange_algorithm">key_exchange_algorithm</a> -><br>       [> `RSA ] * [> `Digital_signature | `Key_encipherment ]</code></pre><div class="info ">
-<code class="code">required_keytype_and_usage&nbsp;kex</code> is <code class="code">(keytype,&nbsp;usage)</code> which a certificate must have if it is used in the given <code class="code">kex</code> method<br>
+<div class="info-desc">
+<p><code class="code">required_keytype_and_usage&nbsp;kex</code> is <code class="code">(keytype,&nbsp;usage)</code> which a certificate must have if it is used in the given <code class="code">kex</code> method</p>
+</div>
 </div>
 
 <pre><code><span id="TYPEstream_cipher"><span class="keyword">type</span> <code class="type"></code>stream_cipher</span> = </code></pre><table class="typetable">
@@ -166,7 +179,12 @@ sum type of all possible key exchange methods<br>
 
 <pre><span id="VALpayload_protection_of_sexp"><span class="keyword">val</span> payload_protection_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Ciphersuite.html#TYPEpayload_protection">payload_protection</a></code></pre>
 <pre><span id="VALsexp_of_payload_protection"><span class="keyword">val</span> sexp_of_payload_protection</span> : <code class="type"><a href="Ciphersuite.html#TYPEpayload_protection">payload_protection</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALkey_length"><span class="keyword">val</span> key_length</span> : <code class="type">unit option -> <a href="Ciphersuite.html#TYPEpayload_protection">payload_protection</a> -> int * int * int</code></pre>
+<pre><span id="VALkey_length"><span class="keyword">val</span> key_length</span> : <code class="type">unit option -> <a href="Ciphersuite.html#TYPEpayload_protection">payload_protection</a> -> int * int * int</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">key_length&nbsp;iv&nbsp;payload_protection</code> is <code class="code">(key&nbsp;size,&nbsp;<span class="constructor">IV</span>&nbsp;size,&nbsp;mac&nbsp;size)</code> where key IV, and mac sizes are the required bytes for the given <code class="code">payload_protection</code></p>
+</div>
+</div>
+
 <pre><span id="TYPEciphersuite"><span class="keyword">type</span> <code class="type"></code>ciphersuite</span> = <code class="type">[ `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA<br>       | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA<br>       | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256<br>       | `TLS_DHE_RSA_WITH_AES_128_CCM<br>       | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256<br>       | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA<br>       | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256<br>       | `TLS_DHE_RSA_WITH_AES_256_CCM<br>       | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384<br>       | `TLS_RSA_WITH_3DES_EDE_CBC_SHA<br>       | `TLS_RSA_WITH_AES_128_CBC_SHA<br>       | `TLS_RSA_WITH_AES_128_CBC_SHA256<br>       | `TLS_RSA_WITH_AES_128_CCM<br>       | `TLS_RSA_WITH_AES_128_GCM_SHA256<br>       | `TLS_RSA_WITH_AES_256_CBC_SHA<br>       | `TLS_RSA_WITH_AES_256_CBC_SHA256<br>       | `TLS_RSA_WITH_AES_256_CCM<br>       | `TLS_RSA_WITH_AES_256_GCM_SHA384<br>       | `TLS_RSA_WITH_RC4_128_MD5<br>       | `TLS_RSA_WITH_RC4_128_SHA ]</code> </pre>
 
 
@@ -177,15 +195,21 @@ sum type of all possible key exchange methods<br>
 <pre><span id="VALciphersuite_to_any_ciphersuite"><span class="keyword">val</span> ciphersuite_to_any_ciphersuite</span> : <code class="type">[< `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_128_CCM<br>        | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CCM<br>        | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_128_CCM<br>        | `TLS_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_256_CCM<br>        | `TLS_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_RC4_128_MD5<br>        | `TLS_RSA_WITH_RC4_128_SHA ] -><br>       <a href="Packet.html#TYPEany_ciphersuite">Packet.any_ciphersuite</a></code></pre>
 <pre><span id="VALciphersuite_to_string"><span class="keyword">val</span> ciphersuite_to_string</span> : <code class="type">[< `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_128_CCM<br>        | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CCM<br>        | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_128_CCM<br>        | `TLS_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_256_CCM<br>        | `TLS_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_RC4_128_MD5<br>        | `TLS_RSA_WITH_RC4_128_SHA ] -><br>       string</code></pre>
 <pre><span id="VALget_kex_privprot"><span class="keyword">val</span> get_kex_privprot</span> : <code class="type">[< `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_128_CCM<br>        | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CCM<br>        | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_128_CCM<br>        | `TLS_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_256_CCM<br>        | `TLS_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_RC4_128_MD5<br>        | `TLS_RSA_WITH_RC4_128_SHA ] -><br>       <a href="Ciphersuite.html#TYPEkey_exchange_algorithm">key_exchange_algorithm</a> * <a href="Ciphersuite.html#TYPEpayload_protection">payload_protection</a></code></pre><div class="info ">
-<code class="code">get_kex_privprot&nbsp;ciphersuite</code> is <code class="code">(kex,&nbsp;privacy_protection)</code> where it dissects the <code class="code">ciphersuite</code> into a pair containing the key exchange method <code class="code">kex</code>, and its <code class="code">privacy_protection</code><br>
+<div class="info-desc">
+<p><code class="code">get_kex_privprot&nbsp;ciphersuite</code> is <code class="code">(kex,&nbsp;privacy_protection)</code> where it dissects the <code class="code">ciphersuite</code> into a pair containing the key exchange method <code class="code">kex</code>, and its <code class="code">privacy_protection</code></p>
+</div>
 </div>
 
 <pre><span id="VALciphersuite_kex"><span class="keyword">val</span> ciphersuite_kex</span> : <code class="type">[< `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_128_CCM<br>        | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CCM<br>        | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_128_CCM<br>        | `TLS_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_256_CCM<br>        | `TLS_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_RC4_128_MD5<br>        | `TLS_RSA_WITH_RC4_128_SHA ] -><br>       <a href="Ciphersuite.html#TYPEkey_exchange_algorithm">key_exchange_algorithm</a></code></pre><div class="info ">
-<code class="code">ciphersuite_kex&nbsp;ciphersuite</code> is <code class="code">kex</code>, first projection of <code class="code">get_kex_privprot</code><br>
+<div class="info-desc">
+<p><code class="code">ciphersuite_kex&nbsp;ciphersuite</code> is <code class="code">kex</code>, first projection of <code class="code">get_kex_privprot</code></p>
+</div>
 </div>
 
 <pre><span id="VALciphersuite_privprot"><span class="keyword">val</span> ciphersuite_privprot</span> : <code class="type">[< `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_128_CCM<br>        | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CCM<br>        | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_128_CCM<br>        | `TLS_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_256_CCM<br>        | `TLS_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_RC4_128_MD5<br>        | `TLS_RSA_WITH_RC4_128_SHA ] -><br>       <a href="Ciphersuite.html#TYPEpayload_protection">payload_protection</a></code></pre><div class="info ">
-<code class="code">ciphersuite_privprot&nbsp;ciphersuite</code> is <code class="code">privprot</code>, second projection of <code class="code">get_kex_privprot</code><br>
+<div class="info-desc">
+<p><code class="code">ciphersuite_privprot&nbsp;ciphersuite</code> is <code class="code">privprot</code>, second projection of <code class="code">get_kex_privprot</code></p>
+</div>
 </div>
 
 <pre><span id="VALciphersuite_fs"><span class="keyword">val</span> ciphersuite_fs</span> : <code class="type">[< `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_128_CCM<br>        | `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_DHE_RSA_WITH_AES_256_CCM<br>        | `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_3DES_EDE_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA<br>        | `TLS_RSA_WITH_AES_128_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_128_CCM<br>        | `TLS_RSA_WITH_AES_128_GCM_SHA256<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA<br>        | `TLS_RSA_WITH_AES_256_CBC_SHA256<br>        | `TLS_RSA_WITH_AES_256_CCM<br>        | `TLS_RSA_WITH_AES_256_GCM_SHA384<br>        | `TLS_RSA_WITH_RC4_128_MD5<br>        | `TLS_RSA_WITH_RC4_128_SHA ] -><br>       bool</code></pre>

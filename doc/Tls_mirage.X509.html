@@ -26,8 +26,10 @@
 &nbsp;</div>
 <h1>Functor <a href="type_Tls_mirage.X509.html">Tls_mirage.X509</a></h1>
 
-<pre><span class="keyword">module</span> X509: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">KV</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_kv_lwt.RO</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">C</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_clock.PCLOCK</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.X509.html">..</a> <code class="code"><span class="keyword">end</span></code></div></div></pre><div class="info module top">
-X.509 handling given a key value store and a clock<br>
+<pre><span id="MODULEX509"><span class="keyword">module</span> X509</span>: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">KV</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_kv_lwt.RO</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">C</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_clock.PCLOCK</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.X509.html">..</a> <code class="code"><span class="keyword">end</span></code></div></div></pre><div class="info module top">
+<div class="info-desc">
+<p>X.509 handling given a key value store and a clock</p>
+</div>
 </div>
 <table border="0" cellpadding="3" width="100%">
 <tr>
@@ -51,13 +53,17 @@ X.509 handling given a key value store and a clock<br>
 <hr width="100%">
 
 <pre><span id="VALauthenticator"><span class="keyword">val</span> authenticator</span> : <code class="type">KV.t -> C.t -> [< `CAs | `Noop ] -> X509.Authenticator.a Lwt.t</code></pre><div class="info ">
-<code class="code">authenticator&nbsp;store&nbsp;clock&nbsp;typ</code> creates an <code class="code">authenticator</code>, either
+<div class="info-desc">
+<p><code class="code">authenticator&nbsp;store&nbsp;clock&nbsp;typ</code> creates an <code class="code">authenticator</code>, either
       using the given certificate authorities in the <code class="code">store</code> or
-      null.<br>
+      null.</p>
+</div>
 </div>
 
 <pre><span id="VALcertificate"><span class="keyword">val</span> certificate</span> : <code class="type">KV.t -><br>       [< `Default | `Name of string ] -> (X509.t list * Nocrypto.Rsa.priv) Lwt.t</code></pre><div class="info ">
-<code class="code">certificate&nbsp;store&nbsp;typ</code> unmarshals a certificate chain and
-      private key material from the <code class="code">store</code>.<br>
+<div class="info-desc">
+<p><code class="code">certificate&nbsp;store&nbsp;typ</code> unmarshals a certificate chain and
+      private key material from the <code class="code">store</code>.</p>
+</div>
 </div>
 </body></html>

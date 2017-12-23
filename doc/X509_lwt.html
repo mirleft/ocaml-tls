@@ -28,41 +28,55 @@
 </div>
 <h1>Module <a href="type_X509_lwt.html">X509_lwt</a></h1>
 
-<pre><span class="keyword">module</span> X509_lwt: <code class="code"><span class="keyword">sig</span></code> <a href="X509_lwt.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
-X.509 certificate handling using Lwt.<br>
+<pre><span id="MODULEX509_lwt"><span class="keyword">module</span> X509_lwt</span>: <code class="code"><span class="keyword">sig</span></code> <a href="X509_lwt.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+<div class="info-desc">
+<p>X.509 certificate handling using Lwt.</p>
+</div>
 </div>
 <hr width="100%">
 
 <pre><span id="TYPEpriv"><span class="keyword">type</span> <code class="type"></code>priv</span> = <code class="type">X509.t list * Nocrypto.Rsa.priv</code> </pre>
 <div class="info ">
-private material: a certificate chain and a RSA private key<br>
+<div class="info-desc">
+<p>private material: a certificate chain and a RSA private key</p>
+</div>
 </div>
 
 
 <pre><span id="TYPEauthenticator"><span class="keyword">type</span> <code class="type"></code>authenticator</span> = <code class="type">X509.Authenticator.a</code> </pre>
 <div class="info ">
-authenticator<br>
+<div class="info-desc">
+<p>authenticator</p>
+</div>
 </div>
 
 
 <pre><span id="VALprivate_of_pems"><span class="keyword">val</span> private_of_pems</span> : <code class="type">cert:Lwt_io.file_name -> priv_key:Lwt_io.file_name -> <a href="X509_lwt.html#TYPEpriv">priv</a> Lwt.t</code></pre><div class="info ">
-<code class="code">private_of_pems&nbsp;~cert&nbsp;~priv_key</code> is <code class="code">priv</code>, after reading the
+<div class="info-desc">
+<p><code class="code">private_of_pems&nbsp;~cert&nbsp;~priv_key</code> is <code class="code">priv</code>, after reading the
     private key and certificate chain from the given PEM-encoded
-    files.<br>
+    files.</p>
+</div>
 </div>
 
 <pre><span id="VALcerts_of_pem"><span class="keyword">val</span> certs_of_pem</span> : <code class="type">Lwt_io.file_name -> X509.t list Lwt.t</code></pre><div class="info ">
-<code class="code">certs_of_pem&nbsp;file</code> is <code class="code">certificates</code>, which are read from the
-    PEM-encoded <code class="code">file</code>.<br>
+<div class="info-desc">
+<p><code class="code">certs_of_pem&nbsp;file</code> is <code class="code">certificates</code>, which are read from the
+    PEM-encoded <code class="code">file</code>.</p>
+</div>
 </div>
 
 <pre><span id="VALcerts_of_pem_dir"><span class="keyword">val</span> certs_of_pem_dir</span> : <code class="type">Lwt_io.file_name -> X509.t list Lwt.t</code></pre><div class="info ">
-<code class="code">certs_of_pem_dir&nbsp;dir</code> is <code class="code">certificates</code>, which are read from all
-    PEM-encoded files in <code class="code">dir</code>.<br>
+<div class="info-desc">
+<p><code class="code">certs_of_pem_dir&nbsp;dir</code> is <code class="code">certificates</code>, which are read from all
+    PEM-encoded files in <code class="code">dir</code>.</p>
+</div>
 </div>
 
 <pre><span id="VALauthenticator"><span class="keyword">val</span> authenticator</span> : <code class="type">[ `Ca_dir of Lwt_io.file_name<br>       | `Ca_file of Lwt_io.file_name<br>       | `Hex_key_fingerprints of Nocrypto.Hash.hash * (string * string) list<br>       | `Key_fingerprints of Nocrypto.Hash.hash * (string * Cstruct.t) list<br>       | `No_authentication_I'M_STUPID ] -> <a href="X509_lwt.html#TYPEauthenticator">authenticator</a> Lwt.t</code></pre><div class="info ">
-<code class="code">authenticator&nbsp;methods</code> constructs an <code class="code">authenticator</code> using the
-    specified method and data.<br>
+<div class="info-desc">
+<p><code class="code">authenticator&nbsp;methods</code> constructs an <code class="code">authenticator</code> using the
+    specified method and data.</p>
+</div>
 </div>
 </body></html>

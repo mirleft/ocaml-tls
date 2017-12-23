@@ -29,41 +29,46 @@
 </div>
 <h1>Module <a href="type_Tls_lwt.html">Tls_lwt</a></h1>
 
-<pre><span class="keyword">module</span> Tls_lwt: <code class="code"><span class="keyword">sig</span></code> <a href="Tls_lwt.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
-Effectful operations using Lwt for pure TLS.
-<p>
+<pre><span id="MODULETls_lwt"><span class="keyword">module</span> Tls_lwt</span>: <code class="code"><span class="keyword">sig</span></code> <a href="Tls_lwt.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+<div class="info-desc">
+<p>Effectful operations using Lwt for pure TLS.</p>
 
-    The pure TLS is state and buffer in, state and buffer out.  This
-    module uses Lwt for communication over the network.
-<p>
+<p>The pure TLS is state and buffer in, state and buffer out.  This
+    module uses Lwt for communication over the network.</p>
 
-    This module implements a high-level API and a low-level API (in
-    <a href="Tls_lwt.Unix.html"><code class="code"><span class="constructor">Tls_lwt</span>.<span class="constructor">Unix</span></code></a>).  Most applications should use the high-level API described below.<br>
+<p>This module implements a high-level API and a low-level API (in
+    <a href="Tls_lwt.Unix.html"><code class="code"><span class="constructor">Tls_lwt</span>.<span class="constructor">Unix</span></code></a>).  Most applications should use the high-level API described below.</p>
+</div>
 </div>
 <hr width="100%">
 
 <pre><span id="EXCEPTIONTls_alert"><span class="keyword">exception</span> Tls_alert</span> <span class="keyword">of</span> <code class="type">Tls.Packet.alert_type</code></pre>
 <div class="info ">
-<code class="code"><span class="constructor">Tls_alert</span></code> exception received from the other endpoint<br>
+<div class="info-desc">
+<p><code class="code"><span class="constructor">Tls_alert</span></code> exception received from the other endpoint</p>
+</div>
 </div>
 
 <pre><span id="EXCEPTIONTls_failure"><span class="keyword">exception</span> Tls_failure</span> <span class="keyword">of</span> <code class="type">Tls.Engine.failure</code></pre>
 <div class="info ">
-<code class="code"><span class="constructor">Tls_failure</span></code> exception while processing incoming data<br>
+<div class="info-desc">
+<p><code class="code"><span class="constructor">Tls_failure</span></code> exception while processing incoming data</p>
+</div>
 </div>
 
 <pre><span id="TYPEtracer"><span class="keyword">type</span> <code class="type"></code>tracer</span> = <code class="type">Sexplib.Sexp.t -> unit</code> </pre>
 <div class="info ">
-tracing of TLS sessions<br>
+<div class="info-desc">
+<p>tracing of TLS sessions</p>
+</div>
 </div>
 
 
-<pre><span class="keyword">module</span> <a href="Tls_lwt.Unix.html">Unix</a>: <code class="code"><span class="keyword">sig</span></code> <a href="Tls_lwt.Unix.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info">
-Low-level API
-</div>
-<br>
-<h1 id="1_HighlevelAPI">High-level API</h1><br>
+<pre><span id="MODULEUnix"><span class="keyword">module</span> <a href="Tls_lwt.Unix.html">Unix</a></span>: <code class="code"><span class="keyword">sig</span></code> <a href="Tls_lwt.Unix.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info">
+<p>Low-level API</p>
 
+</div>
+<h2 id="1_HighlevelAPI">High-level API</h2>
 <pre><span id="TYPEic"><span class="keyword">type</span> <code class="type"></code>ic</span> = <code class="type">Lwt_io.input_channel</code> </pre>
 
 
@@ -71,31 +76,41 @@ Low-level API
 
 
 <pre><span id="VALaccept_ext"><span class="keyword">val</span> accept_ext</span> : <code class="type">?trace:<a href="Tls_lwt.html#TYPEtracer">tracer</a> -><br>       Tls.Config.server -><br>       Lwt_unix.file_descr -> ((<a href="Tls_lwt.html#TYPEic">ic</a> * <a href="Tls_lwt.html#TYPEoc">oc</a>) * Lwt_unix.sockaddr) Lwt.t</code></pre><div class="info ">
-<code class="code">accept_ext&nbsp;?trace&nbsp;server&nbsp;fd</code> is <code class="code">(ic,&nbsp;oc),&nbsp;sockaddr</code>, the input
+<div class="info-desc">
+<p><code class="code">accept_ext&nbsp;?trace&nbsp;server&nbsp;fd</code> is <code class="code">(ic,&nbsp;oc),&nbsp;sockaddr</code>, the input
     and output channel from an accepted connection on the given <code class="code">fd</code>,
-    after upgrading to TLS using the <code class="code">server</code> configuration.<br>
+    after upgrading to TLS using the <code class="code">server</code> configuration.</p>
+</div>
 </div>
 
 <pre><span id="VALaccept"><span class="keyword">val</span> accept</span> : <code class="type">?trace:<a href="Tls_lwt.html#TYPEtracer">tracer</a> -><br>       Tls.Config.own_cert -><br>       Lwt_unix.file_descr -> ((<a href="Tls_lwt.html#TYPEic">ic</a> * <a href="Tls_lwt.html#TYPEoc">oc</a>) * Lwt_unix.sockaddr) Lwt.t</code></pre><div class="info ">
-<code class="code">accept&nbsp;?trace&nbsp;own_cert&nbsp;fd</code> is <code class="code">(ic,&nbsp;oc),&nbsp;sockaddr</code>, the input and
+<div class="info-desc">
+<p><code class="code">accept&nbsp;?trace&nbsp;own_cert&nbsp;fd</code> is <code class="code">(ic,&nbsp;oc),&nbsp;sockaddr</code>, the input and
     output channel from the accepted connection on <code class="code">fd</code>, using the
-    default configuration with the given <code class="code">own_cert</code>.<br>
+    default configuration with the given <code class="code">own_cert</code>.</p>
+</div>
 </div>
 
 <pre><span id="VALconnect_ext"><span class="keyword">val</span> connect_ext</span> : <code class="type">?trace:<a href="Tls_lwt.html#TYPEtracer">tracer</a> -><br>       Tls.Config.client -> string * int -> (<a href="Tls_lwt.html#TYPEic">ic</a> * <a href="Tls_lwt.html#TYPEoc">oc</a>) Lwt.t</code></pre><div class="info ">
-<code class="code">connect_ext&nbsp;?trace&nbsp;client&nbsp;(host,&nbsp;port)</code> is <code class="code">ic,&nbsp;oc</code>, the input
+<div class="info-desc">
+<p><code class="code">connect_ext&nbsp;?trace&nbsp;client&nbsp;(host,&nbsp;port)</code> is <code class="code">ic,&nbsp;oc</code>, the input
     and output channel of a TLS connection to <code class="code">host</code> on <code class="code">port</code> using
-    the <code class="code">client</code> configuration.<br>
+    the <code class="code">client</code> configuration.</p>
+</div>
 </div>
 
 <pre><span id="VALconnect"><span class="keyword">val</span> connect</span> : <code class="type">?trace:<a href="Tls_lwt.html#TYPEtracer">tracer</a> -><br>       <a href="X509_lwt.html#TYPEauthenticator">X509_lwt.authenticator</a> -> string * int -> (<a href="Tls_lwt.html#TYPEic">ic</a> * <a href="Tls_lwt.html#TYPEoc">oc</a>) Lwt.t</code></pre><div class="info ">
-<code class="code">connect&nbsp;?trace&nbsp;authenticator&nbsp;(host,&nbsp;port)</code> is <code class="code">ic,&nbsp;oc</code>, the input
+<div class="info-desc">
+<p><code class="code">connect&nbsp;?trace&nbsp;authenticator&nbsp;(host,&nbsp;port)</code> is <code class="code">ic,&nbsp;oc</code>, the input
     and output channel of a TLS connection to <code class="code">host</code> on <code class="code">port</code> using the
-    default configuration and the <code class="code">authenticator</code>.<br>
+    default configuration and the <code class="code">authenticator</code>.</p>
+</div>
 </div>
 
 <pre><span id="VALof_t"><span class="keyword">val</span> of_t</span> : <code class="type">?close:(unit -> unit Lwt.t) -> <a href="Tls_lwt.Unix.html#TYPEt">Unix.t</a> -> <a href="Tls_lwt.html#TYPEic">ic</a> * <a href="Tls_lwt.html#TYPEoc">oc</a></code></pre><div class="info ">
-<code class="code">of_t&nbsp;t</code> is <code class="code">ic,&nbsp;oc</code>, the input and output channel.  <code class="code">close</code>
-    defaults to <code class="code">!<span class="constructor">Unix</span>.close</code>.<br>
+<div class="info-desc">
+<p><code class="code">of_t&nbsp;t</code> is <code class="code">ic,&nbsp;oc</code>, the input and output channel.  <code class="code">close</code>
+    defaults to <code class="code">!<span class="constructor">Unix</span>.close</code>.</p>
+</div>
 </div>
 </body></html>

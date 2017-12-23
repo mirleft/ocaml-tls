@@ -28,8 +28,10 @@
 </div>
 <h1>Module <a href="type_Packet.html">Packet</a></h1>
 
-<pre><span class="keyword">module</span> Packet: <code class="code"><span class="keyword">sig</span></code> <a href="Packet.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
-Magic numbers of the TLS protocol.<br>
+<pre><span id="MODULEPacket"><span class="keyword">module</span> Packet</span>: <code class="code"><span class="keyword">sig</span></code> <a href="Packet.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+<div class="info-desc">
+<p>Magic numbers of the TLS protocol.</p>
+</div>
 </div>
 <hr width="100%">
 
@@ -886,7 +888,9 @@ Magic numbers of the TLS protocol.<br>
 <pre><span id="VALhash_algorithm_of_sexp"><span class="keyword">val</span> hash_algorithm_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Packet.html#TYPEhash_algorithm">hash_algorithm</a></code></pre>
 <pre><span id="VALhash_algorithm_of_tag"><span class="keyword">val</span> hash_algorithm_of_tag</span> : <code class="type">[< `MD5 | `SHA1 | `SHA224 | `SHA256 | `SHA384 | `SHA512 ] -><br>       <a href="Packet.html#TYPEhash_algorithm">hash_algorithm</a></code></pre>
 <pre><span id="VALtag_of_hash_algorithm"><span class="keyword">val</span> tag_of_hash_algorithm</span> : <code class="type"><a href="Packet.html#TYPEhash_algorithm">hash_algorithm</a> -><br>       [> `MD5 | `SHA1 | `SHA224 | `SHA256 | `SHA384 | `SHA512 ] option</code></pre><div class="info ">
-<code class="code">tag_of_hash_algorithm&nbsp;hash_algorithm</code> is <code class="code">tag</code> for the given <code class="code">hash_algorithm</code><br>
+<div class="info-desc">
+<p><code class="code">tag_of_hash_algorithm&nbsp;hash_algorithm</code> is <code class="code">tag</code> for the given <code class="code">hash_algorithm</code></p>
+</div>
 </div>
 
 <pre><code><span id="TYPEec_curve_type"><span class="keyword">type</span> <code class="type"></code>ec_curve_type</span> = </code></pre><table class="typetable">

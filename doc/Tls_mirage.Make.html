@@ -26,9 +26,11 @@
 </div>
 <h1>Functor <a href="type_Tls_mirage.Make.html">Tls_mirage.Make</a></h1>
 
-<pre><span class="keyword">module</span> Make: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">F</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_flow_lwt.S</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.Make.html">..</a> <code class="code"><span class="keyword">end</span></code><code class="type"> 
+<pre><span id="MODULEMake"><span class="keyword">module</span> Make</span>: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">F</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_flow_lwt.S</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.Make.html">..</a> <code class="code"><span class="keyword">end</span></code><code class="type"> 
   with module FLOW = F</code></div></pre><div class="info module top">
-TLS module given a flow<br>
+<div class="info-desc">
+<p>TLS module given a flow</p>
+</div>
 </div>
 <table border="0" cellpadding="3" width="100%">
 <tr>
@@ -46,17 +48,21 @@ TLS module given a flow<br>
 </table>
 <hr width="100%">
 
-<pre><span class="keyword">module</span> <a href="Tls_mirage.Make.FLOW.html">FLOW</a>: <code class="type">Mirage_flow_lwt.S</code><code class="type"> </code></pre>
+<pre><span id="MODULEFLOW"><span class="keyword">module</span> <a href="Tls_mirage.Make.FLOW.html">FLOW</a></span>: <code class="type">Mirage_flow_lwt.S</code><code class="type"> </code></pre>
 <pre><span id="TYPEerror"><span class="keyword">type</span> <code class="type"></code>error</span> = <code class="type">[ `Read of F.error<br>       | `Tls_alert of Tls.Packet.alert_type<br>       | `Tls_failure of Tls.Engine.failure<br>       | `Write of F.write_error ]</code> </pre>
 <div class="info ">
-possible errors: incoming alert, processing failure, or a
-      problem in the underlying flow.<br>
+<div class="info-desc">
+<p>possible errors: incoming alert, processing failure, or a
+      problem in the underlying flow.</p>
+</div>
 </div>
 
 
 <pre><span id="TYPEwrite_error"><span class="keyword">type</span> <code class="type"></code>write_error</span> = <code class="type">[ `Closed<br>       | `Read of F.error<br>       | `Tls_alert of Tls.Packet.alert_type<br>       | `Tls_failure of Tls.Engine.failure<br>       | `Write of F.write_error ]</code> </pre>
 <div class="info ">
-The type for write errors.<br>
+<div class="info-desc">
+<p>The type for write errors.</p>
+</div>
 </div>
 
 
@@ -71,24 +77,38 @@ The type for write errors.<br>
 
 <pre><span class="keyword">include</span> Mirage_flow_lwt.S</pre>
 <div class="info ">
-we provide the FLOW interface<br>
+<div class="info-desc">
+<p>we provide the FLOW interface</p>
+</div>
 </div>
 
-<pre><span id="VALreneg"><span class="keyword">val</span> reneg</span> : <code class="type">flow -> (unit, <a href="Tls_mirage.Make.html#TYPEwrite_error">write_error</a>) Result.result Lwt.t</code></pre><div class="info ">
-<code class="code">reneg&nbsp;flow</code> renegotiates the session.<br>
+<pre><span id="VALreneg"><span class="keyword">val</span> reneg</span> : <code class="type">?authenticator:X509.Authenticator.a -><br>       ?acceptable_cas:X509.distinguished_name list -><br>       ?cert:Tls.Config.own_cert -><br>       ?drop:bool -> flow -> (unit, <a href="Tls_mirage.Make.html#TYPEwrite_error">write_error</a>) Result.result Lwt.t</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">reneg&nbsp;~authenticator&nbsp;~acceptable_cas&nbsp;~cert&nbsp;~drop&nbsp;t</code> renegotiates the
+      session, and blocks until the renegotiation finished.  Optionally, a new
+      <code class="code">authenticator</code> and <code class="code">acceptable_cas</code> can be used.  The own certificate can
+      be adjusted by <code class="code">cert</code>. If <code class="code">drop</code> is <code class="code"><span class="keyword">true</span></code> (the default),
+      application data received before the renegotiation finished is dropped.</p>
+</div>
 </div>
 
 <pre><span id="VALclient_of_flow"><span class="keyword">val</span> client_of_flow</span> : <code class="type">?trace:<a href="Tls_mirage.Make.html#TYPEtracer">tracer</a> -><br>       Tls.Config.client -><br>       ?host:string -><br>       FLOW.flow -><br>       (flow, <a href="Tls_mirage.Make.html#TYPEwrite_error">write_error</a>) Result.result Lwt.t</code></pre><div class="info ">
-<code class="code">client_of_flow&nbsp;~trace&nbsp;client&nbsp;~host&nbsp;flow</code> upgrades the existing connection
-      to TLS using the <code class="code">client</code> configuration, using <code class="code">host</code> as peer name.<br>
+<div class="info-desc">
+<p><code class="code">client_of_flow&nbsp;~trace&nbsp;client&nbsp;~host&nbsp;flow</code> upgrades the existing connection
+      to TLS using the <code class="code">client</code> configuration, using <code class="code">host</code> as peer name.</p>
+</div>
 </div>
 
 <pre><span id="VALserver_of_flow"><span class="keyword">val</span> server_of_flow</span> : <code class="type">?trace:<a href="Tls_mirage.Make.html#TYPEtracer">tracer</a> -><br>       Tls.Config.server -><br>       FLOW.flow -><br>       (flow, <a href="Tls_mirage.Make.html#TYPEwrite_error">write_error</a>) Result.result Lwt.t</code></pre><div class="info ">
-<code class="code">server_of_flow&nbsp;?tracer&nbsp;server&nbsp;flow</code> upgrades the flow to a TLS
-      connection using the <code class="code">server</code> configuration.<br>
+<div class="info-desc">
+<p><code class="code">server_of_flow&nbsp;?tracer&nbsp;server&nbsp;flow</code> upgrades the flow to a TLS
+      connection using the <code class="code">server</code> configuration.</p>
+</div>
 </div>
 
 <pre><span id="VALepoch"><span class="keyword">val</span> epoch</span> : <code class="type">flow -> (Tls.Core.epoch_data, unit) Result.result</code></pre><div class="info ">
-<code class="code">epoch&nbsp;flow</code> extracts information of the established session.<br>
+<div class="info-desc">
+<p><code class="code">epoch&nbsp;flow</code> extracts information of the established session.</p>
+</div>
 </div>
 </body></html>
