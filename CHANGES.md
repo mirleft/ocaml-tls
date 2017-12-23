@@ -1,3 +1,16 @@
+## 0.9.0 (2017-12-23)
+
+* renegotiation semantics (#375)
+   allow acceptable_ca, authenticator, and own_cert to be updated (Config.with_x)
+   semantics of reneg is blocking
+   `{Tls_lwt.Unix|Tls_mirage}.reneg ~drop:bool` drops data of earlier epoch
+* implement acceptable_ca (#332, @reynir)
+* fix client renegotiation with ExtendedMasterSecret (#373, broken since 0.7.0)
+* Config.client can get ~peer_name (#373)
+* Asn.Time.t is Ptime.t now (asn1-combinators.0.2.0, x509.0.6.0, #372)
+* cleanups (#360, #363, #369, @rgrinberg)
+* remove 3DES CBC SHA from default ciphers (#359)
+
 ## 0.8.0 (2017-02-01)
 
 * lwt: in Unix.client_of_fd the named argument host is now optional (#336)
