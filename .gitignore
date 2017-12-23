@@ -4,11 +4,13 @@ _build/
 *.install
 
 main.ml
-mir-*-*
-*-*.xl
-*-*.xl.in
-*-*.xe
-*-*_libvirt.xml
+.mirage.config
+mirage-unikernel*opam
+mirage/*/myocamlbuild.ml
+mirage/*/*ukvm
+mirage/*/tls_client
+mirage/*/tls_server
 Makefile
-log
 key_gen.ml
+
+random/
