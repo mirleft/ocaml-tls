@@ -76,9 +76,9 @@ let default_hashes =
 let supported_hashes =
   default_hashes @ [ `MD5 ]
 
-let min_dh_size = 1024
+let min_dh_size = 2048
 
-let min_rsa_key_size = 1024
+let min_rsa_key_size = 2048
 
 let dh_group = Dh.Group.ffdhe2048 (* ff-dhe draft 2048-bit group *)
 
