@@ -76,7 +76,7 @@ module Unix : sig
       be adjusted by [cert]. If [drop] is [true] (the default),
       application data received before the renegotiation finished is dropped. *)
   val reneg : ?authenticator:X509.Authenticator.a ->
-    ?acceptable_cas:X509.distinguished_name list -> ?cert:Config.own_cert ->
+    ?acceptable_cas:X509.distinguished_name list -> ?cert:Tls.Config.own_cert ->
     ?drop:bool -> t -> unit Lwt.t
 
   (** [epoch t] returns [epoch], which contains information of the

@@ -1,3 +1,8 @@
+## 0.9.1 (2018-02-26)
+
+* Tls_lwt: use Tls.Config instead of Config directly to avoid polluting imported
+  names (#376, @rgrinberg)
+
 ## 0.9.0 (2017-12-23)
 
 * renegotiation semantics (#375)
