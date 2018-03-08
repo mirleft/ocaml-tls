@@ -207,6 +207,7 @@ type fatal = [
   | `InvalidCertificateUsage
   | `InvalidCertificateExtendedUsage
   | `InvalidSession
+  | `NoApplicationProtocol
 ] [@@deriving sexp]
 
 type failure = [

@@ -112,6 +112,7 @@ let rw_alert_tests = Packet.([
   ( None,  BAD_CERTIFICATE_STATUS_RESPONSE ) ;
   ( None,  BAD_CERTIFICATE_HASH_VALUE ) ;
   ( None,  UNKNOWN_PSK_IDENTITY ) ;
+  ( None,  NO_APPLICATION_PROTOCOL ) ;
 
   ( Some FATAL,  CLOSE_NOTIFY ) ;
   ( Some FATAL,  UNEXPECTED_MESSAGE ) ;
@@ -143,6 +144,7 @@ let rw_alert_tests = Packet.([
   ( Some FATAL,  BAD_CERTIFICATE_STATUS_RESPONSE ) ;
   ( Some FATAL,  BAD_CERTIFICATE_HASH_VALUE ) ;
   ( Some FATAL,  UNKNOWN_PSK_IDENTITY ) ;
+  ( Some FATAL,  NO_APPLICATION_PROTOCOL ) ;
 
   ( Some WARNING,  CLOSE_NOTIFY ) ;
 (*  ( Some WARNING,  UNEXPECTED_MESSAGE ) ;

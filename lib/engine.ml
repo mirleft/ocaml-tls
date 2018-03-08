@@ -58,6 +58,7 @@ let alert_of_fatal = function
   | `NoCiphersuite _ -> Packet.HANDSHAKE_FAILURE
   | `InvalidClientHello -> Packet.HANDSHAKE_FAILURE
   | `InappropriateFallback -> Packet.INAPPROPRIATE_FALLBACK
+  | `NoApplicationProtocol -> Packet.NO_APPLICATION_PROTOCOL
 
 let alert_of_failure = function
   | `Error x -> alert_of_error x

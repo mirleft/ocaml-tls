@@ -191,6 +191,7 @@ let good_alerts =
     (2, 114, (f, Packet.BAD_CERTIFICATE_HASH_VALUE));
     (1, 115, (w, Packet.UNKNOWN_PSK_IDENTITY));
     (2, 115, (f, Packet.UNKNOWN_PSK_IDENTITY));
+    (2, 120, (f, Packet.NO_APPLICATION_PROTOCOL));
   ]
 
 let good_alert_tests =

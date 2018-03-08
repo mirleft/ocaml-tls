@@ -93,6 +93,7 @@ let alert_assembler_tests = Packet.([
   ( None,  BAD_CERTIFICATE_STATUS_RESPONSE , [ 2 ; 113; ] ) ;
   ( None,  BAD_CERTIFICATE_HASH_VALUE      , [ 2 ; 114; ] ) ;
   ( None,  UNKNOWN_PSK_IDENTITY            , [ 2 ; 115; ] ) ;
+  ( None,  NO_APPLICATION_PROTOCOL         , [ 2 ; 120; ] ) ;
 
   ( Some FATAL,  CLOSE_NOTIFY                    , [ 2 ; 0;   ] ) ;
   ( Some FATAL,  UNEXPECTED_MESSAGE              , [ 2 ; 10;  ] ) ;
@@ -124,6 +125,7 @@ let alert_assembler_tests = Packet.([
   ( Some FATAL,  BAD_CERTIFICATE_STATUS_RESPONSE , [ 2 ; 113; ] ) ;
   ( Some FATAL,  BAD_CERTIFICATE_HASH_VALUE      , [ 2 ; 114; ] ) ;
   ( Some FATAL,  UNKNOWN_PSK_IDENTITY            , [ 2 ; 115; ] ) ;
+  ( Some FATAL,  NO_APPLICATION_PROTOCOL         , [ 2 ; 120; ] ) ;
 
   ( Some WARNING,  CLOSE_NOTIFY                    , [ 1 ; 0;   ] ) ;
   ( Some WARNING,  UNEXPECTED_MESSAGE              , [ 1 ; 10;  ] ) ;
