@@ -146,6 +146,14 @@ let assemble_ec_point_format f =
 let assemble_ec_point_formats formats =
   assemble_list One assemble_ec_point_format formats
 
+let assemble_alpn_protocol p =
+  let buf = create 1 in
+  set_uint8 buf 0 (String.length p) ;
+  buf <+> Cstruct.of_string p
+
+let assemble_alpn_protocols protocols =
+  assemble_list Two assemble_alpn_protocol protocols
+
 let assemble_extension = function
   | `ECPointFormats formats ->
      (assemble_ec_point_formats formats, EC_POINT_FORMATS)
@@ -164,7 +172,10 @@ let assemble_client_extension e =
        let buf = create x in
        memset buf 0 ;
        (buf, PADDING)
-    | `SignatureAlgorithms s -> (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
+    | `SignatureAlgorithms s ->
+      (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
+    | `ALPN protocols ->
+      (assemble_alpn_protocols protocols, APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
     | x -> assemble_extension x
   in
   let buf = create 4 in
@@ -175,6 +186,8 @@ let assemble_client_extension e =
 let assemble_server_extension e =
   let pay, typ = match e with
     | `Hostname -> (create 0, SERVER_NAME)
+    | `ALPN protocol ->
+      (assemble_alpn_protocols [protocol], APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
     | x -> assemble_extension x
   in
   let buf = create 4 in

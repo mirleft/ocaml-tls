@@ -61,6 +61,7 @@ type alert_type =
   | BAD_CERTIFICATE_STATUS_RESPONSE [@id 113] (*RFC6066*)
   | BAD_CERTIFICATE_HASH_VALUE      [@id 114] (*RFC6066*)
   | UNKNOWN_PSK_IDENTITY            [@id 115] (*RFC4279*)
+  | NO_APPLICATION_PROTOCOL         [@id 120] (*RFC7301*)
   [@@uint8_t] [@@sexp]
 ]
 

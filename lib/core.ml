@@ -83,6 +83,7 @@ type client_extension = [
   | `SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
   | `UnknownExtension of (int * Cstruct.t)
   | `ExtendedMasterSecret
+  | `ALPN of string list
 ] [@@deriving sexp]
 
 type server_extension = [
@@ -92,6 +93,7 @@ type server_extension = [
   | `SecureRenegotiation of Cstruct.t
   | `UnknownExtension of (int * Cstruct.t)
   | `ExtendedMasterSecret
+  | `ALPN of string
 ] [@@deriving sexp]
 
 type client_hello = {
@@ -189,4 +191,5 @@ type epoch_data = {
   master_secret          : master_secret ;
   session_id             : SessionID.t ;
   extended_ms            : bool ;
+  alpn_protocol          : string option ;
 } [@@deriving sexp]

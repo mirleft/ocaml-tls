@@ -17,6 +17,12 @@ let get_secure_renegotiation exts =
     exts
     ~f:(function `SecureRenegotiation data -> Some data | _ -> None)
 
+let get_alpn_protocols (ch : client_hello) =
+  map_find ~f:(function `ALPN protocols -> Some protocols | _ -> None) ch.extensions
+
+let get_alpn_protocol (sh : server_hello) =
+  map_find ~f:(function `ALPN protocol -> Some protocol | _ -> None) sh.extensions
+
 let empty_session = {
   server_random          = Cstruct.create 0 ;
   client_random          = Cstruct.create 0 ;
@@ -34,6 +40,7 @@ let empty_session = {
   client_auth            = false ;
   session_id             = Cstruct.create 0 ;
   extended_ms            = false ;
+  alpn_protocol          = None ;
 }
 
 let session_of_epoch (epoch : epoch_data) : session_data = {
@@ -49,6 +56,7 @@ let session_of_epoch (epoch : epoch_data) : session_data = {
   own_name = epoch.own_name ;
   session_id = epoch.session_id ;
   extended_ms = epoch.extended_ms ;
+  alpn_protocol = epoch.alpn_protocol ;
 }
 
 let supported_protocol_version (min, max) v =
@@ -67,6 +75,7 @@ let to_client_ext_type = function
   | `SignatureAlgorithms _ -> `SignatureAlgorithms
   | `UnknownExtension _    -> `UnknownExtension
   | `ExtendedMasterSecret  -> `ExtendedMasterSecret
+  | `ALPN _                -> `ALPN
 
 let to_server_ext_type = function
   | `Hostname              -> `Hostname
@@ -75,6 +84,7 @@ let to_server_ext_type = function
   | `SecureRenegotiation _ -> `SecureRenegotiation
   | `UnknownExtension _    -> `UnknownExtension
   | `ExtendedMasterSecret  -> `ExtendedMasterSecret
+  | `ALPN _                -> `ALPN
 
 let extension_types t exts = List.(
   exts |> map t

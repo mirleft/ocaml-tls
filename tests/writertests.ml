@@ -93,6 +93,7 @@ let alert_assembler_tests = Packet.([
   ( None,  BAD_CERTIFICATE_STATUS_RESPONSE , [ 2 ; 113; ] ) ;
   ( None,  BAD_CERTIFICATE_HASH_VALUE      , [ 2 ; 114; ] ) ;
   ( None,  UNKNOWN_PSK_IDENTITY            , [ 2 ; 115; ] ) ;
+  ( None,  NO_APPLICATION_PROTOCOL         , [ 2 ; 120; ] ) ;
 
   ( Some FATAL,  CLOSE_NOTIFY                    , [ 2 ; 0;   ] ) ;
   ( Some FATAL,  UNEXPECTED_MESSAGE              , [ 2 ; 10;  ] ) ;
@@ -124,6 +125,7 @@ let alert_assembler_tests = Packet.([
   ( Some FATAL,  BAD_CERTIFICATE_STATUS_RESPONSE , [ 2 ; 113; ] ) ;
   ( Some FATAL,  BAD_CERTIFICATE_HASH_VALUE      , [ 2 ; 114; ] ) ;
   ( Some FATAL,  UNKNOWN_PSK_IDENTITY            , [ 2 ; 115; ] ) ;
+  ( Some FATAL,  NO_APPLICATION_PROTOCOL         , [ 2 ; 120; ] ) ;
 
   ( Some WARNING,  CLOSE_NOTIFY                    , [ 1 ; 0;   ] ) ;
   ( Some WARNING,  UNEXPECTED_MESSAGE              , [ 1 ; 10;  ] ) ;
@@ -340,6 +342,14 @@ let handshake_assembler_tests =
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
+                   extensions = [`ALPN ["h2"; "http/1.1"]] },
+     [ 1; 0; 0; 61; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 18; 0; 16; 0; 14; 0; 12; 2; 104; 50; 8; 104; 116; 116; 112; 47; 49; 46; 49 ] ) ;
+
+
+   ( ClientHello { client_version = Supported TLS_1_2 ;
+                   client_random = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuites = [Packet.TLS_NULL_WITH_NULL_NULL] ;
                    extensions = [`Hostname "foo"] },
      [ 1; 0; 0; 55; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0; 1; 0; 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 3; 102; 111; 111 ] ) ;
 
@@ -469,6 +479,14 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
                    extensions = [`SecureRenegotiation (Cstruct.create 0); `Hostname ]
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 1; 0; 0; 0; 0; 0] ) ;
+
+   ( ServerHello { server_version = TLS_1_2 ;
+                   server_random  = a_cs <+> a_cs ;
+                   sessionid = None ;
+                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   extensions = [`ALPN "h2"]
+                 } ,
+     [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0; 16; 0; 5; 0; 3; 2; 104; 50] ) ;
 
 (*  | CertificateRequest of certificate_request *)
   ])

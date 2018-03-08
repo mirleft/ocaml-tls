@@ -30,6 +30,7 @@ type config = private {
   acceptable_cas    : X509.distinguished_name list ; (** ordered list of acceptable certificate authorities *)
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
+  alpn_protocols    : string list ; (** optional ordered list of accepted alpn_protocols *)
 }
 
 val config_of_sexp : Sexplib.Sexp.t -> config
@@ -49,7 +50,8 @@ val sexp_of_server : server -> Sexplib.Sexp.t
 
 (** {1 Constructors} *)
 
-(** [client authenticator ?peer_name ?ciphers ?version ?hashes ?reneg ?certificates] is [client] configuration with the given parameters.
+(** [client authenticator ?peer_name ?ciphers ?version ?hashes ?reneg ?certificates ?alpn_protocols] is
+    [client] configuration with the given parameters.
     @raise Invalid_argument if the configuration is invalid *)
 val client :
   authenticator   : X509.Authenticator.a ->
@@ -60,9 +62,11 @@ val client :
   ?reneg          : bool ->
   ?certificates   : own_cert ->
   ?cached_session : epoch_data ->
+  ?alpn_protocols : string list ->
   unit -> client
 
-(** [server ?ciphers ?version ?hashes ?reneg ?certificates ?acceptable_cas ?authenticator] is [server] configuration with the given parameters.
+(** [server ?ciphers ?version ?hashes ?reneg ?certificates ?acceptable_cas ?authenticator ?alpn_protocols]
+    is [server] configuration with the given parameters.
     @raise Invalid_argument if the configuration is invalid *)
 val server :
   ?ciphers        : Ciphersuite.ciphersuite list ->
@@ -73,10 +77,20 @@ val server :
   ?acceptable_cas : X509.distinguished_name list ->
   ?authenticator  : X509.Authenticator.a ->
   ?session_cache  : session_cache ->
+  ?alpn_protocols : string list ->
   unit -> server
 
 (** [peer client name] is [client] with [name] as [peer_name] *)
 val peer : client -> string -> client
+
+(** {1 Note on ALPN protocol selection}
+
+    Both {!val:client} and {!val:server} constructors accept an [alpn_protocols] list. The list for server
+    should be given in a descending order of preference. In the case of protocol selection, the server will
+    iterate its list and select the first element that the client's list also advertises.
+
+    For example, if the client advertises [["foo"; "bar"; "baz"]] and the server has [["bar"; "foo"]],
+    ["bar"] will be selected as the protocol of the handshake. *)
 
 (** {1 Utility functions} *)
 
