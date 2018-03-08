@@ -21,6 +21,11 @@ let default_client_hello config =
        let supported = List.map (fun h -> (h, Packet.RSA)) config.hashes in
        [`SignatureAlgorithms supported]
   in
+  let alpn =
+    match config.alpn_protocols with
+    | [] -> []
+    | protocols -> [`ALPN protocols]
+  in
   let ciphers =
     let cs = config.ciphers in
     match version with
@@ -37,7 +42,7 @@ let default_client_hello config =
     client_random  = Rng.generate 32 ;
     sessionid      = sessionid ;
     ciphersuites   = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
-    extensions     = `ExtendedMasterSecret :: host @ signature_algos
+    extensions     = `ExtendedMasterSecret :: host @ signature_algos @ alpn
   }
   in
   (ch , version)
@@ -375,4 +380,3 @@ let handle_handshake cs hs buf =
           answer_hello_request hs
        | _, hs -> fail (`Fatal (`UnexpectedHandshake hs)) )
   | Error re -> fail (`Fatal (`ReaderError re))
-
