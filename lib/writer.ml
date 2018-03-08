@@ -146,6 +146,14 @@ let assemble_ec_point_format f =
 let assemble_ec_point_formats formats =
   assemble_list One assemble_ec_point_format formats
 
+let assemble_alpn_protocol p =
+  let buf = create 1 in
+  set_uint8 buf 0 (String.length p) ;
+  buf <+> Cstruct.of_string p
+
+let assemble_alpn_protocols protocols =
+  assemble_list Two assemble_alpn_protocol protocols
+
 let assemble_extension = function
   | `ECPointFormats formats ->
      (assemble_ec_point_formats formats, EC_POINT_FORMATS)
@@ -154,6 +162,8 @@ let assemble_extension = function
      set_uint8 buf 0 (len x);
      (buf <+> x, RENEGOTIATION_INFO)
   | `ExtendedMasterSecret -> (Cstruct.create 0, EXTENDED_MASTER_SECRET)
+  | `ALPN protocols ->
+     (assemble_alpn_protocols protocols, APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
   | _ -> invalid_arg "unknown extension"
 
 let assemble_client_extension e =

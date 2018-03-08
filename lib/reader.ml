@@ -231,6 +231,21 @@ let parse_hash_sig buf =
   else
     parse_count_list parsef (shift buf 2) [] (count / 2)
 
+
+let parse_alpn_protocol raw =
+  let length = get_uint8 raw 0 in
+  let buf = sub raw 1 length in
+  let protocol = Cstruct.to_string buf in
+  (Some protocol, shift raw (1 + length))
+
+let parse_alpn_protocols buf =
+  let length = BE.get_uint16 buf 0 in
+  if len buf <> length + 2 then
+    raise_trailing_bytes "alpn"
+  else
+    parse_list parse_alpn_protocol (sub buf 2 length) []
+
+
 let parse_extension buf = function
   | MAX_FRAGMENT_LENGTH ->
      (match parse_fragment_length buf with
@@ -250,6 +265,9 @@ let parse_extension buf = function
          raise_trailing_bytes "extended master secret"
        else
          `ExtendedMasterSecret
+  | APPLICATION_LAYER_PROTOCOL_NEGOTIATION ->
+       let protocols = parse_alpn_protocols buf in
+       `ALPN protocols
   | x -> `UnknownExtension (extension_type_to_int x, buf)
 
 let parse_client_extension raw =

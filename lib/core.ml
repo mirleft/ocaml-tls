@@ -66,6 +66,8 @@ type tls_hdr = {
   version      : tls_any_version;
 } [@@deriving sexp]
 
+type alpn_protocol = string [@@deriving sexp]
+
 module SessionID = struct
   type t = Cstruct.t [@@deriving sexp]
   let compare = Cstruct.compare
@@ -83,6 +85,7 @@ type client_extension = [
   | `SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
   | `UnknownExtension of (int * Cstruct.t)
   | `ExtendedMasterSecret
+  | `ALPN of alpn_protocol list
 ] [@@deriving sexp]
 
 type server_extension = [
@@ -92,6 +95,7 @@ type server_extension = [
   | `SecureRenegotiation of Cstruct.t
   | `UnknownExtension of (int * Cstruct.t)
   | `ExtendedMasterSecret
+  | `ALPN of alpn_protocol list
 ] [@@deriving sexp]
 
 type client_hello = {
