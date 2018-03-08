@@ -136,7 +136,8 @@ type handshake_state = {
   protocol_version : tls_version ;
   machina          : handshake_machina_state ; (* state machine state *)
   config           : Config.config ; (* given config *)
-  hs_fragment      : Cstruct.t (* handshake messages can be fragmented, leftover from before *)
+  hs_fragment      : Cstruct.t ; (* handshake messages can be fragmented, leftover from before *)
+  alpn_protocol    : alpn_protocol option ; (* selected alpn protocol after handshake *)
 } [@@deriving sexp]
 
 (* connection state: initially None, after handshake a crypto context *)
