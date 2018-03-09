@@ -17,6 +17,9 @@ let get_secure_renegotiation exts =
     exts
     ~f:(function `SecureRenegotiation data -> Some data | _ -> None)
 
+let get_alpn_protocols (ch : client_hello) =
+  map_find ~f:(function `ALPN protocols -> Some protocols | _ -> None) ch.extensions
+
 let empty_session = {
   server_random          = Cstruct.create 0 ;
   client_random          = Cstruct.create 0 ;
