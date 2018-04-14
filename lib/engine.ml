@@ -588,6 +588,7 @@ let epoch state =
         peer_certificate       = session.peer_certificate ;
         peer_certificate_chain = session.peer_certificate_chain ;
         peer_name              = Config.(hs.config.peer_name) ;
+        peer_alpn              = hs.alpn_protocol ;
         trust_anchor           = session.trust_anchor ;
         own_random ;
         own_certificate        = session.own_certificate ;

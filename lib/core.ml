@@ -184,6 +184,7 @@ type epoch_data = {
   peer_certificate_chain : X509.t list ;
   peer_certificate       : X509.t option ;
   peer_name              : string option ;
+  peer_alpn              : string option ;
   trust_anchor           : X509.t option ;
   received_certificates  : X509.t list ;
   own_random             : Cstruct.t ;
