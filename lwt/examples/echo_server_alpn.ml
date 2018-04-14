@@ -2,6 +2,17 @@
 open Lwt
 open Ex_common
 
+let split_on_char sep s =
+  let r = ref [] in
+  let j = ref (String.length s) in
+  for i = String.length s - 1 downto 0 do
+    if s.[i] = sep then begin
+      r := String.sub s (i + 1) (!j - i - 1) :: !r;
+      j := i
+    end
+  done;
+  String.sub s 0 !j :: !r
+
 let serve_ssl ?protocols port callback =
 
   let tag = "server" in
@@ -11,7 +22,7 @@ let serve_ssl ?protocols port callback =
      | None -> "h2,http/1.1"
      | Some protocols -> protocols)
   in
-  let protos = String.split_on_char ',' protostring in
+  let protos = split_on_char ',' protostring in
 
   X509_lwt.private_of_pems
     ~cert:server_cert
