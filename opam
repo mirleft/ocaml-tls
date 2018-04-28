@@ -29,7 +29,7 @@ depends: [
   "ppx_cstruct" {build & >= "3.0.0"}
   "result"
   "cstruct" {>= "3.0.0"}
-  "sexplib"
+  "sexplib" {< "v0.11.0"}
   "nocrypto" {>= "0.5.4"}
   "x509" {>= "0.6.1"}
   "cstruct-unix" {test & >= "3.0.0"}
