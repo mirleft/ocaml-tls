@@ -31,7 +31,7 @@ type config = {
   acceptable_cas    : X509.distinguished_name list ;
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
-  alpn_protocols    : alpn_protocol list ;
+  alpn_protocols    : string list ;
 } [@@deriving sexp]
 
 module Ciphers = struct

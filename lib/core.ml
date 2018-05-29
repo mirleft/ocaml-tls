@@ -66,8 +66,6 @@ type tls_hdr = {
   version      : tls_any_version;
 } [@@deriving sexp]
 
-type alpn_protocol = string [@@deriving sexp]
-
 module SessionID = struct
   type t = Cstruct.t [@@deriving sexp]
   let compare = Cstruct.compare
@@ -85,7 +83,7 @@ type client_extension = [
   | `SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
   | `UnknownExtension of (int * Cstruct.t)
   | `ExtendedMasterSecret
-  | `ALPN of alpn_protocol list
+  | `ALPN of string list
 ] [@@deriving sexp]
 
 type server_extension = [
@@ -95,7 +93,7 @@ type server_extension = [
   | `SecureRenegotiation of Cstruct.t
   | `UnknownExtension of (int * Cstruct.t)
   | `ExtendedMasterSecret
-  | `ALPN of alpn_protocol list
+  | `ALPN of string
 ] [@@deriving sexp]
 
 type client_hello = {
@@ -184,7 +182,6 @@ type epoch_data = {
   peer_certificate_chain : X509.t list ;
   peer_certificate       : X509.t option ;
   peer_name              : string option ;
-  peer_alpn              : string option ;
   trust_anchor           : X509.t option ;
   received_certificates  : X509.t list ;
   own_random             : Cstruct.t ;
@@ -194,4 +191,5 @@ type epoch_data = {
   master_secret          : master_secret ;
   session_id             : SessionID.t ;
   extended_ms            : bool ;
+  alpn_protocol          : string option ;
 } [@@deriving sexp]

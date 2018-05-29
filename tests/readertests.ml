@@ -1488,7 +1488,7 @@ let good_server_hellos =
           ([2; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 4; 0; 0; 0; 0] , { sh with extensions = [`Hostname] } ) ;
 
           (* ALPN *)
-          ([2; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0; 16; 0; 5; 0; 3; 2; 104; 50] , { sh with extensions = [`ALPN ["h2"]] } ) ;
+          ([2; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0; 16; 0; 5; 0; 3; 2; 104; 50] , { sh with extensions = [`ALPN "h2"] } ) ;
 
           (* TODO: chosen ciphersuite must not be renegotiation (0x00ff) *)
 
@@ -1521,7 +1521,7 @@ let good_server_hellos =
                sessionid = Some (list_to_cstruct [ 0xd1; 0x54; 0xd9; 0x05; 0x61; 0x41; 0x53; 0x33; 0xb2; 0xf0; 0x13; 0x78; 0x1a; 0x17; 0xb3; 0x1d; 0x09; 0xf6; 0x59; 0x70; 0xfe; 0x5d; 0x58; 0x22; 0xfa; 0x8c; 0x5c; 0x89; 0xe9; 0xa2; 0xb4; 0x70 ]) ;
                extensions = [`Hostname;
                              `SecureRenegotiation (Cstruct.create 0);
-                             `ALPN ["h2"]] }) ;
+                             `ALPN "h2"] }) ;
 
           ( [
             0x02;

@@ -162,8 +162,6 @@ let assemble_extension = function
      set_uint8 buf 0 (len x);
      (buf <+> x, RENEGOTIATION_INFO)
   | `ExtendedMasterSecret -> (Cstruct.create 0, EXTENDED_MASTER_SECRET)
-  | `ALPN protocols ->
-     (assemble_alpn_protocols protocols, APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
   | _ -> invalid_arg "unknown extension"
 
 let assemble_client_extension e =
@@ -174,7 +172,10 @@ let assemble_client_extension e =
        let buf = create x in
        memset buf 0 ;
        (buf, PADDING)
-    | `SignatureAlgorithms s -> (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
+    | `SignatureAlgorithms s ->
+      (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
+    | `ALPN protocols ->
+      (assemble_alpn_protocols protocols, APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
     | x -> assemble_extension x
   in
   let buf = create 4 in
@@ -185,6 +186,8 @@ let assemble_client_extension e =
 let assemble_server_extension e =
   let pay, typ = match e with
     | `Hostname -> (create 0, SERVER_NAME)
+    | `ALPN protocol ->
+      (assemble_alpn_protocols [protocol], APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
     | x -> assemble_extension x
   in
   let buf = create 4 in

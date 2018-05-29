@@ -92,7 +92,6 @@ let new_state config role =
     machina          = handshake_state ;
     config           = config ;
     hs_fragment      = Cstruct.create 0 ;
-    alpn_protocol    = None ;
   }
   in
   {
@@ -588,7 +587,6 @@ let epoch state =
         peer_certificate       = session.peer_certificate ;
         peer_certificate_chain = session.peer_certificate_chain ;
         peer_name              = Config.(hs.config.peer_name) ;
-        peer_alpn              = hs.alpn_protocol ;
         trust_anchor           = session.trust_anchor ;
         own_random ;
         own_certificate        = session.own_certificate ;
@@ -598,4 +596,5 @@ let epoch state =
         master_secret          = session.master_secret ;
         session_id             = session.session_id ;
         extended_ms            = session.extended_ms ;
+        alpn_protocol          = session.alpn_protocol ;
       }

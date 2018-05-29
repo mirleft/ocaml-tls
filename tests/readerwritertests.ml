@@ -475,7 +475,7 @@ let rw_handshake_server_hello_vals =
 
           ServerHello { sh with
                         sessionid = (Some server_random) ;
-                        extensions = [`Hostname ; `SecureRenegotiation server_random ; `ALPN ["h2"]]
+                        extensions = [`Hostname ; `SecureRenegotiation server_random ; `ALPN "h2"]
                       } ;
 
         ])

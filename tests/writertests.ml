@@ -484,7 +484,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
                    ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
-                   extensions = [`ALPN ["h2"]]
+                   extensions = [`ALPN "h2"]
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0; 16; 0; 5; 0; 3; 2; 104; 50] ) ;
 

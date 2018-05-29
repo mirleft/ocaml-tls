@@ -30,7 +30,7 @@ type config = private {
   acceptable_cas    : X509.distinguished_name list ; (** ordered list of acceptable certificate authorities *)
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
-  alpn_protocols    : alpn_protocol list ; (** optional ordered list of accepted alpn_protocols *)
+  alpn_protocols    : string list ; (** optional ordered list of accepted alpn_protocols *)
 }
 
 val config_of_sexp : Sexplib.Sexp.t -> config
@@ -62,7 +62,7 @@ val client :
   ?reneg          : bool ->
   ?certificates   : own_cert ->
   ?cached_session : epoch_data ->
-  ?alpn_protocols : alpn_protocol list ->
+  ?alpn_protocols : string list ->
   unit -> client
 
 (** [server ?ciphers ?version ?hashes ?reneg ?certificates ?acceptable_cas ?authenticator ?alpn_protocols]
@@ -77,7 +77,7 @@ val server :
   ?acceptable_cas : X509.distinguished_name list ->
   ?authenticator  : X509.Authenticator.a ->
   ?session_cache  : session_cache ->
-  ?alpn_protocols : alpn_protocol list ->
+  ?alpn_protocols : string list ->
   unit -> server
 
 (** [peer client name] is [client] with [name] as [peer_name] *)

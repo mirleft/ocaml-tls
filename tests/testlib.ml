@@ -66,7 +66,7 @@ let assert_server_extension_equal a b =
   | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
   | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
   | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
-  | `ALPN a, `ALPN b -> assert_lists_eq assert_equal a b
+  | `ALPN a, `ALPN b -> assert_equal a b
   | _ -> assert_failure "extensions did not match"
 
 let cs_mmap file =

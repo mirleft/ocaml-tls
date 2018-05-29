@@ -166,7 +166,7 @@ let agreed_cipher cert requested =
   in
   List.filter type_usage_matches requested
 
-let server_hello session version reneg alpn_protocol =
+let server_hello session version reneg =
   (* RFC 4366: server shall reply with an empty hostname extension *)
   let host = option [] (fun _ -> [`Hostname]) session.own_name
   and server_random = Rng.generate 32
@@ -182,9 +182,9 @@ let server_hello session version reneg alpn_protocol =
     | 0 -> Rng.generate 32
     | _ -> session.session_id
   and alpn =
-    match alpn_protocol with
+    match session.alpn_protocol with
     | None -> []
-    | Some protocol -> [`ALPN [protocol]]
+    | Some protocol -> [`ALPN protocol]
   in
   let sh = ServerHello
       { server_version = version ;
@@ -214,11 +214,23 @@ let answer_client_hello_common state reneg ch raw =
       | Some x -> return x
       | None   -> match first_match cciphers Config.Ciphers.supported with
         | Some _ -> fail (`Error (`NoConfiguredCiphersuite cciphers))
-        | None -> fail (`Fatal (`NoCiphersuite ch.ciphersuites)) ) >|= fun cipher ->
+        | None -> fail (`Fatal (`NoCiphersuite ch.ciphersuites)) ) >>= fun cipher ->
 
     let extended_ms = List.mem `ExtendedMasterSecret ch.extensions in
 
     (* Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ; *)
+
+    ( match config.alpn_protocols, get_alpn_protocols ch with
+      | _, None | [], _ -> return None
+      | configured, Some client -> match first_match client configured with
+        | Some proto -> return (Some proto)
+        | None ->
+          (* RFC7301 Section 3.2:
+             In the event that the server supports no protocols that the client
+             advertises, then the server SHALL respond with a fatal
+             "no_application_protocol" alert. *)
+          fail (`Fatal `NoApplicationProtocol) ) >|= fun alpn_protocol ->
+
 
     { empty_session with
       client_random    = ch.client_random ;
@@ -227,7 +239,8 @@ let answer_client_hello_common state reneg ch raw =
       own_certificate  = chain ;
       own_private_key  = priv ;
       own_name         = host ;
-      extended_ms      = extended_ms }
+      extended_ms      = extended_ms ;
+      alpn_protocol    = alpn_protocol }
 
   and server_cert session =
     match session.own_certificate with
@@ -277,7 +290,7 @@ let answer_client_hello_common state reneg ch raw =
     (hs, dh_state) in
 
   process_client_hello ch state.config >>= fun session ->
-  let sh, session = server_hello session state.protocol_version reneg state.alpn_protocol in
+  let sh, session = server_hello session state.protocol_version reneg in
   let certificates = server_cert session
   and cert_req, session = cert_request state.protocol_version state.config session
   and hello_done = Writer.assemble_handshake ServerHelloDone
@@ -327,35 +340,6 @@ let answer_client_hello state (ch : client_hello) raw =
     | true, _ -> return ()
     | _ -> fail (`Fatal `NoSecureRenegotiation)
 
-  and select_alpn_protocol config client_protocols =
-    let ensure_selected_alpn_protocol selected_protocol =
-      match selected_protocol with
-      | None -> return ()
-      (* RFC7301 Section 3.2:
-         In the event that the server supports no protocols that the client advertises,
-         then the server SHALL respond with a fatal "no_application_protocol" alert. *)
-      | Some [] -> fail (`Fatal `NoApplicationProtocol)
-      | Some _ -> return ()
-    in
-    let selected_protocol =
-      (* Server does not provide alpn capability. *)
-      if empty config.alpn_protocols then None else
-
-        match client_protocols with
-        (* Client does not broadcast alpn capability. *)
-        | None -> None
-
-        | Some protocols ->
-          match List.filter (fun p -> List.mem p protocols) config.alpn_protocols with
-          (* No matching protocol. *)
-          | [] -> Some []
-          | protocol :: _ -> Some [protocol]
-    in
-    ensure_selected_alpn_protocol selected_protocol >|= fun () ->
-    match selected_protocol with
-    | None | Some [] -> None
-    | Some (protocol :: _) -> Some protocol
-
   and resume (ch : client_hello) state =
     let epoch_matches (epoch : Core.epoch_data) version ciphers extensions =
       let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ciphers in
@@ -377,7 +361,7 @@ let answer_client_hello state (ch : client_hello) raw =
 
   and answer_resumption session state =
     let version = state.protocol_version in
-    let sh, session = server_hello session version None state.alpn_protocol in
+    let sh, session = server_hello session version None in
     (* we really do not want to have any leftover handshake fragments *)
     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
     let client_ctx, server_ctx =
@@ -407,17 +391,15 @@ let answer_client_hello state (ch : client_hello) raw =
            version = max_protocol_version config.protocol_versions)
       (`Fatal `InappropriateFallback) >>= fun () ->
     let theirs = get_secure_renegotiation ch.extensions in
-    ensure_reneg cciphers theirs >>= fun () ->
-    let client_alpn_protocols = get_alpn_protocols ch in
-    select_alpn_protocol config client_alpn_protocols  >|= fun selected_alpn_protocol ->
+    ensure_reneg cciphers theirs >|= fun () ->
 
     (* Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ; *)
 
-    (version, selected_alpn_protocol)
+    version
   in
 
-  process_client_hello state.config ch >>= fun (protocol_version, alpn_protocol) ->
-  let state = { state with protocol_version ; alpn_protocol } in
+  process_client_hello state.config ch >>= fun protocol_version ->
+  let state = { state with protocol_version } in
   match resume ch state with
   | None -> answer_client_hello_common state None ch raw
   | Some session -> answer_resumption session state

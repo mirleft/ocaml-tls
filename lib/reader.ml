@@ -265,9 +265,6 @@ let parse_extension buf = function
          raise_trailing_bytes "extended master secret"
        else
          `ExtendedMasterSecret
-  | APPLICATION_LAYER_PROTOCOL_NEGOTIATION ->
-       let protocols = parse_alpn_protocols buf in
-       `ALPN protocols
   | x -> `UnknownExtension (extension_type_to_int x, buf)
 
 let parse_client_extension raw =
@@ -299,6 +296,9 @@ let parse_client_extension raw =
          raise_trailing_bytes "signature algorithms"
        else
          `SignatureAlgorithms algos
+    | Some APPLICATION_LAYER_PROTOCOL_NEGOTIATION ->
+      let protocols = parse_alpn_protocols buf in
+      `ALPN protocols
     | Some x -> parse_extension buf x
     | None -> `UnknownExtension (etype, buf)
   in
@@ -315,7 +315,11 @@ let parse_server_extension raw =
         | [] -> `Hostname
         | _      -> raise_unknown "bad server name indication (multiple names)")
     | Some ELLIPTIC_CURVES | Some SIGNATURE_ALGORITHMS | Some PADDING ->
-       raise_unknown "invalid extension in server hello!"
+        raise_unknown "invalid extension in server hello!"
+    | Some APPLICATION_LAYER_PROTOCOL_NEGOTIATION ->
+      (match parse_alpn_protocols buf with
+       | [protocol] -> `ALPN protocol
+       | _ -> raise_unknown "bad ALPN (none or multiple names)")
     | Some x -> parse_extension buf x
     | None -> `UnknownExtension (etype, buf)
   in
