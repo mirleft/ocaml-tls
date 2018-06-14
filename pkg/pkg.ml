@@ -27,6 +27,7 @@ let () =
     Pkg.test ~run:false ~cond:lwt "lwt/examples/echo_server_sni" ;
     Pkg.test ~run:false ~cond:lwt "lwt/examples/echo_server_alpn" ;
     Pkg.test ~run:false ~cond:lwt "lwt/examples/echo_client" ;
+    Pkg.test ~run:false ~cond:lwt "lwt/examples/echo_client_alpn" ;
     Pkg.test ~run:false ~cond:lwt "lwt/examples/test_server" ;
     Pkg.test ~run:false ~cond:lwt "lwt/examples/test_client" ;
   ]
