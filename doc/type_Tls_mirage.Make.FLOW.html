@@ -25,8 +25,8 @@
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pp_write_error&nbsp;:&nbsp;write_error&nbsp;<span class="constructor">Fmt</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;buffer&nbsp;=&nbsp;<span class="constructor">Cstruct</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flow&nbsp;=&nbsp;<span class="constructor">F</span>.flow<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;read&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(buffer&nbsp;<span class="constructor">Mirage_flow</span>.or_eof,&nbsp;error)&nbsp;<span class="constructor">Result</span>.result&nbsp;io<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;write&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;buffer&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;<span class="constructor">Result</span>.result&nbsp;io<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;writev&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;buffer&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;<span class="constructor">Result</span>.result&nbsp;io<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;read&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(buffer&nbsp;<span class="constructor">Mirage_flow</span>.or_eof,&nbsp;error)&nbsp;result&nbsp;io<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;write&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;buffer&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;result&nbsp;io<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;writev&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;buffer&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;result&nbsp;io<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;close&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit&nbsp;io<br>
 <span class="keyword">end</span></code></body></html>

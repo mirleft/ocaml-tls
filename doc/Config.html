@@ -21,6 +21,7 @@
 <link title="X509_lwt" rel="Chapter" href="X509_lwt.html">
 <link title="Tls_mirage" rel="Chapter" href="Tls_mirage.html"><link title="Config type" rel="Section" href="#1_Configtype">
 <link title="Constructors" rel="Section" href="#1_Constructors">
+<link title="Note on ALPN protocol selection" rel="Section" href="#1_NoteonALPNprotocolselection">
 <link title="Utility functions" rel="Section" href="#1_Utilityfunctions">
 <link title="Internal use only" rel="Section" href="#1_Internaluseonly">
 <title>Config</title>
@@ -164,6 +165,18 @@
 <td align="left" valign="top" >
 <code><span id="TYPEELTconfig.cached_session">cached_session</span>&nbsp;: <code class="type"><a href="Core.html#TYPEepoch_data">Core.epoch_data</a> option</code>;</code></td>
 
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconfig.alpn_protocols">alpn_protocols</span>&nbsp;: <code class="type">string list</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+<div class="info-desc">
+<p>optional ordered list of accepted alpn_protocols</p>
+</div>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
 </tr></table>
 }
 
@@ -196,18 +209,20 @@
 
 <pre><span id="VALserver_of_sexp"><span class="keyword">val</span> server_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Config.html#TYPEserver">server</a></code></pre>
 <pre><span id="VALsexp_of_server"><span class="keyword">val</span> sexp_of_server</span> : <code class="type"><a href="Config.html#TYPEserver">server</a> -> Sexplib.Sexp.t</code></pre><h2 id="1_Constructors">Constructors</h2>
-<pre><span id="VALclient"><span class="keyword">val</span> client</span> : <code class="type">authenticator:X509.Authenticator.a -><br>       ?peer_name:string -><br>       ?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?cached_session:<a href="Core.html#TYPEepoch_data">Core.epoch_data</a> -> unit -> <a href="Config.html#TYPEclient">client</a></code></pre><div class="info ">
+<pre><span id="VALclient"><span class="keyword">val</span> client</span> : <code class="type">authenticator:X509.Authenticator.a -><br>       ?peer_name:string -><br>       ?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?cached_session:<a href="Core.html#TYPEepoch_data">Core.epoch_data</a> -><br>       ?alpn_protocols:string list -> unit -> <a href="Config.html#TYPEclient">client</a></code></pre><div class="info ">
 <div class="info-desc">
-<p><code class="code">client&nbsp;authenticator&nbsp;?peer_name&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates</code> is <code class="code">client</code> configuration with the given parameters.</p>
+<p><code class="code">client&nbsp;authenticator&nbsp;?peer_name&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?alpn_protocols</code> is
+    <code class="code">client</code> configuration with the given parameters.</p>
 </div>
 <ul class="info-attributes">
 <li><b>Raises</b> <code>Invalid_argument</code> if the configuration is invalid</li>
 </ul>
 </div>
 
-<pre><span id="VALserver"><span class="keyword">val</span> server</span> : <code class="type">?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?acceptable_cas:X509.distinguished_name list -><br>       ?authenticator:X509.Authenticator.a -><br>       ?session_cache:<a href="Config.html#TYPEsession_cache">session_cache</a> -> unit -> <a href="Config.html#TYPEserver">server</a></code></pre><div class="info ">
+<pre><span id="VALserver"><span class="keyword">val</span> server</span> : <code class="type">?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?acceptable_cas:X509.distinguished_name list -><br>       ?authenticator:X509.Authenticator.a -><br>       ?session_cache:<a href="Config.html#TYPEsession_cache">session_cache</a> -><br>       ?alpn_protocols:string list -> unit -> <a href="Config.html#TYPEserver">server</a></code></pre><div class="info ">
 <div class="info-desc">
-<p><code class="code">server&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?acceptable_cas&nbsp;?authenticator</code> is <code class="code">server</code> configuration with the given parameters.</p>
+<p><code class="code">server&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?acceptable_cas&nbsp;?authenticator&nbsp;?alpn_protocols</code>
+    is <code class="code">server</code> configuration with the given parameters.</p>
 </div>
 <ul class="info-attributes">
 <li><b>Raises</b> <code>Invalid_argument</code> if the configuration is invalid</li>
@@ -219,6 +234,13 @@
 <p><code class="code">peer&nbsp;client&nbsp;name</code> is <code class="code">client</code> with <code class="code">name</code> as <code class="code">peer_name</code></p>
 </div>
 </div>
+<h2 id="1_NoteonALPNprotocolselection">Note on ALPN protocol selection</h2>
+<p>Both <a href="Config.html#VALclient"><code class="code"><span class="constructor">Config</span>.client</code></a> and <a href="Config.html#VALserver"><code class="code"><span class="constructor">Config</span>.server</code></a> constructors accept an <code class="code">alpn_protocols</code> list. The list for server
+    should be given in a descending order of preference. In the case of protocol selection, the server will
+    iterate its list and select the first element that the client's list also advertises.</p>
+
+<p>For example, if the client advertises <code class="code">[<span class="string">"foo"</span>;&nbsp;<span class="string">"bar"</span>;&nbsp;<span class="string">"baz"</span>]</code> and the server has <code class="code">[<span class="string">"bar"</span>;&nbsp;<span class="string">"foo"</span>]</code>,
+    <code class="code"><span class="string">"bar"</span></code> will be selected as the protocol of the handshake.</p>
 <h2 id="1_Utilityfunctions">Utility functions</h2>
 <pre><span id="VALdefault_hashes"><span class="keyword">val</span> default_hashes</span> : <code class="type">Nocrypto.Hash.hash list</code></pre><div class="info ">
 <div class="info-desc">
