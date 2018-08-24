@@ -25,8 +25,8 @@ depends: [
   "ocamlbuild" {build}
   "topkg" {build}
   "ppx_sexp_conv"
-  "ppx_deriving" {build}
-  "ppx_cstruct" {build & >= "3.0.0"}
+  "ppx_deriving"
+  "ppx_cstruct" {>= "3.0.0"}
   "result"
   "cstruct" {>= "3.0.0"}
   "sexplib"
