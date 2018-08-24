@@ -181,13 +181,17 @@ let server_hello session version reneg =
     match Cstruct.len session.session_id with
     | 0 -> Rng.generate 32
     | _ -> session.session_id
+  and alpn =
+    match session.alpn_protocol with
+    | None -> []
+    | Some protocol -> [`ALPN protocol]
   in
   let sh = ServerHello
       { server_version = version ;
         server_random  = server_random ;
         sessionid      = Some session_id ;
         ciphersuite    = session.ciphersuite ;
-        extensions     = secren :: host @ ems }
+        extensions     = secren :: host @ ems @ alpn }
   in
   (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ; *)
   (Writer.assemble_handshake sh,
@@ -210,11 +214,23 @@ let answer_client_hello_common state reneg ch raw =
       | Some x -> return x
       | None   -> match first_match cciphers Config.Ciphers.supported with
         | Some _ -> fail (`Error (`NoConfiguredCiphersuite cciphers))
-        | None -> fail (`Fatal (`NoCiphersuite ch.ciphersuites)) ) >|= fun cipher ->
+        | None -> fail (`Fatal (`NoCiphersuite ch.ciphersuites)) ) >>= fun cipher ->
 
     let extended_ms = List.mem `ExtendedMasterSecret ch.extensions in
 
     (* Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ; *)
+
+    ( match config.alpn_protocols, get_alpn_protocols ch with
+      | _, None | [], _ -> return None
+      | configured, Some client -> match first_match client configured with
+        | Some proto -> return (Some proto)
+        | None ->
+          (* RFC7301 Section 3.2:
+             In the event that the server supports no protocols that the client
+             advertises, then the server SHALL respond with a fatal
+             "no_application_protocol" alert. *)
+          fail (`Fatal `NoApplicationProtocol) ) >|= fun alpn_protocol ->
+
 
     { empty_session with
       client_random    = ch.client_random ;
@@ -223,7 +239,8 @@ let answer_client_hello_common state reneg ch raw =
       own_certificate  = chain ;
       own_private_key  = priv ;
       own_name         = host ;
-      extended_ms      = extended_ms }
+      extended_ms      = extended_ms ;
+      alpn_protocol    = alpn_protocol }
 
   and server_cert session =
     match session.own_certificate with
@@ -322,7 +339,6 @@ let answer_client_hello state (ch : client_hello) raw =
     | _, Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
     | true, _ -> return ()
     | _ -> fail (`Fatal `NoSecureRenegotiation)
-
 
   and resume (ch : client_hello) state =
     let epoch_matches (epoch : Core.epoch_data) version ciphers extensions =

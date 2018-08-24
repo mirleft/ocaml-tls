@@ -31,6 +31,7 @@ type config = {
   acceptable_cas    : X509.distinguished_name list ;
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
+  alpn_protocols    : string list ;
 } [@@deriving sexp]
 
 module Ciphers = struct
@@ -93,6 +94,7 @@ let default_config = {
   acceptable_cas    = [] ;
   session_cache     = (fun _ -> None) ;
   cached_session    = None ;
+  alpn_protocols    = [] ;
 }
 
 let invalid msg = invalid_arg ("Tls.Config: invalid configuration: " ^ msg)
@@ -110,7 +112,11 @@ let validate_common config =
   if not (List_set.is_proper_set config.ciphers) then
     invalid "set of ciphers is not a proper set" ;
   if List.length config.ciphers = 0 then
-    invalid "set of ciphers is empty"
+    invalid "set of ciphers is empty" ;
+  if List.exists (fun proto -> let len = String.length proto in len = 0 || len > 255) config.alpn_protocols then
+    invalid "invalid alpn protocol" ;
+  if List.length config.alpn_protocols > 0xffff then
+    invalid "alpn protocols list too large"
 
 module CertTypeUsageOrdered = struct
   type t = X509.key_type * X509.Extension.key_usage
@@ -223,22 +229,23 @@ let with_acceptable_cas conf acceptable_cas = { conf with acceptable_cas }
 let (<?>) ma b = match ma with None -> b | Some a -> a
 
 let client
-  ~authenticator ?peer_name ?ciphers ?version ?hashes ?reneg ?certificates ?cached_session () =
+  ~authenticator ?peer_name ?ciphers ?version ?hashes ?reneg ?certificates ?cached_session ?alpn_protocols () =
   let config =
     { default_config with
         authenticator     = Some authenticator ;
-        ciphers           = ciphers       <?> default_config.ciphers ;
-        protocol_versions = version       <?> default_config.protocol_versions ;
-        hashes            = hashes        <?> default_config.hashes ;
-        use_reneg         = reneg         <?> default_config.use_reneg ;
-        own_certificates  = certificates  <?> default_config.own_certificates ;
+        ciphers           = ciphers        <?> default_config.ciphers ;
+        protocol_versions = version        <?> default_config.protocol_versions ;
+        hashes            = hashes         <?> default_config.hashes ;
+        use_reneg         = reneg          <?> default_config.use_reneg ;
+        own_certificates  = certificates   <?> default_config.own_certificates ;
         peer_name         = peer_name ;
         cached_session    = cached_session ;
+        alpn_protocols    = alpn_protocols <?> default_config.alpn_protocols ;
     } in
   ( validate_common config ; validate_client config ; config )
 
 let server
-  ?ciphers ?version ?hashes ?reneg ?certificates ?acceptable_cas ?authenticator ?session_cache () =
+  ?ciphers ?version ?hashes ?reneg ?certificates ?acceptable_cas ?authenticator ?session_cache ?alpn_protocols () =
   let config =
     { default_config with
         ciphers           = ciphers        <?> default_config.ciphers ;
@@ -249,6 +256,6 @@ let server
         acceptable_cas    = acceptable_cas <?> default_config.acceptable_cas ;
         authenticator     = authenticator ;
         session_cache     = session_cache  <?> default_config.session_cache ;
+        alpn_protocols    = alpn_protocols <?> default_config.alpn_protocols ;
     } in
   ( validate_common config ; validate_server config ; config )
-

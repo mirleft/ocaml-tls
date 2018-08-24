@@ -21,6 +21,10 @@ let default_client_hello config =
        let supported = List.map (fun h -> (h, Packet.RSA)) config.hashes in
        [`SignatureAlgorithms supported]
   in
+  let alpn = match config.alpn_protocols with
+    | [] -> []
+    | protocols -> [`ALPN protocols]
+  in
   let ciphers =
     let cs = config.ciphers in
     match version with
@@ -37,7 +41,7 @@ let default_client_hello config =
     client_random  = Rng.generate 32 ;
     sessionid      = sessionid ;
     ciphersuites   = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
-    extensions     = `ExtendedMasterSecret :: host @ signature_algos
+    extensions     = `ExtendedMasterSecret :: host @ signature_algos @ alpn
   }
   in
   (ch , version)
@@ -55,6 +59,10 @@ let common_server_hello_validation config reneg (sh : server_hello) (ch : client
   guard (server_hello_valid sh &&
          server_exts_subset_of_client sh.extensions ch.extensions)
     (`Fatal `InvalidServerHello) >>= fun () ->
+  (match get_alpn_protocol sh with
+   | None -> return ()
+   | Some x ->
+     guard (List.mem x config.alpn_protocols) (`Fatal `InvalidServerHello)) >>= fun () ->
   validate_reneg (get_secure_renegotiation sh.extensions)
 
 let common_server_hello_machina state (sh : server_hello) (ch : client_hello) raw log =
@@ -65,6 +73,7 @@ let common_server_hello_machina state (sh : server_hello) (ch : client_hello) ra
       List.mem `ExtendedMasterSecret ch.extensions &&
         List.mem `ExtendedMasterSecret sh.extensions
     in
+    let alpn_protocol = get_alpn_protocol sh in
     let session = { empty_session with
                     client_random    = ch.client_random ;
                     client_version   = ch.client_version ;
@@ -72,6 +81,7 @@ let common_server_hello_machina state (sh : server_hello) (ch : client_hello) ra
                     ciphersuite      = cipher ;
                     session_id ;
                     extended_ms ;
+                    alpn_protocol ;
                   }
     in
     Ciphersuite.(match ciphersuite_kex cipher with
@@ -375,4 +385,3 @@ let handle_handshake cs hs buf =
           answer_hello_request hs
        | _, hs -> fail (`Fatal (`UnexpectedHandshake hs)) )
   | Error re -> fail (`Fatal (`ReaderError re))
-

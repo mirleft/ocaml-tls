@@ -57,6 +57,7 @@ let assert_client_extension_equal a b =
   | `Padding a, `Padding b -> assert_equal a b
   | `SignatureAlgorithms a, `SignatureAlgorithms b ->
     assert_lists_eq (fun (h, s) (h', s') -> assert_equal h h' ; assert_equal s s') a b
+  | `ALPN a, `ALPN b -> assert_lists_eq assert_equal a b
   | _ -> assert_failure "extensions did not match"
 
 let assert_server_extension_equal a b =
@@ -65,6 +66,7 @@ let assert_server_extension_equal a b =
   | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
   | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
   | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
+  | `ALPN a, `ALPN b -> assert_equal a b
   | _ -> assert_failure "extensions did not match"
 
 let cs_mmap file =

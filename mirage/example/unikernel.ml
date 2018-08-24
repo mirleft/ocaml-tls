@@ -67,7 +67,7 @@ struct
   let peer = ((V4.of_string_exn "74.125.195.103", 443), "www.google.com")
   let peer = ((V4.of_string_exn "10.0.0.1", 4433), "localhost")
   let peer = ((V4.of_string_exn "23.253.164.126", 443), "tls.openmirage.org")
-  let peer = ((V4.of_string_exn "216.34.181.45", 443), "slashdot.org")
+  let peer = ((V4.of_string_exn "216.105.38.15", 443), "slashdot.org")
 
   let initial = Cstruct.of_string @@
     "GET / HTTP/1.1\r\nConnection: Close\r\nHost: " ^ snd peer ^ "\r\n\r\n"

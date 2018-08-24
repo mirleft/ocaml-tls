@@ -112,6 +112,7 @@ let rw_alert_tests = Packet.([
   ( None,  BAD_CERTIFICATE_STATUS_RESPONSE ) ;
   ( None,  BAD_CERTIFICATE_HASH_VALUE ) ;
   ( None,  UNKNOWN_PSK_IDENTITY ) ;
+  ( None,  NO_APPLICATION_PROTOCOL ) ;
 
   ( Some FATAL,  CLOSE_NOTIFY ) ;
   ( Some FATAL,  UNEXPECTED_MESSAGE ) ;
@@ -143,6 +144,7 @@ let rw_alert_tests = Packet.([
   ( Some FATAL,  BAD_CERTIFICATE_STATUS_RESPONSE ) ;
   ( Some FATAL,  BAD_CERTIFICATE_HASH_VALUE ) ;
   ( Some FATAL,  UNKNOWN_PSK_IDENTITY ) ;
+  ( Some FATAL,  NO_APPLICATION_PROTOCOL ) ;
 
   ( Some WARNING,  CLOSE_NOTIFY ) ;
 (*  ( Some WARNING,  UNEXPECTED_MESSAGE ) ;
@@ -380,11 +382,14 @@ let rw_handshake_client_hello_vals =
 
           ClientHello { ch with extensions = [ `Hostname "foobarblubb" ; `EllipticCurves Packet.([SECP521R1; SECP384R1]) ] } ;
 
+          ClientHello { ch with extensions = [ `ALPN ["h2"; "http/1.1"] ] } ;
+
           ClientHello { ch with extensions = [
                              `Hostname "foobarblubb" ;
                              `EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
                              `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             `SignatureAlgorithms [(`MD5, Packet.RSA)]
+                             `SignatureAlgorithms [(`MD5, Packet.RSA)] ;
+                             `ALPN ["h2"; "http/1.1"]
                            ] } ;
 
           ClientHello { ch with
@@ -399,7 +404,8 @@ let rw_handshake_client_hello_vals =
                              `Hostname "foobarblubb" ;
                              `EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
                              `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             `SignatureAlgorithms [(`SHA1, Packet.ANONYMOUS); (`MD5, Packet.RSA)]
+                             `SignatureAlgorithms [(`SHA1, Packet.ANONYMOUS); (`MD5, Packet.RSA)] ;
+                             `ALPN ["h2"; "http/1.1"]
                       ] } ;
 
           ClientHello { ch with
@@ -410,7 +416,8 @@ let rw_handshake_client_hello_vals =
                              `EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
                              `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
                              `SignatureAlgorithms [(`MD5, Packet.ANONYMOUS); (`SHA1, Packet.RSA)] ;
-                             `SecureRenegotiation client_random
+                             `SecureRenegotiation client_random ;
+                             `ALPN ["h2"; "http/1.1"]
                       ] } ;
 
         ])
@@ -464,6 +471,11 @@ let rw_handshake_server_hello_vals =
           ServerHello { sh with
                         sessionid = (Some server_random) ;
                         extensions = [`Hostname ; `SecureRenegotiation server_random]
+                      } ;
+
+          ServerHello { sh with
+                        sessionid = (Some server_random) ;
+                        extensions = [`Hostname ; `SecureRenegotiation server_random ; `ALPN "h2"]
                       } ;
 
         ])
