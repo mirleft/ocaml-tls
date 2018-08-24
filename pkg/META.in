@@ -1,6 +1,6 @@
 version = "%%VERSION_NUM%%"
 description = "Transport layer security (TLS 1.x) purely in OCaml"
-requires = "cstruct sexplib result nocrypto x509"
+requires = "cstruct sexplib result nocrypto x509 PPX_SEXP_CONV_RUNTIME"
 archive(byte) = "tls.cma"
 plugin(byte) = "tls.cma"
 archive(native) = "tls.cmxa"
