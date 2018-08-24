@@ -1,3 +1,8 @@
+## 0.9.2 (2018-08-24)
+
+* compatibility with ppx_sexp_conv >v0.11.0 (#381), required for 4.07.0
+* support ALPN (#378, @bobbypriambodo)
+
 ## 0.9.1 (2018-02-26)
 
 * Tls_lwt: use Tls.Config instead of Config directly to avoid polluting imported
