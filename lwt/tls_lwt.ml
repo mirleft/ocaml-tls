@@ -82,7 +82,10 @@ module Unix = struct
             | `Alert a -> `Error (Tls_alert a)
           in
           t.state <- state' ;
-          (resp |> when_some (write_t t)) >>= fun () -> return (`Ok data)
+          if state' = `Eof then
+            return (`Ok data)
+          else
+            (resp |> when_some (write_t t)) >>= fun () -> return (`Ok data)
 
       | `Fail (alert, `Response resp) ->
           t.state <- `Error (Tls_failure alert) ;
