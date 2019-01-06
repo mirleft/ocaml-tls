@@ -54,8 +54,9 @@ module Unix = struct
     let recording_errors op t cs =
       Lwt.catch
         (fun () -> op t.fd cs)
-        (fun exn ->
-           t.state <- `Error exn ;
+        (fun exn -> (match t.state with
+             | `Error _ | `Eof -> ()
+             | `Active _ -> t.state <- `Error exn) ;
            fail exn)
     in
     (recording_errors Lwt_cs.read, recording_errors Lwt_cs.write_full)
