@@ -1,3 +1,11 @@
+## 0.9.3 (2019-01-07)
+
+* tls: do not require client sent ciphersuites to be a proper set
+  (interoperability with some android devices)
+* tls_lwt: delay error from writing to peer while reading, record errors only
+  if state is active (fixes #347)
+* migrate opam file to opam 2.0 format
+
 ## 0.9.2 (2018-08-24)
 
 * compatibility with ppx_sexp_conv >v0.11.0 (#381), required for 4.07.0
