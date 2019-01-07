@@ -30,4 +30,5 @@ let () =
     Pkg.test ~run:false ~cond:lwt "lwt/examples/echo_client_alpn" ;
     Pkg.test ~run:false ~cond:lwt "lwt/examples/test_server" ;
     Pkg.test ~run:false ~cond:lwt "lwt/examples/test_client" ;
+    Pkg.test ~run:false ~cond:lwt "lwt/examples/http_client" ;
   ]
