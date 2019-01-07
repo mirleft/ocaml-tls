@@ -125,8 +125,10 @@ let client_hello_valid ch =
   not (empty ch.ciphersuites)
   &&
 
+  (* android 4.4 and davdroid do not send proper sets!
   (List_set.is_proper_set ch.ciphersuites)
   &&
+  *)
 
   (* TODO: if ecc ciphersuite, require ellipticcurves and ecpointformats extensions! *)
   List_set.is_proper_set (extension_types to_client_ext_type ch.extensions)
