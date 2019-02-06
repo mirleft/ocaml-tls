@@ -1,8 +1,0 @@
-(jbuild_version 1)
-
-(library
- ((name tls_lwt)
-  (public_name tls-lwt)
-  (synopsis "Effectful lwt layer for TLS")
-  (libraries (lwt lwt.unix tls nocrypto.lwt x509))
-  (wrapped false)))

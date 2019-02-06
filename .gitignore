@@ -1,7 +1,7 @@
 _build/
-*.native
-*.byte
+.merlin
 *.install
+.*.swp
 
 main.ml
 .mirage.config
