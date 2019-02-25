@@ -237,7 +237,11 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
         | _ ->
            let l = 508 - buflen in
            let p = assemble_client_extension (`Padding l) in
-           BE.set_uint16 extensions 0 (len extensions + l + 4);
+           (* extensions include all extensions (including 16 bit length field),
+              l is the length of the padding +
+              there's a 2 byte length and a 2 byte type field
+              -- but the extension length should not count the extension length field itself, therefore only +2 *)
+           BE.set_uint16 extensions 0 (len extensions + l + 2);
            p
     else
       create 0
