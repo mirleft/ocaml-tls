@@ -1,3 +1,7 @@
+## 0.10.1 (2019-02-28)
+
+* tls-mirage: fix compilation
+
 ## 0.10.0 (2019-02-28)
 
 * tls: fix extensions length (used to include the 2 byte extension length field)
