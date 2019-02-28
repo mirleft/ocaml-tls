@@ -246,7 +246,7 @@ module X509 (KV : Mirage_kv_lwt.RO) (C: Mirage_clock.PCLOCK) = struct
 
   let certificate kv =
     let read name =
-      read kv Mirage_kv.Key.v (name ^ ".pem") >|=
+      read kv (Mirage_kv.Key.v (name ^ ".pem")) >|=
       Certificate.of_pem_cstruct >>= fun certs ->
       (read kv (Mirage_kv.Key.v (name ^ ".key")) >|= fun pem ->
        match Private_key.of_pem_cstruct1 pem with `RSA key -> key) >|= fun pk ->
