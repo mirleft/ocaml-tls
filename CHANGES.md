@@ -1,3 +1,9 @@
+## 0.10.0 (2019-02-28)
+
+* tls: fix extensions length (used to include the 2 byte extension length field)
+  if padding is inserted (introduced on May 5, 2014 in #73)
+* tls-mirage: adapt to mirage-kv 2.0.0 API (#384, @samoht)
+
 ## 0.9.3 (2019-01-07)
 
 * tls: do not require client sent ciphersuites to be a proper set
