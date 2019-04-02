@@ -1,3 +1,10 @@
+## 0.10.2 (2019-04-02)
+
+* support for cstruct 4.0.0+
+* remove support for < 4.04.2 (same as x509 in master)
+* remove result (part of 4.03.0)
+* enhance mirage/example2 to work on more platforms than unix
+
 ## 0.10.1 (2019-02-28)
 
 * tls-mirage: fix compilation
