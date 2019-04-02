@@ -219,4 +219,3 @@ type failure = [
 (* Monadic control-flow core. *)
 include Control.Or_error_make (struct type err = failure end)
 type 'a eff = 'a t
-include Result

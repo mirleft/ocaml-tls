@@ -1,7 +1,5 @@
 (** Effectful operations using Mirage for pure TLS. *)
 
-open Result
-
 (** TLS module given a flow *)
 module Make (F : Mirage_flow_lwt.S) : sig
 

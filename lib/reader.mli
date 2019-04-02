@@ -11,7 +11,7 @@ type error =
 val error_of_sexp : Sexplib.Sexp.t -> error
 val sexp_of_error : error -> Sexplib.Sexp.t
 
-type 'a result = ('a, error) Result.result
+type nonrec 'a result = ('a, error) result
 
 val parse_version     : Cstruct.t -> Core.tls_version result
 val parse_any_version : Cstruct.t -> Core.tls_any_version result

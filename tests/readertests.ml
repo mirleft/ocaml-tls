@@ -1,4 +1,3 @@
-open Result
 open Tls
 open OUnit2
 open Testlib

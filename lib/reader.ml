@@ -15,7 +15,7 @@ type error =
   [@@deriving sexp]
 
 include Control.Or_error_make (struct type err = error end)
-type 'a result = ('a, error) Result.result
+type nonrec 'a result = ('a, error) result
 
 exception Reader_error of error
 

@@ -26,7 +26,6 @@ depends: [
   "ppx_sexp_conv"
   "ppx_deriving"
   "ppx_cstruct" {>= "3.0.0"}
-  "result"
   "cstruct" {>= "4.0.0"}
   "cstruct-sexp"
   "sexplib"
