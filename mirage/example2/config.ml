@@ -3,10 +3,9 @@ open Mirage
 let secrets_dir = "sekrit"
 
 let disk  = direct_kv_ro secrets_dir
-and stack = socket_stackv4 [Ipaddr.V4.any]
+and stack = generic_stackv4 default_network
 
 let packages = [
-  package "mirage-clock-unix" ;
   package "cohttp-mirage" ;
   package ~min:"0.99" "cohttp-lwt" ;
   package ~sublibs:["mirage"] "tls" ;
