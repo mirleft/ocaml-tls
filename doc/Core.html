@@ -120,13 +120,13 @@
 <pre><span id="VALtls_hdr_of_sexp"><span class="keyword">val</span> tls_hdr_of_sexp</span> : <code class="type">Ppx_sexp_conv_lib.Sexp.t -> <a href="Core.html#TYPEtls_hdr">tls_hdr</a></code></pre>
 <pre><span id="VALsexp_of_tls_hdr"><span class="keyword">val</span> sexp_of_tls_hdr</span> : <code class="type"><a href="Core.html#TYPEtls_hdr">tls_hdr</a> -> Ppx_sexp_conv_lib.Sexp.t</code></pre>
 <pre><span id="MODULESessionID"><span class="keyword">module</span> <a href="Core.SessionID.html">SessionID</a></span>: <code class="code"><span class="keyword">sig</span></code> <a href="Core.SessionID.html">..</a> <code class="code"><span class="keyword">end</span></code></pre>
-<pre><span id="TYPEclient_extension"><span class="keyword">type</span> <code class="type"></code>client_extension</span> = <code class="type">[ `ALPN of string list<br>       | `ECPointFormats of <a href="Packet.html#TYPEec_point_format">Packet.ec_point_format</a> list<br>       | `EllipticCurves of <a href="Packet.html#TYPEnamed_curve_type">Packet.named_curve_type</a> list<br>       | `ExtendedMasterSecret<br>       | `Hostname of string<br>       | `MaxFragmentLength of <a href="Packet.html#TYPEmax_fragment_length">Packet.max_fragment_length</a><br>       | `Padding of int<br>       | `SecureRenegotiation of Cstruct.t<br>       | `SignatureAlgorithms of<br>           (Nocrypto.Hash.hash * <a href="Packet.html#TYPEsignature_algorithm_type">Packet.signature_algorithm_type</a>) list<br>       | `UnknownExtension of int * Cstruct.t ]</code> </pre>
+<pre><span id="TYPEclient_extension"><span class="keyword">type</span> <code class="type"></code>client_extension</span> = <code class="type">[ `ALPN of string list<br>       | `ECPointFormats of <a href="Packet.html#TYPEec_point_format">Packet.ec_point_format</a> list<br>       | `EllipticCurves of <a href="Packet.html#TYPEnamed_curve_type">Packet.named_curve_type</a> list<br>       | `ExtendedMasterSecret<br>       | `Hostname of string<br>       | `MaxFragmentLength of <a href="Packet.html#TYPEmax_fragment_length">Packet.max_fragment_length</a><br>       | `Padding of int<br>       | `SecureRenegotiation of Cstruct_sexp.t<br>       | `SignatureAlgorithms of<br>           (Nocrypto.Hash.hash * <a href="Packet.html#TYPEsignature_algorithm_type">Packet.signature_algorithm_type</a>) list<br>       | `UnknownExtension of int * Cstruct_sexp.t ]</code> </pre>
 
 
 <pre><span id="VAL__client_extension_of_sexp__"><span class="keyword">val</span> __client_extension_of_sexp__</span> : <code class="type">Ppx_sexp_conv_lib.Sexp.t -> <a href="Core.html#TYPEclient_extension">client_extension</a></code></pre>
 <pre><span id="VALclient_extension_of_sexp"><span class="keyword">val</span> client_extension_of_sexp</span> : <code class="type">Ppx_sexp_conv_lib.Sexp.t -> <a href="Core.html#TYPEclient_extension">client_extension</a></code></pre>
 <pre><span id="VALsexp_of_client_extension"><span class="keyword">val</span> sexp_of_client_extension</span> : <code class="type"><a href="Core.html#TYPEclient_extension">client_extension</a> -> Ppx_sexp_conv_lib.Sexp.t</code></pre>
-<pre><span id="TYPEserver_extension"><span class="keyword">type</span> <code class="type"></code>server_extension</span> = <code class="type">[ `ALPN of string<br>       | `ECPointFormats of <a href="Packet.html#TYPEec_point_format">Packet.ec_point_format</a> list<br>       | `ExtendedMasterSecret<br>       | `Hostname<br>       | `MaxFragmentLength of <a href="Packet.html#TYPEmax_fragment_length">Packet.max_fragment_length</a><br>       | `SecureRenegotiation of Cstruct.t<br>       | `UnknownExtension of int * Cstruct.t ]</code> </pre>
+<pre><span id="TYPEserver_extension"><span class="keyword">type</span> <code class="type"></code>server_extension</span> = <code class="type">[ `ALPN of string<br>       | `ECPointFormats of <a href="Packet.html#TYPEec_point_format">Packet.ec_point_format</a> list<br>       | `ExtendedMasterSecret<br>       | `Hostname<br>       | `MaxFragmentLength of <a href="Packet.html#TYPEmax_fragment_length">Packet.max_fragment_length</a><br>       | `SecureRenegotiation of Cstruct_sexp.t<br>       | `UnknownExtension of int * Cstruct_sexp.t ]</code> </pre>
 
 
 <pre><span id="VAL__server_extension_of_sexp__"><span class="keyword">val</span> __server_extension_of_sexp__</span> : <code class="type">Ppx_sexp_conv_lib.Sexp.t -> <a href="Core.html#TYPEserver_extension">server_extension</a></code></pre>
@@ -144,7 +144,7 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTclient_hello.client_random">client_random</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTclient_hello.client_random">client_random</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
@@ -186,7 +186,7 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTserver_hello.server_random">server_random</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTserver_hello.server_random">server_random</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
@@ -221,21 +221,21 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTdh_parameters.dh_p">dh_p</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTdh_parameters.dh_p">dh_p</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTdh_parameters.dh_g">dh_g</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTdh_parameters.dh_g">dh_g</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTdh_parameters.dh_Ys">dh_Ys</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTdh_parameters.dh_Ys">dh_Ys</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr></table>
 }
@@ -249,14 +249,14 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_curve.a">a</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_curve.a">a</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_curve.b">b</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_curve.b">b</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr></table>
 }
@@ -270,7 +270,7 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_prime_parameters.prime">prime</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_prime_parameters.prime">prime</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
@@ -284,28 +284,28 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_prime_parameters.base">base</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_prime_parameters.base">base</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_prime_parameters.order">order</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_prime_parameters.order">order</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_prime_parameters.cofactor">cofactor</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_prime_parameters.cofactor">cofactor</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_prime_parameters.public">public</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_prime_parameters.public">public</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr></table>
 }
@@ -333,7 +333,7 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_char_parameters.ks">ks</span>&nbsp;: <code class="type">Cstruct.t list</code>;</code></td>
+<code><span id="TYPEELTec_char_parameters.ks">ks</span>&nbsp;: <code class="type">Cstruct_sexp.t list</code>;</code></td>
 
 </tr>
 <tr>
@@ -347,28 +347,28 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_char_parameters.base">base</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_char_parameters.base">base</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_char_parameters.order">order</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_char_parameters.order">order</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_char_parameters.cofactor">cofactor</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_char_parameters.cofactor">cofactor</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_char_parameters.public">public</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTec_char_parameters.public">public</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr></table>
 }
@@ -396,7 +396,7 @@
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTec_parameters.NamedCurveParameters"><span class="constructor">NamedCurveParameters</span></span> <span class="keyword">of</span> <code class="type">(<a href="Packet.html#TYPEnamed_curve_type">Packet.named_curve_type</a> * Cstruct.t)</code></code></td>
+<code><span id="TYPEELTec_parameters.NamedCurveParameters"><span class="constructor">NamedCurveParameters</span></span> <span class="keyword">of</span> <code class="type">(<a href="Packet.html#TYPEnamed_curve_type">Packet.named_curve_type</a> * Cstruct_sexp.t)</code></code></td>
 
 </tr></table>
 
@@ -437,42 +437,42 @@
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.Certificate"><span class="constructor">Certificate</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t list</code></code></td>
+<code><span id="TYPEELTtls_handshake.Certificate"><span class="constructor">Certificate</span></span> <span class="keyword">of</span> <code class="type">Cstruct_sexp.t list</code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.ServerKeyExchange"><span class="constructor">ServerKeyExchange</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
+<code><span id="TYPEELTtls_handshake.ServerKeyExchange"><span class="constructor">ServerKeyExchange</span></span> <span class="keyword">of</span> <code class="type">Cstruct_sexp.t</code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.CertificateRequest"><span class="constructor">CertificateRequest</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
+<code><span id="TYPEELTtls_handshake.CertificateRequest"><span class="constructor">CertificateRequest</span></span> <span class="keyword">of</span> <code class="type">Cstruct_sexp.t</code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.ClientKeyExchange"><span class="constructor">ClientKeyExchange</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
+<code><span id="TYPEELTtls_handshake.ClientKeyExchange"><span class="constructor">ClientKeyExchange</span></span> <span class="keyword">of</span> <code class="type">Cstruct_sexp.t</code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.CertificateVerify"><span class="constructor">CertificateVerify</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
+<code><span id="TYPEELTtls_handshake.CertificateVerify"><span class="constructor">CertificateVerify</span></span> <span class="keyword">of</span> <code class="type">Cstruct_sexp.t</code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTtls_handshake.Finished"><span class="constructor">Finished</span></span> <span class="keyword">of</span> <code class="type">Cstruct.t</code></code></td>
+<code><span id="TYPEELTtls_handshake.Finished"><span class="constructor">Finished</span></span> <span class="keyword">of</span> <code class="type">Cstruct_sexp.t</code></code></td>
 
 </tr></table>
 
@@ -519,7 +519,7 @@
 
 <pre><span id="VALtls_body_of_sexp"><span class="keyword">val</span> tls_body_of_sexp</span> : <code class="type">Ppx_sexp_conv_lib.Sexp.t -> <a href="Core.html#TYPEtls_body">tls_body</a></code></pre>
 <pre><span id="VALsexp_of_tls_body"><span class="keyword">val</span> sexp_of_tls_body</span> : <code class="type"><a href="Core.html#TYPEtls_body">tls_body</a> -> Ppx_sexp_conv_lib.Sexp.t</code></pre>
-<pre><span id="TYPEmaster_secret"><span class="keyword">type</span> <code class="type"></code>master_secret</span> = <code class="type">Cstruct.t</code> </pre>
+<pre><span id="TYPEmaster_secret"><span class="keyword">type</span> <code class="type"></code>master_secret</span> = <code class="type">Cstruct_sexp.t</code> </pre>
 <div class="info ">
 <div class="info-desc">
 <p>the master secret of a TLS connection</p>
@@ -548,7 +548,7 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.peer_random">peer_random</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTepoch_data.peer_random">peer_random</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>
@@ -590,7 +590,7 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.own_random">own_random</span>&nbsp;: <code class="type">Cstruct.t</code>;</code></td>
+<code><span id="TYPEELTepoch_data.own_random">own_random</span>&nbsp;: <code class="type">Cstruct_sexp.t</code>;</code></td>
 
 </tr>
 <tr>

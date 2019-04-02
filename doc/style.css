@@ -1,7 +1,10 @@
 @charset "UTF-8";
 /* Copyright (c) 2016 Daniel C. Bünzli. All rights reserved.
    Distributed under the ISC license, see terms at the end of the file.
-   odig v0.0.3 */
+   odig v0.0.4
+
+   Use with ocamldoc >= 3.06.0
+*/
 
 /* Reset a few things. */
 
@@ -88,19 +91,19 @@ a.anchor
 h1, h2, h3, h6, .h7
 { font-weight: bold; padding-top: 0.625rem; margin-top: 1.25rem }
 
-h1, h6
+h1, h2, h6
 { font-size: 1.25rem;
   line-height: 2.4375rem; /* 2.5 rem - border width */
   border-top-style: solid;
   border-width: 1px;
   border-color: #DDDDDD; }
 
-h3 { margin-top: 0.625rem; }
+h4 { margin-top: 0.625rem; }
 
 br + * { margin-top: 0.625rem; } /* Ideally this would be h1 + * */
 
-h2, .h7 { font-size: 1.125rem; }
-h1 + h2, h6 + .h7 { margin-top: 0.625rem; padding-top: 0rem; }
+h3, .h7 { font-size: 1.125rem; }
+h1 + h2, h2 + h3, h6 + .h7 { margin-top: 0.625rem; padding-top: 0rem; }
 
 /* Paragraphs, lists and tables */
 
@@ -110,8 +113,10 @@ e.info p, li p { margin-top: 0.625rem }
 table { margin-top: 0.625rem }
 .info.module.top { margin-left: 0em } /* Toplevel module description */
 .info { margin-left: 1ex; margin-top: 0.15625rem }
+.info *:first-child { margin-top: 0 }
 
-td .info { margin:0; padding:0; margin-left: 2em;} /* Description in indexes */
+td .info { margin:0; padding:0; margin-left: 2em;}/* Description in indexes */
+td .info p { margin-top: 0 }
 
 ul, ol { margin-top: 0.625rem; margin-bottom: 0.625rem;
 	       list-style-position: outside }
