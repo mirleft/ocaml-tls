@@ -67,7 +67,7 @@ type tls_hdr = {
 } [@@deriving sexp]
 
 module SessionID = struct
-  type t = Cstruct.t [@@deriving sexp]
+  type t = Cstruct_sexp.t [@@deriving sexp]
   let compare = Cstruct.compare
   let hash t = Hashtbl.hash (Cstruct.to_bigarray t)
   let equal = Cstruct.equal
@@ -78,10 +78,10 @@ type client_extension = [
   | `MaxFragmentLength of max_fragment_length
   | `EllipticCurves of named_curve_type list
   | `ECPointFormats of ec_point_format list
-  | `SecureRenegotiation of Cstruct.t
+  | `SecureRenegotiation of Cstruct_sexp.t
   | `Padding of int
   | `SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
-  | `UnknownExtension of (int * Cstruct.t)
+  | `UnknownExtension of (int * Cstruct_sexp.t)
   | `ExtendedMasterSecret
   | `ALPN of string list
 ] [@@deriving sexp]
@@ -90,15 +90,15 @@ type server_extension = [
   | `Hostname
   | `MaxFragmentLength of max_fragment_length
   | `ECPointFormats of ec_point_format list
-  | `SecureRenegotiation of Cstruct.t
-  | `UnknownExtension of (int * Cstruct.t)
+  | `SecureRenegotiation of Cstruct_sexp.t
+  | `UnknownExtension of (int * Cstruct_sexp.t)
   | `ExtendedMasterSecret
   | `ALPN of string
 ] [@@deriving sexp]
 
 type client_hello = {
   client_version : tls_any_version;
-  client_random  : Cstruct.t;
+  client_random  : Cstruct_sexp.t;
   sessionid      : SessionID.t option;
   ciphersuites   : any_ciphersuite list;
   extensions     : client_extension list
@@ -106,47 +106,47 @@ type client_hello = {
 
 type server_hello = {
   server_version : tls_version;
-  server_random  : Cstruct.t;
+  server_random  : Cstruct_sexp.t;
   sessionid      : SessionID.t option;
   ciphersuite    : ciphersuite;
   extensions     : server_extension list
 } [@@deriving sexp]
 
 type dh_parameters = {
-  dh_p  : Cstruct.t;
-  dh_g  : Cstruct.t;
-  dh_Ys : Cstruct.t;
+  dh_p  : Cstruct_sexp.t;
+  dh_g  : Cstruct_sexp.t;
+  dh_Ys : Cstruct_sexp.t;
 } [@@deriving sexp]
 
 type ec_curve = {
-  a : Cstruct.t;
-  b : Cstruct.t
+  a : Cstruct_sexp.t;
+  b : Cstruct_sexp.t
 } [@@deriving sexp]
 
 type ec_prime_parameters = {
-  prime    : Cstruct.t;
+  prime    : Cstruct_sexp.t;
   curve    : ec_curve;
-  base     : Cstruct.t;
-  order    : Cstruct.t;
-  cofactor : Cstruct.t;
-  public   : Cstruct.t
+  base     : Cstruct_sexp.t;
+  order    : Cstruct_sexp.t;
+  cofactor : Cstruct_sexp.t;
+  public   : Cstruct_sexp.t
 } [@@deriving sexp]
 
 type ec_char_parameters = {
   m        : int;
   basis    : ec_basis_type;
-  ks       : Cstruct.t list;
+  ks       : Cstruct_sexp.t list;
   curve    : ec_curve;
-  base     : Cstruct.t;
-  order    : Cstruct.t;
-  cofactor : Cstruct.t;
-  public   : Cstruct.t
+  base     : Cstruct_sexp.t;
+  order    : Cstruct_sexp.t;
+  cofactor : Cstruct_sexp.t;
+  public   : Cstruct_sexp.t
 } [@@deriving sexp]
 
 type ec_parameters =
   | ExplicitPrimeParameters of ec_prime_parameters
   | ExplicitCharParameters of ec_char_parameters
-  | NamedCurveParameters of (named_curve_type * Cstruct.t)
+  | NamedCurveParameters of (named_curve_type * Cstruct_sexp.t)
   [@@deriving sexp]
 
 type tls_handshake =
@@ -154,12 +154,12 @@ type tls_handshake =
   | ServerHelloDone
   | ClientHello of client_hello
   | ServerHello of server_hello
-  | Certificate of Cstruct.t list
-  | ServerKeyExchange of Cstruct.t
-  | CertificateRequest of Cstruct.t
-  | ClientKeyExchange of Cstruct.t
-  | CertificateVerify of Cstruct.t
-  | Finished of Cstruct.t
+  | Certificate of Cstruct_sexp.t list
+  | ServerKeyExchange of Cstruct_sexp.t
+  | CertificateRequest of Cstruct_sexp.t
+  | ClientKeyExchange of Cstruct_sexp.t
+  | CertificateVerify of Cstruct_sexp.t
+  | Finished of Cstruct_sexp.t
   [@@deriving sexp]
 
 type tls_alert = alert_level * alert_type [@@deriving sexp]
@@ -172,19 +172,19 @@ type tls_body =
   [@@deriving sexp]
 
 (** the master secret of a TLS connection *)
-type master_secret = Cstruct.t [@@deriving sexp]
+type master_secret = Cstruct_sexp.t [@@deriving sexp]
 
 (** information about an open session *)
 type epoch_data = {
   protocol_version       : tls_version ;
   ciphersuite            : Ciphersuite.ciphersuite ;
-  peer_random            : Cstruct.t ;
+  peer_random            : Cstruct_sexp.t ;
   peer_certificate_chain : X509.t list ;
   peer_certificate       : X509.t option ;
   peer_name              : string option ;
   trust_anchor           : X509.t option ;
   received_certificates  : X509.t list ;
-  own_random             : Cstruct.t ;
+  own_random             : Cstruct_sexp.t ;
   own_certificate        : X509.t list ;
   own_private_key        : Nocrypto.Rsa.priv option ;
   own_name               : string option ;

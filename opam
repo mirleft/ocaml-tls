@@ -27,7 +27,8 @@ depends: [
   "ppx_deriving"
   "ppx_cstruct" {>= "3.0.0"}
   "result"
-  "cstruct" {>= "3.0.0"}
+  "cstruct" {>= "4.0.0"}
+  "cstruct-sexp"
   "sexplib"
   "nocrypto" {>= "0.5.4"}
   "x509" {>= "0.6.1"}
