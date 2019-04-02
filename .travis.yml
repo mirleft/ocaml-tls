@@ -6,7 +6,6 @@ env:
     - PACKAGE="tls"
     - PINS="x509"
   matrix:
-    - OCAML_VERSION=4.02 DEPOPTS="lwt ptime astring"
     - OCAML_VERSION=4.03
     - OCAML_VERSION=4.04
     - OCAML_VERSION=4.04
