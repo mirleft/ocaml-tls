@@ -1,5 +1,3 @@
-open Result
-
 (*
  * Monad core
  *)

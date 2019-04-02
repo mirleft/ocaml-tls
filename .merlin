@@ -4,7 +4,7 @@ S mirage
 
 B _build/**
 
-PKG cstruct nocrypto result x509 sexplib
+PKG cstruct nocrypto x509 sexplib
 PKG cstruct.ppx ppx_sexp_conv
 PKG oUnit cstruct.unix
 PKG lwt lwt.unix str nocrypto.lwt
