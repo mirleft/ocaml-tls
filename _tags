@@ -1,6 +1,6 @@
 true : color(always), bin_annot, safe_string
 true : warn(+A-4-9-41-42-44-45)
-true : package(cstruct cstruct-sexp nocrypto x509 sexplib)
+true : package(cstruct cstruct-sexp nocrypto x509 sexplib domain-name fmt)
 
 <lib/*.ml> : for-pack(Tls)
 <lib/packet.ml> : package(ppx_cstruct)
@@ -17,7 +17,7 @@ true : package(cstruct cstruct-sexp nocrypto x509 sexplib)
 
 <lwt/**/*> : package(lwt lwt.unix ptime.clock.os)
 <lwt> : include
-<lwt/examples/*> : package(astring nocrypto.lwt)
+<lwt/examples/*> : package(nocrypto.lwt)
 
 <mirage/*> : package(mirage-flow-lwt mirage-kv-lwt mirage-clock lwt ptime)
 

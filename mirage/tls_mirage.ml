@@ -224,31 +224,31 @@ module X509 (KV : Mirage_kv_lwt.RO) (C: Mirage_clock.PCLOCK) = struct
   let ca_roots_file = Mirage_kv.Key.v "ca-roots.crt"
   let default_cert  = "server"
 
-  let (>>==) a f =
-    a >>= function
-      | Ok x -> f x
-      | Error e -> Fmt.kstrf fail_with "%a" KV.pp_error e
+  let err_fail pp = function
+    | Ok x -> return x
+    | Error e -> Fmt.kstrf fail_with "%a" pp e
 
-  let (>|==) a f = a >>== fun x -> return (f x)
+  let pp_msg ppf = function `Msg m -> Fmt.string ppf m
 
-  let read kv name = KV.get kv name >|== fun x -> Cstruct.of_string x
+  let decode_or_fail f cs = err_fail pp_msg (f cs)
 
-  open X509.Encoding.Pem
+  let read kv name =
+    KV.get kv name >>= err_fail KV.pp_error >|= Cstruct.of_string
 
   let authenticator kv clock = function
     | `Noop -> return X509.Authenticator.null
     | `CAs  ->
         let time = Ptime.v (C.now_d_ps clock) in
-        read kv ca_roots_file
-        >|= Certificate.of_pem_cstruct
-        >|= X509.Authenticator.chain_of_trust ?crls:None ~time
+        read kv ca_roots_file >>=
+        decode_or_fail X509.Certificate.decode_pem_multiple >|=
+        X509.Authenticator.chain_of_trust ?crls:None ~time
 
   let certificate kv =
     let read name =
-      read kv (Mirage_kv.Key.v (name ^ ".pem")) >|=
-      Certificate.of_pem_cstruct >>= fun certs ->
-      (read kv (Mirage_kv.Key.v (name ^ ".key")) >|= fun pem ->
-       match Private_key.of_pem_cstruct1 pem with `RSA key -> key) >|= fun pk ->
+      read kv (Mirage_kv.Key.v (name ^ ".pem")) >>=
+      decode_or_fail X509.Certificate.decode_pem_multiple >>= fun certs ->
+      read kv (Mirage_kv.Key.v (name ^ ".key")) >>=
+      decode_or_fail X509.Private_key.decode_pem >|= fun (`RSA pk) ->
       (certs, pk)
     in function | `Default   -> read default_cert
                 | `Name name -> read name

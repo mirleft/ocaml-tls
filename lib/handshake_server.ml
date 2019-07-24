@@ -130,7 +130,7 @@ let sig_algs (client_hello : client_hello) =
 let rec find_matching host certs =
   match certs with
   | (s::_, _) as chain ::xs ->
-    if X509.supports_hostname s host then
+    if X509.Certificate.supports_hostname s host then
       Some chain
     else
       find_matching host xs
@@ -139,14 +139,13 @@ let rec find_matching host certs =
 
 let agreed_cert certs hostname =
   let match_host ?default host certs =
-     let host = String.lowercase host in
-     match find_matching (`Strict host) certs with
+     match find_matching (`Strict, host) certs with
      | Some x -> return x
-     | None   -> match find_matching (`Wildcard host) certs with
+     | None   -> match find_matching (`Wildcard, host) certs with
                  | Some x -> return x
                  | None   -> match default with
                              | Some c -> return c
-                             | None   -> fail (`Error (`NoMatchingCertificateFound host))
+                             | None   -> fail (`Error (`NoMatchingCertificateFound (Domain_name.to_string host)))
   in
   match certs, hostname with
   | `None                    , _      -> fail (`Error `NoCertificateConfigured)
@@ -161,8 +160,8 @@ let agreed_cipher cert requested =
     let cstyp, csusage =
       Ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher)
     in
-    X509.(supports_keytype cert cstyp &&
-          Extension.supports_usage ~not_present:true cert csusage)
+    X509.(Certificate.supports_keytype cert cstyp &&
+          supports_key_usage ~not_present:true cert csusage)
   in
   List.filter type_usage_matches requested
 
@@ -231,14 +230,14 @@ let answer_client_hello_common state reneg ch raw =
              "no_application_protocol" alert. *)
           fail (`Fatal `NoApplicationProtocol) ) >|= fun alpn_protocol ->
 
-
+    let own_name = match host with None -> None | Some h -> Some (Domain_name.to_string h) in
     { empty_session with
       client_random    = ch.client_random ;
       client_version   = ch.client_version ;
       ciphersuite      = cipher ;
       own_certificate  = chain ;
       own_private_key  = priv ;
-      own_name         = host ;
+      own_name         = own_name ;
       extended_ms      = extended_ms ;
       alpn_protocol    = alpn_protocol }
 
@@ -246,7 +245,7 @@ let answer_client_hello_common state reneg ch raw =
     match session.own_certificate with
     | []    -> []
     | certs ->
-       let cert = Certificate (List.map X509.Encoding.cs_of_cert certs) in
+       let cert = Certificate (List.map X509.Certificate.encode_der certs) in
        (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ; *)
        [ Writer.assemble_handshake cert ]
 
@@ -256,7 +255,7 @@ let answer_client_hello_common state reneg ch raw =
     | None -> ([], session)
     | Some _ ->
        let cas =
-         List.map X509.Encoding.cs_of_distinguished_name config.acceptable_cas
+         List.map X509.Distinguished_name.encode_der config.acceptable_cas
        in
        let certreq = match version with
          | TLS_1_0 | TLS_1_1 ->

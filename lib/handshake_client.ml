@@ -139,20 +139,20 @@ let validate_keytype_usage certificate ciphersuite =
   | None -> fail (`Fatal `NoCertificateReceived)
   | Some cert ->
     let open X509 in
-    guard (supports_keytype cert keytype)
+    guard (Certificate.supports_keytype cert keytype)
       (`Fatal `NotRSACertificate) >>= fun () ->
-    guard (Extension.supports_usage ~not_present:true cert usage)
+    guard (supports_key_usage ~not_present:true cert usage)
       (`Fatal `InvalidCertificateUsage) >>= fun () ->
     guard
-      (Extension.supports_extended_usage cert `Server_auth ||
-       Extension.supports_extended_usage ~not_present:true cert `Any)
+      (supports_extended_key_usage cert `Server_auth ||
+       supports_extended_key_usage ~not_present:true cert `Any)
       (`Fatal `InvalidCertificateExtendedUsage)
 
 let answer_certificate_RSA state session cs raw log =
   let cfg = state.config in
-  let peer_name = match cfg.peer_name with
-    | None   -> None
-    | Some x -> Some (`Wildcard x)
+  let peer_name = match host_name_opt cfg.peer_name with
+    | None -> None
+    | Some x -> Some (`Wildcard, x)
   in
   validate_chain cfg.authenticator cs peer_name >>= fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
   validate_keytype_usage peer_certificate session.ciphersuite >>= fun () ->
@@ -174,9 +174,9 @@ let answer_certificate_RSA state session cs raw log =
   ({ state with machina = Client machina }, [])
 
 let answer_certificate_DHE_RSA state session cs raw log =
-  let peer_name = match state.config.peer_name with
-    | None   -> None
-    | Some x -> Some (`Wildcard x)
+  let peer_name = match host_name_opt state.config.peer_name with
+    | None -> None
+    | Some x -> Some (`Wildcard, x)
   in
   validate_chain state.config.authenticator cs peer_name >>= fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
   validate_keytype_usage peer_certificate session.ciphersuite >|= fun () ->
@@ -243,7 +243,7 @@ let answer_server_hello_done state session sigalgs kex premaster raw log =
 
   ( match session.client_auth, session.own_private_key with
     | true, Some p ->
-       let cert = Certificate (List.map X509.Encoding.cs_of_cert session.own_certificate) in
+       let cert = Certificate (List.map X509.Certificate.encode_der session.own_certificate) in
        let ccert = Writer.assemble_handshake cert in
        let to_sign = log @ [ raw ; ccert ; ckex ] in
        let data = Cs.appends to_sign in

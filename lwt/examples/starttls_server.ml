@@ -37,9 +37,11 @@ let start_server () =
     return buff
   in
   let parse buff =
-    match Astring.String.cut ~sep:" " buff with
-    | None -> "", ""
-    | Some r -> r
+    match String.index buff ' ' with
+    | exception Not_found -> "", ""
+    | idx ->
+      let l = String.length buff in
+      String.sub buff 0 idx, String.sub buff (succ idx) (l - succ idx)
   in
   let rec wait_cmd sock_cl ic oc =
     read ic >>= fun buff ->

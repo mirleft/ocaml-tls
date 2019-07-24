@@ -70,7 +70,12 @@ let loop_chatter ~certificate ~loops ~size =
 let load_priv () =
   let cs1 = Testlib.cs_mmap "./certificates/server.pem"
   and cs2 = Testlib.cs_mmap "./certificates/server.key" in
-  X509.Encoding.Pem.(Certificate.of_pem_cstruct cs1, match Private_key.of_pem_cstruct1 cs2 with `RSA key -> key)
+  match
+    X509.Certificate.decode_pem_multiple cs1, X509.Private_key.decode_pem cs2
+  with
+  | Ok certs, Ok (`RSA key) -> certs, key
+  | Error (`Msg m), _ -> failwith ("can't parse certificates " ^ m)
+  | _, Error (`Msg m) -> failwith ("can't parse private key " ^ m)
 
 let _ =
   let loops =

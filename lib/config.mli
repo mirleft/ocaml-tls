@@ -6,7 +6,7 @@ open Core
 (** {1 Config type} *)
 
 (** certificate chain and private key of the first certificate *)
-type certchain = X509.t list * Nocrypto.Rsa.priv
+type certchain = Cert.t list * Nocrypto.Rsa.priv
 
 (** polymorphic variant of own certificates *)
 type own_cert = [
@@ -24,10 +24,10 @@ type config = private {
   protocol_versions : tls_version * tls_version ; (** supported protocol versions (min, max) *)
   hashes            : Hash.hash list ; (** ordered list of supported hash algorithms (regarding preference) *)
   use_reneg         : bool ; (** endpoint should accept renegotiation requests *)
-  authenticator     : X509.Authenticator.a option ; (** optional X509 authenticator *)
+  authenticator     : X509.Authenticator.t option ; (** optional X509 authenticator *)
   peer_name         : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
   own_certificates  : own_cert ; (** optional default certificate chain and other certificate chains *)
-  acceptable_cas    : X509.distinguished_name list ; (** ordered list of acceptable certificate authorities *)
+  acceptable_cas    : X509.Distinguished_name.t list ; (** ordered list of acceptable certificate authorities *)
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
   alpn_protocols    : string list ; (** optional ordered list of accepted alpn_protocols *)
@@ -54,7 +54,7 @@ val sexp_of_server : server -> Sexplib.Sexp.t
     [client] configuration with the given parameters.
     @raise Invalid_argument if the configuration is invalid *)
 val client :
-  authenticator   : X509.Authenticator.a ->
+  authenticator   : X509.Authenticator.t ->
   ?peer_name      : string ->
   ?ciphers        : Ciphersuite.ciphersuite list ->
   ?version        : tls_version * tls_version ->
@@ -74,8 +74,8 @@ val server :
   ?hashes         : Hash.hash list ->
   ?reneg          : bool ->
   ?certificates   : own_cert ->
-  ?acceptable_cas : X509.distinguished_name list ->
-  ?authenticator  : X509.Authenticator.a ->
+  ?acceptable_cas : X509.Distinguished_name.t list ->
+  ?authenticator  : X509.Authenticator.t ->
   ?session_cache  : session_cache ->
   ?alpn_protocols : string list ->
   unit -> server
@@ -146,10 +146,10 @@ val of_client : client -> config
 val of_server : server -> config
 
 (** [with_authenticator config auth] is [config] with [auth] as [authenticator] *)
-val with_authenticator : config -> X509.Authenticator.a -> config
+val with_authenticator : config -> X509.Authenticator.t -> config
 
 (** [with_own_certificates config cert] is [config] with [cert] as [own_cert] *)
 val with_own_certificates : config -> own_cert -> config
 
 (** [with_acceptable_cas config cas] is [config] with [cas] as [accepted_cas] *)
-val with_acceptable_cas : config -> X509.distinguished_name list -> config
+val with_acceptable_cas : config -> X509.Distinguished_name.t list -> config

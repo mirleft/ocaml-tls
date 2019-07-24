@@ -65,7 +65,9 @@ let alert_of_failure = function
   | `Fatal x -> alert_of_fatal x
 
 let string_of_failure = function
-  | `Error (`AuthenticationFailure v) -> "authentication failure: " ^ X509.Validation.validation_error_to_string v
+  | `Error (`AuthenticationFailure v) ->
+    let s = Fmt.to_to_string X509.Validation.pp_validation_error v in
+    "authentication failure: " ^ s
   | f -> Sexplib.Sexp.to_string_hum (sexp_of_failure f)
 
 type ret = [

@@ -75,8 +75,8 @@ module Unix : sig
       [authenticator] and [acceptable_cas] can be used.  The own certificate can
       be adjusted by [cert]. If [drop] is [true] (the default),
       application data received before the renegotiation finished is dropped. *)
-  val reneg : ?authenticator:X509.Authenticator.a ->
-    ?acceptable_cas:X509.distinguished_name list -> ?cert:Tls.Config.own_cert ->
+  val reneg : ?authenticator:X509.Authenticator.t ->
+    ?acceptable_cas:X509.Distinguished_name.t list -> ?cert:Tls.Config.own_cert ->
     ?drop:bool -> t -> unit Lwt.t
 
   (** [epoch t] returns [epoch], which contains information of the

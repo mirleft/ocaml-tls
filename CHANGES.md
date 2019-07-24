@@ -1,3 +1,8 @@
+## 0.10.3 (2019-07-26)
+
+* support x509 0.7.0+
+* remove dependency on Astring (was only used in the lwt-starttls example)
+
 ## 0.10.2 (2019-04-02)
 
 * support for cstruct 4.0.0+
