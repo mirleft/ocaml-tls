@@ -52,7 +52,7 @@
 </table>
 <hr width="100%">
 
-<pre><span id="VALauthenticator"><span class="keyword">val</span> authenticator</span> : <code class="type">KV.t -> C.t -> [< `CAs | `Noop ] -> X509.Authenticator.a Lwt.t</code></pre><div class="info ">
+<pre><span id="VALauthenticator"><span class="keyword">val</span> authenticator</span> : <code class="type">KV.t -> C.t -> [< `CAs | `Noop ] -> X509.Authenticator.t Lwt.t</code></pre><div class="info ">
 <div class="info-desc">
 <p><code class="code">authenticator&nbsp;store&nbsp;clock&nbsp;typ</code> creates an <code class="code">authenticator</code>, either
       using the given certificate authorities in the <code class="code">store</code> or
@@ -60,7 +60,7 @@
 </div>
 </div>
 
-<pre><span id="VALcertificate"><span class="keyword">val</span> certificate</span> : <code class="type">KV.t -><br>       [< `Default | `Name of string ] -> (X509.t list * Nocrypto.Rsa.priv) Lwt.t</code></pre><div class="info ">
+<pre><span id="VALcertificate"><span class="keyword">val</span> certificate</span> : <code class="type">KV.t -><br>       [< `Default | `Name of string ] -><br>       (X509.Certificate.t list * Nocrypto.Rsa.priv) Lwt.t</code></pre><div class="info ">
 <div class="info-desc">
 <p><code class="code">certificate&nbsp;store&nbsp;typ</code> unmarshals a certificate chain and
       private key material from the <code class="code">store</code>.</p>

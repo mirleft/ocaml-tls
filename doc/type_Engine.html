@@ -81,8 +81,8 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Engine</span>.state&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(<span class="constructor">Engine</span>.state&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)&nbsp;option<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;send_close_notify&nbsp;:&nbsp;<span class="constructor">Engine</span>.state&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Engine</span>.state&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;reneg&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;?authenticator:<span class="constructor">X509</span>.<span class="constructor">Authenticator</span>.a&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;?acceptable_cas:<span class="constructor">X509</span>.distinguished_name&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?authenticator:<span class="constructor">X509</span>.<span class="constructor">Authenticator</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?acceptable_cas:<span class="constructor">X509</span>.<span class="constructor">Distinguished_name</span>.t&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?cert:<span class="constructor">Config</span>.own_cert&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Engine</span>.state&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(<span class="constructor">Engine</span>.state&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)&nbsp;option<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;epoch&nbsp;=&nbsp;[&nbsp;<span class="keywordsign">`</span><span class="constructor">Epoch</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Core</span>.epoch_data&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">InitialEpoch</span>&nbsp;]<br>

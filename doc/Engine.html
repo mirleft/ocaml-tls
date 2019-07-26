@@ -66,7 +66,7 @@
     functional matter (<a href="Engine.html"><code class="code"><span class="constructor">Engine</span></code></a>, this module), and effectful parts:
     <a href="Tls_lwt.html"><code class="code"><span class="constructor">Tls_lwt</span></code></a> and <a href="Tls_mirage.html"><code class="code"><span class="constructor">Tls_mirage</span></code></a>.</p>
 
-<p><em>0.10.2 - <a href="https://github.com/mirleft/ocaml-tls ">homepage</a></em></p>
+<p><em>0.10.3 - <a href="https://github.com/mirleft/ocaml-tls ">homepage</a></em></p>
 </div>
 </div>
 <hr width="100%">
@@ -191,7 +191,7 @@
 </div>
 </div>
 
-<pre><span id="VALreneg"><span class="keyword">val</span> reneg</span> : <code class="type">?authenticator:X509.Authenticator.a -><br>       ?acceptable_cas:X509.distinguished_name list -><br>       ?cert:<a href="Config.html#TYPEown_cert">Config.own_cert</a> -> <a href="Engine.html#TYPEstate">state</a> -> (<a href="Engine.html#TYPEstate">state</a> * Cstruct.t) option</code></pre><div class="info ">
+<pre><span id="VALreneg"><span class="keyword">val</span> reneg</span> : <code class="type">?authenticator:X509.Authenticator.t -><br>       ?acceptable_cas:X509.Distinguished_name.t list -><br>       ?cert:<a href="Config.html#TYPEown_cert">Config.own_cert</a> -> <a href="Engine.html#TYPEstate">state</a> -> (<a href="Engine.html#TYPEstate">state</a> * Cstruct.t) option</code></pre><div class="info ">
 <div class="info-desc">
 <p><code class="code">reneg&nbsp;~authenticator&nbsp;~acceptable_cas&nbsp;~cert&nbsp;tls</code> initiates a renegotation on
     <code class="code">tls</code>, using the provided <code class="code">authenticator</code>. It is <code class="code">tls'&nbsp;*&nbsp;out</code> where <code class="code">tls'</code>

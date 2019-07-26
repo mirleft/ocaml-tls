@@ -529,6 +529,7 @@
 
 <pre><span id="VALmaster_secret_of_sexp"><span class="keyword">val</span> master_secret_of_sexp</span> : <code class="type">Ppx_sexp_conv_lib.Sexp.t -> <a href="Core.html#TYPEmaster_secret">master_secret</a></code></pre>
 <pre><span id="VALsexp_of_master_secret"><span class="keyword">val</span> sexp_of_master_secret</span> : <code class="type"><a href="Core.html#TYPEmaster_secret">master_secret</a> -> Ppx_sexp_conv_lib.Sexp.t</code></pre>
+<pre><span id="MODULECert"><span class="keyword">module</span> <a href="Core.Cert.html">Cert</a></span>: <code class="code"><span class="keyword">sig</span></code> <a href="Core.Cert.html">..</a> <code class="code"><span class="keyword">end</span></code></pre>
 <pre><code><span id="TYPEepoch_data"><span class="keyword">type</span> <code class="type"></code>epoch_data</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -555,14 +556,14 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.peer_certificate_chain">peer_certificate_chain</span>&nbsp;: <code class="type">X509.t list</code>;</code></td>
+<code><span id="TYPEELTepoch_data.peer_certificate_chain">peer_certificate_chain</span>&nbsp;: <code class="type">Cert.t list</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.peer_certificate">peer_certificate</span>&nbsp;: <code class="type">X509.t option</code>;</code></td>
+<code><span id="TYPEELTepoch_data.peer_certificate">peer_certificate</span>&nbsp;: <code class="type">Cert.t option</code>;</code></td>
 
 </tr>
 <tr>
@@ -576,14 +577,14 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.trust_anchor">trust_anchor</span>&nbsp;: <code class="type">X509.t option</code>;</code></td>
+<code><span id="TYPEELTepoch_data.trust_anchor">trust_anchor</span>&nbsp;: <code class="type">Cert.t option</code>;</code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.received_certificates">received_certificates</span>&nbsp;: <code class="type">X509.t list</code>;</code></td>
+<code><span id="TYPEELTepoch_data.received_certificates">received_certificates</span>&nbsp;: <code class="type">Cert.t list</code>;</code></td>
 
 </tr>
 <tr>
@@ -597,7 +598,7 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTepoch_data.own_certificate">own_certificate</span>&nbsp;: <code class="type">X509.t list</code>;</code></td>
+<code><span id="TYPEELTepoch_data.own_certificate">own_certificate</span>&nbsp;: <code class="type">Cert.t list</code>;</code></td>
 
 </tr>
 <tr>
@@ -652,4 +653,6 @@
 
 
 <pre><span id="VALepoch_data_of_sexp"><span class="keyword">val</span> epoch_data_of_sexp</span> : <code class="type">Ppx_sexp_conv_lib.Sexp.t -> <a href="Core.html#TYPEepoch_data">epoch_data</a></code></pre>
-<pre><span id="VALsexp_of_epoch_data"><span class="keyword">val</span> sexp_of_epoch_data</span> : <code class="type"><a href="Core.html#TYPEepoch_data">epoch_data</a> -> Ppx_sexp_conv_lib.Sexp.t</code></pre></body></html>
+<pre><span id="VALsexp_of_epoch_data"><span class="keyword">val</span> sexp_of_epoch_data</span> : <code class="type"><a href="Core.html#TYPEepoch_data">epoch_data</a> -> Ppx_sexp_conv_lib.Sexp.t</code></pre>
+<pre><span id="VALsupports_key_usage"><span class="keyword">val</span> supports_key_usage</span> : <code class="type">?not_present:bool -> X509.Certificate.t -> X509.Extension.key_usage -> bool</code></pre>
+<pre><span id="VALsupports_extended_key_usage"><span class="keyword">val</span> supports_extended_key_usage</span> : <code class="type">?not_present:bool -><br>       X509.Certificate.t -> X509.Extension.extended_key_usage -> bool</code></pre></body></html>

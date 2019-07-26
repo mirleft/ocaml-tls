@@ -117,7 +117,7 @@
 </div>
 </div>
 
-<pre><span id="VALreneg"><span class="keyword">val</span> reneg</span> : <code class="type">?authenticator:X509.Authenticator.a -><br>       ?acceptable_cas:X509.distinguished_name list -><br>       ?cert:Tls.Config.own_cert -> ?drop:bool -> <a href="Tls_lwt.Unix.html#TYPEt">t</a> -> unit Lwt.t</code></pre><div class="info ">
+<pre><span id="VALreneg"><span class="keyword">val</span> reneg</span> : <code class="type">?authenticator:X509.Authenticator.t -><br>       ?acceptable_cas:X509.Distinguished_name.t list -><br>       ?cert:Tls.Config.own_cert -> ?drop:bool -> <a href="Tls_lwt.Unix.html#TYPEt">t</a> -> unit Lwt.t</code></pre><div class="info ">
 <div class="info-desc">
 <p><code class="code">reneg&nbsp;~authenticator&nbsp;~acceptable_cas&nbsp;~cert&nbsp;~drop&nbsp;t</code> renegotiates the
       session, and blocks until the renegotiation finished.  Optionally, a new

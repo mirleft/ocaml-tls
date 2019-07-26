@@ -36,7 +36,7 @@
 <pre><span id="MODULEConfig"><span class="keyword">module</span> Config</span>: <code class="code"><span class="keyword">sig</span></code> <a href="Config.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><hr width="100%">
 <p>Configuration of the TLS stack</p>
 <h2 id="1_Configtype">Config type</h2>
-<pre><span id="TYPEcertchain"><span class="keyword">type</span> <code class="type"></code>certchain</span> = <code class="type">X509.t list * Nocrypto.Rsa.priv</code> </pre>
+<pre><span id="TYPEcertchain"><span class="keyword">type</span> <code class="type"></code>certchain</span> = <code class="type">Core.Cert.t list * Nocrypto.Rsa.priv</code> </pre>
 <div class="info ">
 <div class="info-desc">
 <p>certificate chain and private key of the first certificate</p>
@@ -108,7 +108,7 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTconfig.authenticator">authenticator</span>&nbsp;: <code class="type">X509.Authenticator.a option</code>;</code></td>
+<code><span id="TYPEELTconfig.authenticator">authenticator</span>&nbsp;: <code class="type">X509.Authenticator.t option</code>;</code></td>
 <td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
 <div class="info-desc">
 <p>optional X509 authenticator</p>
@@ -144,7 +144,7 @@
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTconfig.acceptable_cas">acceptable_cas</span>&nbsp;: <code class="type">X509.distinguished_name list</code>;</code></td>
+<code><span id="TYPEELTconfig.acceptable_cas">acceptable_cas</span>&nbsp;: <code class="type">X509.Distinguished_name.t list</code>;</code></td>
 <td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
 <div class="info-desc">
 <p>ordered list of acceptable certificate authorities</p>
@@ -209,7 +209,7 @@
 
 <pre><span id="VALserver_of_sexp"><span class="keyword">val</span> server_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Config.html#TYPEserver">server</a></code></pre>
 <pre><span id="VALsexp_of_server"><span class="keyword">val</span> sexp_of_server</span> : <code class="type"><a href="Config.html#TYPEserver">server</a> -> Sexplib.Sexp.t</code></pre><h2 id="1_Constructors">Constructors</h2>
-<pre><span id="VALclient"><span class="keyword">val</span> client</span> : <code class="type">authenticator:X509.Authenticator.a -><br>       ?peer_name:string -><br>       ?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?cached_session:<a href="Core.html#TYPEepoch_data">Core.epoch_data</a> -><br>       ?alpn_protocols:string list -> unit -> <a href="Config.html#TYPEclient">client</a></code></pre><div class="info ">
+<pre><span id="VALclient"><span class="keyword">val</span> client</span> : <code class="type">authenticator:X509.Authenticator.t -><br>       ?peer_name:string -><br>       ?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?cached_session:<a href="Core.html#TYPEepoch_data">Core.epoch_data</a> -><br>       ?alpn_protocols:string list -> unit -> <a href="Config.html#TYPEclient">client</a></code></pre><div class="info ">
 <div class="info-desc">
 <p><code class="code">client&nbsp;authenticator&nbsp;?peer_name&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?alpn_protocols</code> is
     <code class="code">client</code> configuration with the given parameters.</p>
@@ -219,7 +219,7 @@
 </ul>
 </div>
 
-<pre><span id="VALserver"><span class="keyword">val</span> server</span> : <code class="type">?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?acceptable_cas:X509.distinguished_name list -><br>       ?authenticator:X509.Authenticator.a -><br>       ?session_cache:<a href="Config.html#TYPEsession_cache">session_cache</a> -><br>       ?alpn_protocols:string list -> unit -> <a href="Config.html#TYPEserver">server</a></code></pre><div class="info ">
+<pre><span id="VALserver"><span class="keyword">val</span> server</span> : <code class="type">?ciphers:<a href="Ciphersuite.html#TYPEciphersuite">Ciphersuite.ciphersuite</a> list -><br>       ?version:<a href="Core.html#TYPEtls_version">Core.tls_version</a> * <a href="Core.html#TYPEtls_version">Core.tls_version</a> -><br>       ?hashes:Nocrypto.Hash.hash list -><br>       ?reneg:bool -><br>       ?certificates:<a href="Config.html#TYPEown_cert">own_cert</a> -><br>       ?acceptable_cas:X509.Distinguished_name.t list -><br>       ?authenticator:X509.Authenticator.t -><br>       ?session_cache:<a href="Config.html#TYPEsession_cache">session_cache</a> -><br>       ?alpn_protocols:string list -> unit -> <a href="Config.html#TYPEserver">server</a></code></pre><div class="info ">
 <div class="info-desc">
 <p><code class="code">server&nbsp;?ciphers&nbsp;?version&nbsp;?hashes&nbsp;?reneg&nbsp;?certificates&nbsp;?acceptable_cas&nbsp;?authenticator&nbsp;?alpn_protocols</code>
     is <code class="code">server</code> configuration with the given parameters.</p>
@@ -292,7 +292,7 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)</p>
 </div>
 </div>
 
-<pre><span id="VALwith_authenticator"><span class="keyword">val</span> with_authenticator</span> : <code class="type"><a href="Config.html#TYPEconfig">config</a> -> X509.Authenticator.a -> <a href="Config.html#TYPEconfig">config</a></code></pre><div class="info ">
+<pre><span id="VALwith_authenticator"><span class="keyword">val</span> with_authenticator</span> : <code class="type"><a href="Config.html#TYPEconfig">config</a> -> X509.Authenticator.t -> <a href="Config.html#TYPEconfig">config</a></code></pre><div class="info ">
 <div class="info-desc">
 <p><code class="code">with_authenticator&nbsp;config&nbsp;auth</code> is <code class="code">config</code> with <code class="code">auth</code> as <code class="code">authenticator</code></p>
 </div>
@@ -304,7 +304,7 @@ Finite Field Diffie-Hellman Ephemeral Parameters for TLS</a>)</p>
 </div>
 </div>
 
-<pre><span id="VALwith_acceptable_cas"><span class="keyword">val</span> with_acceptable_cas</span> : <code class="type"><a href="Config.html#TYPEconfig">config</a> -> X509.distinguished_name list -> <a href="Config.html#TYPEconfig">config</a></code></pre><div class="info ">
+<pre><span id="VALwith_acceptable_cas"><span class="keyword">val</span> with_acceptable_cas</span> : <code class="type"><a href="Config.html#TYPEconfig">config</a> -> X509.Distinguished_name.t list -> <a href="Config.html#TYPEconfig">config</a></code></pre><div class="info ">
 <div class="info-desc">
 <p><code class="code">with_acceptable_cas&nbsp;config&nbsp;cas</code> is <code class="code">config</code> with <code class="code">cas</code> as <code class="code">accepted_cas</code></p>
 </div>
