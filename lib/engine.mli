@@ -36,8 +36,7 @@
 
 (** {1 Abstract state type} *)
 
-(** The abstract type of a TLS state, with
-    {{!Encoding.Pem.Certificate}encoding and decoding to PEM}. *)
+(** The abstract type of a TLS state. *)
 type state
 
 (** {1 Constructors} *)
