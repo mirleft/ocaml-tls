@@ -159,8 +159,8 @@ val send_close_notify     : state -> state * Cstruct.t
     [tls], using the provided [authenticator]. It is [tls' * out] where [tls']
     is the new tls state, and [out] either a client hello or hello request
     (depending on which communication endpoint [tls] is). *)
-val reneg : ?authenticator:X509.Authenticator.a ->
-  ?acceptable_cas:X509.distinguished_name list -> ?cert:Config.own_cert ->
+val reneg : ?authenticator:X509.Authenticator.t ->
+  ?acceptable_cas:X509.Distinguished_name.t list -> ?cert:Config.own_cert ->
   state -> (state * Cstruct.t) option
 
 (** {1 Session information} *)

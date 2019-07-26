@@ -6,7 +6,7 @@ open Core
 open Sexplib.Std
 
 
-type certchain = X509.t list * Rsa.priv [@@deriving sexp]
+type certchain = Cert.t list * Rsa.priv [@@deriving sexp]
 
 type own_cert = [
   | `None
@@ -19,16 +19,28 @@ type session_cache = SessionID.t -> epoch_data option
 let session_cache_of_sexp _ = fun _ -> None
 let sexp_of_session_cache _ = Sexplib.Sexp.Atom "SESSION_CACHE"
 
+module Auth = struct
+  type t = X509.Authenticator.t
+  let t_of_sexp _ = failwith "can't convert sexp to authenticator"
+  let sexp_of_t _ = Sexplib.Sexp.Atom "Authenticator"
+end
+
+module DN = struct
+  type t = X509.Distinguished_name.t
+  let t_of_sexp _ = failwith "can't convert sexp to distinguished name"
+  let sexp_of_t _ = Sexplib.Sexp.Atom "distinguished name"
+end
+
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
   protocol_versions : tls_version * tls_version ;
   hashes            : Hash.hash list ;
   (* signatures        : Packet.signature_algorithm_type list ; *)
   use_reneg         : bool ;
-  authenticator     : X509.Authenticator.a option ;
+  authenticator     : Auth.t option ;
   peer_name         : string option ;
   own_certificates  : own_cert ;
-  acceptable_cas    : X509.distinguished_name list ;
+  acceptable_cas    : DN.t list ;
   session_cache     : session_cache ;
   cached_session    : epoch_data option ;
   alpn_protocols    : string list ;
@@ -119,7 +131,7 @@ let validate_common config =
     invalid "alpn protocols list too large"
 
 module CertTypeUsageOrdered = struct
-  type t = X509.key_type * X509.Extension.key_usage
+  type t = X509.Certificate.key_type * X509.Extension.key_usage
   let compare = compare
 end
 module CertTypeUsageSet = Set.Make(CertTypeUsageOrdered)
@@ -129,16 +141,17 @@ let validate_certificate_chain = function
      let pub = Rsa.pub_of_priv priv in
      if Rsa.pub_bits pub < min_rsa_key_size then
        invalid "RSA key too short!" ;
-     ( match X509.public_key s with
+     ( match X509.Certificate.public_key s with
        | `RSA pub' when pub = pub' -> ()
        | _ -> invalid "public / private key combination" ) ;
      ( match init_and_last chain with
        | Some (ch, trust) ->
          (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
          ( match X509.Validation.verify_chain_of_trust ~anchors:[trust] (s :: ch) with
-           | `Ok _   -> ()
-           | `Fail x -> invalid ("certificate chain does not validate: " ^
-                                 (X509.Validation.validation_error_to_string x)) )
+           | Ok _   -> ()
+           | Error x ->
+             let s = Fmt.to_to_string X509.Validation.pp_validation_error x in
+             invalid ("certificate chain does not validate: " ^ s))
        | None -> () )
   | _ -> invalid "certificate"
 
@@ -148,22 +161,17 @@ let validate_client config =
   | `Single c -> validate_certificate_chain c
   | _ -> invalid_arg "multiple client certificates not supported in client config"
 
-module StringSet = Set.Make(String)
-
 let non_overlapping cs =
   let namessets =
-    let nameslists =
-      filter_map cs ~f:(function
-          | (s :: _, _) -> Some s
-          | _           -> None)
-      |> List.map X509.hostnames
-    in
-    List.map (fun xs -> List.fold_right StringSet.add xs StringSet.empty) nameslists
+    filter_map cs ~f:(function
+        | (s :: _, _) -> Some s
+        | _           -> None)
+    |> List.map X509.Certificate.hostnames
   in
   let rec check = function
     | []    -> ()
     | s::ss -> if not (List.for_all
-                         (fun ss' -> StringSet.is_empty (StringSet.inter s ss'))
+                         (fun ss' -> Domain_name.Set.is_empty (Domain_name.Set.inter s ss'))
                          ss)
                then
                  invalid_arg "overlapping names in certificates"
@@ -198,8 +206,8 @@ let validate_server config =
     not (CertTypeUsageSet.for_all
            (fun (t, u) ->
               List.exists (fun c ->
-                  X509.supports_keytype c t &&
-                  X509.Extension.supports_usage ~not_present:true c u)
+                  X509.Certificate.supports_keytype c t &&
+                  supports_key_usage ~not_present:true c u)
                 server_certs)
            typeusage)
   then

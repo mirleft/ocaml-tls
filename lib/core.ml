@@ -174,18 +174,24 @@ type tls_body =
 (** the master secret of a TLS connection *)
 type master_secret = Cstruct_sexp.t [@@deriving sexp]
 
+module Cert = struct
+  include X509.Certificate
+  let t_of_sexp _ = failwith "can't convert certificate from S-expression"
+  let sexp_of_t _ = Sexplib.Sexp.Atom "certificate"
+end
+
 (** information about an open session *)
 type epoch_data = {
   protocol_version       : tls_version ;
   ciphersuite            : Ciphersuite.ciphersuite ;
   peer_random            : Cstruct_sexp.t ;
-  peer_certificate_chain : X509.t list ;
-  peer_certificate       : X509.t option ;
+  peer_certificate_chain : Cert.t list ;
+  peer_certificate       : Cert.t option ;
   peer_name              : string option ;
-  trust_anchor           : X509.t option ;
-  received_certificates  : X509.t list ;
+  trust_anchor           : Cert.t option ;
+  received_certificates  : Cert.t list ;
   own_random             : Cstruct_sexp.t ;
-  own_certificate        : X509.t list ;
+  own_certificate        : Cert.t list ;
   own_private_key        : Nocrypto.Rsa.priv option ;
   own_name               : string option ;
   master_secret          : master_secret ;
@@ -193,3 +199,13 @@ type epoch_data = {
   extended_ms            : bool ;
   alpn_protocol          : string option ;
 } [@@deriving sexp]
+
+let supports_key_usage ?(not_present = false) cert usage =
+  match X509.Extension.(find Key_usage (X509.Certificate.extensions cert)) with
+  | None -> not_present
+  | Some (_, kus) -> List.mem usage kus
+
+let supports_extended_key_usage ?(not_present = false) cert usage =
+  match X509.Extension.(find Ext_key_usage (X509.Certificate.extensions cert)) with
+  | None -> not_present
+  | Some (_, kus) -> List.mem usage kus

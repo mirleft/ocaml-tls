@@ -9,8 +9,17 @@ let empty = function [] -> true | _ -> false
 let change_cipher_spec =
   (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
 
-let hostname (h : client_hello) : string option =
-  map_find ~f:(function `Hostname s -> Some s | _ -> None) h.extensions
+let host_name_opt = function
+  | None   -> None
+  | Some x -> match Domain_name.of_string x with
+    | Error _ -> None
+    | Ok domain -> match Domain_name.host domain with
+      | Error _ -> None
+      | Ok host -> Some host
+
+let hostname (h : client_hello) : [ `host ] Domain_name.t option =
+  host_name_opt
+    (map_find ~f:(function `Hostname s -> Some s | _ -> None) h.extensions)
 
 let get_secure_renegotiation exts =
   map_find
@@ -169,14 +178,14 @@ let signature version data sig_algs hashes private_key =
         | None      -> fail (`Error (`NoConfiguredHash client_hashes))
         | Some hash -> return hash ) >|= fun hash_algo ->
     let hash = Hash.digest hash_algo data in
-    let cs = X509.Encoding.pkcs1_digest_info_to_cstruct (hash_algo, hash) in
+    let cs = X509.Certificate.encode_pkcs1_digest_info (hash_algo, hash) in
     let sign = Rsa.PKCS1.sig_encode ~key:private_key cs in
     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
 
 let peer_rsa_key = function
   | None -> fail (`Fatal `NoCertificateReceived)
   | Some cert ->
-    match X509.public_key cert with
+    match X509.Certificate.public_key cert with
     | `RSA key -> return key
     | _        -> fail (`Fatal `NotRSACertificate)
 
@@ -198,8 +207,8 @@ let verify_digitally_signed version hashes data signature_data certificate =
         | Ok (hash_algo, Packet.RSA, signature) ->
           guard (List.mem hash_algo hashes) (`Error (`NoConfiguredHash hashes)) >>= fun () ->
           let compare_hashes should data =
-            match X509.Encoding.pkcs1_digest_info_of_cstruct should with
-            | Some (hash_algo', target) when hash_algo = hash_algo' ->
+            match X509.Certificate.decode_pkcs1_digest_info should with
+            | Ok (hash_algo', target) when hash_algo = hash_algo' ->
               guard (Crypto.digest_eq hash_algo ~target data) (`Fatal `RSASignatureMismatch)
             | _ -> fail (`Fatal `HashAlgorithmMismatch)
           in
@@ -221,19 +230,22 @@ let verify_digitally_signed version hashes data signature_data certificate =
 let validate_chain authenticator certificates hostname =
   let authenticate authenticator host certificates =
     match authenticator ?host certificates with
-    | `Fail err  -> fail (`Error (`AuthenticationFailure err))
-    | `Ok anchor -> return anchor
+    | Error err  -> fail (`Error (`AuthenticationFailure err))
+    | Ok anchor -> return anchor
 
   and key_size min cs =
     let check c =
-      match X509.public_key c with
+      match X509.Certificate.public_key c with
       | `RSA key when Rsa.pub_bits key >= min -> true
       | _                                     -> false
     in
     guard (List.for_all check cs) (`Fatal `KeyTooSmall)
 
   and parse_certificates certs =
-    let certificates = filter_map ~f:X509.Encoding.parse certs in
+    let certificates =
+      let f cs = match X509.Certificate.decode_der cs with Ok c -> Some c | _ -> None in
+      filter_map ~f certs
+    in
     guard (List.length certs = List.length certificates) (`Fatal `BadCertificateChain) >|= fun () ->
     certificates
 

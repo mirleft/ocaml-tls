@@ -78,11 +78,11 @@ type session_data = {
   client_random          : Cstruct_sexp.t ; (* 32 bytes random from the client hello *)
   client_version         : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
   ciphersuite            : Ciphersuite.ciphersuite ;
-  peer_certificate_chain : X509.t list ;
-  peer_certificate       : X509.t option ;
-  trust_anchor           : X509.t option ;
-  received_certificates  : X509.t list ;
-  own_certificate        : X509.t list ;
+  peer_certificate_chain : Cert.t list ;
+  peer_certificate       : Cert.t option ;
+  trust_anchor           : Cert.t option ;
+  received_certificates  : Cert.t list ;
+  own_certificate        : Cert.t list ;
   own_private_key        : Nocrypto.Rsa.priv option ;
   master_secret          : master_secret ;
   renegotiation          : reneg_params ; (* renegotiation data *)
@@ -164,8 +164,16 @@ type state = {
   fragment  : Cstruct_sexp.t ; (* the leftover fragment from TCP fragmentation *)
 } [@@deriving sexp]
 
+module V_err = struct
+  type t = X509.Validation.validation_error
+  let t_of_sexp _ = failwith "couldn't convert validatin error from sexp"
+  let sexp_of_t v =
+    let s = Fmt.to_to_string X509.Validation.pp_validation_error v in
+    Sexplib.Sexp.Atom s
+end
+
 type error = [
-  | `AuthenticationFailure of X509.Validation.validation_error
+  | `AuthenticationFailure of V_err.t
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of tls_version
   | `NoConfiguredHash of Hash.hash list
