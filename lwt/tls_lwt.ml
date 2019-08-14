@@ -242,7 +242,7 @@ let of_t ?close t =
     | Some f -> (fun () -> Unix.safely (f ()))
   in
   (Lwt_io.make ~close ~mode:Lwt_io.Input (Unix.read_bytes t)),
-  (Lwt_io.make ~close ~mode:Lwt_io.Output @@
+  (Lwt_io.make ~mode:Lwt_io.Output @@
     fun a b c -> Unix.write_bytes t a b c >>= fun () -> return c)
 
 let accept_ext ?trace conf fd =
