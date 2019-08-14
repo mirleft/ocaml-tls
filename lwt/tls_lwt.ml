@@ -237,8 +237,13 @@ type ic = Lwt_io.input_channel
 type oc = Lwt_io.output_channel
 
 let of_t ?close t =
+  let only_if_open f =
+    let is_open = ref true in
+    (* Only close the underlying fd once *)
+    fun () -> if !is_open then (is_open := false; f ()) else Lwt.return_unit
+  in
   let close = match close with
-    | None   -> (fun () -> Unix.(safely (close t)))
+    | None   -> (only_if_open (fun () -> Unix.(safely (close t))))
     | Some f -> (fun () -> Unix.safely (f ()))
   in
   (Lwt_io.make ~close ~mode:Lwt_io.Input (Unix.read_bytes t)),
