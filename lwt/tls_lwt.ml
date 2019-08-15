@@ -238,8 +238,12 @@ type oc = Lwt_io.output_channel
 
 let of_t ?close t =
   let close = match close with
-    | None   -> (fun () -> Unix.(safely (close t)))
     | Some f -> (fun () -> Unix.safely (f ()))
+    | None   -> (fun () ->
+        (* avoid double-closes by checking if the fd has already been closed *)
+        match Lwt_unix.state t.Unix.fd with
+        | Lwt_unix.Closed -> Lwt.return_unit
+        | Lwt_unix.Opened | Lwt_unix.Aborted _ -> Unix.(safely (close t)))
   in
   (Lwt_io.make ~close ~mode:Lwt_io.Input (Unix.read_bytes t)),
   (Lwt_io.make ~close ~mode:Lwt_io.Output @@
