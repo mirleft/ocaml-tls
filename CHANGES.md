@@ -1,3 +1,9 @@
+## 0.10.4 (2019-08-15)
+
+* tls_lwt: avoid double close by checking in the default `close` callback of
+  `Lwt_io.make` whether the underlying file descriptor has been closed already.
+  (reported and discussed by @hcarthy in #395, merged #397)
+
 ## 0.10.3 (2019-07-26)
 
 * support x509 0.7.0+
