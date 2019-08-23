@@ -176,8 +176,15 @@ type master_secret = Cstruct_sexp.t [@@deriving sexp]
 
 module Cert = struct
   include X509.Certificate
-  let t_of_sexp _ = failwith "can't convert certificate from S-expression"
-  let sexp_of_t _ = Sexplib.Sexp.Atom "certificate"
+  let t_of_sexp sexp =
+    Cstruct_sexp.t_of_sexp sexp
+    |> X509.Certificate.decode_pem |> function
+    | Ok t -> t
+    | Error _ -> failwith "can't decode certificate s-expression"
+
+  let sexp_of_t t =
+    Cstruct_sexp.sexp_of_t (X509.Certificate.encode_pem t)
+    (*Sexplib.Sexp.Atom "certificate"*)
 end
 
 (** information about an open session *)
