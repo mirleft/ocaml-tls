@@ -1,6 +1,6 @@
 open Lwt
 
-module Make (F : Mirage_flow_lwt.S) = struct
+module Make (F : Mirage_flow.S) = struct
 
   module FLOW = F
 
@@ -219,7 +219,7 @@ module Make (F : Mirage_flow_lwt.S) = struct
 
 end
 
-module X509 (KV : Mirage_kv_lwt.RO) (C: Mirage_clock.PCLOCK) = struct
+module X509 (KV : Mirage_kv.RO) (C: Mirage_clock.PCLOCK) = struct
 
   let ca_roots_file = Mirage_kv.Key.v "ca-roots.crt"
   let default_cert  = "server"
@@ -235,10 +235,10 @@ module X509 (KV : Mirage_kv_lwt.RO) (C: Mirage_clock.PCLOCK) = struct
   let read kv name =
     KV.get kv name >>= err_fail KV.pp_error >|= Cstruct.of_string
 
-  let authenticator kv clock = function
+  let authenticator kv = function
     | `Noop -> return X509.Authenticator.null
     | `CAs  ->
-        let time = Ptime.v (C.now_d_ps clock) in
+        let time = Ptime.v (C.now_d_ps ()) in
         read kv ca_roots_file >>=
         decode_or_fail X509.Certificate.decode_pem_multiple >|=
         X509.Authenticator.chain_of_trust ?crls:None ~time

@@ -19,7 +19,7 @@ true : package(cstruct cstruct-sexp nocrypto x509 sexplib domain-name fmt)
 <lwt> : include
 <lwt/examples/*> : package(nocrypto.lwt)
 
-<mirage/*> : package(mirage-flow-lwt mirage-kv-lwt mirage-clock lwt ptime)
+<mirage/*> : package(mirage-flow mirage-kv mirage-clock lwt ptime)
 
 <random>: -traverse
 <mirage/example>: -traverse

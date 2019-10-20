@@ -11,10 +11,10 @@ license:      "BSD2"
 build: [
   [ "ocaml" "pkg/pkg.ml" "build" "--pinned" "%{pinned}%" "--tests" "false"
     "--with-lwt" "%{lwt+ptime:installed}%"
-    "--with-mirage" "%{mirage-flow-lwt+mirage-kv-lwt+mirage-clock+ptime:installed}%" ]
+    "--with-mirage" "%{mirage-flow+mirage-kv+mirage-clock+ptime:installed}%" ]
   ["ocaml" "pkg/pkg.ml" "build" "--pinned" "%{pinned}%" "--tests" "true"
     "--with-lwt" "%{lwt+ptime:installed}%"
-    "--with-mirage" "%{mirage-flow-lwt+mirage-kv-lwt+mirage-clock+ptime:installed}%" ] {with-test}
+    "--with-mirage" "%{mirage-flow+mirage-kv+mirage-clock+ptime:installed}%" ] {with-test}
   ["ocaml" "pkg/pkg.ml" "test"] {with-test}
 ]
 
@@ -38,8 +38,8 @@ depends: [
 ]
 depopts: [
   "lwt"
-  "mirage-flow-lwt"
-  "mirage-kv-lwt"
+  "mirage-flow"
+  "mirage-kv"
   "mirage-clock"
   "ptime"
 ]
@@ -47,7 +47,9 @@ conflicts: [
   "lwt" {<"2.4.8"}
   "mirage-net-xen" {<"1.3.0"}
   "mirage-types" {<"3.0.0"}
-  "mirage-kv-lwt" {<"2.0.0"}
+  "mirage-kv" {<"3.0.0"}
+  "mirage-flow" {<"2.0.0"}
+  "mirage-clock" {<"3.0.0"}
   "sexplib" {= "v0.9.0"}
   "ppx_sexp_conv" {= "v0.11.0"}
   "ptime" {< "0.8.1"}

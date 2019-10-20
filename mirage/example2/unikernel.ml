@@ -1,9 +1,8 @@
 open Lwt.Infix
-open Mirage_types_lwt
 
-module Main (S  : STACKV4)
-            (KV : KV_RO)
-            (CL : Mirage_types.PCLOCK) =
+module Main (S  : Mirage_stack.V4)
+            (KV : Mirage_kv.RO)
+            (CL : Mirage_clock.PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)

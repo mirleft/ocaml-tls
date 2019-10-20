@@ -8,7 +8,7 @@ PKG cstruct nocrypto x509 sexplib
 PKG cstruct.ppx ppx_sexp_conv
 PKG oUnit cstruct.unix
 PKG lwt lwt.unix str nocrypto.lwt
-PKG mirage-flow-lwt mirage-kv-lwt mirage-clock ptime
-PKG mirage-types-lwt mirage-types
+PKG mirage-flow mirage-kv mirage-clock ptime
+PKG mirage-types mirage-types
 
 FLG -safe-string -w +A-4-9-41-42-44-45
