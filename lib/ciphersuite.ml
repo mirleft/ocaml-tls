@@ -35,11 +35,17 @@ type aead_cipher =
   | AES_256_CCM
   | AES_128_GCM
   | AES_256_GCM
-  [@@deriving sexp]
+[@@deriving sexp]
+
+module H = struct
+  type t = Nocrypto.Hash.hash
+  let t_of_sexp _ = assert false
+  let sexp_of_t _ = Sexplib.Sexp.Atom "hash"
+end
 
 type payload_protection =
-  | Stream of stream_cipher * Nocrypto.Hash.hash
-  | Block of block_cipher * Nocrypto.Hash.hash
+  | Stream of stream_cipher * H.t
+  | Block of block_cipher * H.t
   | AEAD of aead_cipher
   [@@deriving sexp]
 

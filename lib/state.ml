@@ -68,7 +68,11 @@ type crypto_context = {
 (* the raw handshake log we need to carry around *)
 type hs_log = Cstruct_sexp.t list [@@deriving sexp]
 (* diffie hellman group and secret *)
-type dh_sent = Dh.group * Dh.secret [@@deriving sexp]
+module Dh_sent = struct
+  type t = Dh.group * Dh.secret
+  let t_of_sexp _ = assert false
+  let sexp_of_t _ = Sexplib.Sexp.Atom "dh sent"
+end
 
 (* a collection of client and server verify bytes for renegotiation *)
 type reneg_params = Cstruct_sexp.t * Cstruct_sexp.t [@@deriving sexp]
@@ -83,7 +87,7 @@ type session_data = {
   trust_anchor           : Cert.t option ;
   received_certificates  : Cert.t list ;
   own_certificate        : Cert.t list ;
-  own_private_key        : Nocrypto.Rsa.priv option ;
+  own_private_key        : Priv.t option ;
   master_secret          : master_secret ;
   renegotiation          : reneg_params ; (* renegotiation data *)
   own_name               : string option ;
@@ -98,9 +102,9 @@ type server_handshake_state =
   | AwaitClientHello (* initial state *)
   | AwaitClientHelloRenegotiate
   | AwaitClientCertificate_RSA of session_data * hs_log
-  | AwaitClientCertificate_DHE_RSA of session_data * dh_sent * hs_log
+  | AwaitClientCertificate_DHE_RSA of session_data * Dh_sent.t * hs_log
   | AwaitClientKeyExchange_RSA of session_data * hs_log (* server hello done is sent, and RSA key exchange used, waiting for a client key exchange message *)
-  | AwaitClientKeyExchange_DHE_RSA of session_data * dh_sent * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
+  | AwaitClientKeyExchange_DHE_RSA of session_data * Dh_sent.t * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
   | AwaitClientCertificateVerify of session_data * crypto_context * crypto_context * hs_log
   | AwaitClientChangeCipherSpec of session_data * crypto_context * crypto_context * hs_log (* client key exchange received, next should be change cipher spec *)
   | AwaitClientChangeCipherSpecResume of session_data * crypto_context * Cstruct_sexp.t * hs_log (* resumption: next should be change cipher spec *)
@@ -118,7 +122,7 @@ type client_handshake_state =
   | AwaitCertificate_DHE_RSA of session_data * hs_log (* certificate expected with DHE_RSA key exchange *)
   | AwaitServerKeyExchange_DHE_RSA of session_data * hs_log (* server key exchange expected with DHE_RSA *)
   | AwaitCertificateRequestOrServerHelloDone of session_data * Cstruct_sexp.t * Cstruct_sexp.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
-  | AwaitServerHelloDone of session_data * (Hash.hash * Packet.signature_algorithm_type) list option * Cstruct_sexp.t * Cstruct_sexp.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
+  | AwaitServerHelloDone of session_data * (Ciphersuite.H.t * Packet.signature_algorithm_type) list option * Cstruct_sexp.t * Cstruct_sexp.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
   | AwaitServerChangeCipherSpec of session_data * crypto_context * Cstruct_sexp.t * hs_log (* change cipher spec expected *)
   | AwaitServerChangeCipherSpecResume of session_data * crypto_context * crypto_context * hs_log (* change cipher spec expected *)
   | AwaitServerFinished of session_data * Cstruct_sexp.t * hs_log (* finished expected with a hmac over all handshake packets *)
@@ -176,7 +180,7 @@ type error = [
   | `AuthenticationFailure of V_err.t
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of tls_version
-  | `NoConfiguredHash of Hash.hash list
+  | `NoConfiguredHash of Ciphersuite.H.t list
   | `NoMatchingCertificateFound of string
   | `NoCertificateConfigured
   | `CouldntSelectCertificate

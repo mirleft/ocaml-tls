@@ -80,7 +80,7 @@ type client_extension = [
   | `ECPointFormats of ec_point_format list
   | `SecureRenegotiation of Cstruct_sexp.t
   | `Padding of int
-  | `SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
+  | `SignatureAlgorithms of (H.t * signature_algorithm_type) list
   | `UnknownExtension of (int * Cstruct_sexp.t)
   | `ExtendedMasterSecret
   | `ALPN of string list
@@ -180,6 +180,12 @@ module Cert = struct
   let sexp_of_t _ = Sexplib.Sexp.Atom "certificate"
 end
 
+module Priv = struct
+  type t = Nocrypto.Rsa.priv
+  let t_of_sexp _ = assert false
+  let sexp_of_t _ = Sexplib.Sexp.Atom "private key"
+end
+
 (** information about an open session *)
 type epoch_data = {
   protocol_version       : tls_version ;
@@ -192,7 +198,7 @@ type epoch_data = {
   received_certificates  : Cert.t list ;
   own_random             : Cstruct_sexp.t ;
   own_certificate        : Cert.t list ;
-  own_private_key        : Nocrypto.Rsa.priv option ;
+  own_private_key        : Priv.t option ;
   own_name               : string option ;
   master_secret          : master_secret ;
   session_id             : SessionID.t ;

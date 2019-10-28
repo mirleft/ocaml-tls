@@ -1,6 +1,6 @@
 true : color(always), bin_annot, safe_string
 true : warn(+A-4-9-41-42-44-45)
-true : package(cstruct cstruct-sexp nocrypto x509 sexplib domain-name fmt)
+true : package(cstruct cstruct-sexp nocrypto x509 sexplib domain-name fmt ppx_sexp_conv.runtime-lib)
 
 <lib/*.ml> : for-pack(Tls)
 <lib/packet.ml> : package(ppx_cstruct)
@@ -13,9 +13,9 @@ true : package(cstruct cstruct-sexp nocrypto x509 sexplib domain-name fmt)
 
 <lib> : include
 
-<tests/*> : package(oUnit cstruct-unix)
+<tests/*> : package(oUnit cstruct-unix ppx_sexp_conv.runtime-lib)
 
-<lwt/**/*> : package(lwt lwt.unix ptime.clock.os)
+<lwt/**/*> : package(lwt lwt.unix ptime.clock.os nocrypto.lwt)
 <lwt> : include
 <lwt/examples/*> : package(nocrypto.lwt)
 

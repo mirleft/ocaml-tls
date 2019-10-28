@@ -6,7 +6,7 @@ open Core
 open Sexplib.Std
 
 
-type certchain = Cert.t list * Rsa.priv [@@deriving sexp]
+type certchain = Cert.t list * Priv.t [@@deriving sexp]
 
 type own_cert = [
   | `None
@@ -34,7 +34,7 @@ end
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
   protocol_versions : tls_version * tls_version ;
-  hashes            : Hash.hash list ;
+  hashes            : Ciphersuite.H.t list ;
   (* signatures        : Packet.signature_algorithm_type list ; *)
   use_reneg         : bool ;
   authenticator     : Auth.t option ;
