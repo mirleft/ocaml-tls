@@ -26,7 +26,7 @@
 </div>
 <h1>Functor <a href="type_Tls_mirage.Make.html">Tls_mirage.Make</a></h1>
 
-<pre><span id="MODULEMake"><span class="keyword">module</span> Make</span>: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">F</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_flow_lwt.S</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.Make.html">..</a> <code class="code"><span class="keyword">end</span></code><code class="type"> 
+<pre><span id="MODULEMake"><span class="keyword">module</span> Make</span>: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">F</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_flow.S</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.Make.html">..</a> <code class="code"><span class="keyword">end</span></code><code class="type"> 
   with module FLOW = F</code></div></pre><div class="info module top">
 <div class="info-desc">
 <p>TLS module given a flow</p>
@@ -41,14 +41,14 @@
 <td align="center" valign="top" width="15%">
 <code>F</code></td>
 <td align="center" valign="top">:</td>
-<td><code class="type">Mirage_flow_lwt.S</code>
+<td><code class="type">Mirage_flow.S</code>
 </table>
 </td>
 </tr>
 </table>
 <hr width="100%">
 
-<pre><span id="MODULEFLOW"><span class="keyword">module</span> <a href="Tls_mirage.Make.FLOW.html">FLOW</a></span>: <code class="type">Mirage_flow_lwt.S</code><code class="type"> </code></pre>
+<pre><span id="MODULEFLOW"><span class="keyword">module</span> <a href="Tls_mirage.Make.FLOW.html">FLOW</a></span>: <code class="type">Mirage_flow.S</code><code class="type"> </code></pre>
 <pre><span id="TYPEerror"><span class="keyword">type</span> <code class="type"></code>error</span> = <code class="type">[ `Read of F.error<br>       | `Tls_alert of Tls.Packet.alert_type<br>       | `Tls_failure of Tls.Engine.failure<br>       | `Write of F.write_error ]</code> </pre>
 <div class="info ">
 <div class="info-desc">
@@ -75,7 +75,7 @@
 <pre><span id="TYPEtracer"><span class="keyword">type</span> <code class="type"></code>tracer</span> = <code class="type">Sexplib.Sexp.t -> unit</code> </pre>
 
 
-<pre><span class="keyword">include</span> Mirage_flow_lwt.S</pre>
+<pre><span class="keyword">include</span> Mirage_flow.S</pre>
 <div class="info ">
 <div class="info-desc">
 <p>we provide the FLOW interface</p>

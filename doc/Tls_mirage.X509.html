@@ -26,7 +26,7 @@
 &nbsp;</div>
 <h1>Functor <a href="type_Tls_mirage.X509.html">Tls_mirage.X509</a></h1>
 
-<pre><span id="MODULEX509"><span class="keyword">module</span> X509</span>: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">KV</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_kv_lwt.RO</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">C</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_clock.PCLOCK</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.X509.html">..</a> <code class="code"><span class="keyword">end</span></code></div></div></pre><div class="info module top">
+<pre><span id="MODULEX509"><span class="keyword">module</span> X509</span>: <div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">KV</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_kv.RO</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><div class="sig_block"><code class="code"><span class="keyword">functor</span>&nbsp;(</code><code class="code"><span class="constructor">C</span></code><code class="code">&nbsp;:&nbsp;</code><code class="type">Mirage_clock.PCLOCK</code><code class="code">)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;</code><code class="code"><span class="keyword">sig</span></code> <a href="Tls_mirage.X509.html">..</a> <code class="code"><span class="keyword">end</span></code></div></div></pre><div class="info module top">
 <div class="info-desc">
 <p>X.509 handling given a key value store and a clock</p>
 </div>
@@ -40,7 +40,7 @@
 <td align="center" valign="top" width="15%">
 <code>KV</code></td>
 <td align="center" valign="top">:</td>
-<td><code class="type">Mirage_kv_lwt.RO</code>
+<td><code class="type">Mirage_kv.RO</code>
 <tr>
 <td align="center" valign="top" width="15%">
 <code>C</code></td>
@@ -52,7 +52,7 @@
 </table>
 <hr width="100%">
 
-<pre><span id="VALauthenticator"><span class="keyword">val</span> authenticator</span> : <code class="type">KV.t -> C.t -> [< `CAs | `Noop ] -> X509.Authenticator.t Lwt.t</code></pre><div class="info ">
+<pre><span id="VALauthenticator"><span class="keyword">val</span> authenticator</span> : <code class="type">KV.t -> [< `CAs | `Noop ] -> X509.Authenticator.t Lwt.t</code></pre><div class="info ">
 <div class="info-desc">
 <p><code class="code">authenticator&nbsp;store&nbsp;clock&nbsp;typ</code> creates an <code class="code">authenticator</code>, either
       using the given certificate authorities in the <code class="code">store</code> or

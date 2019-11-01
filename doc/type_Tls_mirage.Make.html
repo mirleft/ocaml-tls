@@ -17,21 +17,20 @@
 <link title="Tls_mirage" rel="Chapter" href="Tls_mirage.html"><title>Tls_mirage.Make</title>
 </head>
 <body>
-<code class="code"><span class="keyword">functor</span>&nbsp;(<span class="constructor">F</span>&nbsp;:&nbsp;<span class="constructor">Mirage_flow_lwt</span>.<span class="constructor">S</span>)&nbsp;<span class="keywordsign">-&gt;</span><br>
+<code class="code"><span class="keyword">functor</span>&nbsp;(<span class="constructor">F</span>&nbsp;:&nbsp;<span class="constructor">Mirage_flow</span>.<span class="constructor">S</span>)&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;<span class="keyword">sig</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">FLOW</span>&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;<span class="keywordsign">'</span>a&nbsp;io&nbsp;=&nbsp;<span class="keywordsign">'</span>a&nbsp;<span class="constructor">Lwt</span>.t<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;error&nbsp;=&nbsp;<span class="constructor">F</span>.error<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pp_error&nbsp;:&nbsp;error&nbsp;<span class="constructor">Fmt</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;write_error&nbsp;=&nbsp;<span class="constructor">F</span>.write_error<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;nonrec&nbsp;write_error&nbsp;=&nbsp;<span class="constructor">F</span>.write_error<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pp_write_error&nbsp;:&nbsp;write_error&nbsp;<span class="constructor">Fmt</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;buffer&nbsp;=&nbsp;<span class="constructor">Cstruct</span>.t<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flow&nbsp;=&nbsp;<span class="constructor">F</span>.flow<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;read&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(buffer&nbsp;<span class="constructor">Mirage_flow</span>.or_eof,&nbsp;error)&nbsp;result&nbsp;io<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;write&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;buffer&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;result&nbsp;io<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;writev&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;buffer&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;result&nbsp;io<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;close&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit&nbsp;io<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;read&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(<span class="constructor">Cstruct</span>.t&nbsp;<span class="constructor">Mirage_flow</span>.or_eof,&nbsp;error)&nbsp;result&nbsp;<span class="constructor">Lwt</span>.t<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;write&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;result&nbsp;<span class="constructor">Lwt</span>.t<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;writev&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;result&nbsp;<span class="constructor">Lwt</span>.t<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;close&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit&nbsp;<span class="constructor">Lwt</span>.t<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;error&nbsp;=<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[&nbsp;<span class="keywordsign">`</span><span class="constructor">Read</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">F</span>.error<br>
@@ -50,10 +49,10 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pp_error&nbsp;:&nbsp;error&nbsp;<span class="constructor">Fmt</span>.t<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pp_write_error&nbsp;:&nbsp;write_error&nbsp;<span class="constructor">Fmt</span>.t<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flow<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;read&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(buffer&nbsp;<span class="constructor">Mirage_flow</span>.or_eof,&nbsp;error)&nbsp;result&nbsp;io<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;write&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;buffer&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;result&nbsp;io<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;writev&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;buffer&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;result&nbsp;io<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;close&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit&nbsp;io<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;read&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(<span class="constructor">Cstruct</span>.t&nbsp;<span class="constructor">Mirage_flow</span>.or_eof,&nbsp;error)&nbsp;result&nbsp;<span class="constructor">Lwt</span>.t<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;write&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;result&nbsp;<span class="constructor">Lwt</span>.t<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;writev&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(unit,&nbsp;write_error)&nbsp;result&nbsp;<span class="constructor">Lwt</span>.t<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;close&nbsp;:&nbsp;flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit&nbsp;<span class="constructor">Lwt</span>.t<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;reneg&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?authenticator:<span class="constructor">X509</span>.<span class="constructor">Authenticator</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?acceptable_cas:<span class="constructor">X509</span>.<span class="constructor">Distinguished_name</span>.t&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
