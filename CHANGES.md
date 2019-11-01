@@ -1,3 +1,7 @@
+## v0.10.5 (2019-11-01)
+
+* adapt to mirage-flow 2.0.0, mirage-clock 3.0.0, mirage-kv 3.0.0 interfaces (#401 @hannesm)
+
 ## 0.10.4 (2019-08-15)
 
 * tls_lwt: avoid double close by checking in the default `close` callback of
