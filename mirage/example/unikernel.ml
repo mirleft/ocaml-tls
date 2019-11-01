@@ -1,8 +1,5 @@
 open Lwt.Infix
 
-open Mirage_types_lwt
-
-
 let escape_data buf = String.escaped (Cstruct.to_string buf)
 
 let make_tracer dump =
@@ -15,9 +12,9 @@ let make_tracer dump =
     Lwt_list.iter_s dump msgs in
   (trace, flush)
 
-module Server (S  : STACKV4)
-              (KV : KV_RO)
-              (CL : Mirage_types.PCLOCK) =
+module Server (S  : Mirage_stack.V4)
+              (KV : Mirage_kv.RO)
+              (CL : Mirage_clock.PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
@@ -52,9 +49,9 @@ struct
 
 end
 
-module Client (S  : STACKV4)
-              (KV : KV_RO)
-              (CL : Mirage_types.PCLOCK) =
+module Client (S  : Mirage_stack.V4)
+              (KV : Mirage_kv.RO)
+              (CL : Mirage_clock.PCLOCK) =
 struct
 
   module TLS  = Tls_mirage.Make (S.TCPV4)
@@ -83,8 +80,8 @@ struct
     | Ok () -> dump ()
     | Error e -> Logs_lwt.err (fun p -> p "write error %a" TLS.pp_write_error e)
 
-  let start stack kv clock _ =
-    X509.authenticator kv clock `CAs >>= fun authenticator ->
+  let start stack kv _clock _ =
+    X509.authenticator kv `CAs >>= fun authenticator ->
     let conf = Tls.Config.client ~authenticator () in
     S.TCPV4.create_connection (S.tcpv4 stack) (fst peer)
     >>= function

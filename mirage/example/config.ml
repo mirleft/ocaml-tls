@@ -6,7 +6,7 @@ let build =
   try
     match Sys.getenv "BUILD" with
     | "client" -> `Client
-    | "server" -> `Server
+    | _ -> `Server
   with Not_found -> `Server
 
 let disk = generic_kv_ro secrets_dir

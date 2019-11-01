@@ -1,9 +1,9 @@
 (** Effectful operations using Mirage for pure TLS. *)
 
 (** TLS module given a flow *)
-module Make (F : Mirage_flow_lwt.S) : sig
+module Make (F : Mirage_flow.S) : sig
 
-  module FLOW : Mirage_flow_lwt.S
+  module FLOW : Mirage_flow.S
 
   (** possible errors: incoming alert, processing failure, or a
       problem in the underlying flow. *)
@@ -21,10 +21,8 @@ module Make (F : Mirage_flow_lwt.S) : sig
   type tracer = Sexplib.Sexp.t -> unit
 
   (** we provide the FLOW interface *)
-  include Mirage_flow_lwt.S
-    with type 'a io  := 'a io
-     and type buffer := buffer
-     and type error := error
+  include Mirage_flow.S
+    with type error := error
      and type write_error := write_error
 
 
@@ -57,11 +55,11 @@ end
 
 
 (** X.509 handling given a key value store and a clock *)
-module X509 (KV : Mirage_kv_lwt.RO) (C : Mirage_clock.PCLOCK) : sig
+module X509 (KV : Mirage_kv.RO) (C : Mirage_clock.PCLOCK) : sig
   (** [authenticator store clock typ] creates an [authenticator], either
       using the given certificate authorities in the [store] or
       null. *)
-  val authenticator : KV.t -> C.t -> [< `Noop | `CAs ] -> X509.Authenticator.t Lwt.t
+  val authenticator : KV.t -> [< `Noop | `CAs ] -> X509.Authenticator.t Lwt.t
 
   (** [certificate store typ] unmarshals a certificate chain and
       private key material from the [store]. *)
