@@ -4,7 +4,6 @@ script: bash -ex .travis-opam.sh
 env:
   global:
     - PACKAGE="tls"
-    - EXTRA_REMOTES="https://github.com/hannesm/mirage-dev.git#easy"
   matrix:
     - OCAML_VERSION=4.04
     - OCAML_VERSION=4.05 DEPOPTS="lwt ptime"
