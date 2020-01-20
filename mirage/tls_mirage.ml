@@ -235,13 +235,22 @@ module X509 (KV : Mirage_kv.RO) (C: Mirage_clock.PCLOCK) = struct
   let read kv name =
     KV.get kv name >>= err_fail KV.pp_error >|= Cstruct.of_string
 
-  let authenticator kv = function
+  let read_crl kv = function
+    | None -> Lwt.return None
+    | Some filename ->
+      read kv (Mirage_kv.Key.v filename) >>= fun data ->
+      err_fail pp_msg (X509.CRL.decode_der data) >|= fun crl ->
+      Some [ crl ]
+
+  let authenticator ?hash_whitelist ?crl kv = function
     | `Noop -> return X509.Authenticator.null
     | `CAs  ->
         let time = Ptime.v (C.now_d_ps ()) in
         read kv ca_roots_file >>=
-        decode_or_fail X509.Certificate.decode_pem_multiple >|=
-        X509.Authenticator.chain_of_trust ?crls:None ~time
+        decode_or_fail X509.Certificate.decode_pem_multiple >>= fun cas ->
+        let ta = X509.Validation.valid_cas ~time cas in
+        read_crl kv crl >|= fun crls ->
+        X509.Authenticator.chain_of_trust ?crls ?hash_whitelist ~time ta
 
   let certificate kv =
     let read name =

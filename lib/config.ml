@@ -170,13 +170,14 @@ let non_overlapping cs =
   in
   let rec check = function
     | []    -> ()
-    | s::ss -> if not (List.for_all
-                         (fun ss' -> Domain_name.Set.is_empty (Domain_name.Set.inter s ss'))
-                         ss)
-               then
-                 invalid_arg "overlapping names in certificates"
-               else
-                 check ss
+    | s::ss ->
+      if not (List.for_all (fun ss' ->
+          X509.Certificate.Host_set.is_empty (X509.Certificate.Host_set.inter s ss'))
+          ss)
+      then
+        invalid_arg "overlapping names in certificates"
+      else
+        check ss
   in
   check namessets
 

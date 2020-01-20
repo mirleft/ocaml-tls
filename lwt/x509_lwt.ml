@@ -4,7 +4,6 @@ type priv = X509.Certificate.t list * Nocrypto.Rsa.priv
 
 type authenticator = X509.Authenticator.t
 
-
 let failure msg = fail @@ Failure msg
 
 let catch_invalid_arg th h =
@@ -12,7 +11,6 @@ let catch_invalid_arg th h =
     (function
       | Invalid_argument msg -> h msg
       | exn                  -> fail exn)
-
 
 let (</>) a b = a ^ "/" ^ b
 
@@ -75,21 +73,43 @@ let certs_of_pem_dir path =
   >>= Lwt_list.map_p (fun file -> certs_of_pem (path </> file))
   >|= List.concat
 
-let authenticator param =
+let crl_of_pem path =
+  catch_invalid_arg
+    (read_file path >|= fun data ->
+     match X509.CRL.decode_der data with
+     | Ok cs -> cs
+     | Error (`Msg m) -> invalid_arg ("failed to parse CRL " ^ m))
+    (o failure @@ Printf.sprintf "CRL in %s: %s" path)
+
+let crls_of_pem_dir = function
+  | None -> Lwt.return None
+  | Some path ->
+    read_dir path >>= fun files ->
+    Lwt_list.map_p (fun file -> crl_of_pem (path </> file)) files >|= fun crls ->
+    Some crls
+
+let authenticator ?hash_whitelist ?crls param =
   let now = Ptime_clock.now () in
   let of_cas cas =
-    X509.Authenticator.chain_of_trust ~time:now cas
+    crls_of_pem_dir crls >|= fun crls ->
+    X509.Authenticator.chain_of_trust ?hash_whitelist ?crls ~time:now cas
   and dotted_hex_to_cs hex =
     Nocrypto.Uncommon.Cs.of_hex
       (String.map (function ':' -> ' ' | x -> x) hex)
   and fingerp hash fingerprints =
     X509.Authenticator.server_key_fingerprint ~time:now ~hash ~fingerprints
+  and cert_fingerp hash fingerprints =
+    X509.Authenticator.server_cert_fingerprint ~time:now ~hash ~fingerprints
   in
   match param with
-  | `Ca_file path -> certs_of_pem path >|= of_cas
-  | `Ca_dir path  -> certs_of_pem_dir path >|= of_cas
+  | `Ca_file path -> certs_of_pem path >>= of_cas
+  | `Ca_dir path  -> certs_of_pem_dir path >>= of_cas
   | `Key_fingerprints (hash, fps) -> return (fingerp hash fps)
   | `Hex_key_fingerprints (hash, fps) ->
     let fps = List.map (fun (n, v) -> (n, dotted_hex_to_cs v)) fps in
     return (fingerp hash fps)
+  | `Cert_fingerprints (hash, fps) -> return (cert_fingerp hash fps)
+  | `Hex_cert_fingerprints (hash, fps) ->
+    let fps = List.map (fun (n, v) -> (n, dotted_hex_to_cs v)) fps in
+    return (cert_fingerp hash fps)
   | `No_authentication_I'M_STUPID -> return X509.Authenticator.null
