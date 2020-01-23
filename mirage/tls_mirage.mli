@@ -59,7 +59,7 @@ module X509 (KV : Mirage_kv.RO) (C : Mirage_clock.PCLOCK) : sig
   (** [authenticator ~hash_whitelist ~crl store typ] creates an [authenticator],
       either using the given certificate authorities in the [store] as
       value for key "ca_roots.crt", or null. If [hash_whitelist] is provided,
-      only these hashes are allowed for signatures of the certificate chain.
+      only these hash algorithms are allowed for signatures of the certificate chain.
       If [crl] is provided, the corresponding file is read and used as
       revocation list (DER encoded). Both options only apply if [`CAs] is used.
  *)
