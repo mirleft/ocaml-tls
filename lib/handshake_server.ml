@@ -139,13 +139,11 @@ let rec find_matching host certs =
 
 let agreed_cert certs hostname =
   let match_host ?default host certs =
-     match find_matching (`Strict, host) certs with
-     | Some x -> return x
-     | None   -> match find_matching (`Wildcard, host) certs with
-                 | Some x -> return x
-                 | None   -> match default with
-                             | Some c -> return c
-                             | None   -> fail (`Error (`NoMatchingCertificateFound (Domain_name.to_string host)))
+    match find_matching host certs with
+    | Some x -> return x
+    | None   -> match default with
+      | Some c -> return c
+      | None   -> fail (`Error (`NoMatchingCertificateFound (Domain_name.to_string host)))
   in
   match certs, hostname with
   | `None                    , _      -> fail (`Error `NoCertificateConfigured)

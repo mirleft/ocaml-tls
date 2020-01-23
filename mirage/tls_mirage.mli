@@ -56,10 +56,15 @@ end
 
 (** X.509 handling given a key value store and a clock *)
 module X509 (KV : Mirage_kv.RO) (C : Mirage_clock.PCLOCK) : sig
-  (** [authenticator store clock typ] creates an [authenticator], either
-      using the given certificate authorities in the [store] or
-      null. *)
-  val authenticator : KV.t -> [< `Noop | `CAs ] -> X509.Authenticator.t Lwt.t
+  (** [authenticator ~hash_whitelist ~crl store typ] creates an [authenticator],
+      either using the given certificate authorities in the [store] as
+      value for key "ca_roots.crt", or null. If [hash_whitelist] is provided,
+      only these hash algorithms are allowed for signatures of the certificate chain.
+      If [crl] is provided, the corresponding file is read and used as
+      revocation list (DER encoded). Both options only apply if [`CAs] is used.
+ *)
+  val authenticator : ?hash_whitelist:Nocrypto.Hash.hash list -> ?crl:string ->
+    KV.t -> [< `Noop | `CAs ] -> X509.Authenticator.t Lwt.t
 
   (** [certificate store typ] unmarshals a certificate chain and
       private key material from the [store]. *)

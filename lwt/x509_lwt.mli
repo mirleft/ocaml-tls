@@ -21,10 +21,12 @@ val certs_of_pem_dir : Lwt_io.file_name -> X509.Certificate.t list Lwt.t
 
 (** [authenticator methods] constructs an [authenticator] using the
     specified method and data. *)
-val authenticator :
+val authenticator : ?hash_whitelist:Nocrypto.Hash.hash list -> ?crls:Lwt_io.file_name ->
   [ `Ca_file of Lwt_io.file_name
   | `Ca_dir  of Lwt_io.file_name
-  | `Key_fingerprints of Nocrypto.Hash.hash * ('a Domain_name.t * Cstruct.t) list
-  | `Hex_key_fingerprints of Nocrypto.Hash.hash * ('a Domain_name.t * string) list
+  | `Key_fingerprints of Nocrypto.Hash.hash * ([`host] Domain_name.t * Cstruct.t) list
+  | `Hex_key_fingerprints of Nocrypto.Hash.hash * ([`host] Domain_name.t * string) list
+  | `Cert_fingerprints of Nocrypto.Hash.hash * ([`host] Domain_name.t * Cstruct.t) list
+  | `Hex_cert_fingerprints of Nocrypto.Hash.hash * ([`host] Domain_name.t * string) list
   | `No_authentication_I'M_STUPID ]
   -> authenticator Lwt.t
