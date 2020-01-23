@@ -1,3 +1,11 @@
+## v0.10.6 (2020-01-23)
+
+* adapt to x509 0.9.0 interface: certificate revocation lists can now be passed
+  to the authenticator in Tls_mirage and X509_lwt; also a list of hash
+  algorithms to be used for certificate signature verification can be passed to
+  the authenticator
+* adapt to lwt 5.0.0
+
 ## v0.10.5 (2019-11-01)
 
 * adapt to mirage-flow 2.0.0, mirage-clock 3.0.0, mirage-kv 3.0.0 interfaces (#401 @hannesm)
