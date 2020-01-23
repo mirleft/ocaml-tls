@@ -78,6 +78,7 @@
 
 <pre><span id="VALint_to_content_type"><span class="keyword">val</span> int_to_content_type</span> : <code class="type">int -> <a href="Packet.html#TYPEcontent_type">content_type</a> option</code></pre>
 <pre><span id="VALcontent_type_to_int"><span class="keyword">val</span> content_type_to_int</span> : <code class="type"><a href="Packet.html#TYPEcontent_type">content_type</a> -> int</code></pre>
+<pre><span id="VALcompare_content_type"><span class="keyword">val</span> compare_content_type</span> : <code class="type"><a href="Packet.html#TYPEcontent_type">content_type</a> -> <a href="Packet.html#TYPEcontent_type">content_type</a> -> int</code></pre>
 <pre><span id="VALcontent_type_to_string"><span class="keyword">val</span> content_type_to_string</span> : <code class="type"><a href="Packet.html#TYPEcontent_type">content_type</a> -> string</code></pre>
 <pre><span id="VALstring_to_content_type"><span class="keyword">val</span> string_to_content_type</span> : <code class="type">string -> <a href="Packet.html#TYPEcontent_type">content_type</a> option</code></pre>
 <pre><span id="VALsexp_of_content_type"><span class="keyword">val</span> sexp_of_content_type</span> : <code class="type"><a href="Packet.html#TYPEcontent_type">content_type</a> -> Sexplib.Sexp.t</code></pre>
@@ -102,6 +103,7 @@
 
 <pre><span id="VALint_to_alert_level"><span class="keyword">val</span> int_to_alert_level</span> : <code class="type">int -> <a href="Packet.html#TYPEalert_level">alert_level</a> option</code></pre>
 <pre><span id="VALalert_level_to_int"><span class="keyword">val</span> alert_level_to_int</span> : <code class="type"><a href="Packet.html#TYPEalert_level">alert_level</a> -> int</code></pre>
+<pre><span id="VALcompare_alert_level"><span class="keyword">val</span> compare_alert_level</span> : <code class="type"><a href="Packet.html#TYPEalert_level">alert_level</a> -> <a href="Packet.html#TYPEalert_level">alert_level</a> -> int</code></pre>
 <pre><span id="VALalert_level_to_string"><span class="keyword">val</span> alert_level_to_string</span> : <code class="type"><a href="Packet.html#TYPEalert_level">alert_level</a> -> string</code></pre>
 <pre><span id="VALstring_to_alert_level"><span class="keyword">val</span> string_to_alert_level</span> : <code class="type">string -> <a href="Packet.html#TYPEalert_level">alert_level</a> option</code></pre>
 <pre><span id="VALsexp_of_alert_level"><span class="keyword">val</span> sexp_of_alert_level</span> : <code class="type"><a href="Packet.html#TYPEalert_level">alert_level</a> -> Sexplib.Sexp.t</code></pre>
@@ -336,6 +338,7 @@
 
 <pre><span id="VALint_to_alert_type"><span class="keyword">val</span> int_to_alert_type</span> : <code class="type">int -> <a href="Packet.html#TYPEalert_type">alert_type</a> option</code></pre>
 <pre><span id="VALalert_type_to_int"><span class="keyword">val</span> alert_type_to_int</span> : <code class="type"><a href="Packet.html#TYPEalert_type">alert_type</a> -> int</code></pre>
+<pre><span id="VALcompare_alert_type"><span class="keyword">val</span> compare_alert_type</span> : <code class="type"><a href="Packet.html#TYPEalert_type">alert_type</a> -> <a href="Packet.html#TYPEalert_type">alert_type</a> -> int</code></pre>
 <pre><span id="VALalert_type_to_string"><span class="keyword">val</span> alert_type_to_string</span> : <code class="type"><a href="Packet.html#TYPEalert_type">alert_type</a> -> string</code></pre>
 <pre><span id="VALstring_to_alert_type"><span class="keyword">val</span> string_to_alert_type</span> : <code class="type">string -> <a href="Packet.html#TYPEalert_type">alert_type</a> option</code></pre>
 <pre><span id="VALsexp_of_alert_type"><span class="keyword">val</span> sexp_of_alert_type</span> : <code class="type"><a href="Packet.html#TYPEalert_type">alert_type</a> -> Sexplib.Sexp.t</code></pre>
@@ -451,6 +454,7 @@
 
 <pre><span id="VALint_to_handshake_type"><span class="keyword">val</span> int_to_handshake_type</span> : <code class="type">int -> <a href="Packet.html#TYPEhandshake_type">handshake_type</a> option</code></pre>
 <pre><span id="VALhandshake_type_to_int"><span class="keyword">val</span> handshake_type_to_int</span> : <code class="type"><a href="Packet.html#TYPEhandshake_type">handshake_type</a> -> int</code></pre>
+<pre><span id="VALcompare_handshake_type"><span class="keyword">val</span> compare_handshake_type</span> : <code class="type"><a href="Packet.html#TYPEhandshake_type">handshake_type</a> -> <a href="Packet.html#TYPEhandshake_type">handshake_type</a> -> int</code></pre>
 <pre><span id="VALhandshake_type_to_string"><span class="keyword">val</span> handshake_type_to_string</span> : <code class="type"><a href="Packet.html#TYPEhandshake_type">handshake_type</a> -> string</code></pre>
 <pre><span id="VALstring_to_handshake_type"><span class="keyword">val</span> string_to_handshake_type</span> : <code class="type">string -> <a href="Packet.html#TYPEhandshake_type">handshake_type</a> option</code></pre>
 <pre><span id="VALsexp_of_handshake_type"><span class="keyword">val</span> sexp_of_handshake_type</span> : <code class="type"><a href="Packet.html#TYPEhandshake_type">handshake_type</a> -> Sexplib.Sexp.t</code></pre>
@@ -531,6 +535,7 @@
 
 <pre><span id="VALint_to_client_certificate_type"><span class="keyword">val</span> int_to_client_certificate_type</span> : <code class="type">int -> <a href="Packet.html#TYPEclient_certificate_type">client_certificate_type</a> option</code></pre>
 <pre><span id="VALclient_certificate_type_to_int"><span class="keyword">val</span> client_certificate_type_to_int</span> : <code class="type"><a href="Packet.html#TYPEclient_certificate_type">client_certificate_type</a> -> int</code></pre>
+<pre><span id="VALcompare_client_certificate_type"><span class="keyword">val</span> compare_client_certificate_type</span> : <code class="type"><a href="Packet.html#TYPEclient_certificate_type">client_certificate_type</a> -> <a href="Packet.html#TYPEclient_certificate_type">client_certificate_type</a> -> int</code></pre>
 <pre><span id="VALclient_certificate_type_to_string"><span class="keyword">val</span> client_certificate_type_to_string</span> : <code class="type"><a href="Packet.html#TYPEclient_certificate_type">client_certificate_type</a> -> string</code></pre>
 <pre><span id="VALstring_to_client_certificate_type"><span class="keyword">val</span> string_to_client_certificate_type</span> : <code class="type">string -> <a href="Packet.html#TYPEclient_certificate_type">client_certificate_type</a> option</code></pre>
 <pre><span id="VALsexp_of_client_certificate_type"><span class="keyword">val</span> sexp_of_client_certificate_type</span> : <code class="type"><a href="Packet.html#TYPEclient_certificate_type">client_certificate_type</a> -> Sexplib.Sexp.t</code></pre>
@@ -562,6 +567,7 @@
 
 <pre><span id="VALint_to_compression_method"><span class="keyword">val</span> int_to_compression_method</span> : <code class="type">int -> <a href="Packet.html#TYPEcompression_method">compression_method</a> option</code></pre>
 <pre><span id="VALcompression_method_to_int"><span class="keyword">val</span> compression_method_to_int</span> : <code class="type"><a href="Packet.html#TYPEcompression_method">compression_method</a> -> int</code></pre>
+<pre><span id="VALcompare_compression_method"><span class="keyword">val</span> compare_compression_method</span> : <code class="type"><a href="Packet.html#TYPEcompression_method">compression_method</a> -> <a href="Packet.html#TYPEcompression_method">compression_method</a> -> int</code></pre>
 <pre><span id="VALcompression_method_to_string"><span class="keyword">val</span> compression_method_to_string</span> : <code class="type"><a href="Packet.html#TYPEcompression_method">compression_method</a> -> string</code></pre>
 <pre><span id="VALstring_to_compression_method"><span class="keyword">val</span> string_to_compression_method</span> : <code class="type">string -> <a href="Packet.html#TYPEcompression_method">compression_method</a> option</code></pre>
 <pre><span id="VALsexp_of_compression_method"><span class="keyword">val</span> sexp_of_compression_method</span> : <code class="type"><a href="Packet.html#TYPEcompression_method">compression_method</a> -> Sexplib.Sexp.t</code></pre>
@@ -754,6 +760,7 @@
 
 <pre><span id="VALint_to_extension_type"><span class="keyword">val</span> int_to_extension_type</span> : <code class="type">int -> <a href="Packet.html#TYPEextension_type">extension_type</a> option</code></pre>
 <pre><span id="VALextension_type_to_int"><span class="keyword">val</span> extension_type_to_int</span> : <code class="type"><a href="Packet.html#TYPEextension_type">extension_type</a> -> int</code></pre>
+<pre><span id="VALcompare_extension_type"><span class="keyword">val</span> compare_extension_type</span> : <code class="type"><a href="Packet.html#TYPEextension_type">extension_type</a> -> <a href="Packet.html#TYPEextension_type">extension_type</a> -> int</code></pre>
 <pre><span id="VALextension_type_to_string"><span class="keyword">val</span> extension_type_to_string</span> : <code class="type"><a href="Packet.html#TYPEextension_type">extension_type</a> -> string</code></pre>
 <pre><span id="VALstring_to_extension_type"><span class="keyword">val</span> string_to_extension_type</span> : <code class="type">string -> <a href="Packet.html#TYPEextension_type">extension_type</a> option</code></pre>
 <pre><span id="VALsexp_of_extension_type"><span class="keyword">val</span> sexp_of_extension_type</span> : <code class="type"><a href="Packet.html#TYPEextension_type">extension_type</a> -> Sexplib.Sexp.t</code></pre>
@@ -792,6 +799,7 @@
 
 <pre><span id="VALint_to_max_fragment_length"><span class="keyword">val</span> int_to_max_fragment_length</span> : <code class="type">int -> <a href="Packet.html#TYPEmax_fragment_length">max_fragment_length</a> option</code></pre>
 <pre><span id="VALmax_fragment_length_to_int"><span class="keyword">val</span> max_fragment_length_to_int</span> : <code class="type"><a href="Packet.html#TYPEmax_fragment_length">max_fragment_length</a> -> int</code></pre>
+<pre><span id="VALcompare_max_fragment_length"><span class="keyword">val</span> compare_max_fragment_length</span> : <code class="type"><a href="Packet.html#TYPEmax_fragment_length">max_fragment_length</a> -> <a href="Packet.html#TYPEmax_fragment_length">max_fragment_length</a> -> int</code></pre>
 <pre><span id="VALmax_fragment_length_to_string"><span class="keyword">val</span> max_fragment_length_to_string</span> : <code class="type"><a href="Packet.html#TYPEmax_fragment_length">max_fragment_length</a> -> string</code></pre>
 <pre><span id="VALstring_to_max_fragment_length"><span class="keyword">val</span> string_to_max_fragment_length</span> : <code class="type">string -> <a href="Packet.html#TYPEmax_fragment_length">max_fragment_length</a> option</code></pre>
 <pre><span id="VALsexp_of_max_fragment_length"><span class="keyword">val</span> sexp_of_max_fragment_length</span> : <code class="type"><a href="Packet.html#TYPEmax_fragment_length">max_fragment_length</a> -> Sexplib.Sexp.t</code></pre>
@@ -830,6 +838,7 @@
 
 <pre><span id="VALint_to_signature_algorithm_type"><span class="keyword">val</span> int_to_signature_algorithm_type</span> : <code class="type">int -> <a href="Packet.html#TYPEsignature_algorithm_type">signature_algorithm_type</a> option</code></pre>
 <pre><span id="VALsignature_algorithm_type_to_int"><span class="keyword">val</span> signature_algorithm_type_to_int</span> : <code class="type"><a href="Packet.html#TYPEsignature_algorithm_type">signature_algorithm_type</a> -> int</code></pre>
+<pre><span id="VALcompare_signature_algorithm_type"><span class="keyword">val</span> compare_signature_algorithm_type</span> : <code class="type"><a href="Packet.html#TYPEsignature_algorithm_type">signature_algorithm_type</a> -> <a href="Packet.html#TYPEsignature_algorithm_type">signature_algorithm_type</a> -> int</code></pre>
 <pre><span id="VALsignature_algorithm_type_to_string"><span class="keyword">val</span> signature_algorithm_type_to_string</span> : <code class="type"><a href="Packet.html#TYPEsignature_algorithm_type">signature_algorithm_type</a> -> string</code></pre>
 <pre><span id="VALstring_to_signature_algorithm_type"><span class="keyword">val</span> string_to_signature_algorithm_type</span> : <code class="type">string -> <a href="Packet.html#TYPEsignature_algorithm_type">signature_algorithm_type</a> option</code></pre>
 <pre><span id="VALsexp_of_signature_algorithm_type"><span class="keyword">val</span> sexp_of_signature_algorithm_type</span> : <code class="type"><a href="Packet.html#TYPEsignature_algorithm_type">signature_algorithm_type</a> -> Sexplib.Sexp.t</code></pre>
@@ -889,6 +898,7 @@
 
 <pre><span id="VALint_to_hash_algorithm"><span class="keyword">val</span> int_to_hash_algorithm</span> : <code class="type">int -> <a href="Packet.html#TYPEhash_algorithm">hash_algorithm</a> option</code></pre>
 <pre><span id="VALhash_algorithm_to_int"><span class="keyword">val</span> hash_algorithm_to_int</span> : <code class="type"><a href="Packet.html#TYPEhash_algorithm">hash_algorithm</a> -> int</code></pre>
+<pre><span id="VALcompare_hash_algorithm"><span class="keyword">val</span> compare_hash_algorithm</span> : <code class="type"><a href="Packet.html#TYPEhash_algorithm">hash_algorithm</a> -> <a href="Packet.html#TYPEhash_algorithm">hash_algorithm</a> -> int</code></pre>
 <pre><span id="VALhash_algorithm_to_string"><span class="keyword">val</span> hash_algorithm_to_string</span> : <code class="type"><a href="Packet.html#TYPEhash_algorithm">hash_algorithm</a> -> string</code></pre>
 <pre><span id="VALstring_to_hash_algorithm"><span class="keyword">val</span> string_to_hash_algorithm</span> : <code class="type">string -> <a href="Packet.html#TYPEhash_algorithm">hash_algorithm</a> option</code></pre>
 <pre><span id="VALsexp_of_hash_algorithm"><span class="keyword">val</span> sexp_of_hash_algorithm</span> : <code class="type"><a href="Packet.html#TYPEhash_algorithm">hash_algorithm</a> -> Sexplib.Sexp.t</code></pre>
@@ -927,6 +937,7 @@
 
 <pre><span id="VALint_to_ec_curve_type"><span class="keyword">val</span> int_to_ec_curve_type</span> : <code class="type">int -> <a href="Packet.html#TYPEec_curve_type">ec_curve_type</a> option</code></pre>
 <pre><span id="VALec_curve_type_to_int"><span class="keyword">val</span> ec_curve_type_to_int</span> : <code class="type"><a href="Packet.html#TYPEec_curve_type">ec_curve_type</a> -> int</code></pre>
+<pre><span id="VALcompare_ec_curve_type"><span class="keyword">val</span> compare_ec_curve_type</span> : <code class="type"><a href="Packet.html#TYPEec_curve_type">ec_curve_type</a> -> <a href="Packet.html#TYPEec_curve_type">ec_curve_type</a> -> int</code></pre>
 <pre><span id="VALec_curve_type_to_string"><span class="keyword">val</span> ec_curve_type_to_string</span> : <code class="type"><a href="Packet.html#TYPEec_curve_type">ec_curve_type</a> -> string</code></pre>
 <pre><span id="VALstring_to_ec_curve_type"><span class="keyword">val</span> string_to_ec_curve_type</span> : <code class="type">string -> <a href="Packet.html#TYPEec_curve_type">ec_curve_type</a> option</code></pre>
 <pre><span id="VALsexp_of_ec_curve_type"><span class="keyword">val</span> sexp_of_ec_curve_type</span> : <code class="type"><a href="Packet.html#TYPEec_curve_type">ec_curve_type</a> -> Sexplib.Sexp.t</code></pre>
@@ -1147,6 +1158,7 @@
 
 <pre><span id="VALint_to_named_curve_type"><span class="keyword">val</span> int_to_named_curve_type</span> : <code class="type">int -> <a href="Packet.html#TYPEnamed_curve_type">named_curve_type</a> option</code></pre>
 <pre><span id="VALnamed_curve_type_to_int"><span class="keyword">val</span> named_curve_type_to_int</span> : <code class="type"><a href="Packet.html#TYPEnamed_curve_type">named_curve_type</a> -> int</code></pre>
+<pre><span id="VALcompare_named_curve_type"><span class="keyword">val</span> compare_named_curve_type</span> : <code class="type"><a href="Packet.html#TYPEnamed_curve_type">named_curve_type</a> -> <a href="Packet.html#TYPEnamed_curve_type">named_curve_type</a> -> int</code></pre>
 <pre><span id="VALnamed_curve_type_to_string"><span class="keyword">val</span> named_curve_type_to_string</span> : <code class="type"><a href="Packet.html#TYPEnamed_curve_type">named_curve_type</a> -> string</code></pre>
 <pre><span id="VALstring_to_named_curve_type"><span class="keyword">val</span> string_to_named_curve_type</span> : <code class="type">string -> <a href="Packet.html#TYPEnamed_curve_type">named_curve_type</a> option</code></pre>
 <pre><span id="VALsexp_of_named_curve_type"><span class="keyword">val</span> sexp_of_named_curve_type</span> : <code class="type"><a href="Packet.html#TYPEnamed_curve_type">named_curve_type</a> -> Sexplib.Sexp.t</code></pre>
@@ -1178,6 +1190,7 @@
 
 <pre><span id="VALint_to_ec_point_format"><span class="keyword">val</span> int_to_ec_point_format</span> : <code class="type">int -> <a href="Packet.html#TYPEec_point_format">ec_point_format</a> option</code></pre>
 <pre><span id="VALec_point_format_to_int"><span class="keyword">val</span> ec_point_format_to_int</span> : <code class="type"><a href="Packet.html#TYPEec_point_format">ec_point_format</a> -> int</code></pre>
+<pre><span id="VALcompare_ec_point_format"><span class="keyword">val</span> compare_ec_point_format</span> : <code class="type"><a href="Packet.html#TYPEec_point_format">ec_point_format</a> -> <a href="Packet.html#TYPEec_point_format">ec_point_format</a> -> int</code></pre>
 <pre><span id="VALec_point_format_to_string"><span class="keyword">val</span> ec_point_format_to_string</span> : <code class="type"><a href="Packet.html#TYPEec_point_format">ec_point_format</a> -> string</code></pre>
 <pre><span id="VALstring_to_ec_point_format"><span class="keyword">val</span> string_to_ec_point_format</span> : <code class="type">string -> <a href="Packet.html#TYPEec_point_format">ec_point_format</a> option</code></pre>
 <pre><span id="VALsexp_of_ec_point_format"><span class="keyword">val</span> sexp_of_ec_point_format</span> : <code class="type"><a href="Packet.html#TYPEec_point_format">ec_point_format</a> -> Sexplib.Sexp.t</code></pre>
@@ -1202,6 +1215,7 @@
 
 <pre><span id="VALint_to_ec_basis_type"><span class="keyword">val</span> int_to_ec_basis_type</span> : <code class="type">int -> <a href="Packet.html#TYPEec_basis_type">ec_basis_type</a> option</code></pre>
 <pre><span id="VALec_basis_type_to_int"><span class="keyword">val</span> ec_basis_type_to_int</span> : <code class="type"><a href="Packet.html#TYPEec_basis_type">ec_basis_type</a> -> int</code></pre>
+<pre><span id="VALcompare_ec_basis_type"><span class="keyword">val</span> compare_ec_basis_type</span> : <code class="type"><a href="Packet.html#TYPEec_basis_type">ec_basis_type</a> -> <a href="Packet.html#TYPEec_basis_type">ec_basis_type</a> -> int</code></pre>
 <pre><span id="VALec_basis_type_to_string"><span class="keyword">val</span> ec_basis_type_to_string</span> : <code class="type"><a href="Packet.html#TYPEec_basis_type">ec_basis_type</a> -> string</code></pre>
 <pre><span id="VALstring_to_ec_basis_type"><span class="keyword">val</span> string_to_ec_basis_type</span> : <code class="type">string -> <a href="Packet.html#TYPEec_basis_type">ec_basis_type</a> option</code></pre>
 <pre><span id="VALsexp_of_ec_basis_type"><span class="keyword">val</span> sexp_of_ec_basis_type</span> : <code class="type"><a href="Packet.html#TYPEec_basis_type">ec_basis_type</a> -> Sexplib.Sexp.t</code></pre>
@@ -3431,6 +3445,7 @@
 
 <pre><span id="VALint_to_any_ciphersuite"><span class="keyword">val</span> int_to_any_ciphersuite</span> : <code class="type">int -> <a href="Packet.html#TYPEany_ciphersuite">any_ciphersuite</a> option</code></pre>
 <pre><span id="VALany_ciphersuite_to_int"><span class="keyword">val</span> any_ciphersuite_to_int</span> : <code class="type"><a href="Packet.html#TYPEany_ciphersuite">any_ciphersuite</a> -> int</code></pre>
+<pre><span id="VALcompare_any_ciphersuite"><span class="keyword">val</span> compare_any_ciphersuite</span> : <code class="type"><a href="Packet.html#TYPEany_ciphersuite">any_ciphersuite</a> -> <a href="Packet.html#TYPEany_ciphersuite">any_ciphersuite</a> -> int</code></pre>
 <pre><span id="VALany_ciphersuite_to_string"><span class="keyword">val</span> any_ciphersuite_to_string</span> : <code class="type"><a href="Packet.html#TYPEany_ciphersuite">any_ciphersuite</a> -> string</code></pre>
 <pre><span id="VALstring_to_any_ciphersuite"><span class="keyword">val</span> string_to_any_ciphersuite</span> : <code class="type">string -> <a href="Packet.html#TYPEany_ciphersuite">any_ciphersuite</a> option</code></pre>
 <pre><span id="VALsexp_of_any_ciphersuite"><span class="keyword">val</span> sexp_of_any_ciphersuite</span> : <code class="type"><a href="Packet.html#TYPEany_ciphersuite">any_ciphersuite</a> -> Sexplib.Sexp.t</code></pre>

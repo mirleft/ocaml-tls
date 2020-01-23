@@ -52,11 +52,14 @@
 </table>
 <hr width="100%">
 
-<pre><span id="VALauthenticator"><span class="keyword">val</span> authenticator</span> : <code class="type">KV.t -> [< `CAs | `Noop ] -> X509.Authenticator.t Lwt.t</code></pre><div class="info ">
+<pre><span id="VALauthenticator"><span class="keyword">val</span> authenticator</span> : <code class="type">?hash_whitelist:Nocrypto.Hash.hash list -><br>       ?crl:string -> KV.t -> [< `CAs | `Noop ] -> X509.Authenticator.t Lwt.t</code></pre><div class="info ">
 <div class="info-desc">
-<p><code class="code">authenticator&nbsp;store&nbsp;clock&nbsp;typ</code> creates an <code class="code">authenticator</code>, either
-      using the given certificate authorities in the <code class="code">store</code> or
-      null.</p>
+<p><code class="code">authenticator&nbsp;~hash_whitelist&nbsp;~crl&nbsp;store&nbsp;typ</code> creates an <code class="code">authenticator</code>,
+      either using the given certificate authorities in the <code class="code">store</code> as
+      value for key "ca_roots.crt", or null. If <code class="code">hash_whitelist</code> is provided,
+      only these hash algorithms are allowed for signatures of the certificate chain.
+      If <code class="code">crl</code> is provided, the corresponding file is read and used as
+      revocation list (DER encoded). Both options only apply if <code class="code"><span class="keywordsign">`</span><span class="constructor">CAs</span></code> is used.</p>
 </div>
 </div>
 
