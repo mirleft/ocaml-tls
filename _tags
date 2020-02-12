@@ -15,7 +15,7 @@ true : package(cstruct cstruct-sexp nocrypto x509 sexplib domain-name fmt)
 
 <tests/*> : package(oUnit cstruct-unix)
 
-<lwt/**/*> : package(lwt lwt.unix ptime.clock.os)
+<lwt/**/*> : package(lwt lwt.unix ptime.clock.os nocrypto.lwt)
 <lwt> : include
 <lwt/examples/*> : package(nocrypto.lwt), thread
 
