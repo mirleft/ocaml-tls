@@ -56,7 +56,7 @@ type error = [
   | `AuthenticationFailure of X509.Validation.validation_error
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
   | `NoConfiguredVersion of Core.tls_version
-  | `NoConfiguredHash of Nocrypto.Hash.hash list
+  | `NoConfiguredHash of Mirage_crypto.Hash.hash list
   | `NoMatchingCertificateFound of string
   | `NoCertificateConfigured
   | `CouldntSelectCertificate

@@ -1,4 +1,3 @@
-open Nocrypto
 open Core
 
 (** Configuration of the TLS stack *)
@@ -6,7 +5,7 @@ open Core
 (** {1 Config type} *)
 
 (** certificate chain and private key of the first certificate *)
-type certchain = Cert.t list * Nocrypto.Rsa.priv
+type certchain = Cert.t list * Mirage_crypto_pk.Rsa.priv
 
 (** polymorphic variant of own certificates *)
 type own_cert = [
@@ -22,7 +21,7 @@ type session_cache = SessionID.t -> epoch_data option
 type config = private {
   ciphers           : Ciphersuite.ciphersuite list ; (** ordered list (regarding preference) of supported cipher suites *)
   protocol_versions : tls_version * tls_version ; (** supported protocol versions (min, max) *)
-  hashes            : Hash.hash list ; (** ordered list of supported hash algorithms (regarding preference) *)
+  hashes            : Mirage_crypto.Hash.hash list ; (** ordered list of supported hash algorithms (regarding preference) *)
   use_reneg         : bool ; (** endpoint should accept renegotiation requests *)
   authenticator     : X509.Authenticator.t option ; (** optional X509 authenticator *)
   peer_name         : string option ; (** optional name of other endpoint (used for SNI RFC4366) *)
@@ -58,7 +57,7 @@ val client :
   ?peer_name      : string ->
   ?ciphers        : Ciphersuite.ciphersuite list ->
   ?version        : tls_version * tls_version ->
-  ?hashes         : Hash.hash list ->
+  ?hashes         : Mirage_crypto.Hash.hash list ->
   ?reneg          : bool ->
   ?certificates   : own_cert ->
   ?cached_session : epoch_data ->
@@ -71,7 +70,7 @@ val client :
 val server :
   ?ciphers        : Ciphersuite.ciphersuite list ->
   ?version        : tls_version * tls_version ->
-  ?hashes         : Hash.hash list ->
+  ?hashes         : Mirage_crypto.Hash.hash list ->
   ?reneg          : bool ->
   ?certificates   : own_cert ->
   ?acceptable_cas : X509.Distinguished_name.t list ->
@@ -95,10 +94,10 @@ val peer : client -> string -> client
 (** {1 Utility functions} *)
 
 (** [default_hashes] is a list of hash algorithms used by default *)
-val default_hashes  : Hash.hash list
+val default_hashes  : Mirage_crypto.Hash.hash list
 
 (** [supported_hashes] is a list of supported hash algorithms by this library *)
-val supported_hashes  : Hash.hash list
+val supported_hashes  : Mirage_crypto.Hash.hash list
 
 (** [min_dh_size] is minimal diffie hellman group size in bits (currently 1024) *)
 val min_dh_size : int
@@ -107,7 +106,7 @@ val min_dh_size : int
 ffdhe2048 group from
 {{:https://www.ietf.org/id/draft-ietf-tls-negotiated-ff-dhe-10.txt}Negotiated
 Finite Field Diffie-Hellman Ephemeral Parameters for TLS}) *)
-val dh_group : Dh.group
+val dh_group : Mirage_crypto_pk.Dh.group
 
 (** [min_rsa_key_size] is minimal RSA modulus key size in bits (currently 1024) *)
 val min_rsa_key_size : int

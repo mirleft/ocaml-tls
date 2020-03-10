@@ -264,4 +264,4 @@ and connect ?trace authenticator addr =
 
 
 (* Boot the entropy loop at module init time. *)
-let () = ignore @@ Nocrypto_entropy_lwt.initialize ()
+let () = Mirage_crypto_rng_unix.initialize ()

@@ -1,5 +1,3 @@
-open Nocrypto
-
 open Utils
 
 open Core
@@ -38,7 +36,7 @@ let default_client_hello config =
   in
   let ch = {
     client_version = Supported version ;
-    client_random  = Rng.generate 32 ;
+    client_random  = Mirage_crypto_rng.generate 32 ;
     sessionid      = sessionid ;
     ciphersuites   = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
     extensions     = `ExtendedMasterSecret :: host @ signature_algos @ alpn
@@ -158,9 +156,9 @@ let answer_certificate_RSA state session cs raw log =
     | x           -> fail (`Fatal (`NoVersion x)) (* TODO: get rid of this... *)
   ) >>= fun version ->
   let ver = Writer.assemble_protocol_version version in
-  let premaster = ver <+> Rng.generate 46 in
+  let premaster = ver <+> Mirage_crypto_rng.generate 46 in
   peer_rsa_key peer_certificate >|= fun pubkey ->
-  let kex = Rsa.PKCS1.encrypt ~key:pubkey premaster
+  let kex = Mirage_crypto_pk.Rsa.PKCS1.encrypt ~key:pubkey premaster
   in
 
   let machina =
@@ -183,16 +181,21 @@ let answer_server_key_exchange_DHE_RSA state session kex raw log =
     | Ok data  -> return data
     | Error re -> fail (`Fatal (`ReaderError re))
   in
+  let unpack_dh dh_params =
+    match Crypto.dh_params_unpack dh_params with
+    | Ok data -> return data
+    | Error (`Msg m) -> fail (`Fatal (`ReaderError (Unknown m)))
+  in
 
   dh_params kex >>= fun (dh_params, raw_dh_params, leftover) ->
   let sigdata = session.client_random <+> session.server_random <+> raw_dh_params in
   verify_digitally_signed state.protocol_version state.config.hashes leftover sigdata session.peer_certificate >>= fun () ->
-  let group, shared = Crypto.dh_params_unpack dh_params in
-  guard (Dh.modulus_size group >= Config.min_dh_size) (`Fatal `InvalidDH)
-  >>= fun () ->
+  unpack_dh dh_params >>= fun (group, shared) ->
+  guard (Mirage_crypto_pk.Dh.modulus_size group >= Config.min_dh_size)
+    (`Fatal `InvalidDH) >>= fun () ->
 
-  let secret, kex = Dh.gen_key group in
-  match Dh.shared group secret shared with
+  let secret, kex = Mirage_crypto_pk.Dh.gen_key group in
+  match Mirage_crypto_pk.Dh.shared secret shared with
   | None     -> fail (`Fatal `InvalidDH)
   | Some pms -> let machina =
                   AwaitCertificateRequestOrServerHelloDone

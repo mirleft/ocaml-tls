@@ -1,5 +1,3 @@
-open Nocrypto
-
 open Utils
 open Core
 open State
@@ -135,7 +133,7 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
            in
            ( match c.iv_mode with
              | Random_iv ->
-                let iv = Rng.generate (Crypto.cbc_block c.cipher) in
+                let iv = Mirage_crypto_rng.generate (Crypto.cbc_block c.cipher) in
                 let m, _ = enc iv in
                 (CBC c, iv <+> m)
              | Iv iv ->
@@ -155,7 +153,7 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
 
 (* well-behaved pure decryptor *)
 let verify_mac sequence mac mac_k ty ver decrypted =
-  let macstart = Cstruct.len decrypted - Hash.digest_size mac in
+  let macstart = Cstruct.len decrypted - Mirage_crypto.Hash.digest_size mac in
   guard (macstart >= 0) (`Fatal `MACUnderflow) >>= fun () ->
   let (body, mmac) = Cstruct.split decrypted macstart in
   let cmac =

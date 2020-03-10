@@ -1,6 +1,6 @@
 open Lwt
 
-type priv = X509.Certificate.t list * Nocrypto.Rsa.priv
+type priv = X509.Certificate.t list * Mirage_crypto_pk.Rsa.priv
 
 type authenticator = X509.Authenticator.t
 
@@ -89,17 +89,16 @@ let crls_of_pem_dir = function
     Some crls
 
 let authenticator ?hash_whitelist ?crls param =
-  let now = Ptime_clock.now () in
+  let time () = Some (Ptime_clock.now ()) in
   let of_cas cas =
     crls_of_pem_dir crls >|= fun crls ->
-    X509.Authenticator.chain_of_trust ?hash_whitelist ?crls ~time:now cas
+    X509.Authenticator.chain_of_trust ?hash_whitelist ?crls ~time cas
   and dotted_hex_to_cs hex =
-    Nocrypto.Uncommon.Cs.of_hex
-      (String.map (function ':' -> ' ' | x -> x) hex)
+    Cstruct.of_hex (String.map (function ':' -> ' ' | x -> x) hex)
   and fingerp hash fingerprints =
-    X509.Authenticator.server_key_fingerprint ~time:now ~hash ~fingerprints
+    X509.Authenticator.server_key_fingerprint ~time ~hash ~fingerprints
   and cert_fingerp hash fingerprints =
-    X509.Authenticator.server_cert_fingerprint ~time:now ~hash ~fingerprints
+    X509.Authenticator.server_cert_fingerprint ~time ~hash ~fingerprints
   in
   match param with
   | `Ca_file path -> certs_of_pem path >>= of_cas
@@ -112,4 +111,3 @@ let authenticator ?hash_whitelist ?crls param =
   | `Hex_cert_fingerprints (hash, fps) ->
     let fps = List.map (fun (n, v) -> (n, dotted_hex_to_cs v)) fps in
     return (cert_fingerp hash fps)
-  | `No_authentication_I'M_STUPID -> return X509.Authenticator.null

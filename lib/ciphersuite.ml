@@ -37,15 +37,31 @@ type aead_cipher =
   | AES_256_GCM
   [@@deriving sexp]
 
+module H = struct
+  type t = Mirage_crypto.Hash.hash
+
+  let hs =
+    [ (`MD5, "md5") ; (`SHA1, "sha1") ; (`SHA224, "sha224") ;
+      (`SHA256, "sha256") ; (`SHA384, "sha384") ; (`SHA512, "sha512") ]
+
+  let sexp_of_t h = Sexplib.Sexp.Atom (List.assoc h hs)
+
+  let inv_hs = List.map (fun (a, b) -> (b, a)) hs
+
+  let t_of_sexp = function
+    | Sexplib.Sexp.Atom h -> List.assoc (String.lowercase_ascii h) inv_hs
+    | _ -> failwith "can't convert sexp to hash"
+end
+
 type payload_protection =
-  | Stream of stream_cipher * Nocrypto.Hash.hash
-  | Block of block_cipher * Nocrypto.Hash.hash
+  | Stream of stream_cipher * H.t
+  | Block of block_cipher * H.t
   | AEAD of aead_cipher
   [@@deriving sexp]
 
 (** [key_length iv payload_protection] is [(key size, IV size, mac size)] where key IV, and mac sizes are the required bytes for the given [payload_protection] *)
 let key_length iv pp =
-  let mac_size = Nocrypto.Hash.digest_size in
+  let mac_size = Mirage_crypto.Hash.digest_size in
   match pp with
   | Stream (RC4_128, mac)           -> (16, 0 , mac_size mac)
   | AEAD AES_128_CCM                -> (16, 4 , 0)

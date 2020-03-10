@@ -1,7 +1,7 @@
 (library
  (name testlib)
  (modules testlib)
- (libraries tls ounit2 cstruct-unix)
+ (libraries tls ounit2 cstruct-unix mirage-crypto-rng.unix)
  (optional))
 
 (test

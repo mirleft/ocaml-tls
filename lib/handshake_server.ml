@@ -1,5 +1,3 @@
-open Nocrypto
-
 open Utils
 
 open Core
@@ -94,7 +92,7 @@ let answer_client_certificate_verify state session sctx cctx verify raw log =
 let answer_client_key_exchange_RSA state session kex raw log =
   (* due to bleichenbacher attach, we should use a random pms *)
   (* then we do not leak any decryption or padding errors! *)
-  let other = Writer.assemble_protocol_version state.protocol_version <+> Rng.generate 46 in
+  let other = Writer.assemble_protocol_version state.protocol_version <+> Mirage_crypto_rng.generate 46 in
   let validate_premastersecret k =
     (* Client implementations MUST always send the correct version number in
        PreMasterSecret.  If ClientHello.client_version is TLS 1.1 or higher,
@@ -111,14 +109,14 @@ let answer_client_key_exchange_RSA state session kex raw log =
 
   private_key session >|= fun priv ->
 
-  let pms = match Rsa.PKCS1.decrypt ~key:priv kex with
+  let pms = match Mirage_crypto_pk.Rsa.PKCS1.decrypt ~key:priv kex with
     | None   -> validate_premastersecret other
     | Some k -> validate_premastersecret k
   in
   establish_master_secret state session pms raw log
 
-let answer_client_key_exchange_DHE_RSA state session (group, secret) kex raw log =
-  match Dh.shared group secret kex with
+let answer_client_key_exchange_DHE_RSA state session secret kex raw log =
+  match Mirage_crypto_pk.Dh.shared secret kex with
   | None     -> fail (`Fatal `InvalidDH)
   | Some pms -> return (establish_master_secret state session pms raw log)
 
@@ -166,7 +164,7 @@ let agreed_cipher cert requested =
 let server_hello session version reneg =
   (* RFC 4366: server shall reply with an empty hostname extension *)
   let host = option [] (fun _ -> [`Hostname]) session.own_name
-  and server_random = Rng.generate 32
+  and server_random = Mirage_crypto_rng.generate 32
   and secren = match reneg with
     | None            -> `SecureRenegotiation (Cstruct.create 0)
     | Some (cvd, svd) -> `SecureRenegotiation (cvd <+> svd)
@@ -176,7 +174,7 @@ let server_hello session version reneg =
       []
   and session_id =
     match Cstruct.len session.session_id with
-    | 0 -> Rng.generate 32
+    | 0 -> Mirage_crypto_rng.generate 32
     | _ -> session.session_id
   and alpn =
     match session.alpn_protocol with
@@ -271,8 +269,7 @@ let answer_client_hello_common state reneg ch raw =
 
   and kex_dhe_rsa config session version sig_algs =
     let group         = Config.dh_group in
-    let (secret, msg) = Dh.gen_key group in
-    let dh_state      = group, secret in
+    let (secret, msg) = Mirage_crypto_pk.Dh.gen_key group in
     let written =
       let dh_param = Crypto.dh_params_pack group msg in
       Writer.assemble_dh_parameters dh_param in
@@ -284,7 +281,7 @@ let answer_client_hello_common state reneg ch raw =
     let kex = ServerKeyExchange (written <+> sgn) in
     let hs = Writer.assemble_handshake kex in
     (* Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ; *)
-    (hs, dh_state) in
+    (hs, secret) in
 
   process_client_hello ch state.config >>= fun session ->
   let sh, session = server_hello session state.protocol_version reneg in

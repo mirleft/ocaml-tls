@@ -1,12 +1,9 @@
-open Nocrypto
-
 open Utils
 open Core
 
 open Sexplib.Std
 
-
-type certchain = Cert.t list * Rsa.priv [@@deriving sexp]
+type certchain = Cert.t list * Mirage_crypto_pk.Rsa.priv [@@deriving sexp]
 
 type own_cert = [
   | `None
@@ -34,7 +31,7 @@ end
 type config = {
   ciphers           : Ciphersuite.ciphersuite list ;
   protocol_versions : tls_version * tls_version ;
-  hashes            : Hash.hash list ;
+  hashes            : Ciphersuite.H.t list ;
   (* signatures        : Packet.signature_algorithm_type list ; *)
   use_reneg         : bool ;
   authenticator     : Auth.t option ;
@@ -93,7 +90,7 @@ let min_dh_size = 1024
 
 let min_rsa_key_size = 1024
 
-let dh_group = Dh.Group.ffdhe2048 (* ff-dhe draft 2048-bit group *)
+let dh_group = Mirage_crypto_pk.Dh.Group.ffdhe2048 (* ff-dhe draft 2048-bit group *)
 
 let default_config = {
   ciphers           = Ciphers.default ;
@@ -138,8 +135,8 @@ module CertTypeUsageSet = Set.Make(CertTypeUsageOrdered)
 
 let validate_certificate_chain = function
   | (s::chain, priv) ->
-     let pub = Rsa.pub_of_priv priv in
-     if Rsa.pub_bits pub < min_rsa_key_size then
+     let pub = Mirage_crypto_pk.Rsa.pub_of_priv priv in
+     if Mirage_crypto_pk.Rsa.pub_bits pub < min_rsa_key_size then
        invalid "RSA key too short!" ;
      ( match X509.Certificate.public_key s with
        | `RSA pub' when pub = pub' -> ()
@@ -147,7 +144,7 @@ let validate_certificate_chain = function
      ( match init_and_last chain with
        | Some (ch, trust) ->
          (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
-         ( match X509.Validation.verify_chain_of_trust ~anchors:[trust] (s :: ch) with
+         ( match X509.Validation.verify_chain_of_trust ~time:(fun () -> None) ~host:None ~anchors:[trust] (s :: ch) with
            | Ok _   -> ()
            | Error x ->
              let s = Fmt.to_to_string X509.Validation.pp_validation_error x in
@@ -172,7 +169,7 @@ let non_overlapping cs =
     | []    -> ()
     | s::ss ->
       if not (List.for_all (fun ss' ->
-          X509.Certificate.Host_set.is_empty (X509.Certificate.Host_set.inter s ss'))
+          X509.Host.Set.is_empty (X509.Host.Set.inter s ss'))
           ss)
       then
         invalid_arg "overlapping names in certificates"

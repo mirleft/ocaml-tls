@@ -1,5 +1,5 @@
 
-open Nocrypto
+open Mirage_crypto
 
 open Ciphersuite
 
@@ -7,13 +7,15 @@ let (<+>) = Utils.Cs.(<+>)
 
 
 (* on-the-wire dh_params <-> (group, pub_message) *)
-let dh_params_pack { Dh.p; gg ; _ } message =
-  let cs_of_z = Numeric.Z.to_cstruct_be ?size:None in
+let dh_params_pack { Mirage_crypto_pk.Dh.p; gg ; _ } message =
+  let cs_of_z = Mirage_crypto_pk.Z_extra.to_cstruct_be ?size:None in
   { Core.dh_p = cs_of_z p ; dh_g = cs_of_z gg ; dh_Ys = message }
 
 and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
-  let z_of_cs = Numeric.Z.of_cstruct_be ?bits:None in
-  ({ Dh.p = z_of_cs dh_p ; gg = z_of_cs dh_g ; q = None }, dh_Ys)
+  let z_of_cs = Mirage_crypto_pk.Z_extra.of_cstruct_be ?bits:None in
+  match Mirage_crypto_pk.Dh.group ~p:(z_of_cs dh_p) ~gg:(z_of_cs dh_g) () with
+  | Ok dh -> Ok (dh, dh_Ys)
+  | Error _ as e -> e
 
 module Ciphers = struct
 

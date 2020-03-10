@@ -1,7 +1,7 @@
 (** X.509 certificate handling using Lwt. *)
 
 (** private material: a certificate chain and a RSA private key *)
-type priv          = X509.Certificate.t list * Nocrypto.Rsa.priv
+type priv          = X509.Certificate.t list * Mirage_crypto_pk.Rsa.priv
 
 (** authenticator *)
 type authenticator = X509.Authenticator.t
@@ -21,12 +21,12 @@ val certs_of_pem_dir : Lwt_io.file_name -> X509.Certificate.t list Lwt.t
 
 (** [authenticator methods] constructs an [authenticator] using the
     specified method and data. *)
-val authenticator : ?hash_whitelist:Nocrypto.Hash.hash list -> ?crls:Lwt_io.file_name ->
+val authenticator : ?hash_whitelist:Mirage_crypto.Hash.hash list -> ?crls:Lwt_io.file_name ->
   [ `Ca_file of Lwt_io.file_name
   | `Ca_dir  of Lwt_io.file_name
-  | `Key_fingerprints of Nocrypto.Hash.hash * ([`host] Domain_name.t * Cstruct.t) list
-  | `Hex_key_fingerprints of Nocrypto.Hash.hash * ([`host] Domain_name.t * string) list
-  | `Cert_fingerprints of Nocrypto.Hash.hash * ([`host] Domain_name.t * Cstruct.t) list
-  | `Hex_cert_fingerprints of Nocrypto.Hash.hash * ([`host] Domain_name.t * string) list
-  | `No_authentication_I'M_STUPID ]
+  | `Key_fingerprints of Mirage_crypto.Hash.hash * ([`host] Domain_name.t * Cstruct.t) list
+  | `Hex_key_fingerprints of Mirage_crypto.Hash.hash * ([`host] Domain_name.t * string) list
+  | `Cert_fingerprints of Mirage_crypto.Hash.hash * ([`host] Domain_name.t * Cstruct.t) list
+  | `Hex_cert_fingerprints of Mirage_crypto.Hash.hash * ([`host] Domain_name.t * string) list
+  ]
   -> authenticator Lwt.t
