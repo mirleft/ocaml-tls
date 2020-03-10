@@ -20,7 +20,6 @@ module Flow = struct
     match Tls.Engine.handle_tls st msg with
     | `Ok (`Ok st', `Response (Some ans), `Data appdata) ->
         (rewrap_st (state, st'), ans, appdata)
-    | `Ok _ -> assert false
     | `Fail (a, _) ->
         failwith @@ Printf.sprintf "[%s] %s error: %s"
           tag descr (Sexplib.Sexp.to_string_hum (Tls.Engine.sexp_of_failure a))

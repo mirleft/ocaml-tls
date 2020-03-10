@@ -17,9 +17,6 @@ let resolve host service =
       fail (Invalid_argument msg)
   | ai::_ -> return ai.ai_addr
 
-
-let gettimeofday = Unix.gettimeofday
-
 module Lwt_cs = struct
 
   let naked ~name f fd cs =
@@ -99,6 +96,8 @@ module Unix = struct
         match (t.state, n) with
         | (`Active _  , 0) -> t.state <- `Eof ; return `Eof
         | (`Active tls, n) -> handle tls (Cstruct.sub recv_buf 0 n)
+        | (`Error e, _)    -> fail e
+        | (`Eof, _)        -> return `Eof
 
   let rec read t buf =
 

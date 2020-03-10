@@ -17,7 +17,7 @@ let serve_ssl port callback =
   let server_s =
     let open Lwt_unix in
     let s = socket PF_INET SOCK_STREAM 0 in
-    bind s (ADDR_INET (Unix.inet_addr_any, port)) ;
+    bind s (ADDR_INET (Unix.inet_addr_any, port)) >|= fun () ->
     listen s 10 ;
     s in
 
@@ -40,7 +40,8 @@ let serve_ssl port callback =
   yap ~tag ("-> start @ " ^ ps ^ " (use `openssl s_client -connect host:" ^ ps ^ " -servername foo` (or -servername bar))") >>= fun () ->
   let rec loop () =
     let config = Tls.Config.server ~certificates:(`Multiple [barcert ; foocert]) () in
-    Tls_lwt.Unix.accept ~trace:eprint_sexp config server_s >>= fun (t, addr) ->
+    server_s >>= fun s ->
+    Tls_lwt.Unix.accept ~trace:eprint_sexp config s >>= fun (t, addr) ->
     yap ~tag "-> connect" >>= fun () ->
     ( handle (Tls_lwt.Unix.epoch t) (Tls_lwt.of_t t) addr ; loop () )
   in
@@ -48,9 +49,9 @@ let serve_ssl port callback =
 
 
 let echo_server port =
-  serve_ssl port @@ fun host (ic, oc) addr ->
+  serve_ssl port @@ fun host (ic, oc) _addr ->
     lines ic |> Lwt_stream.iter_s (fun line ->
-      yap ("handler " ^ host) ("+ " ^ line) >>= fun () ->
+      yap ~tag:("handler " ^ host) ("+ " ^ line) >>= fun () ->
       Lwt_io.write_line oc line)
 
 let () =

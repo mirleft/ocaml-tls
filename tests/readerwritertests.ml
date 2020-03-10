@@ -305,7 +305,7 @@ let rw_handshake_cstruct_data hs _ =
       (* lets get crazy and do it one more time *)
       let buf' = Writer.assemble_handshake hs' in
       (match Reader.parse_handshake buf' with
-      | Ok hs'' -> Readertests.cmp_handshake_cstruct hs hs'
+      | Ok hs'' -> Readertests.cmp_handshake_cstruct hs hs''
       | Error _ -> assert_failure "handshake cstruct data inner failed")
   | Error _ -> assert_failure "handshake cstruct data failed"
 

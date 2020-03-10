@@ -7,7 +7,7 @@ let (<+>) = Utils.Cs.(<+>)
 
 
 (* on-the-wire dh_params <-> (group, pub_message) *)
-let dh_params_pack { Dh.p; gg } message =
+let dh_params_pack { Dh.p; gg ; _ } message =
   let cs_of_z = Numeric.Z.to_cstruct_be ?size:None in
   { Core.dh_p = cs_of_z p ; dh_g = cs_of_z gg ; dh_Ys = message }
 

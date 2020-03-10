@@ -472,8 +472,8 @@ let send_application_data st css =
      Tracing.css ~tag:"application-data-out" css ;
      let datas = match st.encryptor with
        (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
-       | Some { cipher_st = CBC { iv_mode = Iv _ } } -> Cstruct.create 0 :: css
-       | _                                           -> css
+       | Some { cipher_st = CBC { iv_mode = Iv _ ; _ } ; _ } -> Cstruct.create 0 :: css
+       | _                                                   -> css
      in
      let ty = Packet.APPLICATION_DATA in
      let data = List.map (fun cs -> (ty, cs)) datas in
@@ -563,9 +563,6 @@ let client config =
   send_records state [(Packet.HANDSHAKE, raw)]
 
 let server config = new_state Config.(of_server config) `Server
-
-open Sexplib
-open Sexplib.Conv
 
 type epoch = [
   | `InitialEpoch

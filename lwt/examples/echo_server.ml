@@ -17,7 +17,7 @@ let serve_ssl port callback =
     let open Lwt_unix in
     let s = socket PF_INET SOCK_STREAM 0 in
     setsockopt s SO_REUSEADDR true ;
-    bind s (ADDR_INET (Unix.inet_addr_any, port)) ;
+    bind s (ADDR_INET (Unix.inet_addr_any, port)) >|= fun () ->
     listen s 10 ;
     s in
 
@@ -31,7 +31,7 @@ let serve_ssl port callback =
             yap ~tag @@ "handler: " ^ Tls.Engine.string_of_failure a
           | Unix.Unix_error (e, f, p) ->
             yap ~tag @@ "handler: " ^ (string_of_unix_err e f p)
-          | exn -> yap ~tag "handler: exception")
+          | _exn -> yap ~tag "handler: exception")
   in
 
   yap ~tag ("-> start @ " ^ string_of_int port) >>= fun () ->
@@ -44,18 +44,19 @@ let serve_ssl port callback =
          | Unix.Unix_error (e, f, p) -> return (`L (string_of_unix_err e f p))
          | Tls_lwt.Tls_alert a -> return (`L (Tls.Packet.alert_type_to_string a))
          | Tls_lwt.Tls_failure f -> return (`L (Tls.Engine.string_of_failure f))
-         | exn -> return (`L "loop: exception"))) >>= function
+         | _exn -> return (`L "loop: exception"))) >>= function
     | `R (channels, addr) ->
       yap ~tag "-> connect" >>= fun () -> ( handle channels addr ; loop s )
     | `L (msg) ->
       yap ~tag ("server socket: " ^ msg) >>= fun () -> loop s
     in
-    loop (server_s ())
+    server_s () >>= fun s ->
+    loop s
 
 let echo_server port =
-  serve_ssl port @@ fun (ic, oc) addr ->
+  serve_ssl port @@ fun (ic, oc) _addr ->
     lines ic |> Lwt_stream.iter_s (fun line ->
-      yap "handler" ("+ " ^ line) >>= fun () ->
+      yap ~tag:"handler" ("+ " ^ line) >>= fun () ->
       Lwt_io.write_line oc line)
 
 let () =
