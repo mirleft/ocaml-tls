@@ -1,6 +1,6 @@
 open OUnit2
 
-let () = Nocrypto.Rng.reseed (Cstruct.of_string "\001\002\003\004")
+let () = Mirage_crypto_rng_unix.initialize ()
 
 let time f =
   let t1 = Sys.time () in

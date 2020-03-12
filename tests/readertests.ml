@@ -12,13 +12,13 @@ let good_any_version_parser major minor result _ =
 let bad_any_version_parser major minor _ =
   let ver = list_to_cstruct [ major ; minor ] in
   match Reader.parse_any_version ver with
-  | Ok v    -> assert_failure "Version parser broken"
+  | Ok _    -> assert_failure "Version parser broken"
   | Error _ -> ()
 
 let parse_any_version_too_short _ =
   let ver = list_to_cstruct [ 0 ] in
   match Reader.parse_any_version ver with
-  | Ok v    -> assert_failure "Version parser broken"
+  | Ok _    -> assert_failure "Version parser broken"
   | Error _ -> ()
 
 let any_version_parser_tests = [
@@ -50,13 +50,13 @@ let good_version_parser major minor result _ =
 let bad_version_parser major minor _ =
   let ver = list_to_cstruct [ major ; minor ] in
   match Reader.parse_version ver with
-  | Ok v    -> assert_failure "Version parser broken"
+  | Ok _    -> assert_failure "Version parser broken"
   | Error _ -> ()
 
 let parse_version_too_short _ =
   let ver = list_to_cstruct [ 0 ] in
   match Reader.parse_version ver with
-  | Ok v    -> assert_failure "Version parser broken"
+  | Ok _    -> assert_failure "Version parser broken"
   | Error _ -> ()
 
 let version_parser_tests = [
@@ -426,8 +426,8 @@ let good_dhparams = [
 let good_dh_param_parser xs _ =
   let buf = list_to_cstruct xs in
   match Reader.parse_dh_parameters buf with
-  | Error _          -> assert_failure "dh params parser broken"
-  | Ok (p, raw, rst) -> assert_equal 0 (Cstruct.len rst)
+  | Error _        -> assert_failure "dh params parser broken"
+  | Ok (_, _, rst) -> assert_equal 0 (Cstruct.len rst)
 
 let good_dh_params_tests =
   List.mapi
@@ -437,7 +437,7 @@ let good_dh_params_tests =
 let bad_dh_param_parser buf _ =
   match Reader.parse_dh_parameters buf with
   | Error _ -> ()
-  | Ok (p, raw, rst) ->
+  | Ok (_, _, rst) ->
       if Cstruct.len rst == 0 then
         assert_failure "dh params parser broken"
 

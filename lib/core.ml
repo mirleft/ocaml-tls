@@ -1,7 +1,6 @@
 (** Core type definitions *)
 
 open Sexplib.Conv
-open Nocrypto
 
 open Packet
 open Ciphersuite
@@ -80,7 +79,7 @@ type client_extension = [
   | `ECPointFormats of ec_point_format list
   | `SecureRenegotiation of Cstruct_sexp.t
   | `Padding of int
-  | `SignatureAlgorithms of (Hash.hash * signature_algorithm_type) list
+  | `SignatureAlgorithms of (Ciphersuite.H.t * signature_algorithm_type) list
   | `UnknownExtension of (int * Cstruct_sexp.t)
   | `ExtendedMasterSecret
   | `ALPN of string list
@@ -192,7 +191,7 @@ type epoch_data = {
   received_certificates  : Cert.t list ;
   own_random             : Cstruct_sexp.t ;
   own_certificate        : Cert.t list ;
-  own_private_key        : Nocrypto.Rsa.priv option ;
+  own_private_key        : Mirage_crypto_pk.Rsa.priv option ;
   own_name               : string option ;
   master_secret          : master_secret ;
   session_id             : SessionID.t ;

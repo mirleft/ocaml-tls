@@ -2,7 +2,7 @@ open Utils
 open Core
 open State
 
-open Nocrypto
+open Mirage_crypto
 
 let empty = function [] -> true | _ -> false
 
@@ -163,7 +163,7 @@ let signature version data sig_algs hashes private_key =
   match version with
   | TLS_1_0 | TLS_1_1 ->
     let data = Hash.MD5.digest data <+> Hash.SHA1.digest data in
-    let signed = Rsa.PKCS1.sig_encode ~key:private_key data in
+    let signed = Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key:private_key data in
     return (Writer.assemble_digitally_signed signed)
   | TLS_1_2 ->
     (* if no signature_algorithms extension is sent by the client,
@@ -179,7 +179,7 @@ let signature version data sig_algs hashes private_key =
         | Some hash -> return hash ) >|= fun hash_algo ->
     let hash = Hash.digest hash_algo data in
     let cs = X509.Certificate.encode_pkcs1_digest_info (hash_algo, hash) in
-    let sign = Rsa.PKCS1.sig_encode ~key:private_key cs in
+    let sign = Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key:private_key cs in
     Writer.assemble_digitally_signed_1_2 hash_algo Packet.RSA sign
 
 let peer_rsa_key = function
@@ -217,7 +217,7 @@ let verify_digitally_signed version hashes data signature_data certificate =
         | Error re -> fail (`Fatal (`ReaderError re)) )
 
   and signature pubkey raw_signature =
-    match Rsa.PKCS1.sig_decode ~key:pubkey raw_signature with
+    match Mirage_crypto_pk.Rsa.PKCS1.sig_decode ~key:pubkey raw_signature with
     | Some signature -> return signature
     | None -> fail (`Fatal `RSASignatureVerificationFailed)
   in
@@ -229,15 +229,15 @@ let verify_digitally_signed version hashes data signature_data certificate =
 
 let validate_chain authenticator certificates hostname =
   let authenticate authenticator host certificates =
-    match authenticator ?host certificates with
+    match authenticator ~host certificates with
     | Error err  -> fail (`Error (`AuthenticationFailure err))
     | Ok anchor -> return anchor
 
   and key_size min cs =
     let check c =
       match X509.Certificate.public_key c with
-      | `RSA key when Rsa.pub_bits key >= min -> true
-      | _                                     -> false
+      | `RSA key when Mirage_crypto_pk.Rsa.pub_bits key >= min -> true
+      | _                                                      -> false
     in
     guard (List.for_all check cs) (`Fatal `KeyTooSmall)
 

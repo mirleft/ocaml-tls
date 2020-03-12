@@ -20,7 +20,6 @@ module Flow = struct
     match Tls.Engine.handle_tls st msg with
     | `Ok (`Ok st', `Response (Some ans), `Data appdata) ->
         (rewrap_st (state, st'), ans, appdata)
-    | `Ok _ -> assert false
     | `Fail (a, _) ->
         failwith @@ Printf.sprintf "[%s] %s error: %s"
           tag descr (Sexplib.Sexp.to_string_hum (Tls.Engine.sexp_of_failure a))
@@ -31,10 +30,11 @@ let loop_chatter ~certificate ~loops ~size =
 
   Printf.eprintf "Looping %d times, %d bytes.\n%!" loops size;
 
-  let message  = Nocrypto.Rng.generate size
+  let message  = Mirage_crypto_rng.generate size
   and server   = Tls.(Engine.server (Config.server ~certificates:(`Single certificate) ()))
   and (client, init) =
-    Tls.(Engine.client @@ Config.client ~authenticator:X509.Authenticator.null ())
+    let authenticator ~host:_ _ = Ok None in
+    Tls.(Engine.client @@ Config.client ~authenticator ())
   in
   Testlib.time @@ fun () ->
 

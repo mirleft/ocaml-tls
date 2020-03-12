@@ -1,5 +1,4 @@
-open Nocrypto.Uncommon
-open Nocrypto.Hash
+open Mirage_crypto.Hash
 
 open Core
 open State
@@ -32,7 +31,7 @@ let pseudo_random_function version cipher len secret label seed =
      let (s1, s2) = halve secret in
      let md5 = p_hash (MD5.hmac, MD5.digest_size) s1 labelled len
      and sha = p_hash (SHA1.hmac, SHA1.digest_size) s2 labelled len in
-     Cs.xor md5 sha
+     Mirage_crypto.Uncommon.Cs.xor md5 sha
   | TLS_1_2 ->
      let module D = (val (prf_mac cipher)) in
      p_hash (D.hmac, D.digest_size) secret labelled len
