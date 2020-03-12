@@ -31,3 +31,7 @@ depends: [
 
 tags: [ "org:mirage"]
 synopsis: "Transport Layer Security purely in OCaml, MirageOS layer"
+description: """
+Tls-mirage provides an effectful FLOW module to be used in the MirageOS
+ecosystem.
+"""

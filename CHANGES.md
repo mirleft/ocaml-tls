@@ -1,3 +1,9 @@
+## v0.11.0 (2020-03-12)
+
+* use dune as build system (#407)
+* BREAKING split into tls and tls-mirage opam packages (#407)
+* BREAKING use mirage-crypto instead of nocrypto (#407)
+
 ## v0.10.6 (2020-01-23)
 
 * adapt to x509 0.9.0 interface: certificate revocation lists can now be passed
