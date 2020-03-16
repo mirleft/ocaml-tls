@@ -6,7 +6,7 @@ let echo_client host port =
   let open Lwt_io in
 
   let port = int_of_string port in
-  X509_lwt.authenticator `No_authentication_I'M_STUPID >>= fun authenticator ->
+  let authenticator = null_auth in
   Tls_lwt.Unix.connect
     ~trace:eprint_sexp
     Tls.Config.(client ~authenticator ~alpn_protocols:["http/1.1"; "h2"] ())

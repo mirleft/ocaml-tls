@@ -27,3 +27,16 @@ let print_alert where alert =
 let print_fail where fail =
   Printf.eprintf "TLS FAIL (%s): %s\n%!"
     where (Tls.Engine.string_of_failure fail)
+
+let null_auth ~host:_ _ = Ok None
+
+let auth ~hostname ?ca ?fp () =
+  match ca with
+  | Some "NONE" when fp = None -> Lwt.return null_auth
+  | _ ->
+    let a = match ca, fp with
+      | None, Some fp  -> `Hex_key_fingerprints (`SHA256, [ Domain_name.(host_exn (of_string_exn hostname)), fp ])
+      | None, _ -> `Ca_dir ca_cert_dir
+      | Some f, _ -> `Ca_file f
+    in
+    X509_lwt.authenticator a

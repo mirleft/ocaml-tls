@@ -1,6 +1,6 @@
 (library
  (name ex_common)
- (libraries lwt.unix sexplib tls)
+ (libraries lwt lwt.unix sexplib tls tls.lwt)
  (modules ex_common))
 
 (executable
