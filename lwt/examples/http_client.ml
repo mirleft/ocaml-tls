@@ -4,12 +4,7 @@ open Ex_common
 
 let http_client ?ca ?fp hostname port =
   let port          = int_of_string port in
-  X509_lwt.authenticator
-    ( match ca, fp with
-      | None, Some fp  -> `Hex_key_fingerprints (`SHA256, [ Domain_name.(host_exn (of_string_exn hostname)), fp ])
-      | None, _        -> `Ca_dir ca_cert_dir
-      | Some "NONE", _ -> `No_authentication_I'M_STUPID
-      | Some f, _      -> `Ca_file f ) >>= fun authenticator ->
+  auth ~hostname ?ca ?fp () >>= fun authenticator ->
   Tls_lwt.connect_ext
     ~trace:eprint_sexp
     (Tls.Config.client ~authenticator ())

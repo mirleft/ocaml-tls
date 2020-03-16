@@ -5,7 +5,7 @@ open Ex_common
 let test_client _ =
   let port = 4433 in
   let host = "127.0.0.1" in
-  X509_lwt.authenticator `No_authentication_I'M_STUPID >>= fun authenticator ->
+  let authenticator = null_auth in
   Tls_lwt.connect_ext
     Tls.Config.(client ~authenticator ~ciphers:Ciphers.supported ())
     (host, port) >>= fun (ic, oc) ->
