@@ -336,10 +336,18 @@ let signature version ?context_string data client_sig_algs signature_algorithms 
         | None      -> fail (`Error (`NoConfiguredSignatureAlgorithm client_algos))
         | Some sig_alg -> return sig_alg ) >|= fun sig_alg ->
     let hash_alg = Core.hash_of_signature_algorithm sig_alg in
-    let hash = Hash.digest hash_alg data in
-    let cs = X509.Certificate.encode_pkcs1_digest_info (hash_alg, hash) in
-    let sign = Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key:private_key cs in
-    Writer.assemble_digitally_signed_1_2 sig_alg sign
+    begin match signature_scheme_of_signature_algorithm sig_alg with
+      | `PSS ->
+        let module H = (val (Hash.module_of hash_alg)) in
+        let module PSS = Mirage_crypto_pk.Rsa.PSS(H) in
+        let sign = PSS.sign ~key:private_key (`Message data) in
+        Writer.assemble_digitally_signed_1_2 sig_alg sign
+      | `PKCS1 ->
+        let hash = Hash.digest hash_alg data in
+        let cs = X509.Certificate.encode_pkcs1_digest_info (hash_alg, hash) in
+        let sign = Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key:private_key cs in
+        Writer.assemble_digitally_signed_1_2 sig_alg sign
+    end
   | `TLS_1_3 ->
     (* RSA-PSS is used *)
     let prefix = to_sign_1_3 context_string in
@@ -395,14 +403,22 @@ let verify_digitally_signed version ?context_string sig_algs data signature_data
        | Ok (sig_alg, signature) ->
          guard (List.mem sig_alg sig_algs) (`Error (`NoConfiguredSignatureAlgorithm sig_algs)) >>= fun () ->
          let hash_algo = hash_of_signature_algorithm sig_alg in
-         let compare_hashes should data =
-           match X509.Certificate.decode_pkcs1_digest_info should with
-           | Ok (hash_algo', target) when hash_algo = hash_algo' ->
-             guard (Crypto.digest_eq hash_algo ~target data) (`Fatal `RSASignatureMismatch)
-           | _ -> fail (`Fatal `HashAlgorithmMismatch)
-         in
-         decode_pkcs1_signature signature >>= fun raw ->
-         compare_hashes raw signature_data
+         begin match signature_scheme_of_signature_algorithm sig_alg with
+           | `PSS ->
+             let module H = (val (Hash.module_of hash_algo)) in
+             let module PSS = Mirage_crypto_pk.Rsa.PSS(H) in
+             guard (PSS.verify ~key:pubkey ~signature (`Message signature_data))
+               (`Fatal `RSASignatureMismatch)
+           | `PKCS1 ->
+             let compare_hashes should data =
+               match X509.Certificate.decode_pkcs1_digest_info should with
+               | Ok (hash_algo', target) when hash_algo = hash_algo' ->
+                 guard (Crypto.digest_eq hash_algo ~target data) (`Fatal `RSASignatureMismatch)
+               | _ -> fail (`Fatal `HashAlgorithmMismatch)
+             in
+             decode_pkcs1_signature signature >>= fun raw ->
+             compare_hashes raw signature_data
+         end
        | Error re -> fail (`Fatal (`ReaderError re)) )
   | `TLS_1_3 ->
     ( match Reader.parse_digitally_signed_1_2 data with
