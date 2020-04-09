@@ -1,3 +1,7 @@
+## v0.11.1 (2020-04-09)
+
+* Adapt to X509.0.11.0 API changes (#412)
+
 ## v0.11.0 (2020-03-12)
 
 * use dune as build system (#407)
