@@ -442,12 +442,13 @@ let handle_packet hs buf = function
   | Packet.HANDSHAKE ->
      separate_handshakes (hs.hs_fragment <+> buf)
      >>= fun (hss, hs_fragment) ->
+       let hs = { hs with hs_fragment } in
        foldM (fun (hs, items) raw ->
          handle_handshake hs.machina hs raw
          >|= fun (hs', items') -> (hs', items @ items'))
        (hs, []) hss
      >|= fun (hs, items) ->
-       ({ hs with hs_fragment }, items, None, `No_err)
+       (hs, items, None, `No_err)
 
   | Packet.HEARTBEAT -> fail (`Fatal `NoHeartbeat)
 
