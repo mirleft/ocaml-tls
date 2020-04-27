@@ -327,6 +327,7 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   (* compression methods, completely useless *)
   let cms = assemble_compression_methods [NULL] in
   let bbuf = v <+> cl.client_random <+> sid <+> css <+> cms in
+  let extensions = assemble_extensions ~none_if_empty:true assemble_client_extension cl.extensions in
   (* some widely deployed firewalls drop ClientHello messages which are
      > 256 and < 511 byte, insert PADDING extension for these *)
   (* from draft-ietf-tls-padding-00:
@@ -341,27 +342,33 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
    handshake protocol) and test whether the resulting length falls into
    that range.  If it does, a padding extension can be added in order to
    push the length to (at least) 512 bytes. *)
-  let extensions = assemble_extensions ~none_if_empty:true assemble_client_extension cl.extensions in
   let extrapadding =
-    let buflen = len bbuf + len extensions + 4 in
-    if buflen >= 256 && buflen <= 511 then
-      match len extensions with
-        | 0 -> (* need to construct a 2 byte extension length as well *)
-           let p = assemble_client_extension (`Padding (506 - buflen)) in
-           let le = create 2 in
-           BE.set_uint16 le 0 (len p + 4);
-           le <+> p
-        | _ ->
-           let l = 508 - buflen in
-           let p = assemble_client_extension (`Padding l) in
-           (* extensions include all extensions (including 16 bit length field),
-              l is the length of the padding +
-              there's a 2 byte length and a 2 byte type field
-              -- but the extension length should not count the extension length field itself, therefore only +2 *)
-           BE.set_uint16 extensions 0 (len extensions + l + 2);
-           p
+    (* since PreSharedKeys _must_ be the last extension, don't bother padding
+       when it is present. rationale from ietf-tls WG
+       "Padding extension and 0-RTT" thread (2016-10-30) *)
+    if List.exists (function `PreSharedKeys _ -> true | _ -> false) cl.extensions then
+      Cstruct.empty
     else
-      create 0
+      let buflen = len bbuf + len extensions + 4 (* see above, header *) in
+      if buflen >= 256 && buflen <= 511 then
+        match len extensions with
+        | 0 -> (* need to construct a 2 byte extension length as well *)
+          let l = 512 (* desired length *) - 2 (* extension length *) - 4 (* padding extension header *) - buflen in
+          let l = max l 0 in (* negative size is not good *)
+          let padding = assemble_client_extension (`Padding l) in
+          let extension_length = create 2 in
+          BE.set_uint16 extension_length 0 (len padding);
+          extension_length <+> padding
+        | _ ->
+          let l = 512 - 4 (* padding extension header *) - buflen in
+          let l = max l 0 in
+          let padding = assemble_client_extension (`Padding l) in
+          (* extensions include the 16 bit extension length field *)
+          let elen = len extensions + len padding - 2 (* the 16 bit length field *) in
+          BE.set_uint16 extensions 0 elen;
+          padding
+      else
+        create 0
   in
   bbuf <+> extensions <+> extrapadding
 

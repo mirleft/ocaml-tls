@@ -381,7 +381,6 @@ let parse_client_extension raw =
          let shares = parse_list parse_keyshare_entry (sub buf 2 ll) [] in
          `KeyShare shares
     | Some PRE_SHARED_KEY ->
-      (* TODO may only be last extension! *)
       let ids = parse_client_presharedkeys buf in
       `PreSharedKeys ids
     | Some EARLY_DATA ->
@@ -522,6 +521,11 @@ let parse_client_hello buf =
   let extensions =
     if len rt' == 0 then [] else parse_extensions parse_client_extension rt'
   in
+  (* TLS 1.3 mandates PreSharedKeys to be the last extension *)
+  (if List.exists (function `PreSharedKeys _ -> true | _ -> false) extensions then
+     match List.rev extensions with
+     | `PreSharedKeys _::_ -> ()
+     | _ -> raise_unknown "Pre-shared key extension exists, but is not the last");
   ClientHello { client_version ; client_random ; sessionid ; ciphersuites ; extensions }
 
 let parse_server_hello buf =
