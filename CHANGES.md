@@ -1,7 +1,7 @@
 ## v0.12.0 (2020-05-12)
 
 in #405 by @hannesm
-* preliminary TLS 1.3 support
+* TLS 1.3 support
 * Tracing now uses the logs library (log source tls.tracing on debug level)
 * bugfix for padding in ClientHello, which computed wrong length
 * bugfix hs_fragments to be set before executing the protocol handling logic
