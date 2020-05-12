@@ -1,3 +1,13 @@
+## v0.12.0 (2020-05-12)
+
+in #405 by @hannesm
+* preliminary TLS 1.3 support
+* Tracing now uses the logs library (log source tls.tracing on debug level)
+* bugfix for padding in ClientHello, which computed wrong length
+* bugfix hs_fragments to be set before executing the protocol handling logic
+* bugfix guard RSA signature with an Insufficient_key handler, which may occur
+  when using an RSA key which size is too small for the used digest algorithm
+
 ## v0.11.1 (2020-04-09)
 
 * Adapt to X509.0.11.0 API changes (#412)

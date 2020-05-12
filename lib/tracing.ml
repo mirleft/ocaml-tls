@@ -1,6 +1,6 @@
 (* This is so not thread-safe it's not even funny. *)
 
-let src = Logs.Src.create "tracing" ~doc:"TLS tracing"
+let src = Logs.Src.create "tls.tracing" ~doc:"TLS tracing"
 module Log = (val Logs.src_log src : Logs.LOG)
 
 let form_trace id sexp =
