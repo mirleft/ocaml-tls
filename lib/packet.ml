@@ -55,12 +55,14 @@ type alert_type =
   | INAPPROPRIATE_FALLBACK          [@id 86]  (*draft-ietf-tls-downgrade-scsv*)
   | USER_CANCELED                   [@id 90]  (*RFC5246*)
   | NO_RENEGOTIATION                [@id 100] (*RFC5246*)
+  | MISSING_EXTENSION               [@id 109] (*RFC8446*)
   | UNSUPPORTED_EXTENSION           [@id 110] (*RFC5246*)
   | CERTIFICATE_UNOBTAINABLE        [@id 111] (*RFC6066*)
   | UNRECOGNIZED_NAME               [@id 112] (*RFC6066*)
   | BAD_CERTIFICATE_STATUS_RESPONSE [@id 113] (*RFC6066*)
   | BAD_CERTIFICATE_HASH_VALUE      [@id 114] (*RFC6066*)
   | UNKNOWN_PSK_IDENTITY            [@id 115] (*RFC4279*)
+  | CERTIFICATE_REQUIRED            [@id 116] (*RFC8446*)
   | NO_APPLICATION_PROTOCOL         [@id 120] (*RFC7301*)
   [@@uint8_t] [@@sexp]
 ]
@@ -72,7 +74,9 @@ type handshake_type =
   | CLIENT_HELLO         [@id 1]
   | SERVER_HELLO         [@id 2]
   | HELLO_VERIFY_REQUEST [@id 3] (*RFC6347*)
-  | NEWSESSIONTICKET     [@id 4] (*RFC4507*)
+  | SESSION_TICKET       [@id 4] (*RFC4507, RFC8446*)
+  | END_OF_EARLY_DATA    [@id 5] (*RFC8446*)
+  | ENCRYPTED_EXTENSIONS [@id 8] (*RFC8446*)
   | CERTIFICATE          [@id 11]
   | SERVER_KEY_EXCHANGE  [@id 12]
   | CERTIFICATE_REQUEST  [@id 13]
@@ -80,10 +84,11 @@ type handshake_type =
   | CERTIFICATE_VERIFY   [@id 15]
   | CLIENT_KEY_EXCHANGE  [@id 16]
   | FINISHED             [@id 20]
-  (* from RFC 4366 *)
-  | CERTIFICATE_URL      [@id 21]
-  | CERTIFICATE_STATUS   [@id 22]
+  | CERTIFICATE_URL      [@id 21] (*RFC4366*)
+  | CERTIFICATE_STATUS   [@id 22] (*RFC4366*)
   | SUPPLEMENTAL_DATA    [@id 23] (*RFC4680*)
+  | KEY_UPDATE           [@id 24] (*RFC8446*)
+  | MESSAGE_HASH         [@id 254] (*RFC8446*)
   [@@uint8_t] [@@sexp]
 ]
 
@@ -125,22 +130,41 @@ type extension_type =
   | CLIENT_AUTHZ                           [@id 7]  (*RFC5878*)
   | SERVER_AUTHZ                           [@id 8]  (*RFC5878*)
   | CERT_TYPE                              [@id 9]  (*RFC6091*)
-  | ELLIPTIC_CURVES                        [@id 10] (*RFC4492*)
+  | SUPPORTED_GROUPS                       [@id 10] (*RFC4492, RFC8446*)
   | EC_POINT_FORMATS                       [@id 11] (*RFC4492*)
   | SRP                                    [@id 12] (*RFC5054*)
   | SIGNATURE_ALGORITHMS                   [@id 13] (*RFC5246*)
-  | USE_SRP                                [@id 14] (*RFC5764*)
+  | USE_SRTP                               [@id 14] (*RFC5764*)
   | HEARTBEAT                              [@id 15] (*RFC6520*)
   | APPLICATION_LAYER_PROTOCOL_NEGOTIATION [@id 16] (*RFC7301*)
   | STATUS_REQUEST_V2                      [@id 17] (*RFC6961*)
   | SIGNED_CERTIFICATE_TIMESTAMP           [@id 18] (*RFC6962*)
   | CLIENT_CERTIFICATE_TYPE                [@id 19] (*RFC7250*)
   | SERVER_CERTIFICATE_TYPE                [@id 20] (*RFC7250*)
-  | PADDING                                [@id 21] (*draft-ietf-tls-padding*)
+  | PADDING                                [@id 21] (*RFC7685*)
   | ENCRYPT_THEN_MAC                       [@id 22] (*RFC7366*)
-  | EXTENDED_MASTER_SECRET                 [@id 23] (*draft-ietf-tls-session-hash*)
-  | SESSIONTICKET_TLS                      [@id 35] (*RFC4507*)
+  | EXTENDED_MASTER_SECRET                 [@id 23] (*RFC7627*)
+  | TOKEN_BINDING                          [@id 24] (*RFC8472*)
+  | CACHED_INFO                            [@id 25] (*RFC7924*)
+  | TLS_LTS                                [@id 26] (*draft-gutmann-tls-lts*)
+  | COMPRESSED_CERTIFICATE                 [@id 27] (*draft-ietf-tls-certificate-compression*)
+  | RECORD_SIZE_LIMIT                      [@id 28] (*RFC8449*)
+  | PWD_PROTECT                            [@id 29] (*RFC-harkins-tls-dragonfly-03*)
+  | PWD_CLEAR                              [@id 30] (*RFC-harkins-tls-dragonfly-03*)
+  | PASSWORD_SALT                          [@id 31] (*RFC-harkins-tls-dragonfly-03*)
+  | SESSION_TICKET                         [@id 35] (*RFC4507*)
+  | PRE_SHARED_KEY                         [@id 41] (*RFC8446*)
+  | EARLY_DATA                             [@id 42] (*RFC8446*)
+  | SUPPORTED_VERSIONS                     [@id 43] (*RFC8446*)
+  | COOKIE                                 [@id 44] (*RFC8446*)
+  | PSK_KEY_EXCHANGE_MODES                 [@id 45] (*RFC8446*)
+  | CERTIFICATE_AUTHORITIES                [@id 47] (*RFC8446*)
+  | OID_FILTERS                            [@id 48] (*RFC8446*)
+  | POST_HANDSHAKE_AUTH                    [@id 49] (*RFC8446*)
+  | SIGNATURE_ALGORITHMS_CERT              [@id 50] (*RFC8446*)
+  | KEY_SHARE                              [@id 51] (*RFC8446*)
   | RENEGOTIATION_INFO                     [@id 0xFF01] (*RFC5746*)
+  | DRAFT_SUPPORT                          [@id 0xFF02] (*draft*)
   [@@uint16_t] [@@sexp]
 ]
 
@@ -154,46 +178,61 @@ type max_fragment_length =
   [@@uint8_t] [@@sexp]
 ]
 
-(* RFC 5246 *)
+(* TLS 1.3 pre-shared key mode (4.2.9) *)
 [%%cenum
-type signature_algorithm_type =
-  | ANONYMOUS [@id 0]
-  | RSA       [@id 1]
-  | DSA       [@id 2]
-  | ECDSA     [@id 3]
+type psk_key_exchange_mode =
+  | PSK_KE [@id 0]
+  | PSK_KE_DHE [@id 1]
   [@@uint8_t] [@@sexp]
 ]
 
+(* TLS 1.3 4.2.3 *)
 [%%cenum
-type hash_algorithm =
-  | NULL      [@id 0]
-  | MD5       [@id 1]
-  | SHA       [@id 2]
-  | SHA224    [@id 3]
-  | SHA256    [@id 4]
-  | SHA384    [@id 5]
-  | SHA512    [@id 6]
-  [@@uint8_t] [@@sexp]
+type signature_alg =
+  | RSA_PKCS1_MD5    [@id 0x0101] (* deprecated, TLS 1.2 only *)
+  | RSA_PKCS1_SHA1   [@id 0x0201] (* deprecated, TLS 1.2 only *)
+  | RSA_PKCS1_SHA224 [@id 0x0301]
+  | RSA_PKCS1_SHA256 [@id 0x0401]
+  | RSA_PKCS1_SHA384 [@id 0x0501]
+  | RSA_PKCS1_SHA512 [@id 0x0601]
+  | ECDSA_SECP256R1_SHA1 [@id 0x0203] (* deprecated, TLS 1.2 only *)
+  | ECDSA_SECP256R1_SHA256 [@id 0x0403]
+  | ECDSA_SECP256R1_SHA384 [@id 0x0503]
+  | ECDSA_SECP256R1_SHA512 [@id 0x0603]
+  | RSA_PSS_RSAENC_SHA256 [@id 0x0804]
+  | RSA_PSS_RSAENC_SHA384 [@id 0x0805]
+  | RSA_PSS_RSAENC_SHA512 [@id 0x0806]
+  | ED25519 [@id 0x0807]
+  | ED448 [@id 0x0808]
+  | RSA_PSS_PSS_SHA256 [@id 0x0809]
+  | RSA_PSS_PSS_SHA384 [@id 0x080a]
+  | RSA_PSS_PSS_SHA512 [@id 0x080b]
+  (* private use 0xFE00 - 0xFFFF *)
+  [@@uint16_t] [@@sexp]
 ]
 
-(** [hash_algorithm_of_tag tag] is [hash_algorithm] for the given [tag] *)
-let hash_algorithm_of_tag = function
-  | `MD5    -> MD5
-  | `SHA1   -> SHA
-  | `SHA224 -> SHA224
-  | `SHA256 -> SHA256
-  | `SHA384 -> SHA384
-  | `SHA512 -> SHA512
+let to_signature_alg = function
+  | `RSA_PKCS1_MD5 -> RSA_PKCS1_MD5
+  | `RSA_PKCS1_SHA1 -> RSA_PKCS1_SHA1
+  | `RSA_PKCS1_SHA224 -> RSA_PKCS1_SHA224
+  | `RSA_PKCS1_SHA256 -> RSA_PKCS1_SHA256
+  | `RSA_PKCS1_SHA384 -> RSA_PKCS1_SHA384
+  | `RSA_PKCS1_SHA512 -> RSA_PKCS1_SHA512
+  | `RSA_PSS_RSAENC_SHA256 -> RSA_PSS_RSAENC_SHA256
+  | `RSA_PSS_RSAENC_SHA384 -> RSA_PSS_RSAENC_SHA384
+  | `RSA_PSS_RSAENC_SHA512 -> RSA_PSS_RSAENC_SHA512
 
-(** [tag_of_hash_algorithm hash_algorithm] is [tag] for the given [hash_algorithm] *)
-let tag_of_hash_algorithm = function
-  | MD5    -> Some `MD5
-  | SHA    -> Some `SHA1
-  | SHA224 -> Some `SHA224
-  | SHA256 -> Some `SHA256
-  | SHA384 -> Some `SHA384
-  | SHA512 -> Some `SHA512
-  | NULL   -> None
+let of_signature_alg = function
+  | RSA_PKCS1_MD5 -> Some `RSA_PKCS1_MD5
+  | RSA_PKCS1_SHA1 -> Some `RSA_PKCS1_SHA1
+  | RSA_PKCS1_SHA224 -> Some `RSA_PKCS1_SHA224
+  | RSA_PKCS1_SHA256 -> Some `RSA_PKCS1_SHA256
+  | RSA_PKCS1_SHA384 -> Some `RSA_PKCS1_SHA384
+  | RSA_PKCS1_SHA512 -> Some `RSA_PKCS1_SHA512
+  | RSA_PSS_RSAENC_SHA256 -> Some `RSA_PSS_RSAENC_SHA256
+  | RSA_PSS_RSAENC_SHA384 -> Some `RSA_PSS_RSAENC_SHA384
+  | RSA_PSS_RSAENC_SHA512 -> Some `RSA_PSS_RSAENC_SHA512
+  | _ -> None
 
 (* EC RFC4492*)
 [%%cenum
@@ -205,39 +244,22 @@ type ec_curve_type =
 ]
 
 [%%cenum
-type named_curve_type =
-  | SECT163K1 [@id 1]
-  | SECT163R1 [@id 2]
-  | SECT163R2 [@id 3]
-  | SECT193R1 [@id 4]
-  | SECT193R2 [@id 5]
-  | SECT233K1 [@id 6]
-  | SECT233R1 [@id 7]
-  | SECT239K1 [@id 8]
-  | SECT283K1 [@id 9]
-  | SECT283R1 [@id 10]
-  | SECT409K1 [@id 11]
-  | SECT409R1 [@id 12]
-  | SECT571K1 [@id 13]
-  | SECT571R1 [@id 14]
-  | SECP160K1 [@id 15]
-  | SECP160R1 [@id 16]
-  | SECP160R2 [@id 17]
-  | SECP192K1 [@id 18]
-  | SECP192R1 [@id 19]
-  | SECP224K1 [@id 20]
-  | SECP224R1 [@id 21]
-  | SECP256K1 [@id 22]
+type named_group =
+  (* OBSOLETE_RESERVED 0x0001 - 0x0016 *)
   | SECP256R1 [@id 23]
   | SECP384R1 [@id 24]
   | SECP521R1 [@id 25]
-  (*RFC7027*)
-  | BRAINPOOLP256R1 [@id 26]
-  | BRAINPOOLP384R1 [@id 27]
-  | BRAINPOOLP512R1 [@id 28]
-  (* reserved (0xFE00..0xFEFF), *)
-  | ARBITRARY_EXPLICIT_PRIME_CURVES [@id 0xFF01]
-  | ARBITRARY_EXPLICIT_CHAR2_CURVES [@id 0xFF02]
+  (* OBSOLETE_RESERVED 0x001A - 0x001C *)
+  | X25519          [@id 29] (*RFC8446*)
+  | X448            [@id 30] (*RFC8446*)
+  | FFDHE2048       [@id 256] (*RFC8446*)
+  | FFDHE3072       [@id 257] (*RFC8446*)
+  | FFDHE4096       [@id 258] (*RFC8446*)
+  | FFDHE6144       [@id 259] (*RFC8446*)
+  | FFDHE8192       [@id 260] (*RFC8446*)
+  (* FFDHE_PRIVATE_USE 0x01FC - 0x01FF *)
+  (* ECDHE_PRIVATE_USE 0xFE00 - 0xFEFF *)
+  (* OBSOLETE_RESERVED 0xFF01 - 0xFF02 *)
   [@@uint16_t] [@@sexp]
 ]
 
@@ -408,6 +430,11 @@ type any_ciphersuite =
   | TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 [@id 0x00C4] (*RFC5932*)
   | TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA256 [@id 0x00C5] (*RFC5932*)
   | TLS_EMPTY_RENEGOTIATION_INFO_SCSV        [@id 0x00FF] (*RFC5746*)
+  | TLS_AES_128_GCM_SHA256                   [@id 0x1301] (*RFC8446*)
+  | TLS_AES_256_GCM_SHA384                   [@id 0x1302] (*RFC8446*)
+  | TLS_CHACHA20_POLY1305_SHA256             [@id 0x1303] (*RFC8446*)
+  | TLS_AES_128_CCM_SHA256                   [@id 0x1304] (*RFC8446*)
+  | TLS_AES_128_CCM_8_SHA256                 [@id 0x1305] (*RFC8446*)
   | TLS_FALLBACK_SCSV                        [@id 0x5600] (*draft-ietf-tls-downgrade-scsv*)
   (* from RFC 4492 *)
   | TLS_ECDH_ECDSA_WITH_NULL_SHA                 [@id 0xC001]
@@ -579,7 +606,28 @@ type any_ciphersuite =
   | TLS_DHE_PSK_WITH_AES_256_CCM                 [@id 0xC0A7] (*RFC6655*)
   | TLS_PSK_WITH_AES_128_CCM_8                   [@id 0xC0A8] (*RFC6655*)
   | TLS_PSK_WITH_AES_256_CCM_8                   [@id 0xC0A9] (*RFC6655*)
-  | TLS_PSK_DHE_WITH_AES_128_CCM_8               [@id 0xC0AA] (*RFC6655*)
-  | TLS_PSK_DHE_WITH_AES_256_CCM_8               [@id 0xC0AB] (*RFC6655*)
+  | TLS_DHE_PSK_WITH_AES_128_CCM_8               [@id 0xC0AA] (*RFC6655*)
+  | TLS_DHE_PSK_WITH_AES_256_CCM_8               [@id 0xC0AB] (*RFC6655*)
+  | TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256  [@id 0xCCA8] (*I-D.ietf-tls-chacha20-poly1305*)
+  | TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 [@id 0xCCA9] (*I-D.ietf-tls-chacha20-poly1305*)
+  | TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256    [@id 0xCCAA] (*I-D.ietf-tls-chacha20-poly1305*)
+  | TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256  [@id 0xCCAC] (*I-D.ietf-tls-chacha20-poly1305*)
+  | TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256    [@id 0xCCAD] (*I-D.ietf-tls-chacha20-poly1305*)
+  | TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256        [@id 0xD001] (*I-D.mattsson-tls-ecdhe-psk-aead*)
+  | TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384        [@id 0xD002] (*I-D.mattsson-tls-ecdhe-psk-aead*)
+  | TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256      [@id 0xD003] (*I-D.mattsson-tls-ecdhe-psk-aead*)
+  | TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256        [@id 0xD004] (*I-D.mattsson-tls-ecdhe-psk-aead*)
+  | TLS_ECDHE_PSK_WITH_AES_256_CCM_SHA384        [@id 0xD005] (*I-D.mattsson-tls-ecdhe-psk-aead*)
   [@@uint16_t] [@@sexp]
 ]
+
+[%%cenum
+type key_update_request_type =
+  | UPDATE_NOT_REQUESTED [@id 0]
+  | UPDATE_REQUESTED [@id 1]
+  [@@uint8_t] [@@sexp]
+]
+
+let helloretryrequest = Mirage_crypto.Hash.digest `SHA256 (Cstruct.of_string "HelloRetryRequest")
+let downgrade12 = Cstruct.of_hex "44 4F 57 4E 47 52 44 01"
+let downgrade11 = Cstruct.of_hex "44 4F 57 4E 47 52 44 00"

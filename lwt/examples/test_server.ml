@@ -27,9 +27,9 @@ let serve_ssl port callback =
   callback channels addr >>= fun () ->
   yap ~tag "<- handler done"
 
-
 let test_server port =
   serve_ssl port @@ fun (ic, oc) _addr ->
+    yap ~tag:"handler" "accepted" >>= fun () ->
     Lwt_io.read_line ic >>= fun line ->
     yap ~tag:"handler" ("+ " ^ line) >>= fun () ->
     Lwt_io.write_line oc line

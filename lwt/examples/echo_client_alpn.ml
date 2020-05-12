@@ -8,7 +8,6 @@ let echo_client host port =
   let port = int_of_string port in
   let authenticator = null_auth in
   Tls_lwt.Unix.connect
-    ~trace:eprint_sexp
     Tls.Config.(client ~authenticator ~alpn_protocols:["http/1.1"; "h2"] ())
     (host, port) >>= fun t ->
   match Tls_lwt.Unix.epoch t with

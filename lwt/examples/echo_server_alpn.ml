@@ -48,7 +48,7 @@ let serve_ssl alpn_protocols port callback =
   let rec loop () =
     let config = Tls.Config.server ~certificates:(`Single certificate) ~alpn_protocols () in
     server_s >>= fun s ->
-    Tls_lwt.Unix.accept ~trace:eprint_sexp config s >>= fun (t, addr) ->
+    Tls_lwt.Unix.accept config s >>= fun (t, addr) ->
     yap ~tag "-> connect" >>= fun () ->
     ( handle (Tls_lwt.Unix.epoch t) (Tls_lwt.of_t t) addr ; loop () )
   in

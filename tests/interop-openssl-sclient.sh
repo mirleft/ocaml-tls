@@ -25,7 +25,7 @@ testit () {
         fi
         rm $statfile
     else
-        echo "failure with openssl $s_client_args$port $extra_args"
+        echo "failure with openssl $s_client_args$port $extra_args (no statfile)"
         exit 1
     fi
     sleep 0.3

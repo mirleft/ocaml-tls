@@ -1,8 +1,6 @@
 
 open Sexplib
 
-val active : hook:(Sexp.t -> unit) -> (unit -> 'a) -> 'a
-
 val sexp   : tag:string -> Sexp.t Lazy.t -> unit
 val sexps  : tag:string -> Sexp.t Lazy.t list -> unit
 

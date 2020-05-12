@@ -5,9 +5,20 @@ open Ex_common
 let http_client ?ca ?fp hostname port =
   let port          = int_of_string port in
   auth ~hostname ?ca ?fp () >>= fun authenticator ->
-  Tls_lwt.connect_ext
-    (Tls.Config.client ~authenticator ())
-    (hostname, port) >>= fun (ic, oc) ->
+  let config = Tls.Config.client ~authenticator () in
+  Tls_lwt.Unix.connect config (hostname, port) >>= fun t ->
+  Tls_lwt.Unix.write t (Cstruct.of_string "foo\n") >>= fun () ->
+  let cs = Cstruct.create 4 in
+  Tls_lwt.Unix.read t cs >>= fun _len ->
+  let cached_session = match Tls_lwt.Unix.epoch t with
+    | `Ok e -> e
+    | `Error -> invalid_arg "error retrieving epoch"
+  in
+  Printf.printf "cached session: %s\n" (Sexplib.Sexp.to_string_hum (Tls.Core.sexp_of_epoch_data cached_session)) ;
+  Tls_lwt.Unix.close t >>= fun () ->
+  Printf.printf "closed session\n" ;
+  let config = Tls.Config.client ~authenticator ~cached_session () in
+  Tls_lwt.connect_ext config (hostname, port) >>= fun (ic, oc) ->
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ hostname ; "Connection: close" ; "" ; ""
   ] in

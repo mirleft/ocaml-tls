@@ -5,8 +5,6 @@ exception Tls_failure of Tls.Engine.failure
 
 let o f g x = f (g x)
 
-type tracer = Sexplib.Sexp.t -> unit
-
 (* This really belongs just about anywhere else: generic unix name resolution. *)
 let resolve host service =
   let open Lwt_unix in
@@ -37,7 +35,6 @@ module Unix = struct
 
   type t = {
     fd             : Lwt_unix.file_descr ;
-    tracer         : tracer option ;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
                      | `Error of exn ] ;
@@ -60,19 +57,12 @@ module Unix = struct
 
   let when_some f = function None -> return_unit | Some x -> f x
 
-  let tracing t f =
-    match t.tracer with
-    | None      -> f ()
-    | Some hook -> Tls.Tracing.active ~hook f
-
   let recv_buf = Cstruct.create 4096
 
   let rec read_react t =
 
     let handle tls buf =
-      match
-        tracing t @@ fun () -> Tls.Engine.handle_tls tls buf
-      with
+      match Tls.Engine.handle_tls tls buf with
       | `Ok (state', `Response resp, `Data data) ->
           let state' = match state' with
             | `Ok tls  -> `Active tls
@@ -123,9 +113,7 @@ module Unix = struct
     | `Error err  -> fail err
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
-        match
-          tracing t @@ fun () -> Tls.Engine.send_application_data tls css
-        with
+        match Tls.Engine.send_application_data tls css with
         | Some (tls, tlsdata) ->
             ( t.state <- `Active tls ; write_t t tlsdata )
         | None -> fail @@ Invalid_argument "tls: write: socket not ready"
@@ -160,7 +148,7 @@ module Unix = struct
     | `Error err  -> fail err
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
-        match tracing t @@ fun () -> Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
+        match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
         | None -> fail @@ Invalid_argument "tls: can't renegotiate"
         | Some (tls', buf) ->
            if drop then t.linger <- None ;
@@ -169,11 +157,21 @@ module Unix = struct
            drain_handshake t >>= fun _ ->
            return_unit
 
+  let key_update ?request t =
+    match t.state with
+    | `Error err  -> fail err
+    | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
+    | `Active tls ->
+      match Tls.Engine.key_update ?request tls with
+      | Error _ -> fail @@ Invalid_argument "tls: can't update key"
+      | Ok (tls', buf) ->
+        t.state <- `Active tls' ;
+        write_t t buf
+
   let close_tls t =
     match t.state with
     | `Active tls ->
-        let (_, buf) = tracing t @@ fun () ->
-          Tls.Engine.send_close_notify tls in
+        let (_, buf) = Tls.Engine.send_close_notify tls in
         t.state <- `Eof ;
         write_t t buf
     | _ -> return_unit
@@ -181,39 +179,39 @@ module Unix = struct
   let close t =
     safely (close_tls t) >>= fun () -> Lwt_unix.close t.fd
 
-  let server_of_fd ?trace config fd =
+  let server_of_fd config fd =
     drain_handshake {
       state  = `Active (Tls.Engine.server config) ;
       fd     = fd ;
       linger = None ;
-      tracer = trace ;
     }
 
-  let client_of_fd ?trace config ?host fd =
+  let client_of_fd config ?host fd =
     let config' = match host with
       | None -> config
       | Some host -> Tls.Config.peer config host
     in
-    let (tls, init) = Tls.Engine.client config' in
     let t = {
-      state  = `Active tls ;
+      state  = `Eof ;
       fd     = fd ;
       linger = None ;
-      tracer = trace ;
     } in
+    let (tls, init) = Tls.Engine.client config' in
+    let t = { t with state  = `Active tls } in
     write_t t init >>= fun () ->
     drain_handshake t
 
 
-  let accept ?trace conf fd =
+
+  let accept conf fd =
     Lwt_unix.accept fd >>= fun (fd', addr) ->
-    Lwt.catch (fun () -> server_of_fd conf ?trace fd' >|= fun t -> (t, addr))
+    Lwt.catch (fun () -> server_of_fd conf fd' >|= fun t -> (t, addr))
       (fun exn -> safely (Lwt_unix.close fd') >>= fun () -> fail exn)
 
-  let connect ?trace conf (host, port) =
+  let connect conf (host, port) =
     resolve host (string_of_int port) >>= fun addr ->
     let fd = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
-    Lwt.catch (fun () -> Lwt_unix.connect fd addr >>= fun () -> client_of_fd ?trace conf ~host fd)
+    Lwt.catch (fun () -> Lwt_unix.connect fd addr >>= fun () -> client_of_fd conf ~host fd)
       (fun exn -> safely (Lwt_unix.close fd) >>= fun () -> fail exn)
 
   let read_bytes t bs off len =
@@ -248,19 +246,19 @@ let of_t ?close t =
   (Lwt_io.make ~close ~mode:Lwt_io.Output @@
     fun a b c -> Unix.write_bytes t a b c >>= fun () -> return c)
 
-let accept_ext ?trace conf fd =
-  Unix.accept ?trace conf fd >|= fun (t, peer) -> (of_t t, peer)
+let accept_ext conf fd =
+  Unix.accept conf fd >|= fun (t, peer) -> (of_t t, peer)
 
-and connect_ext ?trace conf addr =
-  Unix.connect ?trace conf addr >|= of_t
+and connect_ext conf addr =
+  Unix.connect conf addr >|= of_t
 
-let accept ?trace certificate =
+let accept certificate =
   let config = Tls.Config.server ~certificates:certificate ()
-  in accept_ext ?trace config
+  in accept_ext config
 
-and connect ?trace authenticator addr =
+and connect authenticator addr =
   let config = Tls.Config.client ~authenticator ()
-  in connect_ext ?trace config addr
+  in connect_ext config addr
 
 
 (* Boot the entropy loop at module init time. *)

@@ -1,6 +1,5 @@
 open Mirage_crypto.Hash
 
-open Core
 open State
 
 let (<+>) = Utils.Cs.(<+>)
@@ -27,12 +26,12 @@ let prf_mac = function
 let pseudo_random_function version cipher len secret label seed =
   let labelled = Cstruct.of_string label <+> seed in
   match version with
-  | TLS_1_1 | TLS_1_0 ->
+  | `TLS_1_1 | `TLS_1_0 ->
      let (s1, s2) = halve secret in
      let md5 = p_hash (MD5.hmac, MD5.digest_size) s1 labelled len
      and sha = p_hash (SHA1.hmac, SHA1.digest_size) s2 labelled len in
      Mirage_crypto.Uncommon.Cs.xor md5 sha
-  | TLS_1_2 ->
+  | `TLS_1_2 ->
      let module D = (val (prf_mac cipher)) in
      p_hash (D.hmac, D.digest_size) secret labelled len
 
@@ -41,9 +40,10 @@ let key_block version cipher len master_secret seed =
 
 let hash version cipher data =
   match version with
-  | TLS_1_0 | TLS_1_1 -> MD5.digest data <+> SHA1.digest data
-  | TLS_1_2 -> let module H = (val (prf_mac cipher)) in
-               H.digest data
+  | `TLS_1_0 | `TLS_1_1 -> MD5.digest data <+> SHA1.digest data
+  | `TLS_1_2 ->
+    let module H = (val (prf_mac cipher)) in
+    H.digest data
 
 let finished version cipher master_secret label ps =
   let data = Utils.Cs.appends ps in
@@ -60,7 +60,7 @@ let divide_keyblock key mac iv buf =
   in
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
-let derive_master_secret version session premaster log =
+let derive_master_secret version (session : session_data) premaster log =
   let prf = pseudo_random_function version session.ciphersuite 48 premaster in
   if session.extended_ms then
     let session_hash =
@@ -69,13 +69,13 @@ let derive_master_secret version session premaster log =
     in
     prf "extended master secret" session_hash
   else
-    prf "master secret" (session.client_random <+> session.server_random)
+    prf "master secret" (session.common_session_data.client_random <+> session.common_session_data.server_random)
 
-let initialise_crypto_ctx version session =
+let initialise_crypto_ctx version (session : session_data) =
   let open Ciphersuite in
-  let client_random = session.client_random
-  and server_random = session.server_random
-  and master = session.master_secret
+  let client_random = session.common_session_data.client_random
+  and server_random = session.common_session_data.server_random
+  and master = session.common_session_data.master_secret
   and cipher = session.ciphersuite
   in
 
@@ -83,8 +83,8 @@ let initialise_crypto_ctx version session =
 
   let c_mac, s_mac, c_key, s_key, c_iv, s_iv =
     let iv_l = match version with
-      | TLS_1_0 -> Some ()
-      | _       -> None
+      | `TLS_1_0 -> Some ()
+      | _ -> None
     in
     let key_len, iv_len, mac_len = Ciphersuite.key_length iv_l pp in
     let kblen = 2 * key_len + 2 * mac_len + 2 * iv_len
@@ -98,8 +98,8 @@ let initialise_crypto_ctx version session =
     let open Crypto.Ciphers in
     let cipher_st =
       let iv_mode = match version with
-        | TLS_1_0 -> Iv iv
-        | _       -> Random_iv
+        | `TLS_1_0 -> Iv iv
+        | _ -> Random_iv
       in
       get_cipher ~secret:cipher_k ~hmac_secret:mac_k ~iv_mode ~nonce:iv pp
     and sequence = 0L in

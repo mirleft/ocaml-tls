@@ -24,12 +24,9 @@ module Make (F : Mirage_flow.S) = struct
     | #Mirage_flow.write_error as e -> Mirage_flow.pp_write_error ppf e
     | #error as e                   -> pp_error ppf e
 
-  type tracer = Sexplib.Sexp.t -> unit
-
   type flow = {
     role           : [ `Server | `Client ] ;
     flow           : FLOW.flow ;
-    tracer         : tracer option ;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
                      | `Error of error ] ;
@@ -59,17 +56,10 @@ module Make (F : Mirage_flow.S) = struct
     | Ok ()   -> Ok ()
     | Error e -> Error (`Write e :> write_error)
 
-  let tracing flow f =
-    match flow.tracer with
-    | None      -> f ()
-    | Some hook -> Tls.Tracing.active ~hook f
-
   let read_react flow =
 
     let handle tls buf =
-      match
-        tracing flow @@ fun () -> Tls.Engine.handle_tls tls buf
-      with
+      match Tls.Engine.handle_tls tls buf with
       | `Ok (res, `Response resp, `Data data) ->
           flow.state <- ( match res with
             | `Ok tls      -> `Active tls
@@ -114,9 +104,7 @@ module Make (F : Mirage_flow.S) = struct
     | `Eof     -> return @@ Error `Closed
     | `Error e -> return @@ Error (e :> write_error)
     | `Active tls ->
-        match
-          tracing flow @@ fun () -> Tls.Engine.send_application_data tls bufs
-        with
+        match Tls.Engine.send_application_data tls bufs with
         | Some (tls, answer) ->
             flow.state <- `Active tls ;
             FLOW.write flow.flow answer >>= check_write flow
@@ -151,7 +139,7 @@ module Make (F : Mirage_flow.S) = struct
     | `Eof        -> return @@ Error `Closed
     | `Error e    -> return @@ Error (e :> write_error)
     | `Active tls ->
-        match tracing flow @@ fun () -> Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
+        match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
         | None             ->
             (* XXX make this impossible to reach *)
             invalid_arg "Renegotiation already in progress"
@@ -163,17 +151,26 @@ module Make (F : Mirage_flow.S) = struct
             | Ok _         -> Ok ()
             | Error _ as e -> e
 
+  let key_update ?request flow =
+    match flow.state with
+    | `Eof        -> return @@ Error `Closed
+    | `Error e    -> return @@ Error (e :> write_error)
+    | `Active tls ->
+      match Tls.Engine.key_update ?request tls with
+      | Error _ -> invalid_arg "Key update failed"
+      | Ok (tls', buf) ->
+        flow.state <- `Active tls' ;
+        FLOW.write flow.flow buf >>= check_write flow
+
   let close flow =
     match flow.state with
     | `Active tls ->
       flow.state <- `Eof ;
-      let (_, buf) = tracing flow @@ fun () ->
-        Tls.Engine.send_close_notify tls
-      in
+      let (_, buf) = Tls.Engine.send_close_notify tls in
       FLOW.(write flow.flow buf >>= fun _ -> close flow.flow)
     | _           -> return_unit
 
-  let client_of_flow ?trace conf ?host flow =
+  let client_of_flow conf ?host flow =
     let conf' = match host with
       | None      -> conf
       | Some host -> Tls.Config.peer conf host
@@ -184,17 +181,15 @@ module Make (F : Mirage_flow.S) = struct
       flow   = flow ;
       state  = `Active tls ;
       linger = [] ;
-      tracer = trace ;
     } in
     FLOW.write flow init >>= fun _ -> drain_handshake tls_flow
 
-  let server_of_flow ?trace conf flow =
+  let server_of_flow conf flow =
     let tls_flow = {
       role   = `Server ;
       flow   = flow ;
       state  = `Active (Tls.Engine.server conf) ;
       linger = [] ;
-      tracer = trace ;
     } in
     drain_handshake tls_flow
 

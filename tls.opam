@@ -31,6 +31,11 @@ depends: [
   "ounit" {with-test & >= "2.2.0"}
   "lwt" {>= "3.0.0"}
   "ptime" {>= "0.8.1"}
+  "hacl_x25519"
+  "fiat-p256"
+  "hkdf"
+  "logs"
+  "alcotest" {with-test}
 ]
 
 tags: [ "org:mirage"]

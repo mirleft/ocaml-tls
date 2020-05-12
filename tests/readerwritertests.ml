@@ -15,9 +15,9 @@ let readerwriter_version v _ =
   | Error _ -> assert_failure "read and write version broken"
 
 let version_tests =
-  [ "ReadWrite version TLS-1.0" >:: readerwriter_version Core.TLS_1_0 ;
-    "ReadWrite version TLS-1.1" >:: readerwriter_version Core.TLS_1_1 ;
-    "ReadWrite version TLS-1.2" >:: readerwriter_version Core.TLS_1_2 ]
+  [ "ReadWrite version TLS-1.0" >:: readerwriter_version `TLS_1_0 ;
+    "ReadWrite version TLS-1.1" >:: readerwriter_version `TLS_1_1 ;
+    "ReadWrite version TLS-1.2" >:: readerwriter_version `TLS_1_2 ]
 
 let readerwriter_header (v, ct, cs) _ =
   let buf = Writer.assemble_hdr v (ct, cs) in
@@ -25,43 +25,40 @@ let readerwriter_header (v, ct, cs) _ =
   | Ok (`Record ((hdr, payload), f)) ->
     let open Core in
     assert_equal 0 (Cstruct.len f) ;
-    assert_equal (Supported v) hdr.version ;
+    assert_equal (v :> tls_any_version) hdr.version ;
     assert_equal ct hdr.content_type ;
     assert_cs_eq cs payload ;
-    (match hdr.version with
-     | Supported v' ->
-       let buf' = Writer.assemble_hdr v' (hdr.content_type, payload) in
-       (match Reader.parse_record buf' with
-        | Ok (`Record ((hdr, payload), f)) ->
-          assert_equal 0 (Cstruct.len f) ;
-          assert_equal (Supported v) hdr.version ;
-          assert_equal ct hdr.content_type ;
-          assert_cs_eq cs payload ;
-        | _ -> assert_failure "inner header broken")
-     | _ -> assert_failure "broken version")
+    let buf' = Writer.assemble_hdr v (hdr.content_type, payload) in
+    (match Reader.parse_record buf' with
+     | Ok (`Record ((hdr, payload), f)) ->
+       assert_equal 0 (Cstruct.len f) ;
+       assert_equal (v :> tls_any_version) hdr.version ;
+       assert_equal ct hdr.content_type ;
+       assert_cs_eq cs payload ;
+     | _ -> assert_failure "inner header broken")
   | _ -> assert_failure "header broken"
 
 let header_tests =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
-  [ "ReadWrite header" >:: readerwriter_header (Core.TLS_1_0, Packet.HANDSHAKE, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_1, Packet.HANDSHAKE, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_2, Packet.HANDSHAKE, a) ;
+  [ "ReadWrite header" >:: readerwriter_header (`TLS_1_0, Packet.HANDSHAKE, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_1, Packet.HANDSHAKE, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_2, Packet.HANDSHAKE, a) ;
 
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_0, Packet.APPLICATION_DATA, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_1, Packet.APPLICATION_DATA, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_2, Packet.APPLICATION_DATA, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_0, Packet.APPLICATION_DATA, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_1, Packet.APPLICATION_DATA, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_2, Packet.APPLICATION_DATA, a) ;
 
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_0, Packet.CHANGE_CIPHER_SPEC, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_1, Packet.CHANGE_CIPHER_SPEC, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_2, Packet.CHANGE_CIPHER_SPEC, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_0, Packet.CHANGE_CIPHER_SPEC, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_1, Packet.CHANGE_CIPHER_SPEC, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_2, Packet.CHANGE_CIPHER_SPEC, a) ;
 
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_0, Packet.HEARTBEAT, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_1, Packet.HEARTBEAT, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_2, Packet.HEARTBEAT, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_0, Packet.HEARTBEAT, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_1, Packet.HEARTBEAT, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_2, Packet.HEARTBEAT, a) ;
 
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_0, Packet.ALERT, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_1, Packet.ALERT, a) ;
-    "ReadWrite header" >:: readerwriter_header (Core.TLS_1_2, Packet.ALERT, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_0, Packet.ALERT, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_1, Packet.ALERT, a) ;
+    "ReadWrite header" >:: readerwriter_header (`TLS_1_2, Packet.ALERT, a) ;
  ]
 
 let readerwriter_alert (lvl, typ) _ =
@@ -153,12 +150,12 @@ let rw_alert_tests = Packet.([
   ( Some WARNING,  DECOMPRESSION_FAILURE ) ;
   ( Some WARNING,  HANDSHAKE_FAILURE ) ; *)
   ( Some WARNING,  NO_CERTIFICATE_RESERVED ) ;
-  ( Some WARNING,  BAD_CERTIFICATE ) ;
-  ( Some WARNING,  UNSUPPORTED_CERTIFICATE ) ;
-  ( Some WARNING,  CERTIFICATE_REVOKED ) ;
-  ( Some WARNING,  CERTIFICATE_EXPIRED ) ;
-  ( Some WARNING,  CERTIFICATE_UNKNOWN ) ;
-  ( Some WARNING,  ILLEGAL_PARAMETER ) ;
+  ( Some FATAL,  BAD_CERTIFICATE ) ;
+  ( Some FATAL,  UNSUPPORTED_CERTIFICATE ) ;
+  ( Some FATAL,  CERTIFICATE_REVOKED ) ;
+  ( Some FATAL,  CERTIFICATE_EXPIRED ) ;
+  ( Some FATAL,  CERTIFICATE_UNKNOWN ) ;
+  ( Some FATAL,  ILLEGAL_PARAMETER ) ;
 (*  ( Some WARNING,  UNKNOWN_CA ) ;
   ( Some WARNING,  ACCESS_DENIED ) ;
   ( Some WARNING,  DECODE_ERROR ) ;
@@ -171,10 +168,10 @@ let rw_alert_tests = Packet.([
   ( Some WARNING,  NO_RENEGOTIATION ) ;
 (*  ( Some WARNING,  UNSUPPORTED_EXTENSION ) ; *)
   ( Some WARNING,  CERTIFICATE_UNOBTAINABLE ) ;
-  ( Some WARNING,  UNRECOGNIZED_NAME ) ;
-  ( Some WARNING,  BAD_CERTIFICATE_STATUS_RESPONSE ) ;
+  ( Some FATAL,  UNRECOGNIZED_NAME ) ;
+  ( Some FATAL,  BAD_CERTIFICATE_STATUS_RESPONSE ) ;
   ( Some WARNING,  BAD_CERTIFICATE_HASH_VALUE ) ;
-  ( Some WARNING,  UNKNOWN_PSK_IDENTITY ) ;
+  ( Some FATAL,  UNKNOWN_PSK_IDENTITY ) ;
 ])
 
 let rw_alert_tests =
@@ -242,19 +239,17 @@ let rw_ds_tests =
     (fun i f -> "RW digitally signed " ^ string_of_int i >:: readerwriter_digitally_signed f)
     rw_ds_params
 
-let readerwriter_digitally_signed_1_2 (h, s, params) _ =
-  let buf = Writer.assemble_digitally_signed_1_2 h s params in
+let readerwriter_digitally_signed_1_2 (sigalg, params) _ =
+  let buf = Writer.assemble_digitally_signed_1_2 sigalg params in
   match Reader.parse_digitally_signed_1_2 buf with
-  | Ok (h', s', params') ->
-      assert_equal h h' ;
-      assert_equal s s' ;
+  | Ok (sigalg', params') ->
+      assert_equal sigalg sigalg' ;
       assert_cs_eq params params' ;
       (* lets get crazy and do it one more time *)
-      let buf' = Writer.assemble_digitally_signed_1_2 h' s' params' in
+      let buf' = Writer.assemble_digitally_signed_1_2 sigalg' params' in
       (match Reader.parse_digitally_signed_1_2 buf' with
-      | Ok (h'', s'', params'') ->
-          assert_equal h h'' ;
-          assert_equal s s'' ;
+      | Ok (sigalg'', params'') ->
+          assert_equal sigalg sigalg'' ;
           assert_cs_eq params params''
       | Error _ -> assert_failure "inner read and write digitally signed 1.2 broken")
   | Error _ -> assert_failure "read and write digitally signed 1.2 broken"
@@ -268,10 +263,12 @@ let rw_ds_1_2_params =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let emp = list_to_cstruct [] in
   let cs = [ a ; a <+> a ; emp ; emp <+> a ] in
-  let hashes = [ `MD5 ; `SHA1 ; `SHA224 ; `SHA256 ; `SHA384 ; `SHA512 ] in
-  let sign = Packet.([ ANONYMOUS ; RSA ; DSA ; ECDSA ]) in
-  let h_s = cartesian_product (fun h s -> (h, s)) hashes sign in
-  cartesian_product (fun (h, s) c -> (h, s, c)) h_s cs
+  let sig_algs = [
+    `RSA_PKCS1_MD5 ; `RSA_PKCS1_SHA1 ; `RSA_PKCS1_SHA224 ; `RSA_PKCS1_SHA256 ;
+    `RSA_PKCS1_SHA384 ; `RSA_PKCS1_SHA512 ;
+    `RSA_PSS_RSAENC_SHA256 ; `RSA_PSS_RSAENC_SHA384 ; `RSA_PSS_RSAENC_SHA512
+  ] in
+  cartesian_product (fun sigalg c -> (sigalg, c)) sig_algs cs
 
 let rw_ds_1_2_tests =
   List.mapi
@@ -318,13 +315,13 @@ let rw_handshake_cstruct_data_vals =
           Finished data_cs ;
           ClientKeyExchange emp ;
           ClientKeyExchange data_cs ;
-          Certificate [] ;
-          Certificate [data_cs] ;
-          Certificate [data_cs; data_cs] ;
-          Certificate [data_cs ; emp] ;
-          Certificate [emp ; data_cs] ;
-          Certificate [emp ; data_cs ; emp] ;
-          Certificate [emp ; data_cs ; emp ; data_cs]
+          Certificate (Writer.assemble_certificates []) ;
+          Certificate (Writer.assemble_certificates [data_cs]) ;
+          Certificate (Writer.assemble_certificates [data_cs; data_cs]) ;
+          Certificate (Writer.assemble_certificates [data_cs ; emp]) ;
+          Certificate (Writer.assemble_certificates [emp ; data_cs]) ;
+          Certificate (Writer.assemble_certificates [emp ; data_cs ; emp]) ;
+          Certificate (Writer.assemble_certificates [emp ; data_cs ; emp ; data_cs])
        ])
 
 let rw_handshake_cstruct_data_tests =
@@ -355,7 +352,7 @@ let rw_handshake_client_hello_vals =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let client_random = list_to_cstruct (rnd @ rnd) in
   Core.(let ch : client_hello =
-          { client_version = Supported TLS_1_2 ;
+          { client_version = `TLS_1_2 ;
             client_random ;
             sessionid = None ;
             ciphersuites = [] ;
@@ -363,8 +360,8 @@ let rw_handshake_client_hello_vals =
         in
         [
           ClientHello ch ;
-          ClientHello { ch with client_version = Supported TLS_1_0 } ;
-          ClientHello { ch with client_version = Supported TLS_1_1 } ;
+          ClientHello { ch with client_version = `TLS_1_0 } ;
+          ClientHello { ch with client_version = `TLS_1_1 } ;
 
           ClientHello { ch with ciphersuites = [ Packet.TLS_NULL_WITH_NULL_NULL ] } ;
           ClientHello { ch with ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) } ;
@@ -379,15 +376,15 @@ let rw_handshake_client_hello_vals =
           ClientHello { ch with extensions = [ `Hostname "foobar" ] } ;
           ClientHello { ch with extensions = [ `Hostname "foobarblubb" ] } ;
 
-          ClientHello { ch with extensions = [ `Hostname "foobarblubb" ; `EllipticCurves Packet.([SECP521R1; SECP384R1]) ] } ;
+          ClientHello { ch with extensions = [ `Hostname "foobarblubb" ; `SupportedGroups Packet.([SECP521R1; SECP384R1]) ] } ;
 
           ClientHello { ch with extensions = [ `ALPN ["h2"; "http/1.1"] ] } ;
 
           ClientHello { ch with extensions = [
                              `Hostname "foobarblubb" ;
-                             `EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
+                             `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
                              `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             `SignatureAlgorithms [(`MD5, Packet.RSA)] ;
+                             `SignatureAlgorithms [`RSA_PKCS1_MD5] ;
                              `ALPN ["h2"; "http/1.1"]
                            ] } ;
 
@@ -401,9 +398,9 @@ let rw_handshake_client_hello_vals =
                         sessionid = (Some client_random) ;
                         extensions = [
                              `Hostname "foobarblubb" ;
-                             `EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
+                             `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
                              `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             `SignatureAlgorithms [(`SHA1, Packet.ANONYMOUS); (`MD5, Packet.RSA)] ;
+                             `SignatureAlgorithms [`RSA_PKCS1_SHA1; `RSA_PKCS1_SHA512] ;
                              `ALPN ["h2"; "http/1.1"]
                       ] } ;
 
@@ -412,9 +409,9 @@ let rw_handshake_client_hello_vals =
                         sessionid = (Some client_random) ;
                         extensions = [
                              `Hostname "foobarblubb" ;
-                             `EllipticCurves Packet.([SECP521R1; SECP384R1]) ;
+                             `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
                              `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
-                             `SignatureAlgorithms [(`MD5, Packet.ANONYMOUS); (`SHA1, Packet.RSA)] ;
+                             `SignatureAlgorithms [`RSA_PKCS1_MD5; `RSA_PKCS1_SHA256] ;
                              `SecureRenegotiation client_random ;
                              `ALPN ["h2"; "http/1.1"]
                       ] } ;
@@ -449,7 +446,7 @@ let rw_handshake_server_hello_vals =
   let rnd = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let server_random = list_to_cstruct (rnd @ rnd) in
   Core.(let sh : server_hello =
-          { server_version = TLS_1_2 ;
+          { server_version = `TLS_1_2 ;
             server_random ;
             sessionid = None ;
             ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
@@ -457,8 +454,8 @@ let rw_handshake_server_hello_vals =
         in
         [
           ServerHello sh ;
-          ServerHello { sh with server_version = TLS_1_0 } ;
-          ServerHello { sh with server_version = TLS_1_1 } ;
+          ServerHello { sh with server_version = `TLS_1_0 } ;
+          ServerHello { sh with server_version = `TLS_1_1 } ;
 
           ServerHello { sh with sessionid = (Some server_random) } ;
 
