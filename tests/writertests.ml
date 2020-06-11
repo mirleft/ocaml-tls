@@ -256,9 +256,9 @@ let handshake_assembler_tests =
    ( Finished emp , [ 20 ] @ empl ) ;
    ( Finished (a_cs <+> a_cs) , [ 20 ] @ le2 @ a_l @ a_l ) ;
 
-   ( ClientKeyExchange emp , [ 16; 0; 0; 2; 0; 0 ] ) ;
-   ( ClientKeyExchange a_cs , [ 16; 0; 0; 18; 0; 16 ] @ a_l ) ;
-   ( ClientKeyExchange (a_cs <+> a_cs) , [ 16; 0; 0; 34; 0; 32 ] @ a_l @ a_l ) ;
+   ( ClientKeyExchange emp , [ 16; 0; 0; 0 ] ) ;
+   ( ClientKeyExchange a_cs , [ 16; 0; 0; 16 ] @ a_l ) ;
+   ( ClientKeyExchange (a_cs <+> a_cs) , [ 16; 0; 0; 32 ] @ a_l @ a_l ) ;
 
    ( ServerKeyExchange emp , [ 12 ] @ empl ) ;
    ( ServerKeyExchange a_cs , [ 12 ] @ le @ a_l ) ;

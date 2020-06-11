@@ -17,14 +17,17 @@ let default_client_hello config =
     | Some x -> [`Hostname x]
   in
   let version = max_protocol_version config.protocol_versions in
+  let ecc_groups = match List.filter Config.elliptic_curve config.groups with
+    | [] -> []
+    | xs -> [ `SupportedGroups (List.map group_to_named_group xs) ]
+  in
   let extensions, secrets = match version with
-    | `TLS_1_0 | `TLS_1_1 -> ([], [])
-    | `TLS_1_2 -> (* TODO: filter only PKCS1 ones? *)
-      ([`SignatureAlgorithms config.signature_algorithms], [])
+    | `TLS_1_0 | `TLS_1_1 -> (ecc_groups, [])
+    | `TLS_1_2 ->
+      (`SignatureAlgorithms config.signature_algorithms :: ecc_groups, [])
     | `TLS_1_3 ->
       let sig_alg = config.signature_algorithms (* TODO: filter deprecated ones *)
-      and groups =
-         List.map group_to_named_group config.groups
+      and groups = List.map group_to_named_group config.groups
       and secrets, keyshares =
         (* OTOH, we could send all the keyshares (but this is pretty substantial size) *)
         (* instead we pick the first two groups and send keyshares *)
@@ -224,9 +227,8 @@ let answer_certificate_RSA state (session : session_data) cs raw log =
   let ver = Writer.assemble_protocol_version version in
   let premaster = ver <+> Mirage_crypto_rng.generate 46 in
   peer_rsa_key peer_certificate >|= fun pubkey ->
-  let kex = Mirage_crypto_pk.Rsa.PKCS1.encrypt ~key:pubkey premaster
-  in
-
+  let kex = Mirage_crypto_pk.Rsa.PKCS1.encrypt ~key:pubkey premaster in
+  let kex = Writer.assemble_client_dh_key_exchange kex in
   let machina =
     AwaitCertificateRequestOrServerHelloDone
       (session, kex, premaster, log @ [raw])
@@ -245,32 +247,52 @@ let answer_certificate_DHE_RSA state (session : session_data) cs raw log =
   ({ state with machina = Client machina }, [])
 
 let answer_server_key_exchange_DHE_RSA state (session : session_data) kex raw log =
-  let dh_params kex =
-    match Reader.parse_dh_parameters kex with
-    | Ok data  -> return data
-    | Error re -> fail (`Fatal (`ReaderError re))
-  in
-  let unpack_dh dh_params =
-    match Crypto.dh_params_unpack dh_params with
-    | Ok data -> return data
-    | Error (`Msg m) -> fail (`Fatal (`ReaderError (Unknown m)))
-  in
+  let to_fatal r = match r with Ok cs -> return cs | Error er -> fail (`Fatal (`ReaderError er)) in
+  (if Ciphersuite.ecc session.ciphersuite then
+     to_fatal (Reader.parse_ec_parameters kex) >|= fun (g, share, raw, left) ->
+     let g = match g with | `X25519 -> `Hacl `X25519 | `P256 -> `Fiat `P256 in
+     (g, share, raw, left)
+   else
+     let unpack_dh dh_params =
+       match Crypto.dh_params_unpack dh_params with
+       | Ok data -> return data
+       | Error (`Msg m) -> fail (`Fatal (`ReaderError (Unknown m)))
+     in
+     to_fatal (Reader.parse_dh_parameters kex) >>= fun (dh_params, raw_dh_params, leftover) ->
+     unpack_dh dh_params >>= fun (group, shared) ->
+     guard (Mirage_crypto_pk.Dh.modulus_size group >= Config.min_dh_size)
+       (`Fatal `InsufficientDH) >|= fun () ->
+     (`Mirage_crypto group, shared, raw_dh_params, leftover)
+  ) >>= fun (group, shared, raw_dh_params, leftover) ->
 
-  dh_params kex >>= fun (dh_params, raw_dh_params, leftover) ->
   let sigdata = session.common_session_data.client_random <+> session.common_session_data.server_random <+> raw_dh_params in
   verify_digitally_signed state.protocol_version state.config.signature_algorithms leftover sigdata session.common_session_data.peer_certificate >>= fun () ->
-  unpack_dh dh_params >>= fun (group, shared) ->
-  guard (Mirage_crypto_pk.Dh.modulus_size group >= Config.min_dh_size)
-    (`Fatal `InsufficientDH) >>= fun () ->
 
-  let secret, kex = Mirage_crypto_pk.Dh.gen_key group in
-  match Mirage_crypto_pk.Dh.shared secret shared with
-  | None     -> fail (`Fatal `InvalidDH)
-  | Some pms -> let machina =
-                  AwaitCertificateRequestOrServerHelloDone
-                    (session, kex, pms, log @ [raw])
-                in
-                return ({ state with machina = Client machina }, [])
+  (match group with
+   | `Mirage_crypto g ->
+     let secret, client_share = Mirage_crypto_pk.Dh.gen_key g in
+     begin match Mirage_crypto_pk.Dh.shared secret shared with
+       | None     -> fail (`Fatal `InvalidDH)
+       | Some pms -> return (pms, Writer.assemble_client_dh_key_exchange client_share)
+     end
+   | `Fiat `P256 ->
+     let secret, client_share = Fiat_p256.gen_key ~rng:Mirage_crypto_rng.generate in
+     begin match Fiat_p256.key_exchange secret shared with
+       | Error _ -> fail (`Fatal `InvalidDH)
+       | Ok pms -> return (pms, Writer.assemble_client_ec_key_exchange client_share)
+     end
+   | `Hacl `X25519 ->
+     let secret, client_share = Hacl_x25519.gen_key ~rng:Mirage_crypto_rng.generate in
+     begin match Hacl_x25519.key_exchange secret shared with
+       | Error _ -> fail (`Fatal `InvalidDH)
+       | Ok pms -> return (pms, Writer.assemble_client_ec_key_exchange client_share)
+     end
+  ) >|= fun (pms, kex) ->
+  let machina =
+    AwaitCertificateRequestOrServerHelloDone
+      (session, kex, pms, log @ [raw])
+  in
+  { state with machina = Client machina }, []
 
 let answer_certificate_request state (session : session_data) cr kex pms raw log =
   let cfg = state.config in

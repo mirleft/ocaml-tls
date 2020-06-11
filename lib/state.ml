@@ -99,6 +99,7 @@ type session_data = {
   common_session_data    : common_session_data ;
   client_version         : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
   ciphersuite            : Ciphersuite.ciphersuite ;
+  group                  : group option ;
   renegotiation          : reneg_params ; (* renegotiation data *)
   session_id             : Cstruct_sexp.t ;
   extended_ms            : bool ;
@@ -109,9 +110,9 @@ type server_handshake_state =
   | AwaitClientHello (* initial state *)
   | AwaitClientHelloRenegotiate
   | AwaitClientCertificate_RSA of session_data * hs_log
-  | AwaitClientCertificate_DHE_RSA of session_data * Mirage_crypto_pk.Dh.secret * hs_log
+  | AwaitClientCertificate_DHE_RSA of session_data * dh_secret * hs_log
   | AwaitClientKeyExchange_RSA of session_data * hs_log (* server hello done is sent, and RSA key exchange used, waiting for a client key exchange message *)
-  | AwaitClientKeyExchange_DHE_RSA of session_data * Mirage_crypto_pk.Dh.secret * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
+  | AwaitClientKeyExchange_DHE_RSA of session_data * dh_secret * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
   | AwaitClientCertificateVerify of session_data * crypto_context * crypto_context * hs_log
   | AwaitClientChangeCipherSpec of session_data * crypto_context * crypto_context * hs_log (* client key exchange received, next should be change cipher spec *)
   | AwaitClientChangeCipherSpecResume of session_data * crypto_context * Cstruct_sexp.t * hs_log (* resumption: next should be change cipher spec *)

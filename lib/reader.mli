@@ -34,6 +34,10 @@ val parse_certificate_request_1_3 : Cstruct.t -> (Cstruct.t option * Core.certif
 val parse_certificates : Cstruct.t -> Cstruct.t list result
 val parse_certificates_1_3 : Cstruct.t -> (Cstruct.t * (Cstruct.t * 'a list) list) result
 
+val parse_client_dh_key_exchange : Cstruct.t -> Cstruct.t result
+val parse_client_ec_key_exchange : Cstruct.t -> Cstruct.t result
+
 val parse_dh_parameters        : Cstruct.t -> (Core.dh_parameters * Cstruct.t * Cstruct.t) result
+val parse_ec_parameters        : Cstruct.t -> ([ `X25519 | `P256 ] * Cstruct.t * Cstruct.t * Cstruct.t) result
 val parse_digitally_signed     : Cstruct.t -> Cstruct.t result
 val parse_digitally_signed_1_2 : Cstruct.t -> (Core.signature_algorithm * Cstruct.t) result

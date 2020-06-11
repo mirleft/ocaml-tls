@@ -87,6 +87,12 @@ module Ciphers = struct
     `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 ;
     `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
     `TLS_DHE_RSA_WITH_AES_128_CBC_SHA ;
+    `TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 ;
+    `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 ;
+    `TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 ;
+    `TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 ;
+    `TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA ;
+    `TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA ;
     `TLS_RSA_WITH_AES_256_GCM_SHA384 ;
     `TLS_RSA_WITH_AES_128_GCM_SHA256 ;
     `TLS_RSA_WITH_AES_256_CCM ;
@@ -126,11 +132,12 @@ let min_dh_size = 1024
 
 let min_rsa_key_size = 1024
 
-(* ff-dhe draft 2048-bit group *)
-let dh_group = Mirage_crypto_pk.Dh.Group.ffdhe2048
-
 let supported_groups =
   [ `X25519 ; `P256 ; `FFDHE2048 ; `FFDHE3072 ; `FFDHE4096 ; `FFDHE6144 ; `FFDHE8192 ]
+
+let elliptic_curve = function
+  | `X25519 | `P256 -> true
+  | _ -> false
 
 let default_config = {
   ciphers = Ciphers.default ;
@@ -165,6 +172,13 @@ let validate_common config =
     invalid "set of ciphers is not a proper set" ;
   if List.length config.ciphers = 0 then
     invalid "set of ciphers is empty" ;
+  (* groups and ciphersuites (<= 1.2): any ECC if a ECDHE cipher present *)
+  if List.exists Ciphersuite.ecc config.ciphers then
+    if not (List.exists elliptic_curve config.groups) then
+      invalid_arg "ECDHE ciphersuite configured, but no ECC curve";
+  if List.exists (fun c -> Ciphersuite.(ciphersuite_fs c && not (ecc c))) config.ciphers then
+    if List.for_all elliptic_curve config.groups then
+      invalid_arg "DHE ciphersuites configured, but no FFDHE group";
   if List.exists (fun proto -> let len = String.length proto in len = 0 || len > 255) config.alpn_protocols then
     invalid "invalid alpn protocol" ;
   if List.length config.alpn_protocols > 0xffff then

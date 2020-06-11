@@ -27,7 +27,6 @@ let cached_session : Tls.Core.epoch_data =
 let echo_client ?ca hostname port =
   let open Lwt_io in
 
-  let port          = int_of_string port in
   auth ~hostname ?ca () >>= fun authenticator ->
   X509_lwt.private_of_pems
     ~cert:server_cert
@@ -40,15 +39,32 @@ let echo_client ?ca hostname port =
     lines stdin |> Lwt_stream.iter_s (write_line oc)
   ]
 
-let () =
-  try (
-    match Sys.argv with
-    | [| _ ; host ; port ; trust |] -> Lwt_main.run (echo_client host port ~ca:trust)
-    | [| _ ; host ; port |]         -> Lwt_main.run (echo_client host port)
-    | [| _ ; host |]                -> Lwt_main.run (echo_client host "443")
-    | args                          -> Printf.eprintf "%s <host> <port>\n%!" args.(0) ) with
+let jump _ port host ca =
+  try
+    Lwt_main.run (echo_client ?ca host port)
+  with
   | Tls_lwt.Tls_alert alert as exn ->
-      print_alert "remote end" alert ; raise exn
+    print_alert "remote end" alert ; raise exn
   | Tls_lwt.Tls_failure alert as exn ->
-      print_fail "our end" alert ; raise exn
+    print_fail "our end" alert ; raise exn
+
+open Cmdliner
+
+let port =
+  let doc = "Port to connect to" in
+  Arg.(value & opt int 443 & info [ "port" ] ~doc)
+
+let host =
+  let doc = "Host to connect to" in
+  Arg.(value & opt string "" & info [ "host" ] ~doc)
+
+let trust =
+  let doc = "Trust anchor" in
+  Arg.(value & opt (some string) None & info [ "trust" ] ~doc)
+
+let cmd =
+  Term.(const jump $ setup_log $ port $ host $ trust),
+  Term.info "server" ~version:"%%VERSION_NUM%%"
+
+let () = match Term.eval cmd with `Ok () -> exit 0 | _ -> exit 1
 

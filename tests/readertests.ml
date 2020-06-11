@@ -895,7 +895,7 @@ let good_handshake_cstruct_data =
 
   [ ([12; 0; 0; 12] @ data , (Core.ServerKeyExchange data_cs)) ;
     ([20; 0; 0; 12] @ data , (Core.Finished data_cs)) ;
-    ([16; 0; 0; 14; 0; 12] @ data , (Core.ClientKeyExchange data_cs)) ;
+    ([16; 0; 0; 12] @ data , (Core.ClientKeyExchange data_cs)) ;
 
     ([11; 0; 0; 3; 0; 0; 0] , (Core.Certificate (Writer.assemble_certificates []))) ;
     ([11; 0; 0; 18; 0; 0; 15; 0; 0; 12] @ data , (Core.Certificate (Writer.assemble_certificates [data_cs]))) ;
@@ -1109,8 +1109,6 @@ let bad_handshake_cstruct_data =
     [20; 0; 1; 12] @ data ;
     [20; 0; 0; 11] @ data ;
     [16; 0; 0; 15; 0; 12] @ data ;
-    [16; 0; 0; 14; 0; 13] @ data ;
-    [16; 0; 0; 14; 0; 11] @ data ;
 
     [25; 0; 0; 14; 0; 12] @ data ;
     [255; 0; 0; 14; 0; 12] @ data ;

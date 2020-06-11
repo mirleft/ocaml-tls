@@ -53,14 +53,21 @@ let serve_ssl port callback =
     server_s () >>= fun s ->
     loop s
 
-let echo_server port =
+let echo_server _ port =
+  Lwt_main.run @@
   serve_ssl port @@ fun (ic, oc) _addr ->
-    lines ic |> Lwt_stream.iter_s (fun line ->
+  lines ic |> Lwt_stream.iter_s (fun line ->
       yap ~tag:"handler" ("+ " ^ line) >>= fun () ->
       Lwt_io.write_line oc line)
 
-let () =
-  let port =
-    try int_of_string Sys.argv.(1) with _ -> 4433
-  in
-  Lwt_main.run (echo_server port)
+open Cmdliner
+
+let port =
+  let doc = "Port to connect to" in
+  Arg.(value & opt int 4433 & info [ "port" ] ~doc)
+
+let cmd =
+  Term.(ret (const echo_server $ setup_log $ port)),
+  Term.info "server" ~version:"%%VERSION_NUM%%"
+
+let () = match Term.eval cmd with `Ok () -> exit 0 | _ -> exit 1

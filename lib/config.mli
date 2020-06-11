@@ -41,7 +41,7 @@ type config = private {
   cached_session : epoch_data option ;
   cached_ticket : (psk13 * epoch_data) option ;
   alpn_protocols : string list ; (** optional ordered list of accepted alpn_protocols *)
-  groups : group list ;
+  groups : group list ; (** the first FFDHE will be used for TLS 1.2 and below if a DHE ciphersuite is used *)
   zero_rtt : int32 ;
 }
 
@@ -124,15 +124,13 @@ val supported_signature_algorithms  : signature_algorithm list
 (** [min_dh_size] is minimal diffie hellman group size in bits (currently 1024) *)
 val min_dh_size : int
 
-(** [dh_group] is the default Diffie-Hellman group (currently the
-ffdhe2048 group from
-{{:https://www.ietf.org/id/draft-ietf-tls-negotiated-ff-dhe-10.txt}Negotiated
-Finite Field Diffie-Hellman Ephemeral Parameters for TLS}) *)
-val dh_group : Mirage_crypto_pk.Dh.group
-
 (** [supported_groups] are the Diffie-Hellman groups supported in this
     library. *)
 val supported_groups : group list
+
+(** [elliptic_curve group] is [true] if group is an elliptic curve, [false]
+    otherwise. *)
+val elliptic_curve : group -> bool
 
 (** [min_rsa_key_size] is minimal RSA modulus key size in bits (currently 1024) *)
 val min_rsa_key_size : int
