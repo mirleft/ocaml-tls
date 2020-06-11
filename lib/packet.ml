@@ -237,8 +237,7 @@ let of_signature_alg = function
 (* EC RFC4492*)
 [%%cenum
 type ec_curve_type =
-  | EXPLICIT_PRIME [@id 1]
-  | EXPLICIT_CHAR2 [@id 2]
+  (* 1 and 2 are deprecated in RFC 8422 *)
   | NAMED_CURVE    [@id 3]
   [@@uint8_t] [@@sexp]
 ]
@@ -266,8 +265,7 @@ type named_group =
 [%%cenum
 type ec_point_format =
   | UNCOMPRESSED              [@id 0]
-  | ANSIX962_COMPRESSED_PRIME [@id 1]
-  | ANSIX962_COMPRESSED_CHAR2 [@id 2]
+  (* 1 and 2 are deprecated in RFC 8422 *)
   (* reserved 248..255 *)
   [@@uint8_t] [@@sexp]
 ]

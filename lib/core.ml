@@ -272,37 +272,6 @@ type dh_parameters = {
   dh_Ys : Cstruct_sexp.t;
 } [@@deriving sexp]
 
-type ec_curve = {
-  a : Cstruct_sexp.t;
-  b : Cstruct_sexp.t
-} [@@deriving sexp]
-
-type ec_prime_parameters = {
-  prime    : Cstruct_sexp.t;
-  curve    : ec_curve;
-  base     : Cstruct_sexp.t;
-  order    : Cstruct_sexp.t;
-  cofactor : Cstruct_sexp.t;
-  public   : Cstruct_sexp.t
-} [@@deriving sexp]
-
-type ec_char_parameters = {
-  m        : int;
-  basis    : ec_basis_type;
-  ks       : Cstruct_sexp.t list;
-  curve    : ec_curve;
-  base     : Cstruct_sexp.t;
-  order    : Cstruct_sexp.t;
-  cofactor : Cstruct_sexp.t;
-  public   : Cstruct_sexp.t
-} [@@deriving sexp]
-
-type ec_parameters =
-  | ExplicitPrimeParameters of ec_prime_parameters
-  | ExplicitCharParameters of ec_char_parameters
-  | NamedGroupParameters of (group * Cstruct_sexp.t)
-  [@@deriving sexp]
-
 type hello_retry = {
   retry_version : tls_version ;
   ciphersuite : ciphersuite13 ;
