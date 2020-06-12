@@ -1,3 +1,19 @@
+## v0.12.1 (2020-06-12)
+
+in #414 by @hannesm
+* Drop support for RC4 ciphersuite
+* Raise lower TLS version in default configuration to 1.2
+* tls_lwt no longer calls Mirage_crypto_rng_unix.initialize -- this needs to be
+  done in the application, inside Lwt_main.run:
+  `Mirage_crypto_rng_lwt.initialize () >>= fun () ->`
+* Support ECDHE ciphersuites in TLS 1.2 and below
+  (requested in #413 by @ryanakca, also in #362 by @orbitz @annubiz)
+* drop "TLS_" prefix from ciphersuite constructors
+* BUGFIX: TLS client (<= 1.2) assembling an empty Certificate message
+  (noticed in #413, present since 0.12.0 release)
+* Cleanup Packet.any_ciphersuite list (remove ARIA, CAMELLIA, KRB5, EXPORT)
+* Adapt interoperability test scripts with TLS 1.3 support
+
 ## v0.12.0 (2020-05-12)
 
 in #405 by @hannesm

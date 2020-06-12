@@ -9,13 +9,6 @@ open Mirage_crypto
 
 type hmac_key = Cstruct.t
 
-type 'k stream_state = {
-  cipher         : (module Cipher_stream.S with type key = 'k) ;
-  cipher_secret  : 'k ;
-  hmac           : Hash.hash ;
-  hmac_secret    : hmac_key
-}
-
 (* initialisation vector style, depending on TLS version *)
 type iv_mode =
   | Iv of Cstruct_sexp.t  (* traditional CBC (reusing last cipherblock) *)
@@ -45,13 +38,11 @@ type 'k aead_state = {
 
 (* state of a symmetric cipher *)
 type cipher_st =
-  | Stream : 'k stream_state -> cipher_st
   | CBC    : 'k cbc_state -> cipher_st
   | AEAD   : 'k aead_state -> cipher_st
 
 (* Sexplib stubs -- rethink how to play with crypto. *)
 let sexp_of_cipher_st = function
-  | Stream _ -> Sexp.Atom "<stream-state>"
   | CBC _    -> Sexp.Atom "<cbc-state>"
   | AEAD _   -> Sexp.Atom "<aead-state>"
 
@@ -99,6 +90,7 @@ type session_data = {
   common_session_data    : common_session_data ;
   client_version         : tls_any_version ; (* version in client hello (needed in RSA client key exchange) *)
   ciphersuite            : Ciphersuite.ciphersuite ;
+  group                  : group option ;
   renegotiation          : reneg_params ; (* renegotiation data *)
   session_id             : Cstruct_sexp.t ;
   extended_ms            : bool ;
@@ -109,9 +101,9 @@ type server_handshake_state =
   | AwaitClientHello (* initial state *)
   | AwaitClientHelloRenegotiate
   | AwaitClientCertificate_RSA of session_data * hs_log
-  | AwaitClientCertificate_DHE_RSA of session_data * Mirage_crypto_pk.Dh.secret * hs_log
+  | AwaitClientCertificate_DHE_RSA of session_data * dh_secret * hs_log
   | AwaitClientKeyExchange_RSA of session_data * hs_log (* server hello done is sent, and RSA key exchange used, waiting for a client key exchange message *)
-  | AwaitClientKeyExchange_DHE_RSA of session_data * Mirage_crypto_pk.Dh.secret * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
+  | AwaitClientKeyExchange_DHE_RSA of session_data * dh_secret * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
   | AwaitClientCertificateVerify of session_data * crypto_context * crypto_context * hs_log
   | AwaitClientChangeCipherSpec of session_data * crypto_context * crypto_context * hs_log (* client key exchange received, next should be change cipher spec *)
   | AwaitClientChangeCipherSpecResume of session_data * crypto_context * Cstruct_sexp.t * hs_log (* resumption: next should be change cipher spec *)
@@ -317,7 +309,7 @@ let common_data_to_epoch common is_server peer_name =
   let epoch : epoch_data =
     { state                  = `Established ;
       protocol_version       = `TLS_1_0 ;
-      ciphersuite            = `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
+      ciphersuite            = `DHE_RSA_WITH_AES_256_CBC_SHA ;
       peer_random ;
       peer_certificate       = common.peer_certificate ;
       peer_certificate_chain = common.peer_certificate_chain ;

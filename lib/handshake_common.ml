@@ -32,6 +32,14 @@ let hostname (h : client_hello) : [ `host ] Domain_name.t option =
   host_name_opt
     (map_find ~f:(function `Hostname s -> Some s | _ -> None) h.extensions)
 
+let groups (h : client_hello) =
+  match map_find ~f:(function `SupportedGroups g -> Some g | _ -> None) h.extensions with
+  | Some xs ->
+    List.fold_left (fun acc g ->
+        match named_group_to_group g with Some g -> g :: acc | _ -> acc)
+      [] xs
+  | None -> []
+
 let rec find_matching host certs =
   match certs with
   | (s::_, _) as chain ::xs ->
@@ -99,7 +107,8 @@ let empty_common_session_data = {
 let empty_session = {
   common_session_data = empty_common_session_data ;
   client_version      = `TLS_1_2 ;
-  ciphersuite         = `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
+  ciphersuite         = `DHE_RSA_WITH_AES_256_CBC_SHA ;
+  group               = Some `FFDHE2048 ;
   renegotiation       = Cstruct.(empty, empty) ;
   session_id          = Cstruct.empty ;
   extended_ms         = false ;

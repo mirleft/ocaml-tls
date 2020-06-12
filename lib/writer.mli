@@ -13,6 +13,12 @@ val assemble_change_cipher_spec : Cstruct.t
 
 val assemble_dh_parameters : Core.dh_parameters -> Cstruct.t
 
+val assemble_ec_parameters : Core.group -> Cstruct.t -> Cstruct.t
+
+val assemble_client_dh_key_exchange : Cstruct.t -> Cstruct.t
+
+val assemble_client_ec_key_exchange : Cstruct.t -> Cstruct.t
+
 val assemble_digitally_signed : Cstruct.t -> Cstruct.t
 
 val assemble_digitally_signed_1_2 : Core.signature_algorithm -> Cstruct.t -> Cstruct.t

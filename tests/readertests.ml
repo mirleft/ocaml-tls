@@ -895,7 +895,7 @@ let good_handshake_cstruct_data =
 
   [ ([12; 0; 0; 12] @ data , (Core.ServerKeyExchange data_cs)) ;
     ([20; 0; 0; 12] @ data , (Core.Finished data_cs)) ;
-    ([16; 0; 0; 14; 0; 12] @ data , (Core.ClientKeyExchange data_cs)) ;
+    ([16; 0; 0; 12] @ data , (Core.ClientKeyExchange data_cs)) ;
 
     ([11; 0; 0; 3; 0; 0; 0] , (Core.Certificate (Writer.assemble_certificates []))) ;
     ([11; 0; 0; 18; 0; 0; 15; 0; 0; 12] @ data , (Core.Certificate (Writer.assemble_certificates [data_cs]))) ;
@@ -1109,8 +1109,6 @@ let bad_handshake_cstruct_data =
     [20; 0; 1; 12] @ data ;
     [20; 0; 0; 11] @ data ;
     [16; 0; 0; 15; 0; 12] @ data ;
-    [16; 0; 0; 14; 0; 13] @ data ;
-    [16; 0; 0; 14; 0; 11] @ data ;
 
     [25; 0; 0; 14; 0; 12] @ data ;
     [255; 0; 0; 14; 0; 12] @ data ;
@@ -1230,15 +1228,6 @@ let good_client_hellos =
           (* three supported groups, one unknown *)
           ([1; 0; 0; 52; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 12; 0; 0xA; 0; 8; 0; 6; 0; 25; 0xFF; 0xFF; 0; 24] , { ch with extensions = [`SupportedGroups Packet.([SECP521R1; SECP384R1])] } ) ;
 
-          (* empty ECPointFormats *)
-          ([1; 0; 0; 45; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 0] , { ch with extensions = [`ECPointFormats []] } ) ;
-          (* one ECPointFormats *)
-          ([1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xB; 0; 2; 1; 0] , { ch with extensions = [`ECPointFormats [Packet.UNCOMPRESSED]] } ) ;
-          (* two ECPointFormats *)
-          ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 0xB; 0; 3; 2; 0; 1] , { ch with extensions = [`ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME])] } ) ;
-          (* three ECPointFormats, of which one is unknown *)
-          ([1; 0; 0; 48; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 8; 0; 0xB; 0; 4; 3; 0; 1; 23] , { ch with extensions = [`ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME])] } ) ;
-
           (* secure renegotiation *)
           ([1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 3; 2; 1; 2] , { ch with extensions = [`SecureRenegotiation (list_to_cstruct [1;2])] } ) ;
 
@@ -1257,15 +1246,14 @@ let good_client_hellos =
 
           (* combinations from the real world *)
           ([0x01; (* hello *)
-            0x00; 0x00; 0xb7; (* length *)
+            0x00; 0x00; 0xaf; (* length *)
             0x03; 0x01; (* version *)
             0x7c; 0x53; 0x05; 0x72; 0x7a; 0x1b; 0x84; 0x70; 0x30; 0x89; 0xef; 0xad; 0xfb; 0x56; 0xc1; 0x3d; 0x73; 0x4b; 0xc7; 0xcb; 0x8c; 0xc8; 0x75; 0x43; 0x01; 0x12; 0x32; 0xd6; 0x74; 0x87; 0xcb; 0x18; (* random *)
             0x00; (* session id *)
             0x00; 0x68; (* ciphersuites *)
             0xc0; 0x14; 0xc0; 0x0a; 0xc0; 0x22; 0xc0; 0x21; 0x00; 0x39; 0x00; 0x38; 0x00; 0x88; 0x00; 0x87; 0xc0; 0x0f; 0xc0; 0x05; 0x00; 0x35; 0x00; 0x84; 0xc0; 0x12; 0xc0; 0x08; 0xc0; 0x1c; 0xc0; 0x1b; 0x00; 0x16; 0x00; 0x13; 0xc0; 0x0d; 0xc0; 0x03; 0x00; 0x0a; 0xc0; 0x13; 0xc0; 0x09; 0xc0; 0x1f; 0xc0; 0x1e; 0x00; 0x33; 0x00; 0x32; 0x00; 0x9a; 0x00; 0x99; 0x00; 0x45; 0x00; 0x44; 0xc0; 0x0e; 0xc0; 0x04; 0x00; 0x2f; 0x00; 0x96; 0x00; 0x41; 0x00; 0x07; 0xc0; 0x11; 0xc0; 0x07; 0xc0; 0x0c; 0xc0; 0x02; 0x00; 0x05; 0x00; 0x04; 0x00; 0x15; 0x00; 0x12; 0x00; 0x09; 0x00; 0x14; 0x00; 0x11; 0x00; 0x08; 0x00; 0x06; 0x00; 0x03; 0x00; 0xff;
             0x01; 0x00; (* compression *)
-            0x00; 0x26; (* extensions *)
-            0x00; 0x0b; 0x00; 0x04; 0x03; 0x00; 0x01; 0x02; (* ec point formats *)
+            0x00; 0x1e; (* extensions *)
             0x00; 0x0a; 0x00; 0x08; (* elliptic curves *)
             0x00; 0x06; 0x00; 0x19; 0x00; 0x18; 0x00; 0x17;
             0x00; 0x10; 0x00; 0x0e; 0x00; 0x0c; (* ALPN *)
@@ -1276,22 +1264,20 @@ let good_client_hellos =
            { ch with
              client_version = `TLS_1_0 ;
              client_random =  list_to_cstruct [0x7c; 0x53; 0x05; 0x72; 0x7a; 0x1b; 0x84; 0x70; 0x30; 0x89; 0xef; 0xad; 0xfb; 0x56; 0xc1; 0x3d; 0x73; 0x4b; 0xc7; 0xcb; 0x8c; 0xc8; 0x75; 0x43; 0x01; 0x12; 0x32; 0xd6; 0x74; 0x87; 0xcb; 0x18] ;
-             ciphersuites = Packet.([TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_SEED_CBC_SHA; TLS_DHE_DSS_WITH_SEED_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_SEED_CBC_SHA; TLS_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_RSA_WITH_IDEA_CBC_SHA; TLS_ECDHE_RSA_WITH_RC4_128_SHA; TLS_ECDHE_ECDSA_WITH_RC4_128_SHA; TLS_ECDH_RSA_WITH_RC4_128_SHA; TLS_ECDH_ECDSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_MD5; TLS_DHE_RSA_WITH_DES_CBC_SHA; TLS_DHE_DSS_WITH_DES_CBC_SHA; TLS_RSA_WITH_DES_CBC_SHA; TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5; TLS_RSA_EXPORT_WITH_RC4_40_MD5; TLS_EMPTY_RENEGOTIATION_INFO_SCSV]);
-             extensions = [`ECPointFormats Packet.([UNCOMPRESSED; ANSIX962_COMPRESSED_PRIME; ANSIX962_COMPRESSED_CHAR2]) ;
-                           `SupportedGroups Packet.([SECP521R1; SECP384R1; SECP256R1]);
+             ciphersuites = Packet.([TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_CBC_SHA; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_AES_256_CBC_SHA; TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_SEED_CBC_SHA; TLS_DHE_DSS_WITH_SEED_CBC_SHA; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_SEED_CBC_SHA; TLS_RSA_WITH_IDEA_CBC_SHA; TLS_DHE_RSA_WITH_DES_CBC_SHA; TLS_DHE_DSS_WITH_DES_CBC_SHA; TLS_RSA_WITH_DES_CBC_SHA; TLS_EMPTY_RENEGOTIATION_INFO_SCSV]);
+             extensions = [`SupportedGroups Packet.([SECP521R1; SECP384R1; SECP256R1]);
                            `ALPN ["h2"; "http/1.1"] ] } ) ;
 
           (
             [ 0x01; (* client hello *)
-              0x00; 0x01; 0xce; (* length *)
+              0x00; 0x01; 0xc6; (* length *)
               0x03; 0x03; (* protocol version *)
               0xb7; 0x36; 0xeb; 0x21; 0xec; 0x81; 0x4d; 0x01; 0xfc; 0xf4; 0xe2; 0x06; 0x9a; 0x34; 0xb7; 0x21; 0xe1; 0x23; 0x6f; 0xbe; 0x50; 0xbf; 0xfe; 0x33; 0x9b; 0xc9; 0x5b; 0x20; 0x0e; 0x15; 0x02; 0x27; (* random *)
               0x00; (* session id *)
               0x00; 0xa0; (* ciphersuites *)
               0xc0; 0x30; 0xc0; 0x2c; 0xc0; 0x28; 0xc0; 0x24; 0xc0; 0x14; 0xc0; 0x0a; 0xc0; 0x22; 0xc0; 0x21; 0x00; 0xa3; 0x00; 0x9f; 0x00; 0x6b; 0x00; 0x6a; 0x00; 0x39; 0x00; 0x38; 0x00; 0x88; 0x00; 0x87; 0xc0; 0x32; 0xc0; 0x2e; 0xc0; 0x2a; 0xc0; 0x26; 0xc0; 0x0f; 0xc0; 0x05; 0x00; 0x9d; 0x00; 0x3d; 0x00; 0x35; 0x00; 0x84; 0xc0; 0x12; 0xc0; 0x08; 0xc0; 0x1c; 0xc0; 0x1b; 0x00; 0x16; 0x00; 0x13; 0xc0; 0x0d; 0xc0; 0x03; 0x00; 0x0a; 0xc0; 0x2f; 0xc0; 0x2b; 0xc0; 0x27; 0xc0; 0x23; 0xc0; 0x13; 0xc0; 0x09; 0xc0; 0x1f; 0xc0; 0x1e; 0x00; 0xa2; 0x00; 0x9e; 0x00; 0x67; 0x00; 0x40; 0x00; 0x33; 0x00; 0x32; 0x00; 0x9a; 0x00; 0x99; 0x00; 0x45; 0x00; 0x44; 0xc0; 0x31; 0xc0; 0x2d; 0xc0; 0x29; 0xc0; 0x25; 0xc0; 0x0e; 0xc0; 0x04; 0x00; 0x9c; 0x00; 0x3c; 0x00; 0x2f; 0x00; 0x96; 0x00; 0x41; 0x00; 0x07; 0xc0; 0x11; 0xc0; 0x07; 0xc0; 0x0c; 0xc0; 0x02; 0x00; 0x05; 0x00; 0x04; 0x00; 0x15; 0x00; 0x12; 0x00; 0x09; 0x00; 0x14; 0x00; 0x11; 0x00; 0x08; 0x00; 0x06; 0x00; 0x03; 0x00; 0xff;
               0x01; 0x00; (* compression *)
-              0x01; 0x05; (* extensions *)
-              0x00; 0x0b; 0x00; 0x04; 0x03; 0x00; 0x01; 0x02; (* ec point formats *)
+              0x00; 0xFD; (* extensions *)
               0x00; 0x0a; 0x00; 0x08; (* ec curves *)
               0x00; 0x06; 0x00; 0x19; 0x00; 0x18; 0x00; 0x17;
               (* 0x00; 0x23; 0x00; 0x00; *)
@@ -1318,9 +1304,8 @@ let good_client_hellos =
             { ch with
               client_version = `TLS_1_2 ;
               client_random = list_to_cstruct [0xb7; 0x36; 0xeb; 0x21; 0xec; 0x81; 0x4d; 0x01; 0xfc; 0xf4; 0xe2; 0x06; 0x9a; 0x34; 0xb7; 0x21; 0xe1; 0x23; 0x6f; 0xbe; 0x50; 0xbf; 0xfe; 0x33; 0x9b; 0xc9; 0x5b; 0x20; 0x0e; 0x15; 0x02; 0x27] ;
-              ciphersuites = Packet.([TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384; TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384; TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384; TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_GCM_SHA384; TLS_DHE_RSA_WITH_AES_256_GCM_SHA384; TLS_DHE_RSA_WITH_AES_256_CBC_SHA256; TLS_DHE_DSS_WITH_AES_256_CBC_SHA256; TLS_DHE_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384; TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_AES_256_GCM_SHA384; TLS_RSA_WITH_AES_256_CBC_SHA256; TLS_RSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_CAMELLIA_256_CBC_SHA; TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256; TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_GCM_SHA256; TLS_DHE_RSA_WITH_AES_128_GCM_SHA256; TLS_DHE_RSA_WITH_AES_128_CBC_SHA256; TLS_DHE_DSS_WITH_AES_128_CBC_SHA256; TLS_DHE_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_SEED_CBC_SHA; TLS_DHE_DSS_WITH_SEED_CBC_SHA; TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA; TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256; TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_AES_128_GCM_SHA256; TLS_RSA_WITH_AES_128_CBC_SHA256; TLS_RSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_SEED_CBC_SHA; TLS_RSA_WITH_CAMELLIA_128_CBC_SHA; TLS_RSA_WITH_IDEA_CBC_SHA; TLS_ECDHE_RSA_WITH_RC4_128_SHA; TLS_ECDHE_ECDSA_WITH_RC4_128_SHA; TLS_ECDH_RSA_WITH_RC4_128_SHA; TLS_ECDH_ECDSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_SHA; TLS_RSA_WITH_RC4_128_MD5; TLS_DHE_RSA_WITH_DES_CBC_SHA; TLS_DHE_DSS_WITH_DES_CBC_SHA; TLS_RSA_WITH_DES_CBC_SHA; TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_DES40_CBC_SHA; TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5; TLS_RSA_EXPORT_WITH_RC4_40_MD5; TLS_EMPTY_RENEGOTIATION_INFO_SCSV]) ;
-              extensions = [`ECPointFormats Packet.([UNCOMPRESSED; ANSIX962_COMPRESSED_PRIME; ANSIX962_COMPRESSED_CHAR2]);
-                            `SupportedGroups Packet.([SECP521R1; SECP384R1; SECP256R1]);
+              ciphersuites = Packet.([TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384; TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384; TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384; TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_GCM_SHA384; TLS_DHE_RSA_WITH_AES_256_GCM_SHA384; TLS_DHE_RSA_WITH_AES_256_CBC_SHA256; TLS_DHE_DSS_WITH_AES_256_CBC_SHA256; TLS_DHE_RSA_WITH_AES_256_CBC_SHA; TLS_DHE_DSS_WITH_AES_256_CBC_SHA; TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384; TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384; TLS_ECDH_RSA_WITH_AES_256_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA; TLS_RSA_WITH_AES_256_GCM_SHA384; TLS_RSA_WITH_AES_256_CBC_SHA256; TLS_RSA_WITH_AES_256_CBC_SHA; TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA; TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA; TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA; TLS_RSA_WITH_3DES_EDE_CBC_SHA; TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256; TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256; TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA; TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA; TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_GCM_SHA256; TLS_DHE_RSA_WITH_AES_128_GCM_SHA256; TLS_DHE_RSA_WITH_AES_128_CBC_SHA256; TLS_DHE_DSS_WITH_AES_128_CBC_SHA256; TLS_DHE_RSA_WITH_AES_128_CBC_SHA; TLS_DHE_DSS_WITH_AES_128_CBC_SHA; TLS_DHE_RSA_WITH_SEED_CBC_SHA; TLS_DHE_DSS_WITH_SEED_CBC_SHA; TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256; TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256; TLS_ECDH_RSA_WITH_AES_128_CBC_SHA; TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_AES_128_GCM_SHA256; TLS_RSA_WITH_AES_128_CBC_SHA256; TLS_RSA_WITH_AES_128_CBC_SHA; TLS_RSA_WITH_SEED_CBC_SHA; TLS_RSA_WITH_IDEA_CBC_SHA; TLS_DHE_RSA_WITH_DES_CBC_SHA; TLS_DHE_DSS_WITH_DES_CBC_SHA; TLS_RSA_WITH_DES_CBC_SHA; TLS_EMPTY_RENEGOTIATION_INFO_SCSV]) ;
+              extensions = [`SupportedGroups Packet.([SECP521R1; SECP384R1; SECP256R1]);
                             `SignatureAlgorithms
                               [`RSA_PKCS1_SHA512 ;
                                `RSA_PKCS1_SHA384 ;
@@ -1349,7 +1334,7 @@ let good_client_hellos =
             ],
             { ch with client_version = `TLS_1_3 ;
                       client_random = list_to_cstruct [ 0xf1; 0xb2; 0x50; 0x16; 0x4b; 0x77; 0x50; 0xb3; 0xdc; 0xcb; 0x1c; 0x6a; 0xae; 0x1a; 0x94; 0x87; 0xc4; 0x17; 0xbb; 0xa4; 0xf7; 0x92; 0xf8; 0x16; 0x56; 0x12; 0x03; 0x38; 0x1e; 0xe5; 0xc1; 0xae ] ;
-                      ciphersuites = Packet.([TLS_RSA_WITH_AES_256_CBC_SHA ; TLS_DHE_RSA_WITH_AES_256_CBC_SHA ; TLS_RSA_WITH_AES_128_CBC_SHA ; TLS_DHE_RSA_WITH_AES_128_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_RC4_128_SHA ; TLS_RSA_WITH_RC4_128_MD5]) ;
+                      ciphersuites = Packet.([TLS_RSA_WITH_AES_256_CBC_SHA ; TLS_DHE_RSA_WITH_AES_256_CBC_SHA ; TLS_RSA_WITH_AES_128_CBC_SHA ; TLS_DHE_RSA_WITH_AES_128_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_3DES_EDE_CBC_SHA]) ;
                       extensions = [ `SecureRenegotiation (Cstruct.create 0) ;
                                      `Hostname "127.0.0.1" ;
                                      `SignatureAlgorithms
@@ -1421,12 +1406,6 @@ let bad_client_hellos =
       [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 0xA; 0; 3; 0; 1; 0] ;
       [1; 0; 0; 50; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 10; 0; 0xA; 0; 6; 0; 2; 0; 25; 0; 20] ;
 
-      (* empty ECPointFormats *)
-      [1; 0; 0; 45; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 3] ;
-      [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 5; 0; 0xB; 0; 1; 3; 1] ;
-      [1; 0; 0; 46; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 6; 0; 0xB; 0; 1; 3; 1] ;
-      [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0; 0xB; 0; 3; 1; 0; 1] ;
-
       (* secure renegotiation *)
       [1; 0; 0; 47; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 5; 2; 1; 2] ;
       [1; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 0; (* comp *) 0; (* exts *) 0; 7; 0xFF; 1; 0; 5; 2; 1; 2; 3; 4] ;
@@ -1472,30 +1451,30 @@ let good_server_hellos =
           { server_version = `TLS_1_2 ;
             server_random ;
             sessionid = None ;
-            ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+            ciphersuite = `RSA_WITH_AES_128_CCM ;
             extensions = []}
         in
         [
           (* versions *)
-          ([2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] , sh ) ;
-          ([2; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] , { sh with server_version = `TLS_1_0 } ) ;
-          ([2; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] , { sh with server_version = `TLS_1_1 } ) ;
+          ([2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *)] , sh ) ;
+          ([2; 0; 0; 38; 3; 1] @ rand @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *)] , { sh with server_version = `TLS_1_0 } ) ;
+          ([2; 0; 0; 38; 3; 2] @ rand @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *)] , { sh with server_version = `TLS_1_1 } ) ;
 
           (* session id *)
-          ([2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 3; 1; 2; 3; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] , { sh with sessionid = Some (list_to_cstruct [1; 2; 3]) } ) ;
+          ([2; 0; 0; 41; 3; 3] @ rand @ [(* session id *) 3; 1; 2; 3; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *)] , { sh with sessionid = Some (list_to_cstruct [1; 2; 3]) } ) ;
 
           (* ciphersuite *)
-          ([2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 5; (* comp *) 0; (* exts *)] , { sh with ciphersuite = `TLS_RSA_WITH_RC4_128_SHA } ) ;
+          ([2; 0; 0; 38; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0xc0; 0x9d; (* comp *) 0; (* exts *)] , { sh with ciphersuite = `RSA_WITH_AES_256_CCM } ) ;
 
           (* extensions *)
           (* empty *)
-          ([2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 0] , sh ) ;
+          ([2; 0; 0; 40; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *) 0; 0] , sh ) ;
 
           (* empty hostname *)
-          ([2; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 4; 0; 0; 0; 0] , { sh with extensions = [`Hostname] } ) ;
+          ([2; 0; 0; 44; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *) 0; 4; 0; 0; 0; 0] , { sh with extensions = [`Hostname] } ) ;
 
           (* ALPN *)
-          ([2; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0; 16; 0; 5; 0; 3; 2; 104; 50] , { sh with extensions = [`ALPN "h2"] } ) ;
+          ([2; 0; 0; 49; 3; 3] @ rand @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *) 0; 9; 0; 16; 0; 5; 0; 3; 2; 104; 50] , { sh with extensions = [`ALPN "h2"] } ) ;
 
           (* TODO: chosen ciphersuite must not be renegotiation (0x00ff) *)
 
@@ -1523,7 +1502,7 @@ let good_server_hellos =
             0x00; 0x10; 0x00; 0x05; 0x00; 0x03; (* ALPN *)
             0x02; 0x68; 0x32
           ], { sh with
-               ciphersuite = `TLS_RSA_WITH_AES_128_CBC_SHA ;
+               ciphersuite = `RSA_WITH_AES_128_CBC_SHA ;
                server_random = list_to_cstruct [ 0x53; 0x66; 0x2d; 0xf0; 0x1b; 0x61; 0x55; 0x8f; 0x74; 0x2a; 0xbf; 0xf4; 0x99; 0x86; 0x30; 0x99; 0x32; 0xe4; 0xd0; 0x1e; 0x2b; 0xa9; 0x2e; 0x86; 0x7b; 0xeb; 0x03; 0x00; 0xf9; 0x11; 0x3e; 0xc5 ] ;
                sessionid = Some (list_to_cstruct [ 0xd1; 0x54; 0xd9; 0x05; 0x61; 0x41; 0x53; 0x33; 0xb2; 0xf0; 0x13; 0x78; 0x1a; 0x17; 0xb3; 0x1d; 0x09; 0xf6; 0x59; 0x70; 0xfe; 0x5d; 0x58; 0x22; 0xfa; 0x8c; 0x5c; 0x89; 0xe9; 0xa2; 0xb4; 0x70 ]) ;
                extensions = [`Hostname;
@@ -1543,7 +1522,7 @@ let good_server_hellos =
             0x00; 0x00; 0x00; 0x00;
             0xff; 0x01; 0x00; 0x01; 0x00 ],
             { sh with
-              ciphersuite = `TLS_RSA_WITH_AES_128_CBC_SHA ;
+              ciphersuite = `RSA_WITH_AES_128_CBC_SHA ;
               server_random = list_to_cstruct [ 0x53; 0x66; 0x2f; 0xb7; 0x35; 0x3a; 0x42; 0xee; 0x1c; 0xe6; 0xed; 0x63; 0x8a; 0x1d; 0x3d; 0xb3; 0x71; 0x9c; 0xf5; 0x64; 0x45; 0xc5; 0xe9; 0xf4; 0x11; 0x8b; 0x9f; 0x41; 0x5a; 0x5f; 0xf1; 0xf6 ] ;
               sessionid = Some (list_to_cstruct [ 0xdf; 0xe1; 0x09; 0x8a; 0x42; 0xf0; 0x25; 0xc7; 0xbd; 0xe5; 0xe9; 0x02; 0x6a; 0x03; 0xaf; 0xb4; 0x70; 0x80; 0xe9; 0x2f; 0x07; 0x3f; 0x53; 0xd3; 0xc8; 0x97; 0x3f; 0xc4; 0x44; 0x23; 0xf5; 0x94 ] ) ;
               extensions = [`Hostname;

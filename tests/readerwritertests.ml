@@ -383,7 +383,6 @@ let rw_handshake_client_hello_vals =
           ClientHello { ch with extensions = [
                              `Hostname "foobarblubb" ;
                              `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
-                             `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
                              `SignatureAlgorithms [`RSA_PKCS1_MD5] ;
                              `ALPN ["h2"; "http/1.1"]
                            ] } ;
@@ -399,7 +398,6 @@ let rw_handshake_client_hello_vals =
                         extensions = [
                              `Hostname "foobarblubb" ;
                              `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
-                             `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
                              `SignatureAlgorithms [`RSA_PKCS1_SHA1; `RSA_PKCS1_SHA512] ;
                              `ALPN ["h2"; "http/1.1"]
                       ] } ;
@@ -410,7 +408,6 @@ let rw_handshake_client_hello_vals =
                         extensions = [
                              `Hostname "foobarblubb" ;
                              `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
-                             `ECPointFormats Packet.([UNCOMPRESSED ; ANSIX962_COMPRESSED_PRIME ;   ANSIX962_COMPRESSED_CHAR2 ]) ;
                              `SignatureAlgorithms [`RSA_PKCS1_MD5; `RSA_PKCS1_SHA256] ;
                              `SecureRenegotiation client_random ;
                              `ALPN ["h2"; "http/1.1"]
@@ -449,7 +446,7 @@ let rw_handshake_server_hello_vals =
           { server_version = `TLS_1_2 ;
             server_random ;
             sessionid = None ;
-            ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+            ciphersuite = `RSA_WITH_AES_256_CCM ;
             extensions = []}
         in
         [

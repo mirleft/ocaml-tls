@@ -71,37 +71,40 @@ module Ciphers = struct
    * slice and groom those lists. *)
 
   let default13 = [
-    `TLS_AES_128_GCM_SHA256 ;
-    `TLS_AES_256_GCM_SHA384 ;
-    (* `TLS_CHACHA20_POLY1305_SHA256 ; *)
-    `TLS_AES_128_CCM_SHA256 ;
-    (* `TLS_AES_128_CCM_8_SHA256 *)
+    `AES_128_GCM_SHA256 ;
+    `AES_256_GCM_SHA384 ;
+    (* `CHACHA20_POLY1305_SHA256 ; *)
+    `AES_128_CCM_SHA256 ;
   ]
 
   let default = default13 @ [
-    `TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 ;
-    `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 ;
-    `TLS_DHE_RSA_WITH_AES_256_CCM ;
-    `TLS_DHE_RSA_WITH_AES_128_CCM ;
-    `TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 ;
-    `TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 ;
-    `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
-    `TLS_DHE_RSA_WITH_AES_128_CBC_SHA ;
-    `TLS_RSA_WITH_AES_256_GCM_SHA384 ;
-    `TLS_RSA_WITH_AES_128_GCM_SHA256 ;
-    `TLS_RSA_WITH_AES_256_CCM ;
-    `TLS_RSA_WITH_AES_128_CCM ;
-    `TLS_RSA_WITH_AES_256_CBC_SHA256 ;
-    `TLS_RSA_WITH_AES_128_CBC_SHA256 ;
-    `TLS_RSA_WITH_AES_256_CBC_SHA ;
-    `TLS_RSA_WITH_AES_128_CBC_SHA ;
+    `DHE_RSA_WITH_AES_256_GCM_SHA384 ;
+    `DHE_RSA_WITH_AES_128_GCM_SHA256 ;
+    `DHE_RSA_WITH_AES_256_CCM ;
+    `DHE_RSA_WITH_AES_128_CCM ;
+    `DHE_RSA_WITH_AES_256_CBC_SHA256 ;
+    `DHE_RSA_WITH_AES_128_CBC_SHA256 ;
+    `DHE_RSA_WITH_AES_256_CBC_SHA ;
+    `DHE_RSA_WITH_AES_128_CBC_SHA ;
+    `ECDHE_RSA_WITH_AES_128_GCM_SHA256 ;
+    `ECDHE_RSA_WITH_AES_256_GCM_SHA384 ;
+    `ECDHE_RSA_WITH_AES_256_CBC_SHA384 ;
+    `ECDHE_RSA_WITH_AES_128_CBC_SHA256 ;
+    `ECDHE_RSA_WITH_AES_256_CBC_SHA ;
+    `ECDHE_RSA_WITH_AES_128_CBC_SHA ;
+    `RSA_WITH_AES_256_GCM_SHA384 ;
+    `RSA_WITH_AES_128_GCM_SHA256 ;
+    `RSA_WITH_AES_256_CCM ;
+    `RSA_WITH_AES_128_CCM ;
+    `RSA_WITH_AES_256_CBC_SHA256 ;
+    `RSA_WITH_AES_128_CBC_SHA256 ;
+    `RSA_WITH_AES_256_CBC_SHA ;
+    `RSA_WITH_AES_128_CBC_SHA ;
     ]
 
   let supported = default @ [
-    `TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
-    `TLS_RSA_WITH_3DES_EDE_CBC_SHA ;
-    `TLS_RSA_WITH_RC4_128_SHA ;
-    `TLS_RSA_WITH_RC4_128_MD5
+    `DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
+    `RSA_WITH_3DES_EDE_CBC_SHA ;
     ]
 
   let fs_of = List.filter Ciphersuite.ciphersuite_fs
@@ -126,15 +129,16 @@ let min_dh_size = 1024
 
 let min_rsa_key_size = 1024
 
-(* ff-dhe draft 2048-bit group *)
-let dh_group = Mirage_crypto_pk.Dh.Group.ffdhe2048
-
 let supported_groups =
   [ `X25519 ; `P256 ; `FFDHE2048 ; `FFDHE3072 ; `FFDHE4096 ; `FFDHE6144 ; `FFDHE8192 ]
 
+let elliptic_curve = function
+  | `X25519 | `P256 -> true
+  | _ -> false
+
 let default_config = {
   ciphers = Ciphers.default ;
-  protocol_versions = (`TLS_1_0, `TLS_1_3) ;
+  protocol_versions = (`TLS_1_2, `TLS_1_3) ;
   signature_algorithms = default_signature_algorithms ;
   use_reneg = false ;
   authenticator = None ;
@@ -165,6 +169,13 @@ let validate_common config =
     invalid "set of ciphers is not a proper set" ;
   if List.length config.ciphers = 0 then
     invalid "set of ciphers is empty" ;
+  (* groups and ciphersuites (<= 1.2): any ECC if a ECDHE cipher present *)
+  if List.exists Ciphersuite.ecc config.ciphers then
+    if not (List.exists elliptic_curve config.groups) then
+      invalid_arg "ECDHE ciphersuite configured, but no ECC curve";
+  if List.exists (fun c -> Ciphersuite.(ciphersuite_fs c && not (ecc c))) config.ciphers then
+    if List.for_all elliptic_curve config.groups then
+      invalid_arg "DHE ciphersuites configured, but no FFDHE group";
   if List.exists (fun proto -> let len = String.length proto in len = 0 || len > 255) config.alpn_protocols then
     invalid "invalid alpn protocol" ;
   if List.length config.alpn_protocols > 0xffff then

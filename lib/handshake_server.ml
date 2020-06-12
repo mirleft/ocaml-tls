@@ -131,16 +131,37 @@ let answer_client_key_exchange_RSA state (session : session_data) kex raw log =
   establish_master_secret state session pms raw log
 
 let answer_client_key_exchange_DHE_RSA state session secret kex raw log =
-  match Mirage_crypto_pk.Dh.shared secret kex with
-  | None     -> fail (`Fatal `InvalidDH)
-  | Some pms -> return (establish_master_secret state session pms raw log)
+  let to_fatal r = match r with Ok cs -> return cs | Error er -> fail (`Fatal (`ReaderError er)) in
+  (match secret with
+   | `Fiat priv ->
+     to_fatal (Reader.parse_client_ec_key_exchange kex) >>= fun share ->
+     begin match Fiat_p256.key_exchange priv share with
+       | Error _ -> fail (`Fatal `InvalidDH)
+       | Ok shared -> return shared
+     end
+   | `Hacl priv ->
+     to_fatal (Reader.parse_client_ec_key_exchange kex) >>= fun share ->
+     begin match Hacl_x25519.key_exchange priv share with
+       | Error _ -> fail (`Fatal `InvalidDH)
+       | Ok shared -> return shared
+     end
+   | `Mirage_crypto secret ->
+     to_fatal (Reader.parse_client_dh_key_exchange kex) >>= fun share ->
+     begin match Mirage_crypto_pk.Dh.shared secret share with
+       | None -> fail (`Fatal `InvalidDH)
+       | Some shared -> return shared
+     end) >|= fun pms ->
+  establish_master_secret state session pms raw log
 
 let sig_algs (client_hello : client_hello) =
   map_find
     ~f:(function `SignatureAlgorithms xs -> Some xs | _ -> None)
     client_hello.extensions
 
-let agreed_cipher cert requested =
+let ecc_group configured_groups requested_groups =
+  first_match requested_groups configured_groups
+
+let agreed_cipher cert ecc requested =
   let type_usage_matches cipher =
     let cstyp, csusage =
       Ciphersuite.(required_keytype_and_usage @@ ciphersuite_kex cipher)
@@ -148,7 +169,11 @@ let agreed_cipher cert requested =
     X509.(Certificate.supports_keytype cert cstyp &&
           supports_key_usage ~not_present:true cert csusage)
   in
-  List.filter type_usage_matches requested
+  let cciphers = List.filter type_usage_matches requested in
+  if ecc then
+    cciphers
+  else
+    List.filter (fun x -> not (Ciphersuite.ecc x)) cciphers
 
 let server_hello config _client_version (session : session_data) version reneg =
   (* RFC 4366: server shall reply with an empty hostname extension *)
@@ -195,11 +220,15 @@ let server_hello config _client_version (session : session_data) version reneg =
 let answer_client_hello_common state reneg ch raw =
   let process_client_hello ch config =
     let host = hostname ch
+    and groups = groups ch
     and cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites
     in
-    let cciphers = List.filter (fun c -> not (Ciphersuite.ciphersuite_tls13 c)) cciphers in
+    let configured_ecc_groups, other_groups = List.partition Config.elliptic_curve config.groups in
+    let ecc_group = ecc_group configured_ecc_groups groups
+    and cciphers = List.filter (fun c -> not (Ciphersuite.ciphersuite_tls13 c)) cciphers
+    in
     (agreed_cert config.own_certificates host >>= function
-      | (c::cs, priv) -> let cciphers = agreed_cipher c cciphers in
+      | (c::cs, priv) -> let cciphers = agreed_cipher c (ecc_group <> None) cciphers in
                          return (cciphers, c::cs, Some priv)
       | ([], _) -> fail (`Fatal `InvalidSession) (* TODO: assert false / remove by types in config *)
     ) >>= fun (cciphers, chain, priv) ->
@@ -217,6 +246,13 @@ let answer_client_hello_common state reneg ch raw =
     alpn_protocol config ch >|= fun alpn_protocol ->
 
     let own_name = match host with None -> None | Some h -> Some (Domain_name.to_string h) in
+    let group =
+      if Ciphersuite.ecc cipher then
+        ecc_group
+      else match other_groups with
+        | [] -> None
+        | c::_ -> Some c
+    in
     let session =
       let session = empty_session in
       let common_session_data = {
@@ -231,6 +267,7 @@ let answer_client_hello_common state reneg ch raw =
         common_session_data ;
         client_version   = ch.client_version ;
         ciphersuite      = cipher ;
+        group            = group ;
         extended_ms      = extended_ms ;
       }
     in
@@ -271,13 +308,25 @@ let answer_client_hello_common state reneg ch raw =
        ([ assemble_handshake certreq ], { session with common_session_data })
 
   and kex_dhe_rsa config (session : session_data) version sig_algs =
-    let (secret, msg) = Mirage_crypto_pk.Dh.gen_key Config.dh_group in
-    let written =
-      let dh_param = Crypto.dh_params_pack Config.dh_group msg in
-      Writer.assemble_dh_parameters dh_param in
-
+    (match session.group with
+     | None -> fail (`Fatal `UnsupportedKeyExchange) (* should not happen *)
+     | Some g ->
+       match group_to_impl g with
+       | `Mirage_crypto g ->
+         let (secret, msg) = Mirage_crypto_pk.Dh.gen_key g in
+         let dh_param = Crypto.dh_params_pack g msg in
+         let dh_params = Writer.assemble_dh_parameters dh_param in
+         return (`Mirage_crypto secret, dh_params)
+       | `Hacl `X25519 ->
+         let secret, shared = Hacl_x25519.gen_key ~rng:Mirage_crypto_rng.generate in
+         let params = Writer.assemble_ec_parameters `X25519 shared in
+         return (`Hacl secret, params)
+       | `Fiat `P256 ->
+         let secret, shared = Fiat_p256.gen_key ~rng:Mirage_crypto_rng.generate in
+         let params = Writer.assemble_ec_parameters `P256 shared in
+         return (`Fiat secret, params)
+    ) >>= fun (secret, written) ->
     let data = session.common_session_data.client_random <+> session.common_session_data.server_random <+> written in
-
     private_key session >>= fun priv ->
     signature version data sig_algs config.signature_algorithms priv >|= fun sgn ->
     let kex = ServerKeyExchange (written <+> sgn) in
@@ -501,8 +550,10 @@ let handle_handshake ss hs buf =
           (match Reader.parse_certificates cs with
            | Ok cs -> answer_client_certificate_DHE_RSA hs session dh_sent cs buf log
            | Error re -> fail (`Fatal (`ReaderError re)))
-       | AwaitClientKeyExchange_RSA (session, log), ClientKeyExchange kex ->
-          answer_client_key_exchange_RSA hs session kex buf log
+       | AwaitClientKeyExchange_RSA (session, log), ClientKeyExchange cs ->
+          (match Reader.parse_client_dh_key_exchange cs with
+           | Ok kex -> answer_client_key_exchange_RSA hs session kex buf log
+           | Error re -> fail (`Fatal (`ReaderError re)))
        | AwaitClientKeyExchange_DHE_RSA (session, dh_sent, log), ClientKeyExchange kex ->
           answer_client_key_exchange_DHE_RSA hs session dh_sent kex buf log
        | AwaitClientCertificateVerify (session, sctx, cctx, log), CertificateVerify ver ->

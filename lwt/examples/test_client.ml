@@ -22,7 +22,7 @@ let test_client _ =
   let host = "127.0.0.1" in
   let authenticator = null_auth in
   Tls_lwt.connect_ext
-    Tls.Config.(client (* ~certificates:(`Single cert) *) ?cached_ticket:!mypsk ~ticket_cache ~authenticator ~ciphers:Ciphers.supported ())
+    Tls.Config.(client ~version:(`TLS_1_0, `TLS_1_3) (* ~certificates:(`Single cert) *) ?cached_ticket:!mypsk ~ticket_cache ~authenticator ~ciphers:Ciphers.supported ())
     (host, port) >>= fun (ic, oc) ->
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ host ; "Connection: close" ; "" ; ""
@@ -34,7 +34,7 @@ let test_client _ =
 
 let jump _ =
   try
-    Lwt_main.run (test_client () >>= test_client) ; `Ok ()
+    Lwt_main.run (Mirage_crypto_rng_lwt.initialize () >>= test_client >>= test_client) ; `Ok ()
   with
   | Tls_lwt.Tls_alert alert as exn ->
       print_alert "remote end" alert ; raise exn

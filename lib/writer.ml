@@ -164,14 +164,6 @@ let assemble_client_psks psks =
   let binders_buf = assemble_list Two assemble_binder binders in
   ids_buf <+> binders_buf
 
-let assemble_ec_point_format f =
-  let buf = create 1 in
-  set_uint8 buf 0 (ec_point_format_to_int f) ;
-  buf
-
-let assemble_ec_point_formats formats =
-  assemble_list One assemble_ec_point_format formats
-
 let assemble_alpn_protocol p =
   let buf = create 1 in
   set_uint8 buf 0 (String.length p) ;
@@ -184,8 +176,6 @@ let assemble_supported_versions vs =
   assemble_list One assemble_any_protocol_version vs
 
 let assemble_extension = function
-  | `ECPointFormats formats ->
-     (assemble_ec_point_formats formats, EC_POINT_FORMATS)
   | `SecureRenegotiation x ->
      let buf = create 1 in
      set_uint8 buf 0 (len x);
@@ -396,6 +386,13 @@ let assemble_dh_parameters p =
   blit p.dh_Ys 0 buf (6 + plen + glen) yslen;
   buf
 
+let assemble_ec_parameters named_curve point =
+  let hdr = create 4 in
+  set_uint8 hdr 0 (ec_curve_type_to_int NAMED_CURVE);
+  BE.set_uint16 hdr 1 (named_group_to_int (group_to_named_group named_curve));
+  set_uint8 hdr 3 (len point);
+  hdr <+> point
+
 let assemble_digitally_signed signature =
   let lenbuf = create 2 in
   BE.set_uint16 lenbuf 0 (len signature);
@@ -423,11 +420,18 @@ let assemble_session_ticket (se : session_ticket) =
   let exts = assemble_extensions assemble_session_ticket_extension se.extensions in
   buf <+> se.nonce <+> ticketlen <+> se.ticket <+> exts
 
-let assemble_client_key_exchange kex =
+let assemble_client_dh_key_exchange kex =
   let len = len kex in
   let buf = create (len + 2) in
   BE.set_uint16 buf 0 len;
   blit kex 0 buf 2 len;
+  buf
+
+let assemble_client_ec_key_exchange kex =
+  let len = len kex in
+  let buf = create (len + 1) in
+  set_uint8 buf 0 len;
+  blit kex 0 buf 1 len;
   buf
 
 let assemble_hello_retry_request hrr =
@@ -468,7 +472,7 @@ let assemble_handshake hs =
     | CertificateRequest cr -> (cr, CERTIFICATE_REQUEST)
     | CertificateVerify c -> (c, CERTIFICATE_VERIFY)
     | ServerKeyExchange kex -> (kex, SERVER_KEY_EXCHANGE)
-    | ClientKeyExchange kex -> (assemble_client_key_exchange kex, CLIENT_KEY_EXCHANGE)
+    | ClientKeyExchange kex -> (kex, CLIENT_KEY_EXCHANGE)
     | ServerHelloDone -> (create 0, SERVER_HELLO_DONE)
     | HelloRequest -> (create 0, HELLO_REQUEST)
     | Finished fs -> (fs, FINISHED)

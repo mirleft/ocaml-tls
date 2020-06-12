@@ -10,7 +10,7 @@ let serve_ssl port callback =
     ~cert:server_cert
     ~priv_key:server_key >>= fun certificate ->
   let config =
-    Tls.Config.(server ~certificates:(`Single certificate) ~ciphers:Ciphers.supported ()) in
+    Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates:(`Single certificate) ~ciphers:Ciphers.supported ()) in
 
   let server_s =
     let open Lwt_unix in
@@ -28,6 +28,7 @@ let serve_ssl port callback =
   yap ~tag "<- handler done"
 
 let test_server port =
+  Mirage_crypto_rng_lwt.initialize () >>= fun () ->
   serve_ssl port @@ fun (ic, oc) _addr ->
     yap ~tag:"handler" "accepted" >>= fun () ->
     Lwt_io.read_line ic >>= fun line ->

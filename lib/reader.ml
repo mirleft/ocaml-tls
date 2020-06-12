@@ -231,18 +231,6 @@ let parse_supported_groups buf =
     else
       cs
 
-let parse_ec_point_format buf =
-  let parsef buf =
-    let typ = get_uint8 buf 0 in
-    (int_to_ec_point_format typ, shift buf 1)
-  in
-  let count = get_uint8 buf 0 in
-  let formats, rt = parse_count_list parsef (shift buf 1) [] count in
-  if len rt <> 0 then
-    raise_trailing_bytes "ec point formats"
-  else
-    formats
-
 let parse_signature_algorithm buf =
   match int_to_signature_alg (BE.get_uint16 buf 0) with
   | Some sig_alg -> of_signature_alg sig_alg
@@ -274,9 +262,6 @@ let parse_extension buf = function
      (match parse_fragment_length buf with
       | Some mfl -> `MaxFragmentLength mfl
       | None     -> raise_unknown "maximum fragment length")
-  | EC_POINT_FORMATS ->
-       let formats = parse_ec_point_format buf in
-       `ECPointFormats formats
   | RENEGOTIATION_INFO ->
        let len' = get_uint8 buf 0 in
        if len buf <> len' + 1 then
@@ -710,6 +695,21 @@ let parse_dh_parameters = catch @@ fun raw ->
   let rawparams = sub raw 0 (plength + glength + yslength + 6) in
   ({ dh_p ; dh_g ; dh_Ys }, rawparams, buf)
 
+let parse_ec_parameters = catch @@ fun raw ->
+  if get_uint8 raw 0 <> ec_curve_type_to_int NAMED_CURVE then
+    raise_unknown "EC curve type"
+  else
+    match int_to_named_group (BE.get_uint16 raw 1) with
+    | Some g ->
+      begin match named_group_to_group g with
+        | Some ((`X25519 | `P256) as g) ->
+          let data_len = get_uint8 raw 3 in
+          let d, rest = split (shift raw 4) data_len in
+          g, d, sub raw 0 (data_len + 4), rest
+        | _ -> raise_unknown "EC group"
+      end
+    | None -> raise_unknown "EC named group"
+
 let parse_digitally_signed_exn buf =
   let siglen = BE.get_uint16 buf 0 in
   if len buf <> siglen + 2 then
@@ -751,12 +751,23 @@ let parse_session_ticket buf =
   let extensions = parse_extensions parse_session_ticket_extension exts_buf in
   { lifetime ; age_add ; nonce ; ticket ; extensions }
 
-let parse_client_key_exchange buf =
+let parse_client_dh_key_exchange_exn buf =
   let length = BE.get_uint16 buf 0 in
   if len buf <> length + 2 then
     raise_trailing_bytes "client key exchange"
   else
-    ClientKeyExchange (sub buf 2 length)
+    sub buf 2 length
+
+let parse_client_dh_key_exchange = catch parse_client_dh_key_exchange_exn
+
+let parse_client_ec_key_exchange_exn buf =
+  let length = get_uint8 buf 0 in
+  if len buf <> length + 1 then
+    raise_trailing_bytes "client key exchange"
+  else
+    sub buf 1 length
+
+let parse_client_ec_key_exchange = catch parse_client_ec_key_exchange_exn
 
 let parse_keyupdate buf =
   if len buf <> 1 then
@@ -797,7 +808,7 @@ let parse_handshake = catch @@ fun buf ->
     | Some SERVER_HELLO_DONE ->
       if len payload = 0 then ServerHelloDone else raise_trailing_bytes "server hello done"
     | Some CERTIFICATE_REQUEST -> CertificateRequest payload
-    | Some CLIENT_KEY_EXCHANGE -> parse_client_key_exchange payload
+    | Some CLIENT_KEY_EXCHANGE -> ClientKeyExchange payload
     | Some FINISHED -> Finished payload
     | Some ENCRYPTED_EXTENSIONS ->
       let ee = parse_extensions parse_encrypted_extension payload in

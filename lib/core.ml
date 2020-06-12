@@ -201,7 +201,6 @@ type client_extension = [
   | `Hostname of string
   | `MaxFragmentLength of max_fragment_length
   | `SupportedGroups of Packet.named_group list
-  | `ECPointFormats of ec_point_format list
   | `SecureRenegotiation of Cstruct_sexp.t
   | `Padding of int
   | `SignatureAlgorithms of signature_algorithm list
@@ -227,7 +226,6 @@ type server_extension = [
   server13_extension
   | `Hostname
   | `MaxFragmentLength of max_fragment_length
-  | `ECPointFormats of ec_point_format list
   | `SecureRenegotiation of Cstruct_sexp.t
   | `ExtendedMasterSecret
   | `ALPN of string
@@ -271,37 +269,6 @@ type dh_parameters = {
   dh_g  : Cstruct_sexp.t;
   dh_Ys : Cstruct_sexp.t;
 } [@@deriving sexp]
-
-type ec_curve = {
-  a : Cstruct_sexp.t;
-  b : Cstruct_sexp.t
-} [@@deriving sexp]
-
-type ec_prime_parameters = {
-  prime    : Cstruct_sexp.t;
-  curve    : ec_curve;
-  base     : Cstruct_sexp.t;
-  order    : Cstruct_sexp.t;
-  cofactor : Cstruct_sexp.t;
-  public   : Cstruct_sexp.t
-} [@@deriving sexp]
-
-type ec_char_parameters = {
-  m        : int;
-  basis    : ec_basis_type;
-  ks       : Cstruct_sexp.t list;
-  curve    : ec_curve;
-  base     : Cstruct_sexp.t;
-  order    : Cstruct_sexp.t;
-  cofactor : Cstruct_sexp.t;
-  public   : Cstruct_sexp.t
-} [@@deriving sexp]
-
-type ec_parameters =
-  | ExplicitPrimeParameters of ec_prime_parameters
-  | ExplicitCharParameters of ec_char_parameters
-  | NamedGroupParameters of (group * Cstruct_sexp.t)
-  [@@deriving sexp]
 
 type hello_retry = {
   retry_version : tls_version ;

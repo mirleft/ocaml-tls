@@ -35,9 +35,12 @@ testit
 extra_args="-tls1_2"
 testit
 
-ciphers="DHE-RSA-AES256-SHA AES256-SHA DHE-RSA-AES128-SHA AES128-SHA"
+extra_args="-tls1_3"
+testit
+
+ciphers="DHE-RSA-AES256-SHA AES256-SHA DHE-RSA-AES128-SHA AES128-SHA ECDHE-RSA-AES256-SHA ECDHE-RSA-AES128-SHA"
 #OpenSSL <1.1.1:
-#EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA RC4-SHA RC4-MD5
+#EDH-RSA-DES-CBC3-SHA DES-CBC3-SHA
 for i in $ciphers; do
     extra_args="-cipher $i"
     testit
@@ -52,11 +55,21 @@ for i in $ciphers; do
     testit
 done
 
-tls12_ciphers="DHE-RSA-AES256-SHA256 AES256-SHA256 DHE-RSA-AES128-SHA256 AES128-SHA256 AES128-GCM-SHA256 DHE-RSA-AES128-GCM-SHA256 AES256-GCM-SHA384 DHE-RSA-AES256-GCM-SHA384"
+tls12_ciphers="DHE-RSA-AES256-SHA256 AES256-SHA256 DHE-RSA-AES128-SHA256 AES128-SHA256 AES128-GCM-SHA256 DHE-RSA-AES128-GCM-SHA256 AES256-GCM-SHA384 DHE-RSA-AES256-GCM-SHA384 ECDHE-RSA-AES256-GCM-SHA384 ECDHE-RSA-AES128-GCM-SHA256 ECDHE-RSA-AES256-SHA384 ECDHE-RSA-AES128-SHA256"
 for i in $tls12_ciphers; do
     extra_args="-cipher $i"
     testit
 
     extra_args="-tls1_2 -cipher $i"
+    testit
+done
+
+#add TLS_CHACHA20_POLY1305_SHA256 once we support it
+tls13_ciphers="TLS_AES_256_GCM_SHA384 TLS_AES_128_GCM_SHA256"
+for i in $tls13_ciphers; do
+    extra_args="-ciphersuites $i"
+    testit
+
+    extra_args="-tls1_3 -ciphersuites $i"
     testit
 done
