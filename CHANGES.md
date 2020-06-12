@@ -6,7 +6,7 @@ in #414 by @hannesm
 * tls_lwt no longer calls Mirage_crypto_rng_unix.initialize -- this needs to be
   done in the application, inside Lwt_main.run:
   `Mirage_crypto_rng_lwt.initialize () >>= fun () ->`
-* Support ECDHE ciphersuites in TLS 1.2 and below
+* Support ECDHE ciphersuites in TLS 1.2 and below as specified in RFC 8422
   (requested in #413 by @ryanakca, also in #362 by @orbitz @annubiz)
 * drop "TLS_" prefix from ciphersuite constructors
 * BUGFIX: TLS client (<= 1.2) assembling an empty Certificate message
