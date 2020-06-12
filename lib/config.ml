@@ -138,7 +138,7 @@ let elliptic_curve = function
 
 let default_config = {
   ciphers = Ciphers.default ;
-  protocol_versions = (`TLS_1_0, `TLS_1_3) ;
+  protocol_versions = (`TLS_1_2, `TLS_1_3) ;
   signature_algorithms = default_signature_algorithms ;
   use_reneg = false ;
   authenticator = None ;
