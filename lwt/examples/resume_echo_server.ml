@@ -32,7 +32,7 @@ let serve_ssl port callback =
     {
       Tls.Core.state = `Established ;
       protocol_version = `TLS_1_3 ;
-      ciphersuite = `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 ;
+      ciphersuite = `DHE_RSA_WITH_AES_128_GCM_SHA256 ;
       peer_random = hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" ;
       peer_certificate_chain = [] ;
       peer_certificate = None ;

@@ -6,7 +6,7 @@ let cached_session : Tls.Core.epoch_data =
   let hex = Cstruct.of_hex in
   {
     Tls.Core.protocol_version = `TLS_1_3 ;
-    ciphersuite = `TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 ;
+    ciphersuite = `DHE_RSA_WITH_AES_128_GCM_SHA256 ;
     peer_random = hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" ;
     peer_certificate = None ;
     peer_certificate_chain = [] ;

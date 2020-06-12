@@ -10,7 +10,7 @@ let serve_ssl port callback =
     ~cert:server_cert
     ~priv_key:server_key >>= fun certificate ->
   let config =
-    Tls.Config.(server ~certificates:(`Single certificate) ~ciphers:Ciphers.supported ()) in
+    Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates:(`Single certificate) ~ciphers:Ciphers.supported ()) in
 
   let server_s =
     let open Lwt_unix in
