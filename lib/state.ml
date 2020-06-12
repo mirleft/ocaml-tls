@@ -318,7 +318,7 @@ let common_data_to_epoch common is_server peer_name =
   let epoch : epoch_data =
     { state                  = `Established ;
       protocol_version       = `TLS_1_0 ;
-      ciphersuite            = `TLS_DHE_RSA_WITH_AES_256_CBC_SHA ;
+      ciphersuite            = `DHE_RSA_WITH_AES_256_CBC_SHA ;
       peer_random ;
       peer_certificate       = common.peer_certificate ;
       peer_certificate_chain = common.peer_certificate_chain ;

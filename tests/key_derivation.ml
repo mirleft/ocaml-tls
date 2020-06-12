@@ -11,7 +11,7 @@ let secret0 = Cstruct.of_hex {|
 10 ad f3 00 aa 1f 26 60  e1 b2 2e 10 f1 70 f9 2a
 |}
 
-let cipher = `TLS_AES_128_GCM_SHA256
+let cipher = `AES_128_GCM_SHA256
 let hash = Tls.Ciphersuite.hash13 cipher
 
 let my_secret = ref None

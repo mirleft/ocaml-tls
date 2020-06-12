@@ -446,7 +446,7 @@ let rw_handshake_server_hello_vals =
           { server_version = `TLS_1_2 ;
             server_random ;
             sessionid = None ;
-            ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+            ciphersuite = `RSA_WITH_RC4_128_MD5 ;
             extensions = []}
         in
         [

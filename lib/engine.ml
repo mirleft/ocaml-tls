@@ -461,7 +461,7 @@ let decrement_early_data hs ty buf =
   if ty = Packet.APPLICATION_DATA && early_data hs then
     let cipher = match hs.session with
       | `TLS13 sd::_ -> sd.ciphersuite13
-      | _ -> `TLS_AES_128_GCM_SHA256
+      | _ -> `AES_128_GCM_SHA256
       (* TODO assert and ensure that all early_data states have a cipher  *)
     in
     bytes hs.early_data_left cipher >|= fun early_data_left ->

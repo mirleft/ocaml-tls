@@ -407,7 +407,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
    ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `RSA_WITH_RC4_128_MD5 ;
                    extensions = []
                  } ,
      [2; 0; 0; 38; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
@@ -415,7 +415,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
    ( ServerHello { server_version = `TLS_1_1 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `RSA_WITH_RC4_128_MD5 ;
                    extensions = []
                  } ,
      [2; 0; 0; 38; 3; 2] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
@@ -423,7 +423,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
    ( ServerHello { server_version = `TLS_1_0 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `RSA_WITH_RC4_128_MD5 ;
                    extensions = []
                  } ,
      [2; 0; 0; 38; 3; 1] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
@@ -432,7 +432,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
    ( ServerHello { server_version = `TLS_1_0 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = Some a_cs ;
-                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `RSA_WITH_RC4_128_MD5 ;
                    extensions = []
                  } ,
      [2; 0; 0; 54; 3; 1] @ a_l @ a_l @ (* session id *) [ 16 ] @ a_l @ [(* cipher *) 0; 4; (* comp *) 0; (* exts *)] ) ;
@@ -440,7 +440,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
    ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `RSA_WITH_RC4_128_MD5 ;
                    extensions = [`Hostname]
                  } ,
      [2; 0; 0; 44; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 4; 0; 0; 0; 0] ) ;
@@ -449,7 +449,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
    ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `RSA_WITH_RC4_128_MD5 ;
                    extensions = [`SecureRenegotiation (Cstruct.create 0)]
                  } ,
      [2; 0; 0; 45; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 5; 0xFF; 1; 0; 1; 0] ) ;
@@ -457,7 +457,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
    ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `RSA_WITH_RC4_128_MD5 ;
                    extensions = [`Hostname ; `SecureRenegotiation (Cstruct.create 0)]
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0; 0; 0; 0; 0xFF; 1; 0; 1; 0] ) ;
@@ -465,7 +465,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
    ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `RSA_WITH_RC4_128_MD5 ;
                    extensions = [`SecureRenegotiation (Cstruct.create 0); `Hostname ]
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 1; 0; 0; 0; 0; 0] ) ;
@@ -473,7 +473,7 @@ Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WITH_NULL_NULL;Packet.TLS_NULL_WI
    ( ServerHello { server_version = `TLS_1_2 ;
                    server_random  = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuite = `TLS_RSA_WITH_RC4_128_MD5 ;
+                   ciphersuite = `RSA_WITH_RC4_128_MD5 ;
                    extensions = [`ALPN "h2"]
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0; 4; (* comp *) 0; (* exts *) 0; 9; 0; 16; 0; 5; 0; 3; 2; 104; 50] ) ;
