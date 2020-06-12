@@ -306,15 +306,15 @@ let handshake_assembler_tests =
    ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuites = Packet.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
+                   ciphersuites = Packet.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_WITH_RC4_128_MD5]);
                    extensions = [] },
-     [ 1; 0; 0; 47; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ] ) ;
+     [ 1; 0; 0; 47; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 4; 1; 0 ] ) ;
 
 
    ( ClientHello { client_version = `TLS_1_2 ;
                    client_random = a_cs <+> a_cs ;
                    sessionid = None ;
-                   ciphersuites = Packet.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_EXPORT_WITH_RC4_40_MD5]);
+                   ciphersuites = Packet.([TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_NULL_SHA ; TLS_RSA_WITH_RC4_128_MD5]);
                    extensions = [
                             `SignatureAlgorithms
                               [`RSA_PKCS1_SHA512 ;
@@ -322,7 +322,7 @@ let handshake_assembler_tests =
                                `RSA_PKCS1_SHA256 ;
                                `RSA_PKCS1_SHA224 ;
                                `RSA_PKCS1_SHA1 ] ] },
-     [ 1; 0; 0; 65; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 3; 1; 0 ; 0; 0x10 ;
+     [ 1; 0; 0; 65; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 8; 0; 0; 0; 1; 0; 2; 0; 4; 1; 0 ; 0; 0x10 ;
 
               0x00; 0x0d; 0x00; 0x0c; (* signature algorithms *)
               0x00; 0x0a; 0x06; 0x01; 0x05; 0x01; 0x04; 0x01; 0x03; 0x01; 0x02; 0x01 ] ) ;
