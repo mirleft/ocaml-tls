@@ -348,7 +348,7 @@ let answer_server_hello_done state (session : session_data) sigalgs kex premaste
         [ ccert ; ckex ; ccert_verify ],
         to_sign, Some ccert_verify)
     | true, None ->
-       let cert = Certificate (Cstruct.create 0) in
+       let cert = Certificate (Writer.assemble_certificates []) in
        let ccert = Writer.assemble_handshake cert in
        return ([cert ; kex], [ccert ; ckex], log @ [ raw ; ccert ; ckex ], None)
     | false, _ ->
