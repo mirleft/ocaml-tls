@@ -383,7 +383,6 @@ let rw_handshake_client_hello_vals =
           ClientHello { ch with extensions = [
                              `Hostname "foobarblubb" ;
                              `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
-                             `ECPointFormats Packet.([UNCOMPRESSED]) ;
                              `SignatureAlgorithms [`RSA_PKCS1_MD5] ;
                              `ALPN ["h2"; "http/1.1"]
                            ] } ;
@@ -399,7 +398,6 @@ let rw_handshake_client_hello_vals =
                         extensions = [
                              `Hostname "foobarblubb" ;
                              `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
-                             `ECPointFormats Packet.([UNCOMPRESSED]) ;
                              `SignatureAlgorithms [`RSA_PKCS1_SHA1; `RSA_PKCS1_SHA512] ;
                              `ALPN ["h2"; "http/1.1"]
                       ] } ;
@@ -410,7 +408,6 @@ let rw_handshake_client_hello_vals =
                         extensions = [
                              `Hostname "foobarblubb" ;
                              `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
-                             `ECPointFormats Packet.([UNCOMPRESSED]) ;
                              `SignatureAlgorithms [`RSA_PKCS1_MD5; `RSA_PKCS1_SHA256] ;
                              `SecureRenegotiation client_random ;
                              `ALPN ["h2"; "http/1.1"]

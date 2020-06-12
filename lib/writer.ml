@@ -164,14 +164,6 @@ let assemble_client_psks psks =
   let binders_buf = assemble_list Two assemble_binder binders in
   ids_buf <+> binders_buf
 
-let assemble_ec_point_format f =
-  let buf = create 1 in
-  set_uint8 buf 0 (ec_point_format_to_int f) ;
-  buf
-
-let assemble_ec_point_formats formats =
-  assemble_list One assemble_ec_point_format formats
-
 let assemble_alpn_protocol p =
   let buf = create 1 in
   set_uint8 buf 0 (String.length p) ;
@@ -184,8 +176,6 @@ let assemble_supported_versions vs =
   assemble_list One assemble_any_protocol_version vs
 
 let assemble_extension = function
-  | `ECPointFormats formats ->
-     (assemble_ec_point_formats formats, EC_POINT_FORMATS)
   | `SecureRenegotiation x ->
      let buf = create 1 in
      set_uint8 buf 0 (len x);

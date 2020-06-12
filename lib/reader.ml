@@ -231,18 +231,6 @@ let parse_supported_groups buf =
     else
       cs
 
-let parse_ec_point_format buf =
-  let parsef buf =
-    let typ = get_uint8 buf 0 in
-    (int_to_ec_point_format typ, shift buf 1)
-  in
-  let count = get_uint8 buf 0 in
-  let formats, rt = parse_count_list parsef (shift buf 1) [] count in
-  if len rt <> 0 then
-    raise_trailing_bytes "ec point formats"
-  else
-    formats
-
 let parse_signature_algorithm buf =
   match int_to_signature_alg (BE.get_uint16 buf 0) with
   | Some sig_alg -> of_signature_alg sig_alg
@@ -274,9 +262,6 @@ let parse_extension buf = function
      (match parse_fragment_length buf with
       | Some mfl -> `MaxFragmentLength mfl
       | None     -> raise_unknown "maximum fragment length")
-  | EC_POINT_FORMATS ->
-       let formats = parse_ec_point_format buf in
-       `ECPointFormats formats
   | RENEGOTIATION_INFO ->
        let len' = get_uint8 buf 0 in
        if len buf <> len' + 1 then

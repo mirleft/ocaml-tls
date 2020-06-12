@@ -262,21 +262,6 @@ type named_group =
   [@@uint16_t] [@@sexp]
 ]
 
-[%%cenum
-type ec_point_format =
-  | UNCOMPRESSED              [@id 0]
-  (* 1 and 2 are deprecated in RFC 8422 *)
-  (* reserved 248..255 *)
-  [@@uint8_t] [@@sexp]
-]
-
-[%%cenum
-type ec_basis_type =
-  | TRINOMIAL   [@id 0]
-  | PENTANOMIAL [@id 1]
-  [@@uint8_t] [@@sexp]
-]
-
 (** enum of all TLS ciphersuites *)
 [%%cenum
 type any_ciphersuite =

@@ -52,7 +52,6 @@ let assert_client_extension_equal a b =
   | `Hostname a, `Hostname b -> assert_equal a b
   | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
   | `SupportedGroups a, `SupportedGroups b -> assert_lists_eq assert_equal a b
-  | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
   | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
   | `Padding a, `Padding b -> assert_equal a b
   | `SignatureAlgorithms a, `SignatureAlgorithms b ->
@@ -64,7 +63,6 @@ let assert_server_extension_equal a b =
   match a, b with
   | `Hostname, `Hostname -> ()
   | `MaxFragmentLength a, `MaxFragmentLength b -> assert_equal a b
-  | `ECPointFormats a, `ECPointFormats b -> assert_lists_eq assert_equal a b
   | `SecureRenegotiation a, `SecureRenegotiation b -> assert_cs_eq a b
   | `ALPN a, `ALPN b -> assert_equal a b
   | _ -> assert_failure "extensions did not match"
