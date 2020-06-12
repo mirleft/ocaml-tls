@@ -9,13 +9,6 @@ open Mirage_crypto
 
 type hmac_key = Cstruct.t
 
-type 'k stream_state = {
-  cipher         : (module Cipher_stream.S with type key = 'k) ;
-  cipher_secret  : 'k ;
-  hmac           : Hash.hash ;
-  hmac_secret    : hmac_key
-}
-
 (* initialisation vector style, depending on TLS version *)
 type iv_mode =
   | Iv of Cstruct_sexp.t  (* traditional CBC (reusing last cipherblock) *)
@@ -45,13 +38,11 @@ type 'k aead_state = {
 
 (* state of a symmetric cipher *)
 type cipher_st =
-  | Stream : 'k stream_state -> cipher_st
   | CBC    : 'k cbc_state -> cipher_st
   | AEAD   : 'k aead_state -> cipher_st
 
 (* Sexplib stubs -- rethink how to play with crypto. *)
 let sexp_of_cipher_st = function
-  | Stream _ -> Sexp.Atom "<stream-state>"
   | CBC _    -> Sexp.Atom "<cbc-state>"
   | AEAD _   -> Sexp.Atom "<aead-state>"
 

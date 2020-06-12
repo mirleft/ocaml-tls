@@ -155,12 +155,6 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
         in
         let c_st, enc =
           match ctx.cipher_st with
-          | Stream s ->
-             let to_encrypt = to_encrypt s.hmac s.hmac_secret in
-             let (message, key') =
-               Crypto.encrypt_stream ~cipher:s.cipher ~key:s.cipher_secret to_encrypt in
-             (Stream { s with cipher_secret = key'}, message)
-
           | CBC c ->
              let enc iv =
                let to_encrypt = to_encrypt c.hmac c.hmac_secret in
@@ -218,11 +212,6 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
   let dec ctx =
     let seq = ctx.sequence in
     match ctx.cipher_st with
-    | Stream s ->
-        let (message, key') = Crypto.decrypt_stream ~cipher:s.cipher ~key:s.cipher_secret buf in
-        compute_mac seq s.hmac s.hmac_secret message >|= fun msg ->
-        (Stream { s with cipher_secret = key' }, msg)
-
     | CBC c ->
        let dec iv buf =
          match Crypto.decrypt_cbc ~cipher:c.cipher ~key:c.cipher_secret ~iv buf with

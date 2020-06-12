@@ -9,10 +9,6 @@ let required_keytype_and_usage = function
   | `RSA     -> (`RSA, `Key_encipherment)
   | `DHE_RSA -> (`RSA, `Digital_signature) (* signing with the signature scheme and hash algorithm that will be employed in the server key exchange message. *)
 
-type stream_cipher =
-  | RC4_128
-  [@@deriving sexp]
-
 type block_cipher =
   | TRIPLE_DES_EDE_CBC
   | AES_128_CBC
@@ -46,7 +42,6 @@ type payload_protection13 = [ `AEAD of aead_cipher ] [@@deriving sexp]
 
 type payload_protection =  [
   payload_protection13
-  | `Stream of stream_cipher * H.t
   | `Block of block_cipher * H.t
   ] [@@deriving sexp]
 
@@ -62,7 +57,6 @@ let kn_13 = function
 let key_length iv pp =
   let mac_size = Mirage_crypto.Hash.digest_size in
   match pp with
-  | `Stream (RC4_128, mac)           -> (16, 0 , mac_size mac)
   | `AEAD AES_128_CCM                -> (16, 4 , 0)
   | `AEAD AES_256_CCM                -> (32, 4 , 0)
   | `AEAD AES_128_GCM                -> (16, 4 , 0)
@@ -127,8 +121,6 @@ type ciphersuite = [
   | `RSA_WITH_AES_256_CBC_SHA
   | `RSA_WITH_AES_128_CBC_SHA
   | `RSA_WITH_3DES_EDE_CBC_SHA
-  | `RSA_WITH_RC4_128_SHA
-  | `RSA_WITH_RC4_128_MD5
   | `RSA_WITH_AES_128_GCM_SHA256
   | `RSA_WITH_AES_256_GCM_SHA384
   | `RSA_WITH_AES_256_CCM
@@ -150,8 +142,6 @@ let any_ciphersuite_to_ciphersuite = function
   | Packet.TLS_RSA_WITH_AES_256_CBC_SHA        -> Some `RSA_WITH_AES_256_CBC_SHA
   | Packet.TLS_RSA_WITH_AES_128_CBC_SHA        -> Some `RSA_WITH_AES_128_CBC_SHA
   | Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA       -> Some `RSA_WITH_3DES_EDE_CBC_SHA
-  | Packet.TLS_RSA_WITH_RC4_128_SHA            -> Some `RSA_WITH_RC4_128_SHA
-  | Packet.TLS_RSA_WITH_RC4_128_MD5            -> Some `RSA_WITH_RC4_128_MD5
   | Packet.TLS_RSA_WITH_AES_128_CCM            -> Some `RSA_WITH_AES_128_CCM
   | Packet.TLS_RSA_WITH_AES_256_CCM            -> Some `RSA_WITH_AES_256_CCM
   | Packet.TLS_DHE_RSA_WITH_AES_128_CCM        -> Some `DHE_RSA_WITH_AES_128_CCM
@@ -180,8 +170,6 @@ let ciphersuite_to_any_ciphersuite = function
   | `RSA_WITH_AES_256_CBC_SHA        -> Packet.TLS_RSA_WITH_AES_256_CBC_SHA
   | `RSA_WITH_AES_128_CBC_SHA        -> Packet.TLS_RSA_WITH_AES_128_CBC_SHA
   | `RSA_WITH_3DES_EDE_CBC_SHA       -> Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA
-  | `RSA_WITH_RC4_128_SHA            -> Packet.TLS_RSA_WITH_RC4_128_SHA
-  | `RSA_WITH_RC4_128_MD5            -> Packet.TLS_RSA_WITH_RC4_128_MD5
   | `RSA_WITH_AES_128_CCM            -> Packet.TLS_RSA_WITH_AES_128_CCM
   | `RSA_WITH_AES_256_CCM            -> Packet.TLS_RSA_WITH_AES_256_CCM
   | `DHE_RSA_WITH_AES_128_CCM        -> Packet.TLS_DHE_RSA_WITH_AES_128_CCM
@@ -206,8 +194,6 @@ let ciphersuite_to_string x = Packet.any_ciphersuite_to_string (ciphersuite_to_a
 
 (** [get_kex_privprot ciphersuite] is [(kex, privacy_protection)] where it dissects the [ciphersuite] into a pair containing the key exchange method [kex], and its [privacy_protection] *)
 let get_kex_privprot = function
-  | `RSA_WITH_RC4_128_MD5            -> (`RSA    , `Stream (RC4_128, `MD5))
-  | `RSA_WITH_RC4_128_SHA            -> (`RSA    , `Stream (RC4_128, `SHA1))
   | `RSA_WITH_3DES_EDE_CBC_SHA       -> (`RSA    , `Block (TRIPLE_DES_EDE_CBC, `SHA1))
   | `DHE_RSA_WITH_3DES_EDE_CBC_SHA   -> (`DHE_RSA, `Block (TRIPLE_DES_EDE_CBC, `SHA1))
   | `RSA_WITH_AES_128_CBC_SHA        -> (`RSA    , `Block (AES_128_CBC, `SHA1))

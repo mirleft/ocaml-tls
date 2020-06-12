@@ -105,8 +105,6 @@ module Ciphers = struct
   let supported = default @ [
     `DHE_RSA_WITH_3DES_EDE_CBC_SHA ;
     `RSA_WITH_3DES_EDE_CBC_SHA ;
-    `RSA_WITH_RC4_128_SHA ;
-    `RSA_WITH_RC4_128_MD5
     ]
 
   let fs_of = List.filter Ciphersuite.ciphersuite_fs

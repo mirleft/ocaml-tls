@@ -268,8 +268,6 @@ type any_ciphersuite =
   | TLS_NULL_WITH_NULL_NULL                [@id 0x0000]
   | TLS_RSA_WITH_NULL_MD5                  [@id 0x0001]
   | TLS_RSA_WITH_NULL_SHA                  [@id 0x0002]
-  | TLS_RSA_WITH_RC4_128_MD5               [@id 0x0004]
-  | TLS_RSA_WITH_RC4_128_SHA               [@id 0x0005]
   | TLS_RSA_WITH_IDEA_CBC_SHA              [@id 0x0007]
   | TLS_RSA_WITH_DES_CBC_SHA               [@id 0x0009]
   | TLS_RSA_WITH_3DES_EDE_CBC_SHA          [@id 0x000A]
@@ -282,7 +280,6 @@ type any_ciphersuite =
   | TLS_DHE_RSA_WITH_DES_CBC_SHA           [@id 0x0015]
   | TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA      [@id 0x0016]
   (* MITM deprecated *)
-  | TLS_DH_anon_WITH_RC4_128_MD5        [@id 0x0018]
   | TLS_DH_anon_WITH_DES_CBC_SHA        [@id 0x001A]
   | TLS_DH_anon_WITH_3DES_EDE_CBC_SHA   [@id 0x001B]
   | RESERVED_SSL3_1                     [@id 0x001C] (* RFC5246 *)
@@ -317,15 +314,12 @@ type any_ciphersuite =
   | TLS_DHE_RSA_WITH_AES_256_CBC_SHA256      [@id 0x006B]
   | TLS_DH_anon_WITH_AES_128_CBC_SHA256      [@id 0x006C]
   | TLS_DH_anon_WITH_AES_256_CBC_SHA256      [@id 0x006D]
-  | TLS_PSK_WITH_RC4_128_SHA                 [@id 0x008A] (*RFC4279, RFC6347*)
   | TLS_PSK_WITH_3DES_EDE_CBC_SHA            [@id 0x008B] (*RFC4279*)
   | TLS_PSK_WITH_AES_128_CBC_SHA             [@id 0x008C] (*RFC4279*)
   | TLS_PSK_WITH_AES_256_CBC_SHA             [@id 0x008D] (*RFC4279*)
-  | TLS_DHE_PSK_WITH_RC4_128_SHA             [@id 0x008E] (*RFC4279, RFC6347*)
   | TLS_DHE_PSK_WITH_3DES_EDE_CBC_SHA        [@id 0x008F] (*RFC4279*)
   | TLS_DHE_PSK_WITH_AES_128_CBC_SHA         [@id 0x0090] (*RFC4279*)
   | TLS_DHE_PSK_WITH_AES_256_CBC_SHA         [@id 0x0091] (*RFC4279*)
-  | TLS_RSA_PSK_WITH_RC4_128_SHA             [@id 0x0092] (*RFC4279, RFC6347*)
   | TLS_RSA_PSK_WITH_3DES_EDE_CBC_SHA        [@id 0x0093] (*RFC4279*)
   | TLS_RSA_PSK_WITH_AES_128_CBC_SHA         [@id 0x0094] (*RFC4279*)
   | TLS_RSA_PSK_WITH_AES_256_CBC_SHA         [@id 0x0095] (*RFC4279*)
@@ -374,27 +368,22 @@ type any_ciphersuite =
   | TLS_FALLBACK_SCSV                        [@id 0x5600] (*draft-ietf-tls-downgrade-scsv*)
   (* from RFC 4492 *)
   | TLS_ECDH_ECDSA_WITH_NULL_SHA                 [@id 0xC001]
-  | TLS_ECDH_ECDSA_WITH_RC4_128_SHA              [@id 0xC002]
   | TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA         [@id 0xC003]
   | TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA          [@id 0xC004]
   | TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA          [@id 0xC005]
   | TLS_ECDHE_ECDSA_WITH_NULL_SHA                [@id 0xC006]
-  | TLS_ECDHE_ECDSA_WITH_RC4_128_SHA             [@id 0xC007]
   | TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA        [@id 0xC008]
   | TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA         [@id 0xC009]
   | TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA         [@id 0xC00A]
   | TLS_ECDH_RSA_WITH_NULL_SHA                   [@id 0xC00B]
-  | TLS_ECDH_RSA_WITH_RC4_128_SHA                [@id 0xC00C]
   | TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA           [@id 0xC00D]
   | TLS_ECDH_RSA_WITH_AES_128_CBC_SHA            [@id 0xC00E]
   | TLS_ECDH_RSA_WITH_AES_256_CBC_SHA            [@id 0xC00F]
   | TLS_ECDHE_RSA_WITH_NULL_SHA                  [@id 0xC010]
-  | TLS_ECDHE_RSA_WITH_RC4_128_SHA               [@id 0xC011]
   | TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA          [@id 0xC012]
   | TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA           [@id 0xC013]
   | TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA           [@id 0xC014]
   | TLS_ECDH_anon_WITH_NULL_SHA                  [@id 0xC015]
-  | TLS_ECDH_anon_WITH_RC4_128_SHA               [@id 0xC016]
   | TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA          [@id 0xC017]
   | TLS_ECDH_anon_WITH_AES_128_CBC_SHA           [@id 0xC018]
   | TLS_ECDH_anon_WITH_AES_256_CBC_SHA           [@id 0xC019]
@@ -423,7 +412,6 @@ type any_ciphersuite =
   | TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384        [@id 0xC030] (*RFC5289*)
   | TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256         [@id 0xC031] (*RFC5289*)
   | TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384         [@id 0xC032] (*RFC5289*)
-  | TLS_ECDHE_PSK_WITH_RC4_128_SHA               [@id 0xC033] (*RFC5489*)(*RFC6347*)
   | TLS_ECDHE_PSK_WITH_3DES_EDE_CBC_SHA          [@id 0xC034] (*RFC5489*)
   | TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA           [@id 0xC035] (*RFC5489*)
   | TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA           [@id 0xC036] (*RFC5489*)

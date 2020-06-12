@@ -51,12 +51,6 @@ module Ciphers = struct
        State.(AEAD { cipher = GCM cipher ; cipher_secret ; nonce })
 
   let get_cipher ~secret ~hmac_secret ~iv_mode ~nonce = function
-    | `Stream (RC4_128, hmac) ->
-        let open Cipher_stream in
-        let cipher = (module ARC4 : Cipher_stream.S with type key = ARC4.key) in
-        let cipher_secret = ARC4.of_secret secret in
-        State.(Stream { cipher ; cipher_secret ; hmac ; hmac_secret })
-
     | `Block (cipher, hmac) ->
        ( match get_block cipher with
          | K_CBC (cipher, sec) ->
@@ -113,17 +107,6 @@ let mac hash key pseudo_hdr data =
 
 let cbc_block (type a) cipher =
   let module C = (val cipher : Cipher_block.S.CBC with type key = a) in C.block_size
-
-let encrypt_stream (type a) ~cipher ~key data =
-  let module C = (val cipher : Cipher_stream.S with type key = a) in
-  let { C.message ; key } = C.encrypt ~key data in
-  (message, key)
-
-let decrypt_stream (type a) ~cipher ~key data =
-  let module C = (val cipher : Cipher_stream.S with type key = a) in
-  let { C.message ; key } = C.decrypt ~key data in
-  (message, key)
-
 
 (* crazy CBC padding and unpadding for TLS *)
 let cbc_pad block data =
