@@ -34,7 +34,7 @@ let test_client _ =
 
 let jump _ =
   try
-    Lwt_main.run (test_client () >>= test_client) ; `Ok ()
+    Lwt_main.run (Mirage_crypto_rng_lwt.initialize () >>= test_client >>= test_client) ; `Ok ()
   with
   | Tls_lwt.Tls_alert alert as exn ->
       print_alert "remote end" alert ; raise exn

@@ -3,7 +3,11 @@
 in #414 by @hannesm
 * Drop support for RC4 ciphersuite
 * Raise lower TLS version in default configuration to 1.2
-* ECDHE support in TLS 1.2 and below (requested in #413)
+* tls_lwt no longer calls Mirage_crypto_rng_unix.initialize -- this needs to be
+  done in the application, inside Lwt_main.run:
+  `Mirage_crypto_rng_lwt.initialize () >>= fun () ->`
+* Support ECDHE ciphersuites in TLS 1.2 and below
+  (requested in #413 by @ryanakca, also in #362 by @orbitz @annubiz)
 * drop "TLS_" prefix from ciphersuite constructors
 * BUGFIX: TLS client (<= 1.2) assembling an empty Certificate message
   (noticed in #413, present since 0.12.0 release)

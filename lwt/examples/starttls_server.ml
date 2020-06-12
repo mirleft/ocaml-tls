@@ -28,6 +28,7 @@ let accept sock =
   Lwt.return ((ic,oc), addr, sock_cl)
 
 let start_server () =
+  Mirage_crypto_rng_lwt.initialize () >>= fun () ->
   let write oc buff =
     Lwt_io.write oc buff >>= fun () -> Lwt_io.flush oc
   in

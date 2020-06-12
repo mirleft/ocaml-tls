@@ -108,6 +108,7 @@ let serve_ssl port callback =
     loop s
 
 let echo_server port =
+  Mirage_crypto_rng_lwt.initialize () >>= fun () ->
   serve_ssl port @@ fun (ic, oc) ->
     lines ic |> Lwt_stream.iter_s (fun line ->
       yap ~tag:"handler" ("+ " ^ string_of_int (String.length line)) >>= fun () ->

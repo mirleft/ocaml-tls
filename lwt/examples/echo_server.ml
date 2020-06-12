@@ -54,11 +54,12 @@ let serve_ssl port callback =
     loop s
 
 let echo_server _ port =
-  Lwt_main.run @@
-  serve_ssl port @@ fun (ic, oc) _addr ->
-  lines ic |> Lwt_stream.iter_s (fun line ->
-      yap ~tag:"handler" ("+ " ^ line) >>= fun () ->
-      Lwt_io.write_line oc line)
+  Lwt_main.run (
+    Mirage_crypto_rng_lwt.initialize () >>= fun () ->
+    serve_ssl port @@ fun (ic, oc) _addr ->
+    lines ic |> Lwt_stream.iter_s (fun line ->
+        yap ~tag:"handler" ("+ " ^ line) >>= fun () ->
+        Lwt_io.write_line oc line))
 
 open Cmdliner
 

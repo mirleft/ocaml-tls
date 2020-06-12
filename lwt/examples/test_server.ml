@@ -28,6 +28,7 @@ let serve_ssl port callback =
   yap ~tag "<- handler done"
 
 let test_server port =
+  Mirage_crypto_rng_lwt.initialize () >>= fun () ->
   serve_ssl port @@ fun (ic, oc) _addr ->
     yap ~tag:"handler" "accepted" >>= fun () ->
     Lwt_io.read_line ic >>= fun line ->
