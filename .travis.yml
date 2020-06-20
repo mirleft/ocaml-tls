@@ -10,7 +10,6 @@ env:
     - DISTRO=alpine
     - TESTS=true
   matrix:
-    - OCAML_VERSION=4.07 PACKAGE="tls"
     - OCAML_VERSION=4.08 PACKAGE="tls-mirage"
     - OCAML_VERSION=4.09 PACKAGE="tls"
     - OCAML_VERSION=4.10 PACKAGE="tls-mirage"

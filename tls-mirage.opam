@@ -14,7 +14,7 @@ build: [
 ]
 
 depends: [
-  "ocaml" {>= "4.07.0"}
+  "ocaml" {>= "4.08.0"}
   "dune" {>= "1.0"}
   "tls" {= version}
   "x509" {>= "0.10.0"}

@@ -1,3 +1,9 @@
+## v0.12.2 (2020-06-20)
+
+* tls_lwt again calls Mirage_crypto_rng_lwt.initialize () -- which is since
+  mirage-crypto-rng 0.8 no longer inside the lwt monad, and safe to be called
+  multiple times and on top level (#415 by @hannesm)
+
 ## v0.12.1 (2020-06-12)
 
 in #414 by @hannesm
