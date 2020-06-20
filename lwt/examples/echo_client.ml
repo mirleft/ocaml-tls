@@ -26,7 +26,6 @@ let cached_session : Tls.Core.epoch_data =
 
 let echo_client ?ca hostname port =
   let open Lwt_io in
-  Mirage_crypto_rng_lwt.initialize () >>= fun () ->
   auth ~hostname ?ca () >>= fun authenticator ->
   X509_lwt.private_of_pems
     ~cert:server_cert

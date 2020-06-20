@@ -71,7 +71,6 @@ let serve_ssl port callback =
     loop s
 
 let echo_server port =
-  Mirage_crypto_rng_lwt.initialize () >>= fun () ->
   serve_ssl port @@ fun (ic, oc) _addr ->
     yap ~tag:"handler" "accepted" >>= fun () ->
     let out = "HTTP/1.1 404 Not Found\r\n\r\n" in
