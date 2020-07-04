@@ -1,3 +1,8 @@
+## v0.12.3 (2020-07-04)
+
+* Adapt to new GCM and CCM API of mirage-crypto (#416 by @hannesm)
+* Add support for ChaCha20/Poly1305 ciphersuite (#416 by @hannesm)
+
 ## v0.12.2 (2020-06-20)
 
 * tls_lwt again calls Mirage_crypto_rng_lwt.initialize () -- which is since

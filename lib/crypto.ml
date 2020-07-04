@@ -49,6 +49,10 @@ module Ciphers = struct
        let cipher = (module GCM : Cipher_block.S.GCM with type key = GCM.key) in
        let cipher_secret = GCM.of_secret secret in
        State.(AEAD { cipher = GCM cipher ; cipher_secret ; nonce })
+    | CHACHA20_POLY1305 ->
+      let cipher = (module Chacha20 : AEAD with type key = Chacha20.key) in
+      let cipher_secret = Chacha20.of_secret secret in
+      State.(AEAD { cipher = ChaCha20_Poly1305 cipher ; cipher_secret ; nonce })
 
   let get_cipher ~secret ~hmac_secret ~iv_mode ~nonce = function
     | `Block (cipher, hmac) ->
@@ -143,34 +147,35 @@ let tag_len (type a) = function
     C.block_size
   | State.GCM cipher ->
     let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
-    C.block_size
+    C.tag_size
+  | State.ChaCha20_Poly1305 _ ->
+    Poly1305.mac_size
 
 let encrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
   match cipher with
   | State.CCM cipher ->
     let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
-    C.encrypt ~key ~nonce ?adata data
+    C.authenticate_encrypt ~key ~nonce ?adata data
   | State.GCM cipher ->
     let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
-    let { C.message ; tag } = C.encrypt ~key ~iv:nonce ?adata data in
-    message <+> tag
+    C.authenticate_encrypt ~key ~nonce ?adata data
+  | State.ChaCha20_Poly1305 cipher ->
+    let module C = (val cipher : AEAD with type key = a) in
+    Logs.info (fun m -> m "encrypt with nonce %d" (Cstruct.len nonce));
+    C.authenticate_encrypt ~key ~nonce ?adata data
 
 let decrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
   match cipher with
   | State.CCM cipher ->
      let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
-     C.decrypt ~key ~nonce ?adata data
+     C.authenticate_decrypt ~key ~nonce ?adata data
   | State.GCM cipher ->
      let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
-     if Cstruct.len data <= 16 then
-       None
-     else
-       let data, ctag = Cstruct.split data (Cstruct.len data - 16) in
-       let { C.message ; tag } = C.decrypt ~key ~iv:nonce ?adata data in
-       if Cstruct.equal tag ctag then
-         Some message
-       else
-         None
+     C.authenticate_decrypt ~key ~nonce ?adata data
+  | State.ChaCha20_Poly1305 cipher ->
+    let module C = (val cipher : AEAD with type key = a) in
+    Logs.info (fun m -> m "decrypt with nonce %d" (Cstruct.len nonce));
+    C.authenticate_decrypt ~key ~nonce ?adata data
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
   let module C = (val cipher : Cipher_block.S.CBC with type key = a) in

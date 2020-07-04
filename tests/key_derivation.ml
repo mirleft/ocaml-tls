@@ -423,9 +423,10 @@ let processed_payload () =
   let key = Mirage_crypto.Cipher_block.AES.GCM.of_secret write_handshake_key in
   let adata = Tls.Writer.assemble_hdr `TLS_1_2 (Tls.Packet.APPLICATION_DATA, Cstruct.empty) in
   Cstruct.BE.set_uint16 adata 3 (17 + Cstruct.len server_payload) ;
-  let res = Mirage_crypto.Cipher_block.AES.GCM.encrypt ~key ~adata ~iv:nonce buf in
-  let buf' = Cstruct.append res.message res.tag in
-  let data = Tls.Writer.assemble_hdr `TLS_1_2 (Tls.Packet.APPLICATION_DATA, buf') in
+  let res =
+    Mirage_crypto.Cipher_block.AES.GCM.authenticate_encrypt ~key ~adata ~nonce buf
+  in
+  let data = Tls.Writer.assemble_hdr `TLS_1_2 (Tls.Packet.APPLICATION_DATA, res) in
   Alcotest.check cs __LOC__ server_payload_processed data
 
 let c_finished = Cstruct.of_hex {|

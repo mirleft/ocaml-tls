@@ -20,6 +20,7 @@ type aead_cipher =
   | AES_256_CCM
   | AES_128_GCM
   | AES_256_GCM
+  | CHACHA20_POLY1305
   [@@deriving sexp]
 
 module H = struct
@@ -51,6 +52,7 @@ let kn_13 = function
   | AES_256_GCM -> (32, 12)
   | AES_128_CCM -> (16, 12)
   | AES_256_CCM -> (32, 12)
+  | CHACHA20_POLY1305 -> (32, 12)
 
 (** [key_length iv payload_protection] is [(key size, IV size, mac size)] where key IV, and mac sizes are the required bytes for the given [payload_protection] *)
 (* NB only used for <= TLS 1.2, IV length for AEAD defined in RFC 5288 Section 3 (for GCM), salt[4] for CCM in RFC 6655 Section 3 *)
@@ -61,6 +63,7 @@ let key_length iv pp =
   | `AEAD AES_256_CCM                -> (32, 4 , 0)
   | `AEAD AES_128_GCM                -> (16, 4 , 0)
   | `AEAD AES_256_GCM                -> (32, 4 , 0)
+  | `AEAD CHACHA20_POLY1305          -> (32, 12, 0)
   | `Block (bc, mac) ->
      let keylen, ivlen = match bc with
        | TRIPLE_DES_EDE_CBC -> (24, 8)
@@ -75,26 +78,26 @@ let key_length iv pp =
 type ciphersuite13 = [
   | `AES_128_GCM_SHA256
   | `AES_256_GCM_SHA384
-  (* | `CHACHA20_POLY1305_SHA256 *)
+  | `CHACHA20_POLY1305_SHA256
   | `AES_128_CCM_SHA256
 ] [@@deriving sexp]
 
 let privprot13 = function
   | `AES_128_GCM_SHA256 -> AES_128_GCM
   | `AES_256_GCM_SHA384 -> AES_256_GCM
-  (*  | `CHACHA20_POLY1305_SHA256 -> CHACHA20_POLY1305 *)
+  | `CHACHA20_POLY1305_SHA256 -> CHACHA20_POLY1305
   | `AES_128_CCM_SHA256 -> AES_128_CCM
 
 let hash13 = function
   | `AES_128_GCM_SHA256 -> `SHA256
   | `AES_256_GCM_SHA384 -> `SHA384
-  (*  | `CHACHA20_POLY1305_SHA256 -> `SHA256 *)
+  | `CHACHA20_POLY1305_SHA256 -> `SHA256
   | `AES_128_CCM_SHA256 -> `SHA256
 
 let any_ciphersuite_to_ciphersuite13 = function
   | Packet.TLS_AES_128_GCM_SHA256 -> Some `AES_128_GCM_SHA256
   | Packet.TLS_AES_256_GCM_SHA384 -> Some `AES_256_GCM_SHA384
-  (*  | Packet.TLS_CHACHA20_POLY1305_SHA256 -> Some `CHACHA20_POLY1305_SHA256 *)
+  | Packet.TLS_CHACHA20_POLY1305_SHA256 -> Some `CHACHA20_POLY1305_SHA256
   | Packet.TLS_AES_128_CCM_SHA256 -> Some `AES_128_CCM_SHA256
   | _                                          -> None
 
@@ -104,6 +107,7 @@ type ciphersuite = [
   | `DHE_RSA_WITH_AES_256_GCM_SHA384
   | `DHE_RSA_WITH_AES_256_CCM
   | `DHE_RSA_WITH_AES_128_CCM
+  | `DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
   | `DHE_RSA_WITH_AES_256_CBC_SHA256
   | `DHE_RSA_WITH_AES_128_CBC_SHA256
   | `DHE_RSA_WITH_AES_256_CBC_SHA
@@ -111,6 +115,7 @@ type ciphersuite = [
   | `DHE_RSA_WITH_3DES_EDE_CBC_SHA
   | `ECDHE_RSA_WITH_AES_128_GCM_SHA256
   | `ECDHE_RSA_WITH_AES_256_GCM_SHA384
+  | `ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
   | `ECDHE_RSA_WITH_AES_256_CBC_SHA384
   | `ECDHE_RSA_WITH_AES_128_CBC_SHA256
   | `ECDHE_RSA_WITH_AES_256_CBC_SHA
@@ -157,6 +162,8 @@ let any_ciphersuite_to_ciphersuite = function
   | Packet.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA  -> Some `ECDHE_RSA_WITH_AES_256_CBC_SHA
   | Packet.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA  -> Some `ECDHE_RSA_WITH_AES_128_CBC_SHA
   | Packet.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA -> Some `ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+  | Packet.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 -> Some `ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+  | Packet.TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 -> Some `DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
   | x -> any_ciphersuite_to_ciphersuite13 x
 
 let ciphersuite_to_any_ciphersuite = function
@@ -185,9 +192,11 @@ let ciphersuite_to_any_ciphersuite = function
   | `ECDHE_RSA_WITH_AES_256_CBC_SHA  -> Packet.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
   | `ECDHE_RSA_WITH_AES_128_CBC_SHA  -> Packet.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
   | `ECDHE_RSA_WITH_3DES_EDE_CBC_SHA -> Packet.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+  | `ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 -> Packet.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+  | `DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 -> Packet.TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
   | `AES_128_GCM_SHA256 -> Packet.TLS_AES_128_GCM_SHA256
   | `AES_256_GCM_SHA384 -> Packet.TLS_AES_256_GCM_SHA384
-  (*  | `CHACHA20_POLY1305_SHA256 -> Packet.TLS_CHACHA20_POLY1305_SHA256 *)
+  | `CHACHA20_POLY1305_SHA256 -> Packet.TLS_CHACHA20_POLY1305_SHA256
   | `AES_128_CCM_SHA256 -> Packet.TLS_AES_128_CCM_SHA256
 
 let ciphersuite_to_string x = Packet.any_ciphersuite_to_string (ciphersuite_to_any_ciphersuite x)
@@ -219,6 +228,8 @@ let get_kex_privprot = function
   | `ECDHE_RSA_WITH_AES_256_CBC_SHA -> (`DHE_RSA, `Block (AES_256_CBC, `SHA1))
   | `ECDHE_RSA_WITH_AES_128_CBC_SHA -> (`DHE_RSA, `Block (AES_128_CBC, `SHA1))
   | `ECDHE_RSA_WITH_3DES_EDE_CBC_SHA -> (`DHE_RSA, `Block (TRIPLE_DES_EDE_CBC, `SHA1))
+  | `DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 -> (`DHE_RSA, `AEAD CHACHA20_POLY1305)
+  | `ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 -> (`DHE_RSA, `AEAD CHACHA20_POLY1305)
   | #ciphersuite13 as cs13 -> (`DHE_RSA, `AEAD (privprot13 cs13))
 
 (** [ciphersuite_kex ciphersuite] is [kex], first projection of [get_kex_privprot] *)
@@ -258,12 +269,14 @@ let ciphersuite_tls12_only = function
   | `ECDHE_RSA_WITH_AES_128_GCM_SHA256
   | `ECDHE_RSA_WITH_AES_256_GCM_SHA384
   | `ECDHE_RSA_WITH_AES_256_CBC_SHA384
-  | `ECDHE_RSA_WITH_AES_128_CBC_SHA256 -> true
+  | `ECDHE_RSA_WITH_AES_128_CBC_SHA256
+  | `DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+  | `ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 -> true
   | _ -> false
 
 let ciphersuite_tls13 = function
   | `AES_128_GCM_SHA256
   | `AES_256_GCM_SHA384
-  (*  | `CHACHA20_POLY1305_SHA256 *)
+  | `CHACHA20_POLY1305_SHA256
   | `AES_128_CCM_SHA256 -> true
   | _ -> false
