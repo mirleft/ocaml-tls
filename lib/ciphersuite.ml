@@ -250,7 +250,8 @@ let ecc = function
   | `ECDHE_RSA_WITH_AES_128_GCM_SHA256
   | `ECDHE_RSA_WITH_AES_256_GCM_SHA384
   | `ECDHE_RSA_WITH_AES_256_CBC_SHA384
-  | `ECDHE_RSA_WITH_AES_128_CBC_SHA256 -> true
+  | `ECDHE_RSA_WITH_AES_128_CBC_SHA256
+  | `ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 -> true
   | _ -> false
 
 let ciphersuite_tls12_only = function

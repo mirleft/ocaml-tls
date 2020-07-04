@@ -161,7 +161,6 @@ let encrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
     C.authenticate_encrypt ~key ~nonce ?adata data
   | State.ChaCha20_Poly1305 cipher ->
     let module C = (val cipher : AEAD with type key = a) in
-    Logs.info (fun m -> m "encrypt with nonce %d" (Cstruct.len nonce));
     C.authenticate_encrypt ~key ~nonce ?adata data
 
 let decrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
@@ -174,7 +173,6 @@ let decrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
      C.authenticate_decrypt ~key ~nonce ?adata data
   | State.ChaCha20_Poly1305 cipher ->
     let module C = (val cipher : AEAD with type key = a) in
-    Logs.info (fun m -> m "decrypt with nonce %d" (Cstruct.len nonce));
     C.authenticate_decrypt ~key ~nonce ?adata data
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =

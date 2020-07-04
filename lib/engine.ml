@@ -243,25 +243,28 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
               (CBC c, msg) )
 
     | AEAD c ->
-      let adata =
-        let ver = pair_of_tls_version version in
-        Crypto.pseudo_header seq ty ver (Cstruct.len buf - 16)
-      in
       match c.cipher with
       | ChaCha20_Poly1305 _ ->
         (* RFC 7905: no explicit nonce, instead TLS 1.3 construction is adapted *)
-        let nonce = Crypto.aead_nonce c.nonce seq in
+        let adata =
+          let ver = pair_of_tls_version version in
+          Crypto.pseudo_header seq ty ver (Cstruct.len buf - Crypto.tag_len c.cipher)
+        and nonce = Crypto.aead_nonce c.nonce seq
+        in
         (match Crypto.decrypt_aead ~adata ~cipher:c.cipher ~key:c.cipher_secret ~nonce buf with
          | None -> fail (`Fatal `MACMismatch)
-         | Some x ->
-           Logs.info (fun m -> m "decrypted %a" Cstruct.hexdump_pp x);
-           return (AEAD c, x))
+         | Some x -> return (AEAD c, x))
       | _ ->
-        if Cstruct.len buf < 8 then
+        let explicit_nonce_len = 8 in
+        if Cstruct.len buf < explicit_nonce_len then
           fail (`Fatal `MACUnderflow)
         else
-          let explicit_nonce, buf = Cstruct.split buf 8 in
-          let nonce = c.nonce <+> explicit_nonce in
+          let explicit_nonce, buf = Cstruct.split buf explicit_nonce_len in
+          let adata =
+            let ver = pair_of_tls_version version in
+            Crypto.pseudo_header seq ty ver (Cstruct.len buf - Crypto.tag_len c.cipher)
+          and nonce = c.nonce <+> explicit_nonce
+          in
           match Crypto.decrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
           | None -> fail (`Fatal `MACMismatch)
           | Some x -> return (AEAD c, x)
@@ -285,16 +288,13 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
         | AEAD c ->
           let nonce = Crypto.aead_nonce c.nonce ctx.sequence in
           let unpad x =
-            Logs.info (fun m -> m "decrypted %a" Cstruct.hexdump_pp x);
             let rec eat = function
               | -1 -> fail (`Fatal `MissingContentType)
               | idx -> match Cstruct.get_uint8 x idx with
                 | 0 -> eat (pred idx)
                 | n -> match Packet.int_to_content_type n with
                   | Some ct -> return (Cstruct.sub x 0 idx, ct)
-                  | None ->
-                    Logs.info (fun m -> m "here n %d" n);
-                    fail (`Fatal `MACUnderflow) (* TODO better error? *)
+                  | None -> fail (`Fatal `MACUnderflow) (* TODO better error? *)
             in
             eat (pred (Cstruct.len x))
           in
