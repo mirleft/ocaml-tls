@@ -90,8 +90,8 @@ let answer_client_hello ~hrr state ch raw =
                    | Some _ -> [`Record change_cipher_spec]))
       end
   | Some group, Some cipher ->
-    Log.info (fun m -> m "cipher %a" Sexplib.Sexp.pp_hum (Ciphersuite.sexp_of_ciphersuite13 cipher)) ;
-    Log.info (fun m -> m "group %a" Sexplib.Sexp.pp_hum (Core.sexp_of_group group)) ;
+    Log.debug (fun m -> m "cipher %a" Sexplib.Sexp.pp_hum (Ciphersuite.sexp_of_ciphersuite13 cipher)) ;
+    Log.debug (fun m -> m "group %a" Sexplib.Sexp.pp_hum (Core.sexp_of_group group)) ;
 
     match List.mem group groups, keyshare group with
     | false, _ | _, None -> fail (`Fatal `NoSupportedGroup) (* TODO: better error type? *)
