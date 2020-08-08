@@ -1,3 +1,8 @@
+## v0.12.4 (2020-08-08)
+
+* handshake_server13: demote group and cipher log level (#417 by @xguerin)
+* tls_lwt: register printers for Tls_alert and Tls_failure (#418 by @hannesm)
+
 ## v0.12.3 (2020-07-04)
 
 * Adapt to new GCM and CCM API of mirage-crypto (#416 by @hannesm)
