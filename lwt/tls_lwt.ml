@@ -262,3 +262,11 @@ and connect authenticator addr =
 
 (* Boot the entropy loop at module init time. *)
 let () = Mirage_crypto_rng_lwt.initialize ()
+
+let () =
+  Printexc.register_printer (function
+      | Tls_alert typ ->
+        Some ("TLS alert from peer: " ^ Tls.Packet.alert_type_to_string typ)
+      | Tls_failure f ->
+        Some ("TLS failure: " ^ Tls.Engine.string_of_failure f)
+      | _ -> None)
