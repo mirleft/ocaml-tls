@@ -97,13 +97,13 @@ let adata_1_3 len =
   Cstruct.BE.set_uint16 buf 3 len ;
   buf
 
-let pseudo_header seq ty (v_major, v_minor) length =
+let pseudo_header seq ty (v_major, v_minor) v_length =
   let open Cstruct in
   let prefix = create 5 in
   set_uint8 prefix 0 (Packet.content_type_to_int ty);
   set_uint8 prefix 1 v_major;
   set_uint8 prefix 2 v_minor;
-  BE.set_uint16 prefix 3 length;
+  BE.set_uint16 prefix 3 v_length;
   sequence_buf seq <+> prefix
 
 (* MAC used in TLS *)
