@@ -1,3 +1,7 @@
+## v0.12.5 (2020-09-22)
+
+* Rename length to v_length to be compatible with cstruct 6.0.0 (#419 @dinosaure)
+
 ## v0.12.4 (2020-08-08)
 
 * handshake_server13: demote group and cipher log level (#417 by @xguerin)
