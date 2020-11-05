@@ -16,7 +16,7 @@ module List_set = struct
           | -1 -> loop xss ys
           |  1 -> loop xs yss
           |  _ -> x :: loop xss yss in
-    loop List.(sort compare l1) List.(sort compare l2)
+    loop (List.sort compare l1) (List.sort compare l2)
 
   let union ?(compare = compare) l1 l2 =
     let rec loop xs ys =
@@ -28,7 +28,7 @@ module List_set = struct
           | -1 -> x :: loop xss ys
           |  1 -> y :: loop xs yss
           |  _ -> x :: loop xss yss in
-    loop List.(sort compare l1) List.(sort compare l2)
+    loop (List.sort compare l1) (List.sort compare l2)
 
   let subset ?(compare = compare) l1 l2 =
     let rec loop xs ys =
@@ -40,10 +40,10 @@ module List_set = struct
           | -1 -> false
           |  1 -> loop xs yss
           |  _ -> loop xss yss in
-    loop List.(sort compare l1) List.(sort compare l2)
+    loop (List.sort compare l1) (List.sort compare l2)
 
   let equal ?(compare = compare) l1 l2 =
-    List.(sort compare l1 = sort compare l2)
+    List.sort compare l1 = List.sort compare l2
 
   let is_proper_set l =
     let rec repeats = function
