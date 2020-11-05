@@ -1,3 +1,7 @@
+## v0.12.6 (2020-11-06)
+
+* OCaml 4.12 support (#421 @kit-ty-kate)
+
 ## v0.12.5 (2020-09-22)
 
 * Rename length to v_length to be compatible with cstruct 6.0.0 (#419 @dinosaure)
