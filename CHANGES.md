@@ -1,3 +1,11 @@
+## v0.12.7 (2020-12-04)
+
+* Tls.lwt: make the receive buffer connection-local to avoid potential data
+  races (#422 by @dinosaure)
+* Tls_mirage: remove unneeded type alias (@hannesm)
+* Add Tls.Config.Ciphers.http2 - a list of ciphersuites allowed to be negotiated
+  for HTTP2 sessions (#423 by @jeffa5)
+
 ## v0.12.6 (2020-11-06)
 
 * OCaml 4.12 support (#421 @kit-ty-kate)
