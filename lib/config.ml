@@ -109,6 +109,21 @@ module Ciphers = struct
     `RSA_WITH_3DES_EDE_CBC_SHA ;
     ]
 
+  let http2 = [
+    `AES_128_GCM_SHA256 ;
+    `AES_256_GCM_SHA384 ;
+    `CHACHA20_POLY1305_SHA256 ;
+    `AES_128_CCM_SHA256 ;
+    `DHE_RSA_WITH_AES_256_GCM_SHA384 ;
+    `DHE_RSA_WITH_AES_128_GCM_SHA256 ;
+    `DHE_RSA_WITH_AES_256_CCM ;
+    `DHE_RSA_WITH_AES_128_CCM ;
+    `DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 ;
+    `ECDHE_RSA_WITH_AES_128_GCM_SHA256 ;
+    `ECDHE_RSA_WITH_AES_256_GCM_SHA384 ;
+    `ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 ;
+  ]
+
   let fs_of = List.filter Ciphersuite.ciphersuite_fs
 
   let fs = fs_of default

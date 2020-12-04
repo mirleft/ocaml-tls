@@ -155,6 +155,11 @@ module Ciphers : sig
   (** [fs] is a list of ciphersuites which provide forward secrecy
       (sublist of [default]). *)
 
+  val http2 : ciphersuite list
+  (** [http2] is a list of ciphersuites available that do not appear in the {{:
+    https://httpwg.org/specs/rfc7540.html#BadCipherSuites } http2 blacklist}
+    (sublist of [default]) *)
+
   val fs_of : ciphersuite list -> ciphersuite list
   (** [fs_of ciphers] selects all ciphersuites which provide forward
       secrecy from [ciphers]. *)
