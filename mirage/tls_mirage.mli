@@ -15,9 +15,6 @@ module Make (F : Mirage_flow.S) : sig
   type write_error = [ `Closed | error ]
   (** The type for write errors. *)
 
-  type buffer = Cstruct.t
-  type +'a io = 'a Lwt.t
-
   (** we provide the FLOW interface *)
   include Mirage_flow.S
     with type error := error

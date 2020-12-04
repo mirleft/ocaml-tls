@@ -11,9 +11,6 @@ module Make (F : Mirage_flow.S) = struct
 
   type write_error = [ Mirage_flow.write_error | error ]
 
-  type buffer = Cstruct.t
-  type +'a io = 'a Lwt.t
-
   let pp_error ppf = function
     | `Tls_failure f -> Fmt.string ppf @@ Tls.Engine.string_of_failure f
     | `Tls_alert a   -> Fmt.string ppf @@ Tls.Packet.alert_type_to_string a
