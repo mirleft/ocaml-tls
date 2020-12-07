@@ -170,7 +170,7 @@ let to_client_ext_type = function
   | `Hostname _            -> `Hostname
   | `MaxFragmentLength _   -> `MaxFragmentLength
   | `SupportedGroups _     -> `SupportedGroups
-  | `ECPointFormats _      -> `ECPointFormats
+  | `ECPointFormats        -> `ECPointFormats
   | `SecureRenegotiation _ -> `SecureRenegotiation
   | `Padding _             -> `Padding
   | `SignatureAlgorithms _ -> `SignatureAlgorithms
@@ -189,7 +189,7 @@ let to_client_ext_type = function
 let to_server_ext_type = function
   | `Hostname              -> `Hostname
   | `MaxFragmentLength _   -> `MaxFragmentLength
-  | `ECPointFormats _      -> `ECPointFormats
+  | `ECPointFormats        -> `ECPointFormats
   | `SecureRenegotiation _ -> `SecureRenegotiation
   | `UnknownExtension _    -> `UnknownExtension
   | `ExtendedMasterSecret  -> `ExtendedMasterSecret

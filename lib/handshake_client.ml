@@ -19,7 +19,7 @@ let default_client_hello config =
   let version = max_protocol_version config.protocol_versions in
   let ecc_groups = match List.filter Config.elliptic_curve config.groups with
     | [] -> []
-    | xs -> [ `SupportedGroups (List.map group_to_named_group xs) ]
+    | xs -> [ `ECPointFormats ; `SupportedGroups (List.map group_to_named_group xs) ]
   in
   let extensions, secrets = match version with
     | `TLS_1_0 | `TLS_1_1 -> (ecc_groups, [])
@@ -44,8 +44,14 @@ let default_client_hello config =
       in
       let all = all_versions config.protocol_versions in
       let supported_versions = List.map (fun x -> (x :> tls_any_version)) all in
+      let point_format =
+        if min_protocol_version config.protocol_versions = `TLS_1_3 then
+          []
+        else
+          [ `ECPointFormats ]
+      in
       let exts =
-        [`SignatureAlgorithms sig_alg ; `SupportedGroups groups ; `KeyShare keyshares ; `SupportedVersions supported_versions ]
+        point_format @ [`SignatureAlgorithms sig_alg ; `SupportedGroups groups ; `KeyShare keyshares ; `SupportedVersions supported_versions ]
       in
       (exts, secrets)
   in

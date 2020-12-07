@@ -213,6 +213,7 @@ type client_extension = [
   | `PostHandshakeAuthentication
   | `Cookie of Cstruct_sexp.t
   | `PskKeyExchangeModes of psk_key_exchange_mode list
+  | `ECPointFormats
   | `UnknownExtension of (int * Cstruct_sexp.t)
 ] [@@deriving sexp]
 
@@ -229,6 +230,7 @@ type server_extension = [
   | `SecureRenegotiation of Cstruct_sexp.t
   | `ExtendedMasterSecret
   | `ALPN of string
+  | `ECPointFormats
   | `UnknownExtension of (int * Cstruct_sexp.t)
 ] [@@deriving sexp]
 
