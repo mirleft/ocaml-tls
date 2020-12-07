@@ -181,6 +181,11 @@ let assemble_extension = function
      set_uint8 buf 0 (len x);
      (buf <+> x, RENEGOTIATION_INFO)
   | `ExtendedMasterSecret -> (create 0, EXTENDED_MASTER_SECRET)
+  | `ECPointFormats ->
+    (* a list of point formats, we support type 0 = uncompressed unconditionally *)
+    let data = Cstruct.create 2 in
+    Cstruct.set_uint8 data 0 1;
+    (data, EC_POINT_FORMATS)
   | _ -> invalid_arg "unknown extension"
 
 let assemble_cookie c =

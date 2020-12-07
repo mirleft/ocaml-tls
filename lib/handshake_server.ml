@@ -175,7 +175,7 @@ let agreed_cipher cert ecc requested =
   else
     List.filter (fun x -> not (Ciphersuite.ecc x)) cciphers
 
-let server_hello config _client_version (session : session_data) version reneg =
+let server_hello config (client_hello : client_hello) (session : session_data) version reneg =
   (* RFC 4366: server shall reply with an empty hostname extension *)
   let host = option [] (fun _ -> [`Hostname]) session.common_session_data.own_name
   and server_random =
@@ -202,13 +202,17 @@ let server_hello config _client_version (session : session_data) version reneg =
     match session.common_session_data.alpn_protocol with
     | None -> []
     | Some protocol -> [`ALPN protocol]
+  and ecpointformat =
+    match map_find ~f:(function `ECPointFormats -> Some () | _ -> None) client_hello.extensions with
+    | Some () when Ciphersuite.ecc session.ciphersuite -> [ `ECPointFormats ]
+    | _ -> []
   in
   let sh = ServerHello
       { server_version = version ;
         server_random  = server_random ;
         sessionid      = Some session_id ;
         ciphersuite    = session.ciphersuite ;
-        extensions     = secren :: host @ ems @ alpn }
+        extensions     = secren :: host @ ems @ alpn @ ecpointformat }
   in
   trace_cipher session.ciphersuite ;
   Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
@@ -335,7 +339,7 @@ let answer_client_hello_common state reneg ch raw =
     (hs, secret) in
 
   process_client_hello ch state.config >>= fun session ->
-  let sh, session = server_hello state.config ch.client_version session state.protocol_version reneg in
+  let sh, session = server_hello state.config ch session state.protocol_version reneg in
   let certificates = server_cert session
   and hello_done = Writer.assemble_handshake ServerHelloDone
   in
@@ -432,7 +436,7 @@ let answer_client_hello state (ch : client_hello) raw =
 
   and answer_resumption session state =
     let version = state_version state in
-    let sh, session = server_hello state.config ch.client_version session version None in
+    let sh, session = server_hello state.config ch session version None in
     (* we really do not want to have any leftover handshake fragments *)
     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
     let client_ctx, server_ctx =

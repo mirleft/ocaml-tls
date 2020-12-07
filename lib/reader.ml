@@ -257,6 +257,14 @@ let parse_alpn_protocols buf =
   else
     parse_list parse_alpn_protocol (sub buf 2 length) []
 
+let parse_ec_point_format buf =
+  let data = get_uint8 buf 0 in
+  Some (data = 0), shift buf 1
+
+let parse_ec_point_formats buf =
+  let count = get_uint8 buf 0 in
+  parse_count_list parse_ec_point_format (shift buf 1) [] count
+
 let parse_extension buf = function
   | MAX_FRAGMENT_LENGTH ->
      (match parse_fragment_length buf with
@@ -273,6 +281,14 @@ let parse_extension buf = function
          raise_trailing_bytes "extended master secret"
       else
         `ExtendedMasterSecret
+  | EC_POINT_FORMATS ->
+    let formats, rt = parse_ec_point_formats buf in
+    if len rt <> 0 then
+      raise_trailing_bytes "ec point formats"
+    else if List.mem true formats then
+      `ECPointFormats
+    else
+      raise_unknown "EC Point Formats without uncompressed"
   | x -> `UnknownExtension (extension_type_to_int x, buf)
 
 let parse_keyshare_entry buf =
