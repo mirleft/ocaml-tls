@@ -1,3 +1,11 @@
+## v0.12.8 (2020-12-08)
+
+* Re-add ECPointFormats hello extension (both client and server) to avoid
+  handshake failures with Go's TLS stack (RFC 8422 makes it optional, but go
+  (1.15.5) requires it) - reported by @jeffa5 at
+  https://discuss.ocaml.org/t/strange-prohibited-tls-1-2-cipher-suite-9d-issue/
+  fix by @hannesm #424
+
 ## v0.12.7 (2020-12-04)
 
 * Tls.lwt: make the receive buffer connection-local to avoid potential data
