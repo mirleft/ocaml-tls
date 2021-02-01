@@ -320,7 +320,6 @@ let parse_client_presharedkeys buf =
   let identities = parse_list parse_id (sub buf 2 id_len) [] in
   let binders_len = BE.get_uint16 buf (id_len + 2) in
   let binders = parse_list parse_binder (sub buf (4 + id_len) binders_len) [] in
-  Printf.printf "identities are %d, binders %d\n%!" (List.length identities) (List.length binders) ;
   let id_binder = List.combine identities binders in
   if len buf <> 4 + binders_len + id_len then
     raise_trailing_bytes "psk"
