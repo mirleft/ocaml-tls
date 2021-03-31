@@ -49,6 +49,7 @@ let alert_of_fatal = function
   | `NoVersions _ -> Packet.PROTOCOL_VERSION
   | `InsufficientDH -> Packet.INSUFFICIENT_SECURITY
   | `InvalidDH -> Packet.ILLEGAL_PARAMETER
+  | `BadECDH _ -> Packet.ILLEGAL_PARAMETER
   | `BadFinished -> Packet.DECRYPT_ERROR
   | `HandshakeFragmentsNotEmpty -> Packet.HANDSHAKE_FAILURE
   | `InvalidSession -> Packet.HANDSHAKE_FAILURE

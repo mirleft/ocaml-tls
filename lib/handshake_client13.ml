@@ -21,40 +21,37 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
       match List.find_opt (fun (g', _) -> g = g') secrets with
       | None -> fail (`Fatal `InvalidServerHello)
       | Some (_, secret) ->
-        Handshake_crypto13.share_appropriate_length g share >>= fun () ->
-        match Handshake_crypto13.dh_shared g secret share with
-        | None -> fail (`Fatal `InvalidDH)
-        | Some shared ->
-          let hlen = Mirage_crypto.Hash.digest_size (Ciphersuite.hash13 cipher) in
-          (match
-             map_find ~f:(function `PreSharedKey idx -> Some idx | _ -> None) sh.extensions,
-             state.config.Config.cached_ticket
-           with
-           | None, _ | _, None -> return (Cstruct.create hlen, false)
-           | Some idx, Some (psk, _epoch) ->
-             guard (idx = 0) (`Fatal `InvalidServerHello) >|= fun () ->
-             psk.secret, true) >>= fun (psk, resumed) ->
-          let early_secret = Handshake_crypto13.(derive (empty cipher) psk) in
-          let hs_secret = Handshake_crypto13.derive early_secret shared in
-          let log = log <+> raw in
-          let server_hs_secret, server_ctx, client_hs_secret, client_ctx =
-            Handshake_crypto13.hs_ctx hs_secret log in
-          let master_secret =
-            Handshake_crypto13.derive hs_secret (Cstruct.create hlen)
+        Handshake_crypto13.dh_shared secret share >>= fun shared ->
+        let hlen = Mirage_crypto.Hash.digest_size (Ciphersuite.hash13 cipher) in
+        (match
+           map_find ~f:(function `PreSharedKey idx -> Some idx | _ -> None) sh.extensions,
+           state.config.Config.cached_ticket
+         with
+         | None, _ | _, None -> return (Cstruct.create hlen, false)
+         | Some idx, Some (psk, _epoch) ->
+           guard (idx = 0) (`Fatal `InvalidServerHello) >|= fun () ->
+           psk.secret, true) >>= fun (psk, resumed) ->
+        let early_secret = Handshake_crypto13.(derive (empty cipher) psk) in
+        let hs_secret = Handshake_crypto13.derive early_secret shared in
+        let log = log <+> raw in
+        let server_hs_secret, server_ctx, client_hs_secret, client_ctx =
+          Handshake_crypto13.hs_ctx hs_secret log in
+        let master_secret =
+          Handshake_crypto13.derive hs_secret (Cstruct.create hlen)
+        in
+        let session =
+          let base = empty_session13 cipher in
+          let common_session_data13 =
+            { base.common_session_data13 with
+              server_random = sh.server_random ;
+              client_random = ch.client_random ;
+              master_secret = master_secret.secret }
           in
-          let session =
-            let base = empty_session13 cipher in
-            let common_session_data13 =
-              { base.common_session_data13 with
-                server_random = sh.server_random ;
-                client_random = ch.client_random ;
-                master_secret = master_secret.secret }
-            in
-            { base with master_secret ; common_session_data13 ; resumed }
-          in
-          let st = AwaitServerEncryptedExtensions13 (session, server_hs_secret, client_hs_secret, log) in
-          Ok ({ state with machina = Client13 st ; protocol_version = `TLS_1_3 },
-              [ `Change_enc client_ctx ; `Change_dec server_ctx ])
+          { base with master_secret ; common_session_data13 ; resumed }
+        in
+        let st = AwaitServerEncryptedExtensions13 (session, server_hs_secret, client_hs_secret, log) in
+        Ok ({ state with machina = Client13 st ; protocol_version = `TLS_1_3 },
+            [ `Change_enc client_ctx ; `Change_dec server_ctx ])
 
 (* called from handshake_client.ml *)
 let answer_hello_retry_request state (ch : client_hello) hrr _secrets raw log =

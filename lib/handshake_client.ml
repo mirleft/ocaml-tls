@@ -256,8 +256,7 @@ let answer_server_key_exchange_DHE_RSA state (session : session_data) kex raw lo
   let to_fatal r = match r with Ok cs -> return cs | Error er -> fail (`Fatal (`ReaderError er)) in
   (if Ciphersuite.ecc session.ciphersuite then
      to_fatal (Reader.parse_ec_parameters kex) >|= fun (g, share, raw, left) ->
-     let g = match g with | `X25519 -> `Hacl `X25519 | `P256 -> `Fiat `P256 in
-     (g, share, raw, left)
+     (`Ec g, share, raw, left)
    else
      let unpack_dh dh_params =
        match Crypto.dh_params_unpack dh_params with
@@ -268,28 +267,42 @@ let answer_server_key_exchange_DHE_RSA state (session : session_data) kex raw lo
      unpack_dh dh_params >>= fun (group, shared) ->
      guard (Mirage_crypto_pk.Dh.modulus_size group >= Config.min_dh_size)
        (`Fatal `InsufficientDH) >|= fun () ->
-     (`Mirage_crypto group, shared, raw_dh_params, leftover)
+     (`Finite_field group, shared, raw_dh_params, leftover)
   ) >>= fun (group, shared, raw_dh_params, leftover) ->
 
   let sigdata = session.common_session_data.client_random <+> session.common_session_data.server_random <+> raw_dh_params in
   verify_digitally_signed state.protocol_version state.config.signature_algorithms leftover sigdata session.common_session_data.peer_certificate >>= fun () ->
 
-  (match group with
-   | `Mirage_crypto g ->
+  (let rng = Mirage_crypto_rng.generate in
+   let open Mirage_crypto_ec in
+   match group with
+   | `Finite_field g ->
      let secret, client_share = Mirage_crypto_pk.Dh.gen_key g in
      begin match Mirage_crypto_pk.Dh.shared secret shared with
        | None     -> fail (`Fatal `InvalidDH)
        | Some pms -> return (pms, Writer.assemble_client_dh_key_exchange client_share)
      end
-   | `Fiat `P256 ->
-     let secret, client_share = Fiat_p256.gen_key ~rng:Mirage_crypto_rng.generate in
-     begin match Fiat_p256.key_exchange secret shared with
-       | Error _ -> fail (`Fatal `InvalidDH)
+   | `Ec `P256 ->
+     let secret, client_share = P256.Dh.gen_key ~rng in
+     begin match P256.Dh.key_exchange secret shared with
+       | Error e -> fail (`Fatal (`BadECDH e))
        | Ok pms -> return (pms, Writer.assemble_client_ec_key_exchange client_share)
      end
-   | `Hacl `X25519 ->
-     let secret, client_share = Hacl_x25519.gen_key ~rng:Mirage_crypto_rng.generate in
-     begin match Hacl_x25519.key_exchange secret shared with
+   | `Ec `P384 ->
+     let secret, client_share = P384.Dh.gen_key ~rng in
+     begin match P384.Dh.key_exchange secret shared with
+       | Error e -> fail (`Fatal (`BadECDH e))
+       | Ok pms -> return (pms, Writer.assemble_client_ec_key_exchange client_share)
+     end
+   | `Ec `P521 ->
+     let secret, client_share = P521.Dh.gen_key ~rng in
+     begin match P521.Dh.key_exchange secret shared with
+       | Error e -> fail (`Fatal (`BadECDH e))
+       | Ok pms -> return (pms, Writer.assemble_client_ec_key_exchange client_share)
+     end
+   | `Ec `X25519 ->
+     let secret, client_share = X25519.gen_key ~rng in
+     begin match X25519.key_exchange secret shared with
        | Error _ -> fail (`Fatal `InvalidDH)
        | Ok pms -> return (pms, Writer.assemble_client_ec_key_exchange client_share)
      end

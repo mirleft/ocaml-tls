@@ -61,9 +61,11 @@ type crypto_context = {
 type hs_log = Cstruct_sexp.t list [@@deriving sexp]
 
 type dh_secret = [
-  | `Fiat of Fiat_p256.secret
-  | `Hacl of Hacl_x25519.secret
-  | `Mirage_crypto of Mirage_crypto_pk.Dh.secret
+  | `Finite_field of Mirage_crypto_pk.Dh.secret
+  | `P256 of Mirage_crypto_ec.P256.Dh.secret
+  | `P384 of Mirage_crypto_ec.P384.Dh.secret
+  | `P521 of Mirage_crypto_ec.P521.Dh.secret
+  | `X25519 of Mirage_crypto_ec.X25519.secret
 ]
 let sexp_of_dh_secret _ = Sexp.Atom "dh_secret"
 let dh_secret_of_sexp = Conv.of_sexp_error "dh_secret_of_sexp: not implemented"
@@ -217,6 +219,14 @@ module V_err = struct
     Sexplib.Sexp.Atom s
 end
 
+module Ec_err = struct
+  type t = Mirage_crypto_ec.error
+  let t_of_sexp _ = failwith "couldn't convert validatin error from sexp"
+  let sexp_of_t v =
+    let s = Fmt.to_to_string Mirage_crypto_ec.pp_error v in
+    Sexplib.Sexp.Atom s
+end
+
 type error = [
   | `AuthenticationFailure of V_err.t
   | `NoConfiguredCiphersuite of Ciphersuite.ciphersuite list
@@ -271,6 +281,7 @@ type fatal = [
   | `HandshakeFragmentsNotEmpty
   | `InsufficientDH
   | `InvalidDH
+  | `BadECDH of Ec_err.t
   | `InvalidRenegotiation
   | `InvalidClientHello of client_hello_errors
   | `InvalidServerHello

@@ -30,9 +30,7 @@ let answer_client_hello ~hrr state ch raw =
        let f acc (g, ks) =
          match Core.named_group_to_group g with
          | None -> Ok acc
-         | Some g ->
-           Handshake_crypto13.share_appropriate_length g ks >|= fun () ->
-           (g, ks) :: acc
+         | Some g -> Ok ((g, ks) :: acc)
        in
        foldM f [] ks ) >>= fun keyshares ->
 
@@ -200,9 +198,7 @@ let answer_client_hello ~hrr state ch raw =
       let _, early_traffic_ctx = Handshake_crypto13.early_traffic early_secret raw in
 
       let secret, public = Handshake_crypto13.dh_gen_key group in
-      (match Handshake_crypto13.dh_shared group secret keyshare with
-       | None -> fail (`Fatal `InvalidDH)
-       | Some shared -> return shared) >>= fun es ->
+      Handshake_crypto13.dh_shared secret keyshare >>= fun es ->
       let hs_secret = Handshake_crypto13.derive early_secret es in
       Tracing.cs ~tag:"hs secret" hs_secret.secret ;
 

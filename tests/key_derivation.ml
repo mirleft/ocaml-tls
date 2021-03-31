@@ -633,12 +633,12 @@ c9 82 88 76 11 20 95 fe  66 76 2b db f7 c6 72 e1
 |}
   in
   let check_pub pr pu =
-    let _priv, pub = Hacl_x25519.gen_key ~rng:(fun _ -> pr) in
+    let _priv, pub = Mirage_crypto_ec.X25519.gen_key ~rng:(fun _ -> pr) in
     Alcotest.check cs __LOC__ pu pub
   in
   let check_one p ks =
-    let priv, _pub = Hacl_x25519.gen_key ~rng:(fun _ -> p) in
-    match Hacl_x25519.key_exchange priv ks with
+    let priv, _pub = Mirage_crypto_ec.X25519.gen_key ~rng:(fun _ -> p) in
+    match Mirage_crypto_ec.X25519.key_exchange priv ks with
     | Ok shared -> Alcotest.check cs __LOC__ ikm shared
     | Error _ -> Alcotest.fail "bad kex"
   in
@@ -656,7 +656,7 @@ let tests = [
   "derive finished", `Quick, derive_finished ;
   "derive master", `Quick, derive_master ;
   "extract master", `Quick, extract_master ;
-  "derive hanshake keys", `Quick, derive_write_handshake_keys ;
+  "derive handshake keys", `Quick, derive_write_handshake_keys ;
   "derive traffic keys", `Quick, derive_traffic_keys ;
   "application write keys", `Quick, appdata_write ;
   "application read keys", `Quick, appdata_read ;

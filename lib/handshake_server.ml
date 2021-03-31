@@ -132,20 +132,33 @@ let answer_client_key_exchange_RSA state (session : session_data) kex raw log =
 
 let answer_client_key_exchange_DHE_RSA state session secret kex raw log =
   let to_fatal r = match r with Ok cs -> return cs | Error er -> fail (`Fatal (`ReaderError er)) in
-  (match secret with
-   | `Fiat priv ->
+  (let open Mirage_crypto_ec in
+   match secret with
+   | `P256 priv ->
      to_fatal (Reader.parse_client_ec_key_exchange kex) >>= fun share ->
-     begin match Fiat_p256.key_exchange priv share with
-       | Error _ -> fail (`Fatal `InvalidDH)
+     begin match P256.Dh.key_exchange priv share with
+       | Error e -> fail (`Fatal (`BadECDH e))
        | Ok shared -> return shared
      end
-   | `Hacl priv ->
+   | `P384 priv ->
      to_fatal (Reader.parse_client_ec_key_exchange kex) >>= fun share ->
-     begin match Hacl_x25519.key_exchange priv share with
-       | Error _ -> fail (`Fatal `InvalidDH)
+     begin match P384.Dh.key_exchange priv share with
+       | Error e -> fail (`Fatal (`BadECDH e))
        | Ok shared -> return shared
      end
-   | `Mirage_crypto secret ->
+   | `P521 priv ->
+     to_fatal (Reader.parse_client_ec_key_exchange kex) >>= fun share ->
+     begin match P521.Dh.key_exchange priv share with
+       | Error e -> fail (`Fatal (`BadECDH e))
+       | Ok shared -> return shared
+     end
+   | `X25519 priv ->
+     to_fatal (Reader.parse_client_ec_key_exchange kex) >>= fun share ->
+     begin match X25519.key_exchange priv share with
+       | Error e -> fail (`Fatal (`BadECDH e))
+       | Ok shared -> return shared
+     end
+   | `Finite_field secret ->
      to_fatal (Reader.parse_client_dh_key_exchange kex) >>= fun share ->
      begin match Mirage_crypto_pk.Dh.shared secret share with
        | None -> fail (`Fatal `InvalidDH)
@@ -315,20 +328,30 @@ let answer_client_hello_common state reneg ch raw =
     (match session.group with
      | None -> fail (`Fatal `UnsupportedKeyExchange) (* should not happen *)
      | Some g ->
+       let rng = Mirage_crypto_rng.generate in
+       let open Mirage_crypto_ec in
        match group_to_impl g with
-       | `Mirage_crypto g ->
+       | `Finite_field g ->
          let (secret, msg) = Mirage_crypto_pk.Dh.gen_key g in
          let dh_param = Crypto.dh_params_pack g msg in
          let dh_params = Writer.assemble_dh_parameters dh_param in
-         return (`Mirage_crypto secret, dh_params)
-       | `Hacl `X25519 ->
-         let secret, shared = Hacl_x25519.gen_key ~rng:Mirage_crypto_rng.generate in
-         let params = Writer.assemble_ec_parameters `X25519 shared in
-         return (`Hacl secret, params)
-       | `Fiat `P256 ->
-         let secret, shared = Fiat_p256.gen_key ~rng:Mirage_crypto_rng.generate in
+         return (`Finite_field secret, dh_params)
+       | `P256 ->
+         let secret, shared = P256.Dh.gen_key ~rng in
          let params = Writer.assemble_ec_parameters `P256 shared in
-         return (`Fiat secret, params)
+         return (`P256 secret, params)
+       | `P384 ->
+         let secret, shared = P384.Dh.gen_key ~rng in
+         let params = Writer.assemble_ec_parameters `P384 shared in
+         return (`P384 secret, params)
+       | `P521 ->
+         let secret, shared = P521.Dh.gen_key ~rng in
+         let params = Writer.assemble_ec_parameters `P521 shared in
+         return (`P521 secret, params)
+       | `X25519 ->
+         let secret, shared = X25519.gen_key ~rng in
+         let params = Writer.assemble_ec_parameters `X25519 shared in
+         return (`X25519 secret, params)
     ) >>= fun (secret, written) ->
     let data = session.common_session_data.client_random <+> session.common_session_data.server_random <+> written in
     private_key session >>= fun priv ->

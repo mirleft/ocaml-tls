@@ -107,6 +107,7 @@ type fatal = [
   | `HandshakeFragmentsNotEmpty
   | `InsufficientDH
   | `InvalidDH
+  | `BadECDH of Mirage_crypto_ec.error
   | `InvalidRenegotiation
   | `InvalidClientHello of client_hello_errors
   | `InvalidServerHello

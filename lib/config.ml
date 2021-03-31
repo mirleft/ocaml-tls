@@ -143,11 +143,11 @@ let min_dh_size = 1024
 let min_rsa_key_size = 1024
 
 let supported_groups =
-  [ `X25519 ; `P256 ; `FFDHE2048 ; `FFDHE3072 ; `FFDHE4096 ; `FFDHE6144 ; `FFDHE8192 ]
+  [ `X25519 ; `P384 ; `P256 ; `P521 ; `FFDHE2048 ; `FFDHE3072 ; `FFDHE4096 ; `FFDHE6144 ; `FFDHE8192 ]
 
 let elliptic_curve = function
-  | `X25519 | `P256 -> true
-  | _ -> false
+  | `X25519 | `P256 | `P384 | `P521 -> true
+  | `FFDHE2048 | `FFDHE3072 | `FFDHE4096 | `FFDHE6144 | `FFDHE8192 -> false
 
 let default_config = {
   ciphers = Ciphers.default ;

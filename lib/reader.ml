@@ -718,7 +718,7 @@ let parse_ec_parameters = catch @@ fun raw ->
     match int_to_named_group (BE.get_uint16 raw 1) with
     | Some g ->
       begin match named_group_to_group g with
-        | Some ((`X25519 | `P256) as g) ->
+        | Some ((`X25519 | `P256 | `P384 | `P521) as g) ->
           let data_len = get_uint8 raw 3 in
           let d, rest = split (shift raw 4) data_len in
           g, d, sub raw 0 (data_len + 4), rest

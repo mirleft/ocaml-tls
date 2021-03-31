@@ -124,6 +124,8 @@ type group = [
   | `FFDHE8192
   | `X25519
   | `P256
+  | `P384
+  | `P521
 ] [@@deriving sexp]
 
 let named_group_to_group = function
@@ -134,6 +136,8 @@ let named_group_to_group = function
   | FFDHE8192 -> Some `FFDHE8192
   | X25519 -> Some `X25519
   | SECP256R1 -> Some `P256
+  | SECP384R1 -> Some `P384
+  | SECP521R1 -> Some `P521
   | _ -> None
 
 let group_to_named_group = function
@@ -144,15 +148,19 @@ let group_to_named_group = function
   | `FFDHE8192 -> FFDHE8192
   | `X25519 -> X25519
   | `P256 -> SECP256R1
+  | `P384 -> SECP384R1
+  | `P521 -> SECP521R1
 
 let group_to_impl = function
-  | `FFDHE2048 -> `Mirage_crypto Mirage_crypto_pk.Dh.Group.ffdhe2048
-  | `FFDHE3072 -> `Mirage_crypto Mirage_crypto_pk.Dh.Group.ffdhe3072
-  | `FFDHE4096 -> `Mirage_crypto Mirage_crypto_pk.Dh.Group.ffdhe4096
-  | `FFDHE6144 -> `Mirage_crypto Mirage_crypto_pk.Dh.Group.ffdhe6144
-  | `FFDHE8192 -> `Mirage_crypto Mirage_crypto_pk.Dh.Group.ffdhe8192
-  | `X25519 -> `Hacl `X25519
-  | `P256 -> `Fiat `P256
+  | `FFDHE2048 -> `Finite_field Mirage_crypto_pk.Dh.Group.ffdhe2048
+  | `FFDHE3072 -> `Finite_field Mirage_crypto_pk.Dh.Group.ffdhe3072
+  | `FFDHE4096 -> `Finite_field Mirage_crypto_pk.Dh.Group.ffdhe4096
+  | `FFDHE6144 -> `Finite_field Mirage_crypto_pk.Dh.Group.ffdhe6144
+  | `FFDHE8192 -> `Finite_field Mirage_crypto_pk.Dh.Group.ffdhe8192
+  | `X25519 -> `X25519
+  | `P256 -> `P256
+  | `P384 -> `P384
+  | `P521 -> `P521
 
 type signature_algorithm = [
   | `RSA_PKCS1_MD5
