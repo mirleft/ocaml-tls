@@ -8,8 +8,8 @@ open Handshake_crypto13
 
 let answer_client_hello ~hrr state ch raw =
   (match client_hello_valid `TLS_1_3 ch with
-   | `Error e -> fail (`Fatal (`InvalidClientHello e))
-   | `Ok -> return () ) >>= fun () ->
+   | Error e -> fail (`Fatal (`InvalidClientHello e))
+   | Ok () -> return () ) >>= fun () ->
   (if hrr && List.mem `EarlyDataIndication ch.extensions then
      fail (`Fatal (`InvalidClientHello `Has0rttAfterHRR))
    else
@@ -293,7 +293,7 @@ let answer_client_hello ~hrr state ch raw =
       in
       let session' = { session' with server_app_secret ; client_app_secret } in
 
-      guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+      guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
 
       (* send sessionticket early *)
       (* TODO track the nonce across handshakes / newsessionticket messages (i.e. after post-handshake auth) - needs to be unique! *)
@@ -394,8 +394,8 @@ let answer_client_finished state fin client_fini dec_ctx st raw log =
   | `TLS13 session :: rest ->
     let hash = Ciphersuite.hash13 session.ciphersuite13 in
     let data = finished hash client_fini log in
-    guard (Cs.equal data fin) (`Fatal `BadFinished) >>= fun () ->
-    guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+    guard (Cstruct.equal data fin) (`Fatal `BadFinished) >>= fun () ->
+    guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
     let session' = match st, state.config.Config.ticket_cache with
       | None, _ | _, None -> session
       | Some st, Some cache ->
@@ -424,7 +424,7 @@ let handle_end_of_early_data state cf hs_ctx cc st buf log =
 let handle_key_update state req =
   match state.session with
   | `TLS13 session :: _ ->
-    guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
+    guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
     let client_app_secret, client_ctx =
       app_secret_n_1 session.master_secret session.client_app_secret
     in

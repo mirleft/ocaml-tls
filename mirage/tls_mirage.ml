@@ -94,7 +94,7 @@ module Make (F : Mirage_flow.S) = struct
           | `Error e       -> return @@ Error e )
     | bufs ->
       flow.linger <- [] ;
-      return @@ Ok (`Data (Tls.Utils.Cs.appends @@ List.rev bufs))
+      return @@ Ok (`Data (Cstruct.concat @@ List.rev bufs))
 
   let writev flow bufs =
     match flow.state with

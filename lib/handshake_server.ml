@@ -5,7 +5,7 @@ open State
 open Handshake_common
 open Config
 
-let (<+>) = Cs.(<+>)
+let (<+>) = Cstruct.append
 
 let state_version state = match state.protocol_version with
   | #tls_before_13 as v -> v
@@ -28,11 +28,11 @@ let answer_client_finished state (session : session_data) client_fin raw log =
     in
     (checksum "client finished" log, checksum "server finished" (log @ [raw]))
   in
-  guard (Cs.equal client client_fin) (`Fatal `BadFinished) >>= fun () ->
+  guard (Cstruct.equal client client_fin) (`Fatal `BadFinished) >>= fun () ->
   let fin = Finished server in
   let fin_raw = Writer.assemble_handshake fin in
   (* we really do not want to have any leftover handshake fragments *)
-  guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+  guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
   let session = { session with renegotiation = (client, server) }
   and machina = Server Established
   in
@@ -44,9 +44,9 @@ let answer_client_finished_resume state (session : session_data) server_verify c
   let client_verify =
     Handshake_crypto.finished (state_version state) session.ciphersuite session.common_session_data.master_secret "client finished" log
   in
-  guard (Cs.equal client_verify client_fin) (`Fatal `BadFinished) >>= fun () ->
+  guard (Cstruct.equal client_verify client_fin) (`Fatal `BadFinished) >>= fun () ->
   (* we really do not want to have any leftover handshake fragments *)
-  guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+  guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
   let session = { session with renegotiation = (client_verify, server_verify) }
   and machina = Server Established
   in
@@ -99,7 +99,7 @@ let answer_client_certificate_DHE state (session : session_data) dh_sent certs r
   ({ state with machina = Server machina }, [])
 
 let answer_client_certificate_verify state (session : session_data) sctx cctx verify raw log =
-  let sigdata = Cs.appends log in
+  let sigdata = Cstruct.concat log in
   verify_digitally_signed state.protocol_version state.config.signature_algorithms verify sigdata session.common_session_data.peer_certificate >|= fun () ->
   let machina = AwaitClientChangeCipherSpec (session, sctx, cctx, log @ [raw]) in
   ({ state with machina = Server machina }, [])
@@ -428,7 +428,7 @@ let answer_client_hello_common state reneg ch raw =
         return (outs, machina) ) >|= fun (out_recs, machina) ->
 
   ({ state with machina = Server machina },
-   [`Record (Packet.HANDSHAKE, Cs.appends out_recs)])
+   [`Record (Packet.HANDSHAKE, Cstruct.concat out_recs)])
 
 (* TODO could benefit from result monadd *)
 let agreed_version supported (client_hello : client_hello) =
@@ -460,7 +460,7 @@ let answer_client_hello state (ch : client_hello) raw =
   let ensure_reneg ciphers their_data  =
     let reneg_cs = List.mem Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
     match reneg_cs, their_data with
-    | _, Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
+    | _, Some x -> guard (Cstruct.len x = 0) (`Fatal `InvalidRenegotiation)
     | true, _ -> return ()
     | _ -> fail (`Fatal `NoSecureRenegotiation)
 
@@ -491,7 +491,7 @@ let answer_client_hello state (ch : client_hello) raw =
     let version = state_version state in
     let sh, session = server_hello state.config ch session version None in
     (* we really do not want to have any leftover handshake fragments *)
-    guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+    guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
     let client_ctx, server_ctx =
       Handshake_crypto.initialise_crypto_ctx version session
     in
@@ -516,8 +516,8 @@ let answer_client_hello state (ch : client_hello) raw =
   let process_client_hello config ch version =
     let cciphers = ch.ciphersuites in
     (match client_hello_valid version ch with
-     | `Ok -> return ()
-     | `Error e -> fail (`Fatal (`InvalidClientHello e))) >>= fun () ->
+     | Ok () -> return ()
+     | Error e -> fail (`Fatal (`InvalidClientHello e))) >>= fun () ->
     guard (not (List.mem Packet.TLS_FALLBACK_SCSV cciphers) ||
            version = max_protocol_version config.protocol_versions)
       (`Fatal `InappropriateFallback) >>= fun () ->
@@ -541,14 +541,14 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
   (* ensure reneg allowed and supplied *)
   let ensure_reneg our_data their_data  =
     match our_data, their_data with
-    | (cvd, _), Some x -> guard (Cs.equal cvd x) (`Fatal `InvalidRenegotiation)
+    | (cvd, _), Some x -> guard (Cstruct.equal cvd x) (`Fatal `InvalidRenegotiation)
     | _ -> fail (`Fatal `NoSecureRenegotiation)
   in
 
   let process_client_hello config oldversion ours ch =
     (match client_hello_valid oldversion ch with
-     | `Ok -> return ()
-     | `Error x -> fail (`Fatal (`InvalidClientHello x))) >>= fun () ->
+     | Ok () -> return ()
+     | Error x -> fail (`Fatal (`InvalidClientHello x))) >>= fun () ->
     agreed_version config.protocol_versions ch >>= fun version ->
     guard (version = oldversion) (`Fatal (`InvalidRenegotiationVersion version)) >>= fun () ->
     let theirs = get_secure_renegotiation ch.extensions in
@@ -571,7 +571,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
 let handle_change_cipher_spec ss state packet =
   match Reader.parse_change_cipher_spec packet, ss with
   | Ok (), AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log) ->
-     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty)
+     guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty)
      >>= fun () ->
      let ccs = change_cipher_spec in
      let machina = AwaitClientFinished (session, log)
@@ -582,7 +582,7 @@ let handle_change_cipher_spec ss state packet =
      return ({ state with machina = Server machina },
              [`Record ccs; `Change_enc server_ctx; `Change_dec client_ctx])
   | Ok (), AwaitClientChangeCipherSpecResume (session, client_ctx, server_verify, log) ->
-     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+     guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
      let machina = AwaitClientFinishedResume (session, server_verify, log)
      in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;

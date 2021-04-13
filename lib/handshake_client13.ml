@@ -11,7 +11,7 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
   | None -> fail (`Fatal `InvalidServerHello)
   | Some cipher ->
     guard (List.mem cipher (ciphers13 state.config)) (`Fatal `InvalidServerHello) >>= fun () ->
-    guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
+    guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
 
     (* TODO: PSK *)
     (* TODO: early_secret elsewhere *)
@@ -79,7 +79,7 @@ let answer_hello_retry_request state (ch : client_hello) hrr _secrets raw log =
   let new_ch_raw = Writer.assemble_handshake (ClientHello new_ch) in
   let ch0_data = Mirage_crypto.Hash.digest (Ciphersuite.hash13 hrr.ciphersuite) log in
   let ch0_hdr = Writer.assemble_message_hash (Cstruct.len ch0_data) in
-  let st = AwaitServerHello13 (new_ch, [secret], Cs.appends [ ch0_hdr ; ch0_data ; raw ; new_ch_raw ]) in
+  let st = AwaitServerHello13 (new_ch, [secret], Cstruct.concat [ ch0_hdr ; ch0_data ; raw ; new_ch_raw ]) in
 
   Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello new_ch);
   return ({ state with machina = Client13 st ; protocol_version = `TLS_1_3 }, [`Record (Packet.HANDSHAKE, new_ch_raw)])
@@ -136,8 +136,8 @@ let answer_certificate_request (state : handshake_state) (session : session_data
 let answer_finished state (session : session_data13) server_hs_secret client_hs_secret fin raw log =
   let hash = Ciphersuite.hash13 session.ciphersuite13 in
   let f_data = Handshake_crypto13.finished hash server_hs_secret log in
-  guard (Cs.equal fin f_data) (`Fatal `BadFinished) >>= fun () ->
-  guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
+  guard (Cstruct.equal fin f_data) (`Fatal `BadFinished) >>= fun () ->
+  guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
   let log = log <+> raw in
   let server_app_secret, server_app_ctx, client_app_secret, client_app_ctx =
     Handshake_crypto13.app_ctx session.master_secret log
@@ -208,7 +208,7 @@ let answer_session_ticket state st =
 let handle_key_update state req =
   match state.session with
   | `TLS13 session :: _ ->
-    guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
+    guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
     let server_app_secret, server_ctx =
       Handshake_crypto13.app_secret_n_1 session.master_secret session.server_app_secret
     in
@@ -249,7 +249,7 @@ let handle_handshake cs hs buf =
         (match parse_certificates_1_3 cs with
          | Ok (con, cs) ->
            (* during handshake, context must be empty! and we'll not get any new certificate from server *)
-           guard (Cs.null con) (`Fatal `InvalidMessage) >>= fun () ->
+           guard (Cstruct.len con = 0) (`Fatal `InvalidMessage) >>= fun () ->
            answer_certificate hs sd es ss cs buf log
          | Error re -> fail (`Fatal (`ReaderError re)))
       | AwaitServerCertificateVerify13 (sd, es, ss, log), CertificateVerify cv ->

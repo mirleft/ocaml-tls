@@ -289,31 +289,31 @@ let client_hello_valid version (ch : client_hello) =
   in
 
   let version_good = match version with
-    | `TLS_1_2 | `TLS_1_X _ -> `Ok
+    | `TLS_1_2 | `TLS_1_X _ -> Ok ()
     | `TLS_1_3 ->
       ( let good_sig_alg =
           List.exists (fun sa -> List.mem sa Config.supported_signature_algorithms)
         in
         match sig_alg with
-        | None -> `Error `NoSignatureAlgorithmsExtension
+        | None -> Error `NoSignatureAlgorithmsExtension
         | Some sig_alg when good_sig_alg sig_alg ->
           ( match key_share, groups with
-            | None, _ -> `Error `NoKeyShareExtension
-            | _, None -> `Error `NoSupportedGroupExtension
+            | None, _ -> Error `NoKeyShareExtension
+            | _, None -> Error `NoSupportedGroupExtension
             | Some ks, Some gs ->
               match
                 List_set.is_proper_set gs,
                 List_set.is_proper_set (List.map fst ks),
                 GroupSet.subset (of_list (List.map fst ks)) (of_list gs)
               with
-              | true, true, true -> `Ok
-              | false, _, _ -> `Error (`NotSetSupportedGroup gs)
-              | _, false, _ -> `Error (`NotSetKeyShare ks)
-              | _, _, false -> `Error (`NotSubsetKeyShareSupportedGroup (gs, ks)) )
-        | Some x -> `Error (`NoGoodSignatureAlgorithms x)
+              | true, true, true -> Ok ()
+              | false, _, _ -> Error (`NotSetSupportedGroup gs)
+              | _, false, _ -> Error (`NotSetKeyShare ks)
+              | _, _, false -> Error (`NotSubsetKeyShareSupportedGroup (gs, ks)) )
+        | Some x -> Error (`NoGoodSignatureAlgorithms x)
       )
     | `SSL_3 | `TLS_1_0 | `TLS_1_1 ->
-      Utils.option `Ok (fun _ -> `Error `HasSignatureAlgorithmsExtension) sig_alg
+      Utils.option (Ok ()) (fun _ -> Error `HasSignatureAlgorithmsExtension) sig_alg
   in
 
   let share_ciphers =
@@ -330,10 +330,10 @@ let client_hello_valid version (ch : client_hello) =
     List_set.is_proper_set (extension_types to_client_ext_type ch.extensions)
   with
   | true, _, true, true -> version_good
-  | false, _ , _, _ -> `Error `EmptyCiphersuites
-  (*  | _, false, _, _ -> `Error (`NotSetCiphersuites ch.ciphersuites) *)
-  | _, _, false, _ -> `Error (`NoSupportedCiphersuite ch.ciphersuites)
-  | _, _, _, false -> `Error (`NotSetExtension ch.extensions)
+  | false, _ , _, _ -> Error `EmptyCiphersuites
+  (*  | _, false, _, _ -> Error (`NotSetCiphersuites ch.ciphersuites) *)
+  | _, _, false, _ -> Error (`NoSupportedCiphersuite ch.ciphersuites)
+  | _, _, _, false -> Error (`NotSetExtension ch.extensions)
 
 
 let server_hello_valid (sh : server_hello) =
@@ -343,7 +343,7 @@ let server_hello_valid (sh : server_hello) =
       - EC stuff must be present if EC ciphersuite chosen
    *)
 
-let (<+>) = Cs.(<+>)
+let (<+>) = Cstruct.append
 
 let to_sign_1_3 context_string =
   (* input is prepended by 64 * 0x20 (to avoid cross-version attacks) *)
@@ -515,7 +515,7 @@ let verify_digitally_signed version ?context_string sig_algs data signature_data
                Hash.(MD5.digest signature_data <+> SHA1.digest signature_data)
              in
              decode_pkcs1_signature key signature >>= fun raw ->
-             guard (Cs.equal raw computed) (`Fatal `SignatureVerificationFailed)
+             guard (Cstruct.equal raw computed) (`Fatal `SignatureVerificationFailed)
            | `P256 key ->
              let hash = Hash.SHA1.digest signature_data in
              ecdsa_sig_of_cstruct signature >>= fun s ->
@@ -554,7 +554,7 @@ let verify_digitally_signed version ?context_string sig_algs data signature_data
                match X509.Certificate.decode_pkcs1_digest_info should with
                | Ok (hash_algo', target) when hash_algo = hash_algo' ->
                  let cs = Hash.digest hash_algo data in
-                 guard (Cs.equal target cs) (`Fatal `SignatureVerificationFailed)
+                 guard (Cstruct.equal target cs) (`Fatal `SignatureVerificationFailed)
                | _ -> fail (`Fatal `HashAlgorithmMismatch)
              in
              decode_pkcs1_signature key signature >>= fun raw ->

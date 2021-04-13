@@ -1,4 +1,3 @@
-open Utils
 open Core
 open State
 
@@ -95,7 +94,7 @@ type ret = [
 ]
 
 
-let (<+>) = Cs.(<+>)
+let (<+>) = Cstruct.append
 
 let new_state config role =
   let handshake_state = match role with
@@ -196,7 +195,7 @@ let verify_mac sequence mac mac_k ty ver decrypted =
     let ver = pair_of_tls_version ver in
     let hdr = Crypto.pseudo_header sequence ty ver (Cstruct.len body) in
     Crypto.mac mac mac_k hdr body in
-  guard (Cs.equal cmac mmac) (`Fatal `MACMismatch) >|= fun () ->
+  guard (Cstruct.equal cmac mmac) (`Fatal `MACMismatch) >|= fun () ->
   body
 
 
@@ -525,7 +524,7 @@ let maybe_app a b = match a, b with
 
 let assemble_records (version : tls_version) rs =
   let version = match version with `TLS_1_3 -> `TLS_1_2 | x -> x in
-  Cs.appends (List.map (Writer.assemble_hdr version) rs)
+  Cstruct.concat (List.map (Writer.assemble_hdr version) rs)
 
 (* main entry point *)
 let handle_tls state buf =

@@ -63,7 +63,7 @@ let loop_chatter ~certificate ~loops ~size =
     in
     let (srv, cli) = handshake (`S server) (`C client) init in
     let message' = chat srv cli message loops in
-    if Tls.Utils.Cs.equal message message' then ()
+    if Cstruct.equal message message' then ()
     else failwith @@ "the message got corrupted :("
 
 
@@ -73,7 +73,7 @@ let load_priv () =
   match
     X509.Certificate.decode_pem_multiple cs1, X509.Private_key.decode_pem cs2
   with
-  | Ok certs, Ok (`RSA key) -> certs, key
+  | Ok certs, Ok key -> certs, key
   | Error (`Msg m), _ -> failwith ("can't parse certificates " ^ m)
   | _, Error (`Msg m) -> failwith ("can't parse private key " ^ m)
 
