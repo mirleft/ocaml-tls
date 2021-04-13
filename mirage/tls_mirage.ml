@@ -57,7 +57,7 @@ module Make (F : Mirage_flow.S) = struct
 
     let handle tls buf =
       match Tls.Engine.handle_tls tls buf with
-      | `Ok (res, `Response resp, `Data data) ->
+      | Ok (res, `Response resp, `Data data) ->
           flow.state <- ( match res with
             | `Ok tls      -> `Active tls
             | `Eof         -> `Eof
@@ -69,7 +69,7 @@ module Make (F : Mirage_flow.S) = struct
             | `Ok _ -> return_unit
             | _     -> FLOW.close flow.flow ) >>= fun () ->
           return @@ `Ok data
-      | `Fail (fail, `Response resp) ->
+      | Error (fail, `Response resp) ->
           let reason = tls_fail fail in
           flow.state <- reason ;
           FLOW.(write flow.flow resp >>= fun _ -> close flow.flow) >>= fun () -> return reason

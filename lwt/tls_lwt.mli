@@ -83,7 +83,7 @@ module Unix : sig
 
   (** [epoch t] returns [epoch], which contains information of the
       active session. *)
-  val epoch  : t -> [ `Ok of Tls.Core.epoch_data | `Error ]
+  val epoch  : t -> (Tls.Core.epoch_data, unit) result
 end
 
 (** {1 High-level API} *)

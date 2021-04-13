@@ -28,6 +28,7 @@ depends: [
   "x509" {>= "0.12.0"}
   "domain-name" {>= "0.3.0"}
   "fmt"
+  "rresult"
   "cstruct-unix" {with-test & >= "3.0.0"}
   "ounit2" {with-test & >= "2.2.0"}
   "lwt" {>= "3.0.0"}

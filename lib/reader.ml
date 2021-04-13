@@ -14,9 +14,6 @@ type error =
   | UnknownContent of int
   [@@deriving sexp]
 
-include Control.Or_error_make (struct type err = error end)
-type nonrec 'a result = ('a, error) result
-
 exception Reader_error of error
 
 let raise_unknown msg        = raise (Reader_error (Unknown msg))
@@ -24,9 +21,9 @@ and raise_wrong_length msg   = raise (Reader_error (WrongLength msg))
 and raise_trailing_bytes msg = raise (Reader_error (TrailingBytes msg))
 
 let catch f x =
-  try return (f x) with
-  | Reader_error err   -> fail err
-  | Invalid_argument _ -> fail Underflow
+  try Ok (f x) with
+  | Reader_error err   -> Error err
+  | Invalid_argument _ -> Error Underflow
 
 let parse_version_int buf =
   let major = get_uint8 buf 0 in
@@ -58,7 +55,7 @@ let parse_any_version = catch parse_any_version_exn
 
 let parse_record buf =
   if len buf < 5 then
-    return (`Fragment buf)
+    Ok (`Fragment buf)
   else
     let typ = get_uint8 buf 0
     and version = parse_version_int (shift buf 1)
@@ -68,18 +65,18 @@ let parse_record buf =
       (* 2 ^ 14 + 2048 for TLSCiphertext
          2 ^ 14 + 1024 for TLSCompressed
          2 ^ 14 for TLSPlaintext *)
-      fail (Overflow x)
-    | x when 5 + x > len buf -> return (`Fragment buf)
+      Error (Overflow x)
+    | x when 5 + x > len buf -> Ok (`Fragment buf)
     | x ->
       match
         tls_any_version_of_pair version,
         int_to_content_type typ
       with
-      | None, _ -> fail (UnknownVersion version)
-      | _, None -> fail (UnknownContent typ)
+      | None, _ -> Error (UnknownVersion version)
+      | _, None -> Error (UnknownContent typ)
       | Some version, Some content_type ->
         let payload, rest = split ~start:5 buf x in
-        return (`Record (({ content_type ; version }, payload), rest))
+        Ok (`Record (({ content_type ; version }, payload), rest))
 
 let validate_alert (lvl, typ) =
   let open Packet in
@@ -132,8 +129,8 @@ let parse_alert = catch @@ fun buf ->
 
 let parse_change_cipher_spec buf =
   match len buf, get_uint8 buf 0 with
-  | 1, 1 -> return ()
-  | _    -> fail (Unknown "bad change cipher spec message")
+  | 1, 1 -> Ok ()
+  | _    -> Error (Unknown "bad change cipher spec message")
 
 let rec parse_count_list parsef buf acc = function
   | 0 -> (List.rev acc, buf)
