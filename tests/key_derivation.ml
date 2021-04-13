@@ -520,7 +520,8 @@ let self_signature () =
     Tls.Handshake_common.signature `TLS_1_3
       ~context_string:"TLS 1.3, server CertificateVerify"
       (Mirage_crypto.Hash.digest hash log)
-      None [ `RSA_PSS_RSAENC_SHA256 ] private_key
+      (Some [ `RSA_PSS_RSAENC_SHA256 ]) [ `RSA_PSS_RSAENC_SHA256 ]
+      (`RSA private_key)
   with
   | Error _ -> Alcotest.fail "expected sth"
   | Ok data ->

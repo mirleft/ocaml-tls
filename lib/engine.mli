@@ -88,10 +88,8 @@ type fatal = [
   | `NoCertificateReceived
   | `NoCertificateVerifyReceived
   | `NotRSACertificate
-  | `NotRSASignature
   | `KeyTooSmall
-  | `RSASignatureMismatch
-  | `RSASignatureVerificationFailed
+  | `SignatureVerificationFailed
   | `UnsupportedSignatureScheme
   | `HashAlgorithmMismatch
   | `BadCertificateChain
@@ -125,7 +123,6 @@ type fatal = [
   | `MissingContentType
   | `Downgrade12
   | `Downgrade11
-  | `UnsupportedKeyExchange
 ]
 
 (** type of failures *)

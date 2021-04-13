@@ -22,16 +22,16 @@ depends: [
   "cstruct-sexp"
   "sexplib"
   "mirage-crypto" {>= "0.8.1"}
+  "mirage-crypto-ec"
   "mirage-crypto-pk"
   "mirage-crypto-rng" {>= "0.8.0"}
-  "x509" {>= "0.11.0"}
+  "x509" {>= "0.12.0"}
   "domain-name" {>= "0.3.0"}
   "fmt"
   "cstruct-unix" {with-test & >= "3.0.0"}
   "ounit2" {with-test & >= "2.2.0"}
   "lwt" {>= "3.0.0"}
   "ptime" {>= "0.8.1"}
-  "mirage-crypto-ec"
   "hkdf"
   "logs"
   "alcotest" {with-test}

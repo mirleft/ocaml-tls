@@ -59,16 +59,7 @@ let default_client_hello config =
     | [] -> []
     | protocols -> [`ALPN protocols]
   in
-  let ciphers =
-    match
-      min_protocol_version config.protocol_versions,
-      max_protocol_version config.protocol_versions
-    with
-    | `TLS_1_3, _ -> (ciphers13 config :> Ciphersuite.ciphersuite list)
-    | _, `TLS_1_3 -> config.ciphers
-    | _, `TLS_1_1 | _, `TLS_1_0 -> List.filter (o not Ciphersuite.ciphersuite_tls12_only) config.ciphers
-    | _ -> config.ciphers
-  and sessionid =
+  let sessionid =
     match config.use_reneg, config.cached_session with
     | _, Some { session_id ; extended_ms ; _ } when extended_ms && not (Cs.null session_id) -> Some session_id
     | false, Some { session_id ; _ } when not (Cs.null session_id) -> Some session_id
@@ -78,7 +69,7 @@ let default_client_hello config =
     client_version = (version :> tls_any_version) ;
     client_random  = Mirage_crypto_rng.generate 32 ;
     sessionid      = sessionid ;
-    ciphersuites   = List.map Ciphersuite.ciphersuite_to_any_ciphersuite ciphers ;
+    ciphersuites   = List.map Ciphersuite.ciphersuite_to_any_ciphersuite config.ciphers ;
     extensions     = `ExtendedMasterSecret :: host @ extensions @ alpn
   }
   in
@@ -129,15 +120,12 @@ let common_server_hello_machina state (sh : server_hello) (ch : client_hello) ra
   in
   let state = { state with protocol_version = sh.server_version } in
   match Ciphersuite.ciphersuite_kex cipher with
+  | #Ciphersuite.key_exchange_algorithm_dhe ->
+    let machina = Client (AwaitCertificate_DHE (session, log @ [raw])) in
+    Ok ({ state with machina }, [])
   | `RSA     ->
     let machina = Client (AwaitCertificate_RSA (session, log @ [raw])) in
     Ok ({ state with machina }, [])
-  | `DHE_RSA ->
-    let machina = Client (AwaitCertificate_DHE_RSA (session, log @ [raw])) in
-    Ok ({ state with machina }, [])
-  | _ ->
-    (* we don't support PSK for 1.2 and below *)
-    Error (`Fatal `UnsupportedKeyExchange)
 
 let answer_server_hello state (ch : client_hello) sh secrets raw log =
   let validate_version requested (lo, _) server_version =
@@ -200,27 +188,22 @@ let answer_server_hello_renegotiate state session (ch : client_hello) sh raw log
     (`Fatal (`InvalidRenegotiationVersion sh.server_version)) >>= fun () ->
   common_server_hello_machina state sh ch raw log
 
-let validate_keytype_usage certificate ciphersuite =
-  let keytype, usage =
-    Ciphersuite.(o required_keytype_and_usage ciphersuite_kex ciphersuite)
-  in
+let validate_keyusage certificate kex =
+  let usage = Ciphersuite.required_usage kex in
   match certificate with
   | None -> fail (`Fatal `NoCertificateReceived)
   | Some cert ->
-    let open X509 in
-    guard (Certificate.supports_keytype cert keytype)
-      (`Fatal `NotRSACertificate) >>= fun () ->
-    guard (supports_key_usage ~not_present:true cert usage)
+    guard (supports_key_usage ~not_present:true usage cert)
       (`Fatal `InvalidCertificateUsage) >>= fun () ->
     guard
-      (supports_extended_key_usage cert `Server_auth ||
-       supports_extended_key_usage ~not_present:true cert `Any)
+      (supports_extended_key_usage `Server_auth cert ||
+       supports_extended_key_usage ~not_present:true `Any cert)
       (`Fatal `InvalidCertificateExtendedUsage)
 
 let answer_certificate_RSA state (session : session_data) cs raw log =
   let cfg = state.config in
   validate_chain cfg.authenticator cs (host_name_opt cfg.peer_name) >>= fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
-  validate_keytype_usage peer_certificate session.ciphersuite >>= fun () ->
+  validate_keyusage peer_certificate `RSA >>= fun () ->
   let session =
     let common_session_data = { session.common_session_data with received_certificates ; peer_certificate ; peer_certificate_chain ; trust_anchor } in
     { session with common_session_data }
@@ -232,29 +215,31 @@ let answer_certificate_RSA state (session : session_data) cs raw log =
   ) >>= fun version ->
   let ver = Writer.assemble_protocol_version version in
   let premaster = ver <+> Mirage_crypto_rng.generate 46 in
-  peer_rsa_key peer_certificate >|= fun pubkey ->
-  let kex = Mirage_crypto_pk.Rsa.PKCS1.encrypt ~key:pubkey premaster in
-  let kex = Writer.assemble_client_dh_key_exchange kex in
-  let machina =
-    AwaitCertificateRequestOrServerHelloDone
-      (session, kex, premaster, log @ [raw])
-  in
-  ({ state with machina = Client machina }, [])
+  peer_key peer_certificate >>= function
+  | `RSA key ->
+    let kex = Mirage_crypto_pk.Rsa.PKCS1.encrypt ~key premaster in
+    let kex = Writer.assemble_client_dh_key_exchange kex in
+    let machina =
+      AwaitCertificateRequestOrServerHelloDone
+        (session, kex, premaster, log @ [raw])
+    in
+    return ({ state with machina = Client machina }, [])
+  | _ -> fail (`Fatal `NotRSACertificate)
 
-let answer_certificate_DHE_RSA state (session : session_data) cs raw log =
+let answer_certificate_DHE state (session : session_data) cs raw log =
   let cfg = state.config in
   validate_chain cfg.authenticator cs (host_name_opt cfg.peer_name) >>= fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
-  validate_keytype_usage peer_certificate session.ciphersuite >|= fun () ->
+  validate_keyusage peer_certificate `FFDHE >|= fun () ->
   let session =
     let common_session_data = { session.common_session_data with received_certificates ; peer_certificate ; peer_certificate_chain ; trust_anchor } in
     { session with common_session_data }
   in
-  let machina = AwaitServerKeyExchange_DHE_RSA (session, log @ [raw]) in
+  let machina = AwaitServerKeyExchange_DHE (session, log @ [raw]) in
   ({ state with machina = Client machina }, [])
 
-let answer_server_key_exchange_DHE_RSA state (session : session_data) kex raw log =
+let answer_server_key_exchange_DHE state (session : session_data) kex raw log =
   let to_fatal r = match r with Ok cs -> return cs | Error er -> fail (`Fatal (`ReaderError er)) in
-  (if Ciphersuite.ecc session.ciphersuite then
+  (if Ciphersuite.ecdhe session.ciphersuite then
      to_fatal (Reader.parse_ec_parameters kex) >|= fun (g, share, raw, left) ->
      (`Ec g, share, raw, left)
    else
@@ -325,14 +310,11 @@ let answer_certificate_request state (session : session_data) cr kex pms raw log
          | Ok (types, sigalgs, cas) -> return (types, Some sigalgs, cas)
          | Error re -> fail (`Fatal (`ReaderError re)) )
     | v -> fail (`Fatal (`BadRecordVersion (v :> tls_any_version))) (* never happens *)
-  ) >|= fun (types, sigalgs, _cas) ->
-  (* TODO: respect cas, maybe multiple client certificates? *)
+  ) >|= fun (_types, sigalgs, _cas) ->
+  (* TODO: respect _types and _cas, multiple client certificates *)
   let own_certificate, own_private_key =
-    match
-      List.mem Packet.RSA_SIGN types,
-      cfg.own_certificates
-    with
-    | true, `Single (chain, priv) -> (chain, Some priv)
+    match cfg.own_certificates with
+    | `Single (chain, priv) -> (chain, Some priv)
     | _ -> ([], None)
   in
   let session =
@@ -490,12 +472,12 @@ let handle_handshake cs hs buf =
           (match Reader.parse_certificates cs with
            | Ok cs -> answer_certificate_RSA hs session cs buf log
            | Error re -> fail (`Fatal (`ReaderError re)))
-       | AwaitCertificate_DHE_RSA (session, log), Certificate cs ->
+       | AwaitCertificate_DHE (session, log), Certificate cs ->
           (match Reader.parse_certificates cs with
-           | Ok cs -> answer_certificate_DHE_RSA hs session cs buf log
+           | Ok cs -> answer_certificate_DHE hs session cs buf log
            | Error re -> fail (`Fatal (`ReaderError re)))
-       | AwaitServerKeyExchange_DHE_RSA (session, log), ServerKeyExchange kex ->
-          answer_server_key_exchange_DHE_RSA hs session kex buf log
+       | AwaitServerKeyExchange_DHE (session, log), ServerKeyExchange kex ->
+          answer_server_key_exchange_DHE hs session kex buf log
        | AwaitCertificateRequestOrServerHelloDone (session, kex, pms, log), CertificateRequest cr ->
           answer_certificate_request hs session cr kex pms buf log
        | AwaitCertificateRequestOrServerHelloDone (session, kex, pms, log), ServerHelloDone ->

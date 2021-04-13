@@ -8,7 +8,9 @@ let src = Logs.Src.create "handshake" ~doc:"TLS handshake"
 module Log = (val Logs.src_log src : Logs.LOG)
 
 let trace_cipher cipher =
-  let kex, papr = Ciphersuite.get_kex_privprot cipher in
+  let kex = Ciphersuite.ciphersuite_kex cipher
+  and papr = Ciphersuite.ciphersuite_privprot cipher
+  in
   let sexp = lazy (Sexplib.Sexp.(List Ciphersuite.(
       [ sexp_of_key_exchange_algorithm kex ;
         sexp_of_payload_protection papr ])))
@@ -50,7 +52,7 @@ let rec find_matching host certs =
   | _::xs -> find_matching host xs (* this should never happen! *)
   | [] -> None
 
-let agreed_cert certs hostname =
+let agreed_cert certs ?f ?signature_algorithms hostname =
   let match_host ?default host certs =
      match find_matching host certs with
      | Some x -> return x
@@ -58,13 +60,41 @@ let agreed_cert certs hostname =
        | Some c -> return c
        | None   -> fail (`Error (`NoMatchingCertificateFound (Domain_name.to_string host)))
   in
+  let filter = function
+    | ([], _) -> false (* cannot happen, TODO: adapt types to avoid this case *)
+    | (s :: _, _) ->
+      match f with
+      | None -> true
+      | Some f -> f s
+  in
+  let filter_sigalg c =
+    match signature_algorithms with
+    | None -> true
+    | Some s -> List.exists (pk_matches_sa (snd c)) s
+  in
   match certs, hostname with
-  | `None                    , _      -> fail (`Error `NoCertificateConfigured)
-  | `Single c                , _      -> return c
-  | `Multiple_default (c, _) , None   -> return c
-  | `Multiple cs             , Some h -> match_host h cs
-  | `Multiple_default (c, cs), Some h -> match_host h cs ~default:c
-  | _                                 -> fail (`Error `CouldntSelectCertificate)
+  | `None, _ -> fail (`Error `NoCertificateConfigured)
+  | `Single c, _ ->
+    if filter c && filter_sigalg c then return c else fail (`Error `CouldntSelectCertificate)
+  | `Multiple_default (c, _), None ->
+    if filter c && filter_sigalg c then return c else fail (`Error `CouldntSelectCertificate)
+  | `Multiple_default (c, cs), Some h ->
+    let default = if filter c && filter_sigalg c then Some c else None in
+    begin match default, List.filter (fun c -> filter c && filter_sigalg c) cs with
+      | Some d, cs -> match_host ~default:d h cs
+      | None, c :: cs -> match_host ~default:c h (c::cs)
+      | None, [] -> fail (`Error `CouldntSelectCertificate)
+    end
+  | `Multiple cs, None ->
+    begin match List.filter (fun c -> filter c && filter_sigalg c) cs with
+      | cert :: _ -> return cert
+      | _ -> fail (`Error `CouldntSelectCertificate)
+    end
+  | `Multiple cs, Some h ->
+    match List.filter (fun c -> filter c && filter_sigalg c) cs with
+    | [ cert ] -> return cert
+    | c :: cs -> match_host ~default:c h (c :: cs)
+    | [] -> fail (`Error `CouldntSelectCertificate)
 
 let get_secure_renegotiation exts =
   map_find
@@ -328,105 +358,227 @@ let to_sign_1_3 context_string =
   in
   prefix <+> ctx
 
-let signature version ?context_string data client_sig_algs signature_algorithms private_key =
+let ecdsa_sig =
+  let f (r, s) =
+    if Z.sign r < 0 then
+      Asn.S.parse_error "ECDSA signature: r < 0"
+    else if Z.sign s < 0 then
+      Asn.S.parse_error "ECDSA signature: s < 0"
+    else
+      Mirage_crypto_pk.Z_extra.to_cstruct_be r,
+      Mirage_crypto_pk.Z_extra.to_cstruct_be s
+  and g (r, s) =
+    Mirage_crypto_pk.Z_extra.of_cstruct_be r,
+    Mirage_crypto_pk.Z_extra.of_cstruct_be s
+  in
+  Asn.S.(map f g @@
+         sequence2
+           (required ~label:"r" integer)
+           (required ~label:"s" integer))
+
+let ecdsa_sig_of_cstruct, ecdsa_sig_to_cstruct =
+  let decode codec cs =
+    let open Rresult.R.Infix in
+    Asn.decode codec cs >>= fun (a, cs) ->
+    if Cstruct.len cs = 0 then Ok a else Error (`Parse "Leftover")
+  in
+  let c = Asn.codec Asn.der ecdsa_sig in
+  let dec c cs = match decode c cs with
+    | Ok a -> Ok a
+    | Error _ -> Error (`Fatal `SignatureVerificationFailed)
+  in
+  (dec c, Asn.encode c)
+
+let signature version ?context_string data client_sig_algs signature_algorithms (private_key : X509.Private_key.t) =
   try
     begin match version with
-  | `TLS_1_0 | `TLS_1_1 ->
-    let data = Hash.MD5.digest data <+> Hash.SHA1.digest data in
-    let signed = Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key:private_key data in
-    return (Writer.assemble_digitally_signed signed)
-  | `TLS_1_2 ->
-    (* if no signature_algorithms extension is sent by the client,
-       support for md5 and sha1 can be safely assumed! *)
-    ( match client_sig_algs with
-      | None              -> return `RSA_PKCS1_SHA1
-      | Some client_algos ->
-        match first_match client_algos signature_algorithms with
-        | None      -> fail (`Error (`NoConfiguredSignatureAlgorithm client_algos))
-        | Some sig_alg -> return sig_alg ) >|= fun sig_alg ->
-    let hash_alg = Core.hash_of_signature_algorithm sig_alg in
-    begin match signature_scheme_of_signature_algorithm sig_alg with
-      | `PSS ->
-        let module H = (val (Hash.module_of hash_alg)) in
-        let module PSS = Mirage_crypto_pk.Rsa.PSS(H) in
-        let sign = PSS.sign ~key:private_key (`Message data) in
-        Writer.assemble_digitally_signed_1_2 sig_alg sign
-      | `PKCS1 ->
-        let hash = Hash.digest hash_alg data in
-        let cs = X509.Certificate.encode_pkcs1_digest_info (hash_alg, hash) in
-        let sign = Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key:private_key cs in
-        Writer.assemble_digitally_signed_1_2 sig_alg sign
-    end
-  | `TLS_1_3 ->
-    (* RSA-PSS is used *)
-    let prefix = to_sign_1_3 context_string in
-    ( match client_sig_algs with
-      | None              -> return `RSA_PSS_RSAENC_SHA256
-      | Some client_algos ->
-        (* SHA1 must not be used - all our PSS_RSAENC only use sha2 *)
-        match first_match client_algos signature_algorithms with
-        | None -> fail (`Error (`NoConfiguredSignatureAlgorithm client_algos))
-        | Some sig_alg -> return sig_alg ) >>= fun sig_alg ->
-    let hash_algo = hash_of_signature_algorithm sig_alg in
-    match signature_scheme_of_signature_algorithm sig_alg with
-    | `PSS ->
-      let module H = (val (Hash.module_of hash_algo)) in
-      let module PSS = Mirage_crypto_pk.Rsa.PSS(H) in
-      let to_sign = prefix <+> data in
-      let signature = PSS.sign ~key:private_key (`Message to_sign) in
-      return (Writer.assemble_digitally_signed_1_2 sig_alg signature)
-    | _ -> fail (`Error (`NoConfiguredSignatureAlgorithm [])) (*TODO different warning, types *)
+      | `TLS_1_0 | `TLS_1_1 ->
+        begin match private_key with
+          | `RSA key ->
+            let data = Hash.MD5.digest data <+> Hash.SHA1.digest data in
+            return (Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key data)
+          | `P256 key ->
+            let data = Hash.SHA1.digest data in
+            return (ecdsa_sig_to_cstruct (Mirage_crypto_ec.P256.Dsa.sign ~key data))
+          | `P384 key ->
+            let data = Hash.SHA1.digest data in
+            return (ecdsa_sig_to_cstruct (Mirage_crypto_ec.P384.Dsa.sign ~key data))
+          | `P521 key ->
+            let data = Hash.SHA1.digest data in
+            return (ecdsa_sig_to_cstruct (Mirage_crypto_ec.P521.Dsa.sign ~key data))
+          | `ED25519 key -> return (Mirage_crypto_ec.Ed25519.sign ~key data)
+          | _ -> fail (`Error (`NoConfiguredSignatureAlgorithm []))
+        end >|= fun signed ->
+        Writer.assemble_digitally_signed signed
+      | `TLS_1_2 ->
+        let sig_alg ec =
+          match client_sig_algs with
+          | None -> return (if ec then `ECDSA_SECP256R1_SHA1 else `RSA_PKCS1_SHA1)
+          | Some client_algos ->
+            let f = if ec then (fun sa -> not (rsa_sigalg sa)) else rsa_sigalg in
+            match first_match client_algos (List.filter f signature_algorithms) with
+            | None -> fail (`Error (`NoConfiguredSignatureAlgorithm client_algos))
+            | Some sig_alg -> return sig_alg
+        in
+        ( match private_key with
+          | `RSA key ->
+            begin
+              sig_alg false >>= fun sig_alg ->
+              match
+                signature_scheme_of_signature_algorithm sig_alg,
+                hash_of_signature_algorithm sig_alg
+              with
+              | `PSS, hash_alg ->
+                let module H = (val (Hash.module_of hash_alg)) in
+                let module PSS = Mirage_crypto_pk.Rsa.PSS(H) in
+                return (sig_alg, PSS.sign ~key (`Message data))
+              | `PKCS1, hash_alg ->
+                let hash = Hash.digest hash_alg data in
+                let cs = X509.Certificate.encode_pkcs1_digest_info (hash_alg, hash) in
+                return (sig_alg, Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key cs)
+              | _ -> fail (`Error (`NoConfiguredSignatureAlgorithm []))
+            end
+          | `P256 key ->
+            sig_alg true >|= fun sig_alg ->
+            let hash = Hash.digest (hash_of_signature_algorithm sig_alg) data in
+            sig_alg, ecdsa_sig_to_cstruct (Mirage_crypto_ec.P256.Dsa.sign ~key hash)
+          | `P384 key ->
+            sig_alg true >|= fun sig_alg ->
+            let hash = Hash.digest (hash_of_signature_algorithm sig_alg) data in
+            sig_alg, ecdsa_sig_to_cstruct (Mirage_crypto_ec.P384.Dsa.sign ~key hash)
+          | `P521 key ->
+            sig_alg true >|= fun sig_alg ->
+            let hash = Hash.digest (hash_of_signature_algorithm sig_alg) data in
+            sig_alg, ecdsa_sig_to_cstruct (Mirage_crypto_ec.P521.Dsa.sign ~key hash)
+          | `ED25519 key ->
+            sig_alg true >|= fun sig_alg ->
+            sig_alg, Mirage_crypto_ec.Ed25519.sign ~key data
+          | _ -> fail (`Error (`NoConfiguredSignatureAlgorithm [])) ) >|= fun (sig_alg, signature) ->
+        Writer.assemble_digitally_signed_1_2 sig_alg signature
+      | `TLS_1_3 ->
+        let to_sign =
+          let prefix = to_sign_1_3 context_string in
+          prefix <+> data
+        in
+        (match client_sig_algs with
+         | None -> fail (`Error (`NoConfiguredSignatureAlgorithm []))
+         (* 8446 4.2.3 "client MUST send signatureAlgorithms" *)
+         | Some client_algos ->
+           let sa = List.filter tls13_sigalg signature_algorithms in
+           let sa = List.filter (pk_matches_sa private_key) sa in
+           match first_match client_algos sa with
+           | None -> fail (`Error (`NoConfiguredSignatureAlgorithm client_algos))
+           | Some sig_alg -> return sig_alg) >>= fun sig_alg ->
+        let hash_alg = hash_of_signature_algorithm sig_alg in
+        (match signature_scheme_of_signature_algorithm sig_alg, private_key with
+         | `PSS, `RSA key ->
+           let module H = (val (Hash.module_of hash_alg)) in
+           let module PSS = Mirage_crypto_pk.Rsa.PSS(H) in
+           return (PSS.sign ~key (`Message to_sign))
+         | `ECDSA, `P256 key ->
+           let hash = Hash.digest hash_alg to_sign in
+           return (ecdsa_sig_to_cstruct (Mirage_crypto_ec.P256.Dsa.sign ~key hash))
+         | `ECDSA, `P384 key ->
+           let hash = Hash.digest hash_alg to_sign in
+           return (ecdsa_sig_to_cstruct (Mirage_crypto_ec.P384.Dsa.sign ~key hash))
+         | `ECDSA, `P521 key ->
+           let hash = Hash.digest hash_alg to_sign in
+           return (ecdsa_sig_to_cstruct (Mirage_crypto_ec.P521.Dsa.sign ~key hash))
+         | `EdDSA, `ED25519 key ->
+           return (Mirage_crypto_ec.Ed25519.sign ~key to_sign)
+         | _ -> fail (`Error (`NoConfiguredSignatureAlgorithm []))) >|= fun signature ->
+        Writer.assemble_digitally_signed_1_2 sig_alg signature
     end
   with Mirage_crypto_pk.Rsa.Insufficient_key ->
     fail (`Fatal `KeyTooSmall)
 
-let peer_rsa_key = function
+let peer_key = function
   | None -> fail (`Fatal `NoCertificateReceived)
-  | Some cert ->
-    match X509.Certificate.public_key cert with
-    | `RSA key -> return key
-    | _        -> fail (`Fatal `NotRSACertificate)
+  | Some cert -> return (X509.Certificate.public_key cert)
 
 let verify_digitally_signed version ?context_string sig_algs data signature_data certificate =
-  peer_rsa_key certificate >>= fun pubkey ->
+  peer_key certificate >>= fun pubkey ->
 
-  let decode_pkcs1_signature raw_signature =
-    match Mirage_crypto_pk.Rsa.PKCS1.sig_decode ~key:pubkey raw_signature with
+  let decode_pkcs1_signature key raw_signature =
+    match Mirage_crypto_pk.Rsa.PKCS1.sig_decode ~key raw_signature with
     | Some signature -> return signature
-    | None -> fail (`Fatal `RSASignatureVerificationFailed)
+    | None -> fail (`Fatal `SignatureVerificationFailed)
   in
 
   match version with
   | `TLS_1_0 | `TLS_1_1 ->
     ( match Reader.parse_digitally_signed data with
       | Ok signature ->
-         let compare_hashes should data =
-           let computed_sig = Hash.MD5.digest data <+> Hash.SHA1.digest data in
-           guard (Cs.equal should computed_sig) (`Fatal `RSASignatureMismatch)
-         in
-         decode_pkcs1_signature signature >>= fun raw ->
-         compare_hashes raw signature_data
+         begin match pubkey with
+           | `RSA key ->
+             let computed =
+               Hash.(MD5.digest signature_data <+> SHA1.digest signature_data)
+             in
+             decode_pkcs1_signature key signature >>= fun raw ->
+             guard (Cs.equal raw computed) (`Fatal `SignatureVerificationFailed)
+           | `P256 key ->
+             let hash = Hash.SHA1.digest signature_data in
+             ecdsa_sig_of_cstruct signature >>= fun s ->
+             guard (Mirage_crypto_ec.P256.Dsa.verify ~key s hash)
+               (`Fatal `SignatureVerificationFailed)
+           | `P384 key ->
+             let hash = Hash.SHA1.digest signature_data in
+             ecdsa_sig_of_cstruct signature >>= fun s ->
+             guard (Mirage_crypto_ec.P384.Dsa.verify ~key s hash)
+               (`Fatal `SignatureVerificationFailed)
+           | `P521 key ->
+             let hash = Hash.SHA1.digest signature_data in
+             ecdsa_sig_of_cstruct signature >>= fun s ->
+             guard (Mirage_crypto_ec.P521.Dsa.verify ~key s hash)
+               (`Fatal `SignatureVerificationFailed)
+           | `ED25519 key ->
+             let msg = signature_data in
+             guard (Mirage_crypto_ec.Ed25519.verify ~key signature ~msg)
+               (`Fatal `SignatureVerificationFailed)
+           | _ -> Error (`Fatal `UnsupportedSignatureScheme)
+         end
       | Error re -> fail (`Fatal (`ReaderError re)) )
   | `TLS_1_2 ->
      ( match Reader.parse_digitally_signed_1_2 data with
        | Ok (sig_alg, signature) ->
          guard (List.mem sig_alg sig_algs) (`Error (`NoConfiguredSignatureAlgorithm sig_algs)) >>= fun () ->
          let hash_algo = hash_of_signature_algorithm sig_alg in
-         begin match signature_scheme_of_signature_algorithm sig_alg with
-           | `PSS ->
+         begin match signature_scheme_of_signature_algorithm sig_alg, pubkey with
+           | `PSS, `RSA key ->
              let module H = (val (Hash.module_of hash_algo)) in
              let module PSS = Mirage_crypto_pk.Rsa.PSS(H) in
-             guard (PSS.verify ~key:pubkey ~signature (`Message signature_data))
-               (`Fatal `RSASignatureMismatch)
-           | `PKCS1 ->
+             guard (PSS.verify ~key ~signature (`Message signature_data))
+               (`Fatal `SignatureVerificationFailed)
+           | `PKCS1, `RSA key ->
              let compare_hashes should data =
                match X509.Certificate.decode_pkcs1_digest_info should with
                | Ok (hash_algo', target) when hash_algo = hash_algo' ->
-                 guard (Crypto.digest_eq hash_algo ~target data) (`Fatal `RSASignatureMismatch)
+                 let cs = Hash.digest hash_algo data in
+                 guard (Cs.equal target cs) (`Fatal `SignatureVerificationFailed)
                | _ -> fail (`Fatal `HashAlgorithmMismatch)
              in
-             decode_pkcs1_signature signature >>= fun raw ->
+             decode_pkcs1_signature key signature >>= fun raw ->
              compare_hashes raw signature_data
+           | `ECDSA, `P256 key ->
+             let hash = Hash.digest hash_algo signature_data in
+             ecdsa_sig_of_cstruct signature >>= fun s ->
+             guard (Mirage_crypto_ec.P256.Dsa.verify ~key s hash)
+               (`Fatal `SignatureVerificationFailed)
+           | `ECDSA, `P384 key ->
+             let hash = Hash.digest hash_algo signature_data in
+             ecdsa_sig_of_cstruct signature >>= fun s ->
+             guard (Mirage_crypto_ec.P384.Dsa.verify ~key s hash)
+               (`Fatal `SignatureVerificationFailed)
+           | `ECDSA, `P521 key ->
+             let hash = Hash.digest hash_algo signature_data in
+             ecdsa_sig_of_cstruct signature >>= fun s ->
+             guard (Mirage_crypto_ec.P521.Dsa.verify ~key s hash)
+               (`Fatal `SignatureVerificationFailed)
+           | `EdDSA, `ED25519 key ->
+             let msg = signature_data in
+             guard (Mirage_crypto_ec.Ed25519.verify ~key signature ~msg)
+               (`Fatal `SignatureVerificationFailed)
+           | _ -> fail (`Fatal `UnsupportedSignatureScheme)
          end
        | Error re -> fail (`Fatal (`ReaderError re)) )
   | `TLS_1_3 ->
@@ -434,17 +586,35 @@ let verify_digitally_signed version ?context_string sig_algs data signature_data
       | Ok (sig_alg, signature) ->
         guard (List.mem sig_alg sig_algs) (`Error (`NoConfiguredSignatureAlgorithm sig_algs)) >>= fun () ->
         let hash_algo = hash_of_signature_algorithm sig_alg in
-        begin match signature_scheme_of_signature_algorithm sig_alg with
-          | `PSS ->
+        let data =
+          let prefix = to_sign_1_3 context_string in
+          prefix <+> signature_data
+        in
+        begin match signature_scheme_of_signature_algorithm sig_alg, pubkey with
+          | `PSS, `RSA key ->
             let module H = (val (Hash.module_of hash_algo)) in
             let module PSS = Mirage_crypto_pk.Rsa.PSS(H) in
-            let data =
-              let prefix = to_sign_1_3 context_string in
-              prefix <+> signature_data
-            in
-            guard (PSS.verify ~key:pubkey ~signature (`Message data))
-              (`Fatal `RSASignatureMismatch)
-          | `PKCS1 ->
+            guard (PSS.verify ~key ~signature (`Message data))
+              (`Fatal `SignatureVerificationFailed)
+          | `ECDSA, `P256 key ->
+             let hash = Hash.digest hash_algo data in
+             ecdsa_sig_of_cstruct signature >>= fun s ->
+             guard (Mirage_crypto_ec.P256.Dsa.verify ~key s hash)
+               (`Fatal `SignatureVerificationFailed)
+          | `ECDSA, `P384 key ->
+             let hash = Hash.digest hash_algo data in
+             ecdsa_sig_of_cstruct signature >>= fun s ->
+             guard (Mirage_crypto_ec.P384.Dsa.verify ~key s hash)
+               (`Fatal `SignatureVerificationFailed)
+          | `ECDSA, `P521 key ->
+             let hash = Hash.digest hash_algo data in
+             ecdsa_sig_of_cstruct signature >>= fun s ->
+             guard (Mirage_crypto_ec.P521.Dsa.verify ~key s hash)
+               (`Fatal `SignatureVerificationFailed)
+          | `EdDSA, `ED25519 key ->
+             guard (Mirage_crypto_ec.Ed25519.verify ~key signature ~msg:data)
+               (`Fatal `SignatureVerificationFailed)
+          | _ ->
             fail (`Fatal `UnsupportedSignatureScheme)
         end
       | Error re -> fail (`Fatal (`ReaderError re)))
@@ -458,8 +628,8 @@ let validate_chain authenticator certificates hostname =
   and key_size min cs =
     let check c =
       match X509.Certificate.public_key c with
-      | `RSA key when Mirage_crypto_pk.Rsa.pub_bits key >= min -> true
-      | _                                                      -> false
+      | `RSA key -> Mirage_crypto_pk.Rsa.pub_bits key >= min
+      | _ -> true
     in
     guard (List.for_all check cs) (`Fatal `KeyTooSmall)
 

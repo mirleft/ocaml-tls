@@ -64,7 +64,56 @@ for i in $tls12_ciphers; do
     testit
 done
 
-#add TLS_CHACHA20_POLY1305_SHA256 once we support it
+tls13_ciphers="TLS_AES_256_GCM_SHA384 TLS_AES_128_GCM_SHA256 TLS_CHACHA20_POLY1305_SHA256"
+for i in $tls13_ciphers; do
+    extra_args="-ciphersuites $i"
+    testit
+
+    extra_args="-tls1_3 -ciphersuites $i"
+    testit
+done
+
+s_server_args="s_server -quiet -key ../certificates/server-ec.key -cert ../certificates/server-ec.pem -www -dhparam dh.pem "
+ec_ciphers="ECDHE-ECDSA-AES128-SHA ECDHE-ECDSA-AES256-SHA"
+ec_ciphers12="ECDHE-ECDSA-AES128-SHA256 ECDHE-ECDSA-AES256-SHA384 ECDHE-ECDSA-AES128-GCM-SHA256 ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-ECDSA-CHACHA20-POLY1305"
+
+extra_args=""
+testit
+
+extra_args="-tls1"
+testit
+
+extra_args="-tls1_1"
+testit
+
+extra_args="-tls1_2"
+testit
+
+extra_args="-tls1_3"
+testit
+
+for i in $ec_ciphers; do
+    extra_args="-cipher $i"
+    testit
+
+    extra_args="-tls1 -cipher $i"
+    testit
+
+    extra_args="-tls1_1 -cipher $i"
+    testit
+
+    extra_args="-tls1_2 -cipher $i"
+    testit
+done
+
+for i in $ec_ciphers12; do
+    extra_args="-cipher $i"
+    testit
+
+    extra_args="-tls1_2 -cipher $i"
+    testit
+done
+
 tls13_ciphers="TLS_AES_256_GCM_SHA384 TLS_AES_128_GCM_SHA256 TLS_CHACHA20_POLY1305_SHA256"
 for i in $tls13_ciphers; do
     extra_args="-ciphersuites $i"

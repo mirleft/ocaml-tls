@@ -55,10 +55,8 @@ let alert_of_fatal = function
   | `InvalidSession -> Packet.HANDSHAKE_FAILURE
   | `UnexpectedCCS -> Packet.UNEXPECTED_MESSAGE
   | `UnexpectedHandshake _ -> Packet.UNEXPECTED_MESSAGE
-  | `RSASignatureMismatch -> Packet.HANDSHAKE_FAILURE
   | `HashAlgorithmMismatch -> Packet.HANDSHAKE_FAILURE
-  | `NotRSASignature -> Packet.HANDSHAKE_FAILURE
-  | `RSASignatureVerificationFailed -> Packet.HANDSHAKE_FAILURE
+  | `SignatureVerificationFailed -> Packet.HANDSHAKE_FAILURE
   | `UnsupportedSignatureScheme -> Packet.HANDSHAKE_FAILURE
   | `KeyTooSmall -> Packet.INSUFFICIENT_SECURITY
   | `BadCertificateChain -> Packet.BAD_CERTIFICATE
@@ -76,7 +74,6 @@ let alert_of_fatal = function
   | `Toomany0rttbytes -> Packet.UNEXPECTED_MESSAGE
   | `MissingContentType -> Packet.UNEXPECTED_MESSAGE
   | `Downgrade12 | `Downgrade11 -> Packet.ILLEGAL_PARAMETER
-  | `UnsupportedKeyExchange -> Packet.HANDSHAKE_FAILURE
 
 let alert_of_failure = function
   | `Error x -> alert_of_error x

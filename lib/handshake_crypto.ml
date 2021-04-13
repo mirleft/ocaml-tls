@@ -22,7 +22,9 @@ let prf_mac = function
   | `RSA_WITH_AES_256_GCM_SHA384
   | `DHE_RSA_WITH_AES_256_GCM_SHA384
   | `ECDHE_RSA_WITH_AES_256_GCM_SHA384
-  | `ECDHE_RSA_WITH_AES_256_CBC_SHA384 -> (module SHA384 : S)
+  | `ECDHE_RSA_WITH_AES_256_CBC_SHA384
+  | `ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+  | `ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 -> (module SHA384 : S)
   | _ -> (module SHA256 : S)
 
 let pseudo_random_function version cipher len secret label seed =

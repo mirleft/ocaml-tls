@@ -82,7 +82,7 @@ type common_session_data = {
   trust_anchor           : Cert.t option ;
   received_certificates  : Cert.t list ;
   own_certificate        : Cert.t list ;
-  own_private_key        : Mirage_crypto_pk.Rsa.priv option ;
+  own_private_key        : Priv.t option ;
   own_name               : string option ;
   client_auth            : bool ;
   master_secret          : master_secret ;
@@ -104,9 +104,9 @@ type server_handshake_state =
   | AwaitClientHello (* initial state *)
   | AwaitClientHelloRenegotiate
   | AwaitClientCertificate_RSA of session_data * hs_log
-  | AwaitClientCertificate_DHE_RSA of session_data * dh_secret * hs_log
+  | AwaitClientCertificate_DHE of session_data * dh_secret * hs_log
   | AwaitClientKeyExchange_RSA of session_data * hs_log (* server hello done is sent, and RSA key exchange used, waiting for a client key exchange message *)
-  | AwaitClientKeyExchange_DHE_RSA of session_data * dh_secret * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
+  | AwaitClientKeyExchange_DHE of session_data * dh_secret * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
   | AwaitClientCertificateVerify of session_data * crypto_context * crypto_context * hs_log
   | AwaitClientChangeCipherSpec of session_data * crypto_context * crypto_context * hs_log (* client key exchange received, next should be change cipher spec *)
   | AwaitClientChangeCipherSpecResume of session_data * crypto_context * Cstruct_sexp.t * hs_log (* resumption: next should be change cipher spec *)
@@ -121,8 +121,8 @@ type client_handshake_state =
   | AwaitServerHello of client_hello * (group * dh_secret) list * hs_log (* client hello is sent, handshake_params are half-filled *)
   | AwaitServerHelloRenegotiate of session_data * client_hello * hs_log (* client hello is sent, handshake_params are half-filled *)
   | AwaitCertificate_RSA of session_data * hs_log (* certificate expected with RSA key exchange *)
-  | AwaitCertificate_DHE_RSA of session_data * hs_log (* certificate expected with DHE_RSA key exchange *)
-  | AwaitServerKeyExchange_DHE_RSA of session_data * hs_log (* server key exchange expected with DHE_RSA *)
+  | AwaitCertificate_DHE of session_data * hs_log (* certificate expected with DHE key exchange *)
+  | AwaitServerKeyExchange_DHE of session_data * hs_log (* server key exchange expected with DHE *)
   | AwaitCertificateRequestOrServerHelloDone of session_data * Cstruct_sexp.t * Cstruct_sexp.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
   | AwaitServerHelloDone of session_data * signature_algorithm list option * Cstruct_sexp.t * Cstruct_sexp.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
   | AwaitServerChangeCipherSpec of session_data * crypto_context * Cstruct_sexp.t * hs_log (* change cipher spec expected *)
@@ -262,10 +262,8 @@ type fatal = [
   | `NoCertificateReceived
   | `NoCertificateVerifyReceived
   | `NotRSACertificate
-  | `NotRSASignature
   | `KeyTooSmall
-  | `RSASignatureMismatch
-  | `RSASignatureVerificationFailed
+  | `SignatureVerificationFailed
   | `UnsupportedSignatureScheme
   | `HashAlgorithmMismatch
   | `BadCertificateChain
@@ -299,7 +297,6 @@ type fatal = [
   | `MissingContentType
   | `Downgrade12
   | `Downgrade11
-  | `UnsupportedKeyExchange
 ] [@@deriving sexp]
 
 type failure = [
