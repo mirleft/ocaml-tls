@@ -5,7 +5,9 @@ open State
 open Handshake_common
 open Config
 
-let (<+>) = Cs.(<+>)
+open Rresult.R.Infix
+
+let (<+>) = Cstruct.append
 
 let state_version state = match state.protocol_version with
   | #tls_before_13 as v -> v
@@ -16,9 +18,9 @@ let hello_request state =
     let hr = HelloRequest in
     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ;
     let state = { state with machina = Server AwaitClientHelloRenegotiate } in
-    return (state, [`Record (Packet.HANDSHAKE, Writer.assemble_handshake hr)])
+    Ok (state, [`Record (Packet.HANDSHAKE, Writer.assemble_handshake hr)])
   else
-    fail (`Fatal `InvalidSession)
+    Error (`Fatal `InvalidSession)
 
 
 let answer_client_finished state (session : session_data) client_fin raw log =
@@ -28,11 +30,11 @@ let answer_client_finished state (session : session_data) client_fin raw log =
     in
     (checksum "client finished" log, checksum "server finished" (log @ [raw]))
   in
-  guard (Cs.equal client client_fin) (`Fatal `BadFinished) >>= fun () ->
+  guard (Cstruct.equal client client_fin) (`Fatal `BadFinished) >>= fun () ->
   let fin = Finished server in
   let fin_raw = Writer.assemble_handshake fin in
   (* we really do not want to have any leftover handshake fragments *)
-  guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+  guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
   let session = { session with renegotiation = (client, server) }
   and machina = Server Established
   in
@@ -44,9 +46,9 @@ let answer_client_finished_resume state (session : session_data) server_verify c
   let client_verify =
     Handshake_crypto.finished (state_version state) session.ciphersuite session.common_session_data.master_secret "client finished" log
   in
-  guard (Cs.equal client_verify client_fin) (`Fatal `BadFinished) >>= fun () ->
+  guard (Cstruct.equal client_verify client_fin) (`Fatal `BadFinished) >>= fun () ->
   (* we really do not want to have any leftover handshake fragments *)
-  guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+  guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
   let session = { session with renegotiation = (client_verify, server_verify) }
   and machina = Server Established
   in
@@ -74,11 +76,11 @@ let establish_master_secret state (session : session_data) premastersecret raw l
 
 let private_key (session : session_data) =
   match session.common_session_data.own_private_key with
-    | Some priv -> return priv
-    | None      -> fail (`Fatal `InvalidSession) (* TODO: assert false / ensure via typing in config *)
+    | Some priv -> Ok priv
+    | None      -> Error (`Fatal `InvalidSession) (* TODO: assert false / ensure via typing in config *)
 
 let validate_certs certs authenticator (session : session_data) =
-  validate_chain authenticator certs None >|= fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
+  validate_chain authenticator certs None >>| fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
   let common_session_data = {
     session.common_session_data with
     received_certificates ;
@@ -89,18 +91,18 @@ let validate_certs certs authenticator (session : session_data) =
   { session with common_session_data }
 
 let answer_client_certificate_RSA state (session : session_data) certs raw log =
-  validate_certs certs state.config.authenticator session >|= fun session ->
+  validate_certs certs state.config.authenticator session >>| fun session ->
   let machina = AwaitClientKeyExchange_RSA (session, log @ [raw]) in
   ({ state with machina = Server machina }, [])
 
 let answer_client_certificate_DHE state (session : session_data) dh_sent certs raw log =
-  validate_certs certs state.config.authenticator session >|= fun session ->
+  validate_certs certs state.config.authenticator session >>| fun session ->
   let machina = AwaitClientKeyExchange_DHE (session, dh_sent, log @ [raw]) in
   ({ state with machina = Server machina }, [])
 
 let answer_client_certificate_verify state (session : session_data) sctx cctx verify raw log =
-  let sigdata = Cs.appends log in
-  verify_digitally_signed state.protocol_version state.config.signature_algorithms verify sigdata session.common_session_data.peer_certificate >|= fun () ->
+  let sigdata = Cstruct.concat log in
+  verify_digitally_signed state.protocol_version state.config.signature_algorithms verify sigdata session.common_session_data.peer_certificate >>| fun () ->
   let machina = AwaitClientChangeCipherSpec (session, sctx, cctx, log @ [raw]) in
   ({ state with machina = Server machina }, [])
 
@@ -128,43 +130,43 @@ let answer_client_key_exchange_RSA state (session : session_data) kex raw log =
       | None   -> validate_premastersecret other
       | Some k -> validate_premastersecret k
     in
-    return (establish_master_secret state session pms raw log)
-  | _ -> fail (`Fatal `NotRSACertificate)
+    Ok (establish_master_secret state session pms raw log)
+  | _ -> Error (`Fatal `NotRSACertificate)
 
 let answer_client_key_exchange_DHE state session secret kex raw log =
-  let to_fatal r = match r with Ok cs -> return cs | Error er -> fail (`Fatal (`ReaderError er)) in
+  let to_fatal r = match r with Ok cs -> Ok cs | Error er -> Error (`Fatal (`ReaderError er)) in
   (let open Mirage_crypto_ec in
    match secret with
    | `P256 priv ->
      to_fatal (Reader.parse_client_ec_key_exchange kex) >>= fun share ->
      begin match P256.Dh.key_exchange priv share with
-       | Error e -> fail (`Fatal (`BadECDH e))
-       | Ok shared -> return shared
+       | Error e -> Error (`Fatal (`BadECDH e))
+       | Ok shared -> Ok shared
      end
    | `P384 priv ->
      to_fatal (Reader.parse_client_ec_key_exchange kex) >>= fun share ->
      begin match P384.Dh.key_exchange priv share with
-       | Error e -> fail (`Fatal (`BadECDH e))
-       | Ok shared -> return shared
+       | Error e -> Error (`Fatal (`BadECDH e))
+       | Ok shared -> Ok shared
      end
    | `P521 priv ->
      to_fatal (Reader.parse_client_ec_key_exchange kex) >>= fun share ->
      begin match P521.Dh.key_exchange priv share with
-       | Error e -> fail (`Fatal (`BadECDH e))
-       | Ok shared -> return shared
+       | Error e -> Error (`Fatal (`BadECDH e))
+       | Ok shared -> Ok shared
      end
    | `X25519 priv ->
      to_fatal (Reader.parse_client_ec_key_exchange kex) >>= fun share ->
      begin match X25519.key_exchange priv share with
-       | Error e -> fail (`Fatal (`BadECDH e))
-       | Ok shared -> return shared
+       | Error e -> Error (`Fatal (`BadECDH e))
+       | Ok shared -> Ok shared
      end
    | `Finite_field secret ->
      to_fatal (Reader.parse_client_dh_key_exchange kex) >>= fun share ->
      begin match Mirage_crypto_pk.Dh.shared secret share with
-       | None -> fail (`Fatal `InvalidDH)
-       | Some shared -> return shared
-     end) >|= fun pms ->
+       | None -> Error (`Fatal `InvalidDH)
+       | Some shared -> Ok shared
+     end) >>| fun pms ->
   establish_master_secret state session pms raw log
 
 let sig_algs (client_hello : client_hello) =
@@ -278,21 +280,21 @@ let answer_client_hello_common state reneg ch raw =
     let signature_algorithms = sig_algs ch in
     (agreed_cert ~f ?signature_algorithms config.own_certificates host >>= function
       | (c::cs, priv) -> let cciphers = agreed_cipher c (ecc_group <> None) cciphers in
-                         return (cciphers, c::cs, Some priv)
-      | ([], _) -> fail (`Fatal `InvalidSession) (* TODO: assert false / remove by types in config *)
+                         Ok (cciphers, c::cs, Some priv)
+      | ([], _) -> Error (`Fatal `InvalidSession) (* TODO: assert false / remove by types in config *)
     ) >>= fun (cciphers, chain, priv) ->
 
     ( match first_match cciphers config.ciphers with
-      | Some x -> return x
+      | Some x -> Ok x
       | None   -> match first_match cciphers Config.Ciphers.supported with
-        | Some _ -> fail (`Error (`NoConfiguredCiphersuite cciphers))
-        | None -> fail (`Fatal (`InvalidClientHello (`NoSupportedCiphersuite ch.ciphersuites))) ) >>= fun cipher ->
+        | Some _ -> Error (`Error (`NoConfiguredCiphersuite cciphers))
+        | None -> Error (`Fatal (`InvalidClientHello (`NoSupportedCiphersuite ch.ciphersuites))) ) >>= fun cipher ->
 
     let extended_ms = List.mem `ExtendedMasterSecret ch.extensions in
 
     Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
 
-    alpn_protocol config ch >|= fun alpn_protocol ->
+    alpn_protocol config ch >>| fun alpn_protocol ->
 
     let own_name = match host with None -> None | Some h -> Some (Domain_name.to_string h) in
     let group =
@@ -334,7 +336,7 @@ let answer_client_hello_common state reneg ch raw =
   and cert_request version config (session : session_data) =
     let open Writer in
     match config.authenticator with
-    | None -> return ([], session)
+    | None -> Ok ([], session)
     | Some _ ->
        let cas =
          List.map X509.Distinguished_name.encode_der config.acceptable_cas
@@ -343,16 +345,16 @@ let answer_client_hello_common state reneg ch raw =
        in
        (match version with
         | `TLS_1_0 | `TLS_1_1 ->
-          return (assemble_certificate_request certs cas)
+          Ok (assemble_certificate_request certs cas)
         | `TLS_1_2 ->
-          return (assemble_certificate_request_1_2 certs config.signature_algorithms cas)
+          Ok (assemble_certificate_request_1_2 certs config.signature_algorithms cas)
         | `TLS_1_3 ->
           (* TLS 1.3 handshakes are diverted in answer_client_hello, this will
              never be executed. for renegotiation, it is checked that the
              protocol version did not change from the previous epoch (in
              answer_client_hello_reneg, process_client_hello the
              guard (version = oldversion)) *)
-          fail (`Fatal (`BadRecordVersion (version :> tls_any_version)))) >|= fun data ->
+          Error (`Fatal (`BadRecordVersion (version :> tls_any_version)))) >>| fun data ->
        let certreq = CertificateRequest data in
        Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake certreq ;
        let common_session_data = { session.common_session_data with client_auth = true } in
@@ -369,27 +371,27 @@ let answer_client_hello_common state reneg ch raw =
          let (secret, msg) = Mirage_crypto_pk.Dh.gen_key g in
          let dh_param = Crypto.dh_params_pack g msg in
          let dh_params = Writer.assemble_dh_parameters dh_param in
-         return (`Finite_field secret, dh_params)
+         Ok (`Finite_field secret, dh_params)
        | `P256 ->
          let secret, shared = P256.Dh.gen_key ~rng in
          let params = Writer.assemble_ec_parameters `P256 shared in
-         return (`P256 secret, params)
+         Ok (`P256 secret, params)
        | `P384 ->
          let secret, shared = P384.Dh.gen_key ~rng in
          let params = Writer.assemble_ec_parameters `P384 shared in
-         return (`P384 secret, params)
+         Ok (`P384 secret, params)
        | `P521 ->
          let secret, shared = P521.Dh.gen_key ~rng in
          let params = Writer.assemble_ec_parameters `P521 shared in
-         return (`P521 secret, params)
+         Ok (`P521 secret, params)
        | `X25519 ->
          let secret, shared = X25519.gen_key ~rng in
          let params = Writer.assemble_ec_parameters `X25519 shared in
-         return (`X25519 secret, params)
+         Ok (`X25519 secret, params)
     ) >>= fun (secret, written) ->
     let data = session.common_session_data.client_random <+> session.common_session_data.server_random <+> written in
     private_key session >>= fun priv ->
-    signature version data sig_algs config.signature_algorithms priv >|= fun sgn ->
+    signature version data sig_algs config.signature_algorithms priv >>| fun sgn ->
     let kex = ServerKeyExchange (written <+> sgn) in
     let hs = Writer.assemble_handshake kex in
     Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ;
@@ -414,7 +416,7 @@ let answer_client_hello_common state reneg ch raw =
             AwaitClientKeyExchange_DHE (session, dh, log)
         in
         Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
-        return (outs, machina)
+        Ok (outs, machina)
     | `RSA ->
         let outs = sh :: certificates @ cert_req @ [ hello_done ] in
         let log = raw :: outs in
@@ -425,10 +427,10 @@ let answer_client_hello_common state reneg ch raw =
             AwaitClientKeyExchange_RSA (session, log)
         in
         Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
-        return (outs, machina) ) >|= fun (out_recs, machina) ->
+        Ok (outs, machina) ) >>| fun (out_recs, machina) ->
 
   ({ state with machina = Server machina },
-   [`Record (Packet.HANDSHAKE, Cs.appends out_recs)])
+   [`Record (Packet.HANDSHAKE, Cstruct.concat out_recs)])
 
 (* TODO could benefit from result monadd *)
 let agreed_version supported (client_hello : client_hello) =
@@ -451,18 +453,18 @@ let agreed_version supported (client_hello : client_hello) =
         | Some v -> Some v)
       None client_versions
   with
-  | Some x -> return x
+  | Some x -> Ok x
   | None   -> match supported_versions with
-    | [] -> fail (`Fatal (`NoVersions raw_client_versions))
-    | _ -> fail (`Error (`NoConfiguredVersions supported_versions))
+    | [] -> Error (`Fatal (`NoVersions raw_client_versions))
+    | _ -> Error (`Error (`NoConfiguredVersions supported_versions))
 
 let answer_client_hello state (ch : client_hello) raw =
   let ensure_reneg ciphers their_data  =
     let reneg_cs = List.mem Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
     match reneg_cs, their_data with
-    | _, Some x -> guard (Cs.null x) (`Fatal `InvalidRenegotiation)
-    | true, _ -> return ()
-    | _ -> fail (`Fatal `NoSecureRenegotiation)
+    | _, Some x -> guard (Cstruct.len x = 0) (`Fatal `InvalidRenegotiation)
+    | true, _ -> Ok ()
+    | _ -> Error (`Fatal `NoSecureRenegotiation)
 
   and resume (ch : client_hello) state =
     let epoch_matches (epoch : Core.epoch_data) version ciphers extensions =
@@ -491,7 +493,7 @@ let answer_client_hello state (ch : client_hello) raw =
     let version = state_version state in
     let sh, session = server_hello state.config ch session version None in
     (* we really do not want to have any leftover handshake fragments *)
-    guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+    guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
     let client_ctx, server_ctx =
       Handshake_crypto.initialise_crypto_ctx version session
     in
@@ -516,8 +518,8 @@ let answer_client_hello state (ch : client_hello) raw =
   let process_client_hello config ch version =
     let cciphers = ch.ciphersuites in
     (match client_hello_valid version ch with
-     | `Ok -> return ()
-     | `Error e -> fail (`Fatal (`InvalidClientHello e))) >>= fun () ->
+     | Ok () -> Ok ()
+     | Error e -> Error (`Fatal (`InvalidClientHello e))) >>= fun () ->
     guard (not (List.mem Packet.TLS_FALLBACK_SCSV cciphers) ||
            version = max_protocol_version config.protocol_versions)
       (`Fatal `InappropriateFallback) >>= fun () ->
@@ -541,18 +543,18 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
   (* ensure reneg allowed and supplied *)
   let ensure_reneg our_data their_data  =
     match our_data, their_data with
-    | (cvd, _), Some x -> guard (Cs.equal cvd x) (`Fatal `InvalidRenegotiation)
-    | _ -> fail (`Fatal `NoSecureRenegotiation)
+    | (cvd, _), Some x -> guard (Cstruct.equal cvd x) (`Fatal `InvalidRenegotiation)
+    | _ -> Error (`Fatal `NoSecureRenegotiation)
   in
 
   let process_client_hello config oldversion ours ch =
     (match client_hello_valid oldversion ch with
-     | `Ok -> return ()
-     | `Error x -> fail (`Fatal (`InvalidClientHello x))) >>= fun () ->
+     | Ok () -> Ok ()
+     | Error x -> Error (`Fatal (`InvalidClientHello x))) >>= fun () ->
     agreed_version config.protocol_versions ch >>= fun version ->
     guard (version = oldversion) (`Fatal (`InvalidRenegotiationVersion version)) >>= fun () ->
     let theirs = get_secure_renegotiation ch.extensions in
-    ensure_reneg ours theirs >|= fun () ->
+    ensure_reneg ours theirs >>| fun () ->
     version
   in
 
@@ -565,13 +567,13 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
   | false, _             ->
     let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
     Tracing.sexpf ~tag:"alert-out" ~f:sexp_of_tls_alert (Packet.WARNING, Packet.NO_RENEGOTIATION) ;
-    return (state, [`Record (Packet.ALERT, no_reneg)])
-  | true , _             -> fail (`Fatal `InvalidSession) (* I'm pretty sure this can be an assert false *)
+    Ok (state, [`Record (Packet.ALERT, no_reneg)])
+  | true , _             -> Error (`Fatal `InvalidSession) (* I'm pretty sure this can be an assert false *)
 
 let handle_change_cipher_spec ss state packet =
   match Reader.parse_change_cipher_spec packet, ss with
   | Ok (), AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log) ->
-     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty)
+     guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty)
      >>= fun () ->
      let ccs = change_cipher_spec in
      let machina = AwaitClientFinished (session, log)
@@ -579,18 +581,18 @@ let handle_change_cipher_spec ss state packet =
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      Tracing.cs ~tag:"change-cipher-spec-out" packet ;
 
-     return ({ state with machina = Server machina },
+     Ok ({ state with machina = Server machina },
              [`Record ccs; `Change_enc server_ctx; `Change_dec client_ctx])
   | Ok (), AwaitClientChangeCipherSpecResume (session, client_ctx, server_verify, log) ->
-     guard (Cs.null state.hs_fragment) (`Fatal `HandshakeFragmentsNotEmpty) >|= fun () ->
+     guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
      let machina = AwaitClientFinishedResume (session, server_verify, log)
      in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
 
      ({ state with machina = Server machina },
       [`Change_dec client_ctx])
-  | Error er, _ -> fail (`Fatal (`ReaderError er))
-  | _ -> fail (`Fatal `UnexpectedCCS)
+  | Error er, _ -> Error (`Fatal (`ReaderError er))
+  | _ -> Error (`Fatal `UnexpectedCCS)
 
 let handle_handshake ss hs buf =
   match Reader.parse_handshake buf with
@@ -602,15 +604,15 @@ let handle_handshake ss hs buf =
        | AwaitClientCertificate_RSA (session, log), Certificate cs ->
           (match Reader.parse_certificates cs with
            | Ok cs -> answer_client_certificate_RSA hs session cs buf log
-           | Error re -> fail (`Fatal (`ReaderError re)))
+           | Error re -> Error (`Fatal (`ReaderError re)))
        | AwaitClientCertificate_DHE (session, dh_sent, log), Certificate cs ->
           (match Reader.parse_certificates cs with
            | Ok cs -> answer_client_certificate_DHE hs session dh_sent cs buf log
-           | Error re -> fail (`Fatal (`ReaderError re)))
+           | Error re -> Error (`Fatal (`ReaderError re)))
        | AwaitClientKeyExchange_RSA (session, log), ClientKeyExchange cs ->
           (match Reader.parse_client_dh_key_exchange cs with
            | Ok kex -> answer_client_key_exchange_RSA hs session kex buf log
-           | Error re -> fail (`Fatal (`ReaderError re)))
+           | Error re -> Error (`Fatal (`ReaderError re)))
        | AwaitClientKeyExchange_DHE (session, dh_sent, log), ClientKeyExchange kex ->
           answer_client_key_exchange_DHE hs session dh_sent kex buf log
        | AwaitClientCertificateVerify (session, sctx, cctx, log), CertificateVerify ver ->
@@ -623,5 +625,5 @@ let handle_handshake ss hs buf =
           answer_client_hello_reneg hs ch buf
        | AwaitClientHelloRenegotiate, ClientHello ch -> (* hello-request send, renegotiation *)
           answer_client_hello_reneg hs ch buf
-       | _, hs -> fail (`Fatal (`UnexpectedHandshake hs)) )
-  | Error re -> fail (`Fatal (`ReaderError re))
+       | _, hs -> Error (`Fatal (`UnexpectedHandshake hs)) )
+  | Error re -> Error (`Fatal (`ReaderError re))

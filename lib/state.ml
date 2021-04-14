@@ -304,10 +304,6 @@ type failure = [
   | `Fatal of fatal
 ] [@@deriving sexp]
 
-(* Monadic control-flow core. *)
-include Control.Or_error_make (struct type err = failure end)
-type 'a eff = 'a t
-
 let common_data_to_epoch common is_server peer_name =
   let own_random, peer_random =
     if is_server then

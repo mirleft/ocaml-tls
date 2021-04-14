@@ -1,4 +1,4 @@
-let (<+>) = Utils.Cs.(<+>)
+let (<+>) = Cstruct.append
 
 let cdiv (x : int) (y : int) =
   if x > 0 && y > 0 then (x + y - 1) / y

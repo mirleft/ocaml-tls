@@ -2,8 +2,7 @@ open Mirage_crypto
 
 open Ciphersuite
 
-let (<+>) = Utils.Cs.(<+>)
-
+let (<+>) = Cstruct.append
 
 (* on-the-wire dh_params <-> (group, pub_message) *)
 let dh_params_pack { Mirage_crypto_pk.Dh.p; gg ; _ } message =

@@ -62,7 +62,7 @@ module Unix = struct
 
     let handle tls buf =
       match Tls.Engine.handle_tls tls buf with
-      | `Ok (state', `Response resp, `Data data) ->
+      | Ok (state', `Response resp, `Data data) ->
           let state' = match state' with
             | `Ok tls  -> `Active tls
             | `Eof     -> `Eof
@@ -72,7 +72,7 @@ module Unix = struct
           safely (resp |> when_some (write_t t)) >|= fun () ->
           `Ok data
 
-      | `Fail (alert, `Response resp) ->
+      | Error (alert, `Response resp) ->
           t.state <- `Error (Tls_failure alert) ;
           write_t t resp >>= fun () -> read_react t
     in
@@ -128,11 +128,10 @@ module Unix = struct
    * *)
   let rec drain_handshake t =
     let push_linger t mcs =
-      let open Tls.Utils.Cs in
       match (mcs, t.linger) with
       | (None, _)         -> ()
       | (scs, None)       -> t.linger <- scs
-      | (Some cs, Some l) -> t.linger <- Some (l <+> cs)
+      | (Some cs, Some l) -> t.linger <- Some (Cstruct.append l cs)
     in
     match t.state with
     | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
@@ -225,9 +224,9 @@ module Unix = struct
     match t.state with
     | `Active tls -> ( match Tls.Engine.epoch tls with
         | `InitialEpoch -> assert false (* can never occur! *)
-        | `Epoch data   -> `Ok data )
-    | `Eof      -> `Error
-    | `Error _  -> `Error
+        | `Epoch data   -> Ok data )
+    | `Eof      -> Error ()
+    | `Error _  -> Error ()
 end
 
 

@@ -1,3 +1,27 @@
+## v0.13.0 (2021-04-14)
+
+* Remove static RSA and CBC ciphersuites from default configuration. The
+  default configuration now includes FFDHE and ECDHE key exchanges with RSA or
+  ECDSA/EdDSA certificates, and AEAD ciphers
+  (AES-GCM, AES-CCM, ChaCha20-Poly1305) (#429 by @hannesm)
+* Remove SHA1 from signature_algorithms in the default configuration
+  (#429 by @hannesm)
+* Support ECDSA and EdDSA certificates and private keys via x509 0.12.0 and
+  mirage-crypto-ec (#428 by @hannesm)
+  Breaking changes:
+  - the second part of type Tls.Config.certchain is now a X509.Private_key.t
+    (previously Mirage_crypto_pk.Rsa.priv)
+  - the type aliases X509_lwt.priv and X509_lwt.authenticator have been removed
+* Use mirage-crypto-ec instead of fiat-p256 and hacl_x25519 for elliptic curve
+  support - this adds P384 and P521 ECDH support (#428 by @hannesm)
+* Remove custom Monad implementation, use Result and Rresult instead
+  (#429 by @hannesm)
+* Remove Utils.Cs submodule, use Cstruct API instead (#429 by @hannesm)
+* Breaking: Tls.Engine.ret type is now a result instead of a custom variant type
+  (#429 by @hannesm)
+* Breaking: Tls_lwt.Unix.epoch results in (Tls.Core.epoch_data, unit) result -
+  it was a custom error type previously (#429 by @hannesm)
+
 ## v0.12.8 (2020-12-08)
 
 * Re-add ECPointFormats hello extension (both client and server) to avoid

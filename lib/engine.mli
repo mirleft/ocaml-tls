@@ -151,12 +151,11 @@ val sexp_of_failure : failure -> Sexplib.Sexp.t
     {!state}, an end of file ([`Eof]), or an incoming ([`Alert]).
     Possibly some [`Response] to the other endpoint is needed, and
     potentially some [`Data] for the application was received. *)
-type ret = [
-  | `Ok of [ `Ok of state | `Eof | `Alert of Packet.alert_type ]
-         * [ `Response of Cstruct.t option ]
-         * [ `Data of Cstruct.t option ]
-  | `Fail of failure * [ `Response of Cstruct.t ]
-]
+type ret =
+  ([ `Ok of state | `Eof | `Alert of Packet.alert_type ]
+   * [ `Response of Cstruct.t option ]
+   * [ `Data of Cstruct.t option ],
+   failure * [ `Response of Cstruct.t ]) result
 
 (** [handle_tls state buffer] is [ret], depending on incoming [state]
     and [buffer], the result is the appropriate {!ret} *)
