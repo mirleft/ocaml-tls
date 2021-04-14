@@ -124,6 +124,8 @@ type group = [
   | `FFDHE8192
   | `X25519
   | `P256
+  | `P384
+  | `P521
 ] [@@deriving sexp]
 
 let named_group_to_group = function
@@ -134,6 +136,8 @@ let named_group_to_group = function
   | FFDHE8192 -> Some `FFDHE8192
   | X25519 -> Some `X25519
   | SECP256R1 -> Some `P256
+  | SECP384R1 -> Some `P384
+  | SECP521R1 -> Some `P521
   | _ -> None
 
 let group_to_named_group = function
@@ -144,15 +148,19 @@ let group_to_named_group = function
   | `FFDHE8192 -> FFDHE8192
   | `X25519 -> X25519
   | `P256 -> SECP256R1
+  | `P384 -> SECP384R1
+  | `P521 -> SECP521R1
 
 let group_to_impl = function
-  | `FFDHE2048 -> `Mirage_crypto Mirage_crypto_pk.Dh.Group.ffdhe2048
-  | `FFDHE3072 -> `Mirage_crypto Mirage_crypto_pk.Dh.Group.ffdhe3072
-  | `FFDHE4096 -> `Mirage_crypto Mirage_crypto_pk.Dh.Group.ffdhe4096
-  | `FFDHE6144 -> `Mirage_crypto Mirage_crypto_pk.Dh.Group.ffdhe6144
-  | `FFDHE8192 -> `Mirage_crypto Mirage_crypto_pk.Dh.Group.ffdhe8192
-  | `X25519 -> `Hacl `X25519
-  | `P256 -> `Fiat `P256
+  | `FFDHE2048 -> `Finite_field Mirage_crypto_pk.Dh.Group.ffdhe2048
+  | `FFDHE3072 -> `Finite_field Mirage_crypto_pk.Dh.Group.ffdhe3072
+  | `FFDHE4096 -> `Finite_field Mirage_crypto_pk.Dh.Group.ffdhe4096
+  | `FFDHE6144 -> `Finite_field Mirage_crypto_pk.Dh.Group.ffdhe6144
+  | `FFDHE8192 -> `Finite_field Mirage_crypto_pk.Dh.Group.ffdhe8192
+  | `X25519 -> `X25519
+  | `P256 -> `P256
+  | `P384 -> `P384
+  | `P521 -> `P521
 
 type signature_algorithm = [
   | `RSA_PKCS1_MD5
@@ -161,15 +169,15 @@ type signature_algorithm = [
   | `RSA_PKCS1_SHA256
   | `RSA_PKCS1_SHA384
   | `RSA_PKCS1_SHA512
-(*  | `ECDSA_SECP256R1_SHA1
+  | `ECDSA_SECP256R1_SHA1
   | `ECDSA_SECP256R1_SHA256
-  | `ECDSA_SECP256R1_SHA384
-    | `ECDSA_SECP256R1_SHA512 *)
+  | `ECDSA_SECP384R1_SHA384
+  | `ECDSA_SECP521R1_SHA512
   | `RSA_PSS_RSAENC_SHA256
   | `RSA_PSS_RSAENC_SHA384
   | `RSA_PSS_RSAENC_SHA512
-(*  | `ED25519
-  | `ED448
+  | `ED25519
+(*  | `ED448
   | `RSA_PSS_PSS_SHA256
   | `RSA_PSS_PSS_SHA384
     | `RSA_PSS_PSS_SHA512 *)
@@ -185,6 +193,11 @@ let hash_of_signature_algorithm = function
   | `RSA_PSS_RSAENC_SHA256 -> `SHA256
   | `RSA_PSS_RSAENC_SHA384 -> `SHA384
   | `RSA_PSS_RSAENC_SHA512 -> `SHA512
+  | `ECDSA_SECP256R1_SHA1 -> `SHA1
+  | `ECDSA_SECP256R1_SHA256 -> `SHA256
+  | `ECDSA_SECP384R1_SHA384 -> `SHA384
+  | `ECDSA_SECP521R1_SHA512 -> `SHA512
+  | `ED25519 -> `SHA512
 
 let signature_scheme_of_signature_algorithm = function
   | `RSA_PKCS1_MD5 -> `PKCS1
@@ -196,6 +209,36 @@ let signature_scheme_of_signature_algorithm = function
   | `RSA_PSS_RSAENC_SHA256 -> `PSS
   | `RSA_PSS_RSAENC_SHA384 -> `PSS
   | `RSA_PSS_RSAENC_SHA512 -> `PSS
+  | `ECDSA_SECP256R1_SHA1 -> `ECDSA
+  | `ECDSA_SECP256R1_SHA256 -> `ECDSA
+  | `ECDSA_SECP384R1_SHA384 -> `ECDSA
+  | `ECDSA_SECP521R1_SHA512 -> `ECDSA
+  | `ED25519 -> `EdDSA
+
+let rsa_sigalg = function
+  | `RSA_PSS_RSAENC_SHA256 | `RSA_PSS_RSAENC_SHA384 | `RSA_PSS_RSAENC_SHA512
+  | `RSA_PKCS1_SHA256 | `RSA_PKCS1_SHA384 | `RSA_PKCS1_SHA512
+  | `RSA_PKCS1_SHA224 | `RSA_PKCS1_SHA1 | `RSA_PKCS1_MD5 -> true
+  | `ECDSA_SECP256R1_SHA1 | `ECDSA_SECP256R1_SHA256 | `ECDSA_SECP384R1_SHA384
+  | `ECDSA_SECP521R1_SHA512 | `ED25519 -> false
+
+let tls13_sigalg = function
+  | `RSA_PSS_RSAENC_SHA256 | `RSA_PSS_RSAENC_SHA384 | `RSA_PSS_RSAENC_SHA512
+  | `ECDSA_SECP256R1_SHA256 | `ECDSA_SECP384R1_SHA384
+  | `ECDSA_SECP521R1_SHA512 | `ED25519 -> true
+  | `RSA_PKCS1_SHA256 | `RSA_PKCS1_SHA384 | `RSA_PKCS1_SHA512
+  | `RSA_PKCS1_SHA224 | `RSA_PKCS1_SHA1 | `RSA_PKCS1_MD5
+  | `ECDSA_SECP256R1_SHA1 -> false
+
+let pk_matches_sa pk sa =
+  match pk, sa with
+  | `RSA _, _ -> rsa_sigalg sa
+  | `ED25519 _, `ED25519
+  | `P256 _, `ECDSA_SECP256R1_SHA256
+  | `P256 _, `ECDSA_SECP256R1_SHA1
+  | `P384 _, `ECDSA_SECP384R1_SHA384
+  | `P521 _, `ECDSA_SECP521R1_SHA512 -> true
+  | _ -> false
 
 type client_extension = [
   | `Hostname of string
@@ -332,6 +375,12 @@ module Cert = struct
   let sexp_of_t _ = Sexplib.Sexp.Atom "certificate"
 end
 
+module Priv = struct
+  include X509.Private_key
+  let t_of_sexp _ = failwith "can't convert private key from S-expression"
+  let sexp_of_t _ = Sexplib.Sexp.Atom "private key"
+end
+
 module Ptime = struct
   include Ptime
   let sexp_of_t ts = Sexplib.Sexp.Atom (Ptime.to_rfc3339 ts)
@@ -369,7 +418,7 @@ type epoch_data = {
   received_certificates  : Cert.t list ;
   own_random             : Cstruct_sexp.t ;
   own_certificate        : Cert.t list ;
-  own_private_key        : Mirage_crypto_pk.Rsa.priv option ;
+  own_private_key        : Priv.t option ;
   own_name               : string option ;
   master_secret          : master_secret ;
   session_id             : SessionID.t ;
@@ -377,12 +426,12 @@ type epoch_data = {
   alpn_protocol          : string option ;
 } [@@deriving sexp]
 
-let supports_key_usage ?(not_present = false) cert usage =
+let supports_key_usage ?(not_present = false) usage cert =
   match X509.Extension.(find Key_usage (X509.Certificate.extensions cert)) with
   | None -> not_present
   | Some (_, kus) -> List.mem usage kus
 
-let supports_extended_key_usage ?(not_present = false) cert usage =
+let supports_extended_key_usage ?(not_present = false) usage cert =
   match X509.Extension.(find Ext_key_usage (X509.Certificate.extensions cert)) with
   | None -> not_present
   | Some (_, kus) -> List.mem usage kus

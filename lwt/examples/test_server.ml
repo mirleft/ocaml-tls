@@ -9,8 +9,12 @@ let serve_ssl port callback =
   X509_lwt.private_of_pems
     ~cert:server_cert
     ~priv_key:server_key >>= fun certificate ->
+  X509_lwt.private_of_pems
+    ~cert:server_ec_cert
+    ~priv_key:server_ec_key >>= fun ec_certificate ->
+  let certificates = `Multiple [ certificate ; ec_certificate ] in
   let config =
-    Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates:(`Single certificate) ~ciphers:Ciphers.supported ()) in
+    Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates ~ciphers:Ciphers.supported ()) in
 
   let server_s =
     let open Lwt_unix in

@@ -66,9 +66,6 @@ module Ciphers = struct
     | `AEAD cipher -> get_aead ~secret ~nonce cipher
 end
 
-let digest_eq fn ~target cs =
-  Utils.Cs.equal target (Hash.digest fn cs)
-
 let sequence_buf seq =
   let open Cstruct in
   let buf = create 8 in

@@ -30,9 +30,7 @@ let answer_client_hello ~hrr state ch raw =
        let f acc (g, ks) =
          match Core.named_group_to_group g with
          | None -> Ok acc
-         | Some g ->
-           Handshake_crypto13.share_appropriate_length g ks >|= fun () ->
-           (g, ks) :: acc
+         | Some g -> Ok ((g, ks) :: acc)
        in
        foldM f [] ks ) >>= fun keyshares ->
 
@@ -200,9 +198,7 @@ let answer_client_hello ~hrr state ch raw =
       let _, early_traffic_ctx = Handshake_crypto13.early_traffic early_secret raw in
 
       let secret, public = Handshake_crypto13.dh_gen_key group in
-      (match Handshake_crypto13.dh_shared group secret keyshare with
-       | None -> fail (`Fatal `InvalidDH)
-       | Some shared -> return shared) >>= fun es ->
+      Handshake_crypto13.dh_shared secret keyshare >>= fun es ->
       let hs_secret = Handshake_crypto13.derive early_secret es in
       Tracing.cs ~tag:"hs secret" hs_secret.secret ;
 
@@ -213,9 +209,13 @@ let answer_client_hello ~hrr state ch raw =
       let log = log <+> raw <+> sh_raw in
       let server_hs_secret, server_ctx, client_hs_secret, client_ctx = hs_ctx hs_secret log in
 
-      (* TODO: check sig_algs (better cert_sig_algs) whether we can present a
-               suitable certificate chain and signature *)
-      (agreed_cert config.Config.own_certificates hostname >>= function
+      ( match map_find ~f:(function `SignatureAlgorithms sa -> Some sa | _ -> None) ch.extensions with
+            | None -> fail (`Fatal (`InvalidClientHello `NoSignatureAlgorithmsExtension))
+            | Some sa -> return sa ) >>= fun sigalgs ->
+      (* TODO respect certificate_signature_algs if present *)
+
+      let f = supports_key_usage ~not_present:true `Digital_signature in
+      (agreed_cert ~f ~signature_algorithms:sigalgs config.Config.own_certificates hostname >>= function
         | (c::cs, priv) -> return (c::cs, priv)
         | _ -> fail (`Fatal `InvalidSession)) >>= fun (chain, priv) ->
       alpn_protocol config ch >>= fun alpn_protocol ->
@@ -268,10 +268,6 @@ let answer_client_hello ~hrr state ch raw =
           Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ;
           let log = log <+> cert_raw in
 
-          ( match map_find ~f:(function `SignatureAlgorithms sa -> Some sa | _ -> None) ch.extensions with
-                | None -> fail (`Fatal (`InvalidClientHello `NoSignatureAlgorithmsExtension))
-                | Some sa -> return sa ) >>= fun sigalgs ->
-          (* TODO respect certificate_signature_algs if present *)
           let tbs = Mirage_crypto.Hash.digest (Ciphersuite.hash13 cipher) log in
           signature `TLS_1_3 ~context_string:"TLS 1.3, server CertificateVerify"
             tbs (Some sigalgs) config.Config.signature_algorithms priv >|= fun signed ->

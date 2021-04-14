@@ -88,10 +88,8 @@ type fatal = [
   | `NoCertificateReceived
   | `NoCertificateVerifyReceived
   | `NotRSACertificate
-  | `NotRSASignature
   | `KeyTooSmall
-  | `RSASignatureMismatch
-  | `RSASignatureVerificationFailed
+  | `SignatureVerificationFailed
   | `UnsupportedSignatureScheme
   | `HashAlgorithmMismatch
   | `BadCertificateChain
@@ -107,6 +105,7 @@ type fatal = [
   | `HandshakeFragmentsNotEmpty
   | `InsufficientDH
   | `InvalidDH
+  | `BadECDH of Mirage_crypto_ec.error
   | `InvalidRenegotiation
   | `InvalidClientHello of client_hello_errors
   | `InvalidServerHello
@@ -124,7 +123,6 @@ type fatal = [
   | `MissingContentType
   | `Downgrade12
   | `Downgrade11
-  | `UnsupportedKeyExchange
 ]
 
 (** type of failures *)

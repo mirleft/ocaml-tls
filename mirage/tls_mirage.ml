@@ -248,7 +248,7 @@ module X509 (KV : Mirage_kv.RO) (C: Mirage_clock.PCLOCK) = struct
       read kv (Mirage_kv.Key.v (name ^ ".pem")) >>=
       decode_or_fail X509.Certificate.decode_pem_multiple >>= fun certs ->
       read kv (Mirage_kv.Key.v (name ^ ".key")) >>=
-      decode_or_fail X509.Private_key.decode_pem >|= fun (`RSA pk) ->
+      decode_or_fail X509.Private_key.decode_pem >|= fun pk ->
       (certs, pk)
     in function | `Default   -> read default_cert
                 | `Name name -> read name

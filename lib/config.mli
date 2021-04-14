@@ -5,7 +5,7 @@ open Core
 (** {1 Config type} *)
 
 (** certificate chain and private key of the first certificate *)
-type certchain = Cert.t list * Mirage_crypto_pk.Rsa.priv
+type certchain = Cert.t list * X509.Private_key.t
 
 (** polymorphic variant of own certificates *)
 type own_cert = [
