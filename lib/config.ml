@@ -6,28 +6,25 @@ open Sexplib.Std
 let src = Logs.Src.create "tls.config" ~doc:"TLS config"
 module Log = (val Logs.src_log src : Logs.LOG)
 
-type certchain = Cert.t list * Priv.t [@@deriving sexp]
+type certchain = Cert.t list * Priv.t [@@deriving sexp_of]
 
 type own_cert = [
   | `None
   | `Single of certchain
   | `Multiple of certchain list
   | `Multiple_default of certchain * certchain list
-] [@@deriving sexp]
+] [@@deriving sexp_of]
 
 type session_cache = SessionID.t -> epoch_data option
-let session_cache_of_sexp _ = fun _ -> None
 let sexp_of_session_cache _ = Sexplib.Sexp.Atom "SESSION_CACHE"
 
 module Auth = struct
   type t = X509.Authenticator.t
-  let t_of_sexp _ = failwith "can't convert sexp to authenticator"
   let sexp_of_t _ = Sexplib.Sexp.Atom "Authenticator"
 end
 
 module DN = struct
   type t = X509.Distinguished_name.t
-  let t_of_sexp _ = failwith "can't convert sexp to distinguished name"
   let sexp_of_t _ = Sexplib.Sexp.Atom "distinguished name"
 end
 
@@ -39,7 +36,6 @@ type ticket_cache = {
 }
 
 type ticket_cache_opt = ticket_cache option
-let ticket_cache_opt_of_sexp _ = None
 let sexp_of_ticket_cache_opt _ = Sexplib.Sexp.Atom "TICKET_CACHE"
 
 (* TODO: min_rsa, min_dh *)
@@ -59,7 +55,7 @@ type config = {
   alpn_protocols : string list ;
   groups : group list ;
   zero_rtt : int32 ;
-} [@@deriving sexp]
+} [@@deriving sexp_of]
 
 let ciphers13 cfg =
   List.rev
@@ -494,8 +490,8 @@ let validate_server config =
     | _ -> () );
   { config with ciphers ; signature_algorithms }
 
-type client = config [@@deriving sexp]
-type server = config [@@deriving sexp]
+type client = config [@@deriving sexp_of]
+type server = config [@@deriving sexp_of]
 
 let of_server conf = conf
 and of_client conf = conf

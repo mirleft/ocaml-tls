@@ -10,7 +10,7 @@ type state = State.state
 type client_hello_errors = State.client_hello_errors
 type error = State.error
 type fatal = State.fatal
-type failure = State.failure [@@deriving sexp]
+type failure = State.failure [@@deriving sexp_of]
 
 let alert_of_authentication_failure = function
   | `LeafCertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
@@ -748,7 +748,7 @@ let server config = new_state Config.(of_server config) `Server
 type epoch = [
   | `InitialEpoch
   | `Epoch of epoch_data
-] [@@deriving sexp]
+] [@@deriving sexp_of]
 
 let epoch state =
   match epoch_of_hs state.handshake with

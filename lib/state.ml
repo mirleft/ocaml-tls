@@ -47,15 +47,13 @@ let sexp_of_cipher_st = function
   | CBC _    -> Sexp.Atom "<cbc-state>"
   | AEAD _   -> Sexp.Atom "<aead-state>"
 
-let cipher_st_of_sexp =
-  Conv.of_sexp_error "cipher_st_of_sexp: not implemented"
 (* *** *)
 
 (* context of a TLS connection (both in and out has each one of these) *)
 type crypto_context = {
   sequence  : int64 ; (* sequence number *)
   cipher_st : cipher_st ; (* cipher state *)
-} [@@deriving sexp]
+} [@@deriving sexp_of]
 
 (* the raw handshake log we need to carry around *)
 type hs_log = Cstruct_sexp.t list [@@deriving sexp]
@@ -87,7 +85,7 @@ type common_session_data = {
   client_auth            : bool ;
   master_secret          : master_secret ;
   alpn_protocol          : string option ; (* selected alpn protocol after handshake *)
-} [@@deriving sexp]
+} [@@deriving sexp_of]
 
 type session_data = {
   common_session_data    : common_session_data ;
@@ -97,7 +95,7 @@ type session_data = {
   renegotiation          : reneg_params ; (* renegotiation data *)
   session_id             : Cstruct_sexp.t ;
   extended_ms            : bool ;
-} [@@deriving sexp]
+} [@@deriving sexp_of]
 
 (* state machine of the server *)
 type server_handshake_state =
@@ -113,7 +111,7 @@ type server_handshake_state =
   | AwaitClientFinished of session_data * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
   | AwaitClientFinishedResume of session_data * Cstruct_sexp.t * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
 (* state machine of the client *)
 type client_handshake_state =
@@ -130,7 +128,7 @@ type client_handshake_state =
   | AwaitServerFinished of session_data * Cstruct_sexp.t * hs_log (* finished expected with a hmac over all handshake packets *)
   | AwaitServerFinishedResume of session_data * hs_log (* finished expected with a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
 type kdf = {
   secret : Cstruct_sexp.t ;
@@ -149,7 +147,7 @@ type session_data13 = {
   resumed                : bool ;
   client_app_secret      : Cstruct_sexp.t ;
   server_app_secret      : Cstruct_sexp.t ;
-} [@@deriving sexp]
+} [@@deriving sexp_of]
 
 type client13_handshake_state =
   | AwaitServerHello13 of client_hello * (group * dh_secret) list * Cstruct_sexp.t (* this is for CH1 ~> HRR ~> CH2 <~ WAIT SH *)
@@ -159,7 +157,7 @@ type client13_handshake_state =
   | AwaitServerCertificateVerify13 of session_data13 * Cstruct_sexp.t * Cstruct_sexp.t * Cstruct_sexp.t
   | AwaitServerFinished13 of session_data13 * Cstruct_sexp.t * Cstruct_sexp.t * Cstruct_sexp.t
   | Established13
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
 type server13_handshake_state =
   | AwaitClientHelloHRR13 (* if we sent out HRR (also to-be-used for tls13-only) *)
@@ -168,14 +166,14 @@ type server13_handshake_state =
   | AwaitClientFinished13 of Cstruct_sexp.t * crypto_context * session_ticket option * Cstruct_sexp.t
   | AwaitEndOfEarlyData13 of Cstruct_sexp.t * crypto_context * crypto_context * session_ticket option * Cstruct_sexp.t
   | Established13
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
 type handshake_machina_state =
   | Client of client_handshake_state
   | Server of server_handshake_state
   | Client13 of client13_handshake_state
   | Server13 of server13_handshake_state
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
 (* state during a handshake, used in the handlers *)
 type handshake_state = {
@@ -185,10 +183,10 @@ type handshake_state = {
   machina          : handshake_machina_state ; (* state machine state *)
   config           : Config.config ; (* given config *)
   hs_fragment      : Cstruct_sexp.t ; (* handshake messages can be fragmented, leftover from before *)
-} [@@deriving sexp]
+} [@@deriving sexp_of]
 
 (* connection state: initially None, after handshake a crypto context *)
-type crypto_state = crypto_context option [@@deriving sexp]
+type crypto_state = crypto_context option [@@deriving sexp_of]
 
 (* record consisting of a content type and a byte vector *)
 type record = Packet.content_type * Cstruct_sexp.t [@@deriving sexp]
@@ -209,11 +207,10 @@ type state = {
   decryptor : crypto_state ; (* the current decryption state *)
   encryptor : crypto_state ; (* the current encryption state *)
   fragment  : Cstruct_sexp.t ; (* the leftover fragment from TCP fragmentation *)
-} [@@deriving sexp]
+} [@@deriving sexp_of]
 
 module V_err = struct
   type t = X509.Validation.validation_error
-  let t_of_sexp _ = failwith "couldn't convert validatin error from sexp"
   let sexp_of_t v =
     let s = Fmt.to_to_string X509.Validation.pp_validation_error v in
     Sexplib.Sexp.Atom s
@@ -235,7 +232,7 @@ type error = [
   | `NoMatchingCertificateFound of string
   | `NoCertificateConfigured
   | `CouldntSelectCertificate
-] [@@deriving sexp]
+] [@@deriving sexp_of]
 
 type client_hello_errors = [
   | `EmptyCiphersuites
@@ -302,7 +299,7 @@ type fatal = [
 type failure = [
   | `Error of error
   | `Fatal of fatal
-] [@@deriving sexp]
+] [@@deriving sexp_of]
 
 let common_data_to_epoch common is_server peer_name =
   let own_random, peer_random =
