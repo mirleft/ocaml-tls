@@ -249,7 +249,7 @@ type client_hello_errors = [
   | `NotSubsetKeyShareSupportedGroup of (Packet.named_group list * (Packet.named_group * Cstruct_sexp.t) list)
   | `Has0rttAfterHRR
   | `NoCookie
-] [@@deriving sexp]
+] [@@deriving sexp_of]
 
 type fatal = [
   | `NoSecureRenegotiation
@@ -294,7 +294,7 @@ type fatal = [
   | `MissingContentType
   | `Downgrade12
   | `Downgrade11
-] [@@deriving sexp]
+] [@@deriving sexp_of]
 
 type failure = [
   | `Error of error
