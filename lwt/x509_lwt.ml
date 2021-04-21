@@ -84,11 +84,11 @@ let crls_of_pem_dir = function
     Lwt_list.map_p (fun file -> crl_of_pem (path </> file)) files >|= fun crls ->
     Some crls
 
-let authenticator ?hash_whitelist ?crls param =
+let authenticator ?allowed_hashes ?crls param =
   let time () = Some (Ptime_clock.now ()) in
   let of_cas cas =
     crls_of_pem_dir crls >|= fun crls ->
-    X509.Authenticator.chain_of_trust ?hash_whitelist ?crls ~time cas
+    X509.Authenticator.chain_of_trust ?allowed_hashes ?crls ~time cas
   and dotted_hex_to_cs hex =
     Cstruct.of_hex (String.map (function ':' -> ' ' | x -> x) hex)
   and fingerp hash fingerprints =
