@@ -634,14 +634,17 @@ c9 82 88 76 11 20 95 fe  66 76 2b db f7 c6 72 e1
 |}
   in
   let check_pub pr pu =
-    let _priv, pub = Mirage_crypto_ec.X25519.gen_key ~rng:(fun _ -> pr) in
-    Alcotest.check cs __LOC__ pu pub
+    match Mirage_crypto_ec.X25519.secret_of_cs pr with
+    | Ok (_, pub) -> Alcotest.check cs __LOC__ pu pub
+    | Error _ -> Alcotest.fail "couldn't decode DH secret"
   in
   let check_one p ks =
-    let priv, _pub = Mirage_crypto_ec.X25519.gen_key ~rng:(fun _ -> p) in
-    match Mirage_crypto_ec.X25519.key_exchange priv ks with
-    | Ok shared -> Alcotest.check cs __LOC__ ikm shared
-    | Error _ -> Alcotest.fail "bad kex"
+    match Mirage_crypto_ec.X25519.secret_of_cs p with
+    | Error _ -> Alcotest.fail "couldn't decode DH secret"
+    | Ok (priv, _) ->
+      match Mirage_crypto_ec.X25519.key_exchange priv ks with
+      | Ok shared -> Alcotest.check cs __LOC__ ikm shared
+      | Error _ -> Alcotest.fail "bad kex"
   in
   check_one c_priv s_keyshare ;
   check_one s_priv c_keyshare ;

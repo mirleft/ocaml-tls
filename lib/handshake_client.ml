@@ -260,8 +260,7 @@ let answer_server_key_exchange_DHE state (session : session_data) kex raw log =
   let sigdata = session.common_session_data.client_random <+> session.common_session_data.server_random <+> raw_dh_params in
   verify_digitally_signed state.protocol_version state.config.signature_algorithms leftover sigdata session.common_session_data.peer_certificate >>= fun () ->
 
-  (let rng = Mirage_crypto_rng.generate in
-   let open Mirage_crypto_ec in
+  (let open Mirage_crypto_ec in
    match group with
    | `Finite_field g ->
      let secret, client_share = Mirage_crypto_pk.Dh.gen_key g in
@@ -270,25 +269,25 @@ let answer_server_key_exchange_DHE state (session : session_data) kex raw log =
        | Some pms -> Ok (pms, Writer.assemble_client_dh_key_exchange client_share)
      end
    | `Ec `P256 ->
-     let secret, client_share = P256.Dh.gen_key ~rng in
+     let secret, client_share = P256.Dh.gen_key () in
      begin match P256.Dh.key_exchange secret shared with
        | Error e -> Error (`Fatal (`BadECDH e))
        | Ok pms -> Ok (pms, Writer.assemble_client_ec_key_exchange client_share)
      end
    | `Ec `P384 ->
-     let secret, client_share = P384.Dh.gen_key ~rng in
+     let secret, client_share = P384.Dh.gen_key () in
      begin match P384.Dh.key_exchange secret shared with
        | Error e -> Error (`Fatal (`BadECDH e))
        | Ok pms -> Ok (pms, Writer.assemble_client_ec_key_exchange client_share)
      end
    | `Ec `P521 ->
-     let secret, client_share = P521.Dh.gen_key ~rng in
+     let secret, client_share = P521.Dh.gen_key () in
      begin match P521.Dh.key_exchange secret shared with
        | Error e -> Error (`Fatal (`BadECDH e))
        | Ok pms -> Ok (pms, Writer.assemble_client_ec_key_exchange client_share)
      end
    | `Ec `X25519 ->
-     let secret, client_share = X25519.gen_key ~rng in
+     let secret, client_share = X25519.gen_key () in
      begin match X25519.key_exchange secret shared with
        | Error _ -> Error (`Fatal `InvalidDH)
        | Ok pms -> Ok (pms, Writer.assemble_client_ec_key_exchange client_share)

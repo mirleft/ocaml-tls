@@ -56,22 +56,21 @@ let dh_shared secret share =
 
 let dh_gen_key group =
   (* RFC 8556, Section 4.2.8.1 - we need zero-padding on the left *)
-  let rng = Mirage_crypto_rng.generate in
   match Core.group_to_impl group with
   | `Finite_field mc_group ->
     let sec, shared = Mirage_crypto_pk.Dh.gen_key mc_group in
     `Finite_field sec, left_pad_dh mc_group shared
   | `P256 ->
-    let secret, shared = Mirage_crypto_ec.P256.Dh.gen_key ~rng in
+    let secret, shared = Mirage_crypto_ec.P256.Dh.gen_key () in
     `P256 secret, shared
   | `P384 ->
-    let secret, shared = Mirage_crypto_ec.P384.Dh.gen_key ~rng in
+    let secret, shared = Mirage_crypto_ec.P384.Dh.gen_key () in
     `P384 secret, shared
   | `P521 ->
-    let secret, shared = Mirage_crypto_ec.P521.Dh.gen_key ~rng in
+    let secret, shared = Mirage_crypto_ec.P521.Dh.gen_key () in
     `P521 secret, shared
   | `X25519 ->
-    let secret, shared = Mirage_crypto_ec.X25519.gen_key ~rng in
+    let secret, shared = Mirage_crypto_ec.X25519.gen_key () in
     `X25519 secret, shared
 
 let trace tag cs = Tracing.cs ~tag:("crypto " ^ tag) cs
