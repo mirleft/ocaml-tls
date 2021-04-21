@@ -13,7 +13,7 @@ type hmac_key = Cstruct.t
 type iv_mode =
   | Iv of Cstruct_sexp.t  (* traditional CBC (reusing last cipherblock) *)
   | Random_iv        (* TLS 1.1 and higher explicit IV (we use random) *)
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
 type 'k cbc_cipher    = (module Cipher_block.S.CBC with type key = 'k)
 type 'k cbc_state = {
@@ -56,7 +56,7 @@ type crypto_context = {
 } [@@deriving sexp_of]
 
 (* the raw handshake log we need to carry around *)
-type hs_log = Cstruct_sexp.t list [@@deriving sexp]
+type hs_log = Cstruct_sexp.t list [@@deriving sexp_of]
 
 type dh_secret = [
   | `Finite_field of Mirage_crypto_pk.Dh.secret
@@ -70,7 +70,7 @@ let dh_secret_of_sexp = Conv.of_sexp_error "dh_secret_of_sexp: not implemented"
 
 
 (* a collection of client and server verify bytes for renegotiation *)
-type reneg_params = Cstruct_sexp.t * Cstruct_sexp.t [@@deriving sexp]
+type reneg_params = Cstruct_sexp.t * Cstruct_sexp.t [@@deriving sexp_of]
 
 type common_session_data = {
   server_random          : Cstruct_sexp.t ; (* 32 bytes random from the server hello *)
@@ -134,7 +134,7 @@ type kdf = {
   secret : Cstruct_sexp.t ;
   cipher : Ciphersuite.ciphersuite13 ;
   hash : Ciphersuite.H.t ;
-} [@@deriving sexp]
+} [@@deriving sexp_of]
 
 (* TODO needs log of CH..CF for post-handshake auth *)
 (* TODO drop master_secret!? *)
@@ -189,7 +189,7 @@ type handshake_state = {
 type crypto_state = crypto_context option [@@deriving sexp_of]
 
 (* record consisting of a content type and a byte vector *)
-type record = Packet.content_type * Cstruct_sexp.t [@@deriving sexp]
+type record = Packet.content_type * Cstruct_sexp.t [@@deriving sexp_of]
 
 (* response returned by a handler *)
 type rec_resp = [

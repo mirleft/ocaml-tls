@@ -12,7 +12,7 @@ type error =
   | Overflow       of int
   | UnknownVersion of (int * int)
   | UnknownContent of int
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
 exception Reader_error of error
 
