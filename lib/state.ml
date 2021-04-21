@@ -153,9 +153,9 @@ type client13_handshake_state =
   | AwaitServerHello13 of client_hello * (group * dh_secret) list * Cstruct_sexp.t (* this is for CH1 ~> HRR ~> CH2 <~ WAIT SH *)
   | AwaitServerEncryptedExtensions13 of session_data13 * Cstruct_sexp.t * Cstruct_sexp.t * Cstruct_sexp.t
   | AwaitServerCertificateRequestOrCertificate13 of session_data13 * Cstruct_sexp.t * Cstruct_sexp.t * Cstruct_sexp.t
-  | AwaitServerCertificate13 of session_data13 * Cstruct_sexp.t * Cstruct_sexp.t * Cstruct_sexp.t
-  | AwaitServerCertificateVerify13 of session_data13 * Cstruct_sexp.t * Cstruct_sexp.t * Cstruct_sexp.t
-  | AwaitServerFinished13 of session_data13 * Cstruct_sexp.t * Cstruct_sexp.t * Cstruct_sexp.t
+  | AwaitServerCertificate13 of session_data13 * Cstruct_sexp.t * Cstruct_sexp.t * signature_algorithm list option * Cstruct_sexp.t
+  | AwaitServerCertificateVerify13 of session_data13 * Cstruct_sexp.t * Cstruct_sexp.t * signature_algorithm list option * Cstruct_sexp.t
+  | AwaitServerFinished13 of session_data13 * Cstruct_sexp.t * Cstruct_sexp.t * signature_algorithm list option * Cstruct_sexp.t
   | Established13
   [@@deriving sexp_of]
 
