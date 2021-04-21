@@ -371,7 +371,6 @@ type master_secret = Cstruct_sexp.t [@@deriving sexp]
 
 module Cert = struct
   include X509.Certificate
-  let t_of_sexp _ = failwith "can't convert certificate from S-expression"
   let sexp_of_t _ = Sexplib.Sexp.Atom "certificate"
 end
 
@@ -424,7 +423,7 @@ type epoch_data = {
   session_id             : SessionID.t ;
   extended_ms            : bool ;
   alpn_protocol          : string option ;
-} [@@deriving sexp]
+} [@@deriving sexp_of]
 
 let supports_key_usage ?(not_present = false) usage cert =
   match X509.Extension.(find Key_usage (X509.Certificate.extensions cert)) with

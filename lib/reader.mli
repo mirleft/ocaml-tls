@@ -6,10 +6,7 @@ type error =
   | Underflow
   | Overflow       of int
   | UnknownVersion of (int * int)
-  | UnknownContent of int
-
-val error_of_sexp : Sexplib.Sexp.t -> error
-val sexp_of_error : error -> Sexplib.Sexp.t
+  | UnknownContent of int [@@deriving sexp_of]
 
 val parse_version     : Cstruct.t -> (Core.tls_version, error) result
 val parse_any_version : Cstruct.t -> (Core.tls_any_version, error) result

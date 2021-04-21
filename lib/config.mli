@@ -43,25 +43,16 @@ type config = private {
   alpn_protocols : string list ; (** optional ordered list of accepted alpn_protocols *)
   groups : group list ; (** the first FFDHE will be used for TLS 1.2 and below if a DHE ciphersuite is used *)
   zero_rtt : int32 ;
-}
-
-val config_of_sexp : Sexplib.Sexp.t -> config
-val sexp_of_config : config -> Sexplib.Sexp.t
+} [@@deriving sexp_of]
 
 (** [ciphers13 config] are the ciphersuites for TLS 1.3 in the configuration. *)
 val ciphers13 : config -> Ciphersuite.ciphersuite13 list
 
 (** opaque type of a client configuration *)
-type client
-
-val client_of_sexp : Sexplib.Sexp.t -> client
-val sexp_of_client : client -> Sexplib.Sexp.t
+type client [@@deriving sexp_of]
 
 (** opaque type of a server configuration *)
-type server
-
-val server_of_sexp : Sexplib.Sexp.t -> server
-val sexp_of_server : server -> Sexplib.Sexp.t
+type server [@@deriving sexp_of]
 
 (** {1 Constructors} *)
 
