@@ -89,9 +89,8 @@ type fatal = [
   | `NoCertificateVerifyReceived
   | `NotRSACertificate
   | `KeyTooSmall
-  | `SignatureVerificationFailed
-  | `UnsupportedSignatureScheme
-  | `HashAlgorithmMismatch
+  | `SignatureVerificationFailed of string
+  | `SigningFailed of string
   | `BadCertificateChain
   | `MACMismatch
   | `MACUnderflow

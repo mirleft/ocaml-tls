@@ -57,9 +57,8 @@ let alert_of_fatal = function
   | `InvalidSession -> Packet.HANDSHAKE_FAILURE
   | `UnexpectedCCS -> Packet.UNEXPECTED_MESSAGE
   | `UnexpectedHandshake _ -> Packet.UNEXPECTED_MESSAGE
-  | `HashAlgorithmMismatch -> Packet.HANDSHAKE_FAILURE
-  | `SignatureVerificationFailed -> Packet.HANDSHAKE_FAILURE
-  | `UnsupportedSignatureScheme -> Packet.HANDSHAKE_FAILURE
+  | `SignatureVerificationFailed _ -> Packet.HANDSHAKE_FAILURE
+  | `SigningFailed _ -> Packet.HANDSHAKE_FAILURE
   | `KeyTooSmall -> Packet.INSUFFICIENT_SECURITY
   | `BadCertificateChain -> Packet.BAD_CERTIFICATE
   | `InvalidClientHello `NoSignatureAlgorithmsExtension
