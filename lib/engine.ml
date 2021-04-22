@@ -57,9 +57,8 @@ let alert_of_fatal = function
   | `InvalidSession -> Packet.HANDSHAKE_FAILURE
   | `UnexpectedCCS -> Packet.UNEXPECTED_MESSAGE
   | `UnexpectedHandshake _ -> Packet.UNEXPECTED_MESSAGE
-  | `HashAlgorithmMismatch -> Packet.HANDSHAKE_FAILURE
-  | `SignatureVerificationFailed -> Packet.HANDSHAKE_FAILURE
-  | `UnsupportedSignatureScheme -> Packet.HANDSHAKE_FAILURE
+  | `SignatureVerificationFailed _ -> Packet.HANDSHAKE_FAILURE
+  | `SigningFailed _ -> Packet.HANDSHAKE_FAILURE
   | `KeyTooSmall -> Packet.INSUFFICIENT_SECURITY
   | `BadCertificateChain -> Packet.BAD_CERTIFICATE
   | `InvalidClientHello `NoSignatureAlgorithmsExtension
@@ -117,7 +116,7 @@ let new_state config role =
     fragment  = Cstruct.create 0 ;
   }
 
-type raw_record = tls_hdr * Cstruct_sexp.t [@@deriving sexp]
+type raw_record = tls_hdr * Cstruct_sexp.t [@@deriving sexp_of]
 
 (* well-behaved pure encryptor *)
 let encrypt (version : tls_version) (st : crypto_state) ty buf =

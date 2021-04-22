@@ -96,13 +96,13 @@ let answer_encrypted_extensions state (session : session_data13) server_hs_secre
   in
   let st =
     if session.resumed then
-      AwaitServerFinished13 (session, server_hs_secret, client_hs_secret, log <+> raw)
+      AwaitServerFinished13 (session, server_hs_secret, client_hs_secret, None, log <+> raw)
     else
       AwaitServerCertificateRequestOrCertificate13 (session, server_hs_secret, client_hs_secret, log <+> raw)
   in
   Ok ({ state with machina = Client13 st }, [])
 
-let answer_certificate state (session : session_data13) server_hs_secret client_hs_secret certs raw log =
+let answer_certificate state (session : session_data13) server_hs_secret client_hs_secret sigalgs certs raw log =
   (* certificates are (cs, ext) list - ext being statusrequest or signed_cert_timestamp *)
   let certs = List.map fst certs in
   validate_chain state.config.authenticator certs (host_name_opt state.config.peer_name) >>=
@@ -114,28 +114,29 @@ let answer_certificate state (session : session_data13) server_hs_secret client_
     } in
     { session with common_session_data13 }
   in
-  let st = AwaitServerCertificateVerify13 (session, server_hs_secret, client_hs_secret, log <+> raw) in
+  let st = AwaitServerCertificateVerify13 (session, server_hs_secret, client_hs_secret, sigalgs, log <+> raw) in
   Ok ({ state with machina = Client13 st }, [])
 
-let answer_certificate_verify (state : handshake_state) (session : session_data13) server_hs_secret client_hs_secret cv raw log =
+let answer_certificate_verify (state : handshake_state) (session : session_data13) server_hs_secret client_hs_secret sigalgs cv raw log =
   let tbs = Mirage_crypto.Hash.digest (Ciphersuite.hash13 session.ciphersuite13) log in
   verify_digitally_signed state.protocol_version
     ~context_string:"TLS 1.3, server CertificateVerify"
     state.config.signature_algorithms cv tbs
     session.common_session_data13.peer_certificate >>= fun () ->
-  let st = AwaitServerFinished13 (session, server_hs_secret, client_hs_secret, log <+> raw) in
+  let st = AwaitServerFinished13 (session, server_hs_secret, client_hs_secret, sigalgs, log <+> raw) in
   Ok ({ state with machina = Client13 st }, [])
 
-let answer_certificate_request (state : handshake_state) (session : session_data13) server_hs_secret client_hs_secret _extensions raw log =
-  (* TODO respect extensions (sigalg, CA, OIDfilter)! *)
+let answer_certificate_request (state : handshake_state) (session : session_data13) server_hs_secret client_hs_secret extensions raw log =
+  (* TODO respect extensions (CA, OIDfilter)! *)
   let session =
     let common_session_data13 = { session.common_session_data13 with client_auth = true } in
     { session with common_session_data13 }
   in
-  let st = AwaitServerCertificate13 (session, server_hs_secret, client_hs_secret, log <+> raw) in
+  let sigalgs = map_find ~f:(function `SignatureAlgorithms s -> Some s | _ -> None) extensions in
+  let st = AwaitServerCertificate13 (session, server_hs_secret, client_hs_secret, sigalgs, log <+> raw) in
   Ok ({ state with machina = Client13 st }, [])
 
-let answer_finished state (session : session_data13) server_hs_secret client_hs_secret fin raw log =
+let answer_finished state (session : session_data13) server_hs_secret client_hs_secret sigalgs fin raw log =
   let hash = Ciphersuite.hash13 session.ciphersuite13 in
   let f_data = Handshake_crypto13.finished hash server_hs_secret log in
   guard (Cstruct.equal fin f_data) (`Fatal `BadFinished) >>= fun () ->
@@ -153,7 +154,7 @@ let answer_finished state (session : session_data13) server_hs_secret client_hs_
      in
      let certificate =
        let cs = List.map X509.Certificate.encode_der own_certificate in
-      Certificate (Writer.assemble_certificates_1_3 Cstruct.empty cs)
+       Certificate (Writer.assemble_certificates_1_3 Cstruct.empty cs)
      in
      let cert_raw = Writer.assemble_handshake certificate in
      let log = log <+> cert_raw in
@@ -161,10 +162,9 @@ let answer_finished state (session : session_data13) server_hs_secret client_hs_
       | None ->
         Ok ([cert_raw], log)
       | Some priv ->
-        (* TODO use sig_algs instead of None below as requested in server's certificaterequest *)
         let tbs = Mirage_crypto.Hash.digest hash log in
         signature `TLS_1_3 ~context_string:"TLS 1.3, client CertificateVerify"
-          tbs None state.config.Config.signature_algorithms priv >>| fun signed ->
+          tbs sigalgs state.config.Config.signature_algorithms priv >>| fun signed ->
         let cv = CertificateVerify signed in
         let cv_raw = Writer.assemble_handshake cv in
         ([ cert_raw ; cv_raw ], log <+> cv_raw))
@@ -246,18 +246,24 @@ let handle_handshake cs hs buf =
          | Ok (None, exts) -> answer_certificate_request hs sd es ss exts buf log
          | Ok (Some _, _) -> Error (`Fatal `InvalidMessage) (* during handshake, context must be empty! *)
          | Error re -> Error (`Fatal (`ReaderError re)))
-      | AwaitServerCertificateRequestOrCertificate13 (sd, es, ss, log), Certificate cs
-      | AwaitServerCertificate13 (sd, es, ss, log), Certificate cs ->
+      | AwaitServerCertificateRequestOrCertificate13 (sd, es, ss, log), Certificate cs ->
         (match parse_certificates_1_3 cs with
          | Ok (con, cs) ->
            (* during handshake, context must be empty! and we'll not get any new certificate from server *)
            guard (Cstruct.len con = 0) (`Fatal `InvalidMessage) >>= fun () ->
-           answer_certificate hs sd es ss cs buf log
+           answer_certificate hs sd es ss None cs buf log
          | Error re -> Error (`Fatal (`ReaderError re)))
-      | AwaitServerCertificateVerify13 (sd, es, ss, log), CertificateVerify cv ->
-         answer_certificate_verify hs sd es ss cv buf log
-      | AwaitServerFinished13 (sd, es, ss, log), Finished fin ->
-         answer_finished hs sd es ss fin buf log
+      | AwaitServerCertificate13 (sd, es, ss, sigalgs, log), Certificate cs ->
+        (match parse_certificates_1_3 cs with
+         | Ok (con, cs) ->
+           (* during handshake, context must be empty! and we'll not get any new certificate from server *)
+           guard (Cstruct.len con = 0) (`Fatal `InvalidMessage) >>= fun () ->
+           answer_certificate hs sd es ss sigalgs cs buf log
+         | Error re -> Error (`Fatal (`ReaderError re)))
+      | AwaitServerCertificateVerify13 (sd, es, ss, sigalgs, log), CertificateVerify cv ->
+         answer_certificate_verify hs sd es ss sigalgs cv buf log
+      | AwaitServerFinished13 (sd, es, ss, sigalgs, log), Finished fin ->
+         answer_finished hs sd es ss sigalgs fin buf log
       | Established13, SessionTicket se -> answer_session_ticket hs se
       | Established13, CertificateRequest _ ->
         Error (`Fatal (`UnexpectedHandshake handshake)) (* TODO send out C, CV, F *)

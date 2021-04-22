@@ -364,7 +364,6 @@ let answer_client_hello_common state reneg ch raw =
     (match session.group with
      | None -> assert false (* can not happen *)
      | Some g ->
-       let rng = Mirage_crypto_rng.generate in
        let open Mirage_crypto_ec in
        match group_to_impl g with
        | `Finite_field g ->
@@ -373,19 +372,19 @@ let answer_client_hello_common state reneg ch raw =
          let dh_params = Writer.assemble_dh_parameters dh_param in
          Ok (`Finite_field secret, dh_params)
        | `P256 ->
-         let secret, shared = P256.Dh.gen_key ~rng in
+         let secret, shared = P256.Dh.gen_key () in
          let params = Writer.assemble_ec_parameters `P256 shared in
          Ok (`P256 secret, params)
        | `P384 ->
-         let secret, shared = P384.Dh.gen_key ~rng in
+         let secret, shared = P384.Dh.gen_key () in
          let params = Writer.assemble_ec_parameters `P384 shared in
          Ok (`P384 secret, params)
        | `P521 ->
-         let secret, shared = P521.Dh.gen_key ~rng in
+         let secret, shared = P521.Dh.gen_key () in
          let params = Writer.assemble_ec_parameters `P521 shared in
          Ok (`P521 secret, params)
        | `X25519 ->
-         let secret, shared = X25519.gen_key ~rng in
+         let secret, shared = X25519.gen_key () in
          let params = Writer.assemble_ec_parameters `X25519 shared in
          Ok (`X25519 secret, params)
     ) >>= fun (secret, written) ->

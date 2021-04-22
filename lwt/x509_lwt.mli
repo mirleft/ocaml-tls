@@ -15,7 +15,7 @@ val certs_of_pem_dir : Lwt_io.file_name -> X509.Certificate.t list Lwt.t
 
 (** [authenticator methods] constructs an [authenticator] using the
     specified method and data. *)
-val authenticator : ?hash_whitelist:Mirage_crypto.Hash.hash list -> ?crls:Lwt_io.file_name ->
+val authenticator : ?allowed_hashes:Mirage_crypto.Hash.hash list -> ?crls:Lwt_io.file_name ->
   [ `Ca_file of Lwt_io.file_name
   | `Ca_dir  of Lwt_io.file_name
   | `Key_fingerprints of Mirage_crypto.Hash.hash * ([`host] Domain_name.t * Cstruct.t) list

@@ -1,8 +1,8 @@
 (** Ciphersuite definitions and some helper functions. *)
 
 (** sum type of all possible key exchange methods *)
-type key_exchange_algorithm_dhe = [ `FFDHE | `ECDHE ] [@@deriving sexp]
-type key_exchange_algorithm = [ key_exchange_algorithm_dhe | `RSA ] [@@deriving sexp]
+type key_exchange_algorithm_dhe = [ `FFDHE | `ECDHE ] [@@deriving sexp_of]
+type key_exchange_algorithm = [ key_exchange_algorithm_dhe | `RSA ] [@@deriving sexp_of]
 
 (** [required_usage kex] is [usage] which a certificate must have if it is used in the given [kex] method *)
 let required_usage = function
@@ -13,7 +13,7 @@ type block_cipher =
   | TRIPLE_DES_EDE_CBC
   | AES_128_CBC
   | AES_256_CBC
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
 type aead_cipher =
   | AES_128_CCM
@@ -21,7 +21,7 @@ type aead_cipher =
   | AES_128_GCM
   | AES_256_GCM
   | CHACHA20_POLY1305
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
 module H = struct
   type t = Mirage_crypto.Hash.hash
@@ -31,20 +31,14 @@ module H = struct
       (`SHA256, "sha256") ; (`SHA384, "sha384") ; (`SHA512, "sha512") ]
 
   let sexp_of_t h = Sexplib.Sexp.Atom (List.assoc h hs)
-
-  let inv_hs = List.map (fun (a, b) -> (b, a)) hs
-
-  let t_of_sexp = function
-    | Sexplib.Sexp.Atom h -> List.assoc (String.lowercase_ascii h) inv_hs
-    | _ -> failwith "can't convert sexp to hash"
 end
 
-type payload_protection13 = [ `AEAD of aead_cipher ] [@@deriving sexp]
+type payload_protection13 = [ `AEAD of aead_cipher ] [@@deriving sexp_of]
 
 type payload_protection =  [
   payload_protection13
   | `Block of block_cipher * H.t
-  ] [@@deriving sexp]
+  ] [@@deriving sexp_of]
 
 (* this is K_LEN, max 8 N_MIN from RFC5116 sections 5.1 & 5.2 -- as defined in TLS1.3 RFC 8446 Section 5.3 *)
 let kn_13 = function
@@ -80,7 +74,7 @@ type ciphersuite13 = [
   | `AES_256_GCM_SHA384
   | `CHACHA20_POLY1305_SHA256
   | `AES_128_CCM_SHA256
-] [@@deriving sexp]
+] [@@deriving sexp_of]
 
 let privprot13 = function
   | `AES_128_GCM_SHA256 -> AES_128_GCM
@@ -138,7 +132,7 @@ type ciphersuite = [
   | `ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
   | `ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
   | `ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
-]  [@@deriving sexp]
+]  [@@deriving sexp_of]
 
 let ciphersuite_to_ciphersuite13 : ciphersuite -> ciphersuite13 option = function
   | #ciphersuite13 as cs -> Some cs
