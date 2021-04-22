@@ -1,3 +1,14 @@
+## v0.13.1 (2021-04-22)
+
+* Breaking: use deriving sexp_of instead of sexp. Constructing a state from
+  a sexp has not been supported (lead to exception), and is now removed
+  (#430 by @torinnd, continued in #431 by @hannesm)
+* Bugfix: TLS 1.3 client authentication with certificate, client side. This
+  used to work accidentally before 0.13.0 changed the signature algorithms
+  handling, now the right signature algorithm (as requested by server) is used.
+  (#431 @hannesm, @talex5 reported https://github.com/mirage/capnp-rpc/pull/228)
+* adapt to x509 0.13.0 and mirage-crypto-ec 0.10.0 changes (#431 @hannesm)
+
 ## v0.13.0 (2021-04-14)
 
 * Remove static RSA and CBC ciphersuites from default configuration. The
