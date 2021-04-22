@@ -49,10 +49,10 @@ type config = private {
 val ciphers13 : config -> Ciphersuite.ciphersuite13 list
 
 (** opaque type of a client configuration *)
-type client [@@deriving sexp_of]
+type client [@@deriving sexp]
 
 (** opaque type of a server configuration *)
-type server [@@deriving sexp_of]
+type server [@@deriving sexp]
 
 (** {1 Constructors} *)
 

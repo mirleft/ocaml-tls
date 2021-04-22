@@ -493,6 +493,9 @@ let validate_server config =
 type client = config [@@deriving sexp_of]
 type server = config [@@deriving sexp_of]
 
+let client_of_sexp _ = invalid_arg "couldn't decode client configuration"
+let server_of_sexp _ = invalid_arg "couldn't decode server configuration"
+
 let of_server conf = conf
 and of_client conf = conf
 
