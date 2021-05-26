@@ -36,6 +36,7 @@ depends: [
   "hkdf"
   "logs"
   "alcotest" {with-test}
+  "randomconv" {with-test}
 ]
 
 tags: [ "org:mirage"]
