@@ -1,3 +1,8 @@
+## v0.13.2 (2021-06-04)
+
+* New package tls-async that provides an effectful layer of TLS using async.
+  (#432, @torinnd, @dinosaure, @kit-ty-kate, reviews by @hannesm @avsm @seliopou)
+
 ## v0.13.1 (2021-04-22)
 
 * Breaking: use deriving sexp_of instead of sexp. Constructing a state from
