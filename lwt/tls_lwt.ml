@@ -211,7 +211,10 @@ module Unix = struct
   let connect conf (host, port) =
     resolve host (string_of_int port) >>= fun addr ->
     let fd = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
-    Lwt.catch (fun () -> Lwt_unix.connect fd addr >>= fun () -> client_of_fd conf ~host fd)
+    Lwt.catch (fun () -> 
+      (* A different exception could be raised here. [Invalid_argument] is a bit generic. *)
+      let host = Domain_name.of_string_exn host |> Domain_name.host_exn in
+      Lwt_unix.connect fd addr >>= fun () -> client_of_fd conf ~host fd)
       (fun exn -> safely (Lwt_unix.close fd) >>= fun () -> fail exn)
 
   let read_bytes t bs off len =
