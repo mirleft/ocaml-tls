@@ -21,8 +21,8 @@ depends: [
   "ptime" {>= "0.8.1"}
   "async" {>= "v0.14"}
   "async_unix" {>= "v0.14"}
-  "core"
-  "cstruct-async" {>= "v0.14"}
+  "core" {>= "v0.14"}
+  "cstruct-async"
   "ppx_jane" {>= "v0.14"}
   "mirage-crypto-rng-async"
 ]
