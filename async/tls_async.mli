@@ -5,6 +5,10 @@ open! Async
     Most applications should use the high-level API below *)
 module Session = Session
 
+(** Helper functions for [Async_unix]-specific IO operations commonly used with X509
+    certificates, such as loading from a Unix filesystem *)
+module X509_async = X509_async
+
 (** [listen] creates a [Tcp.Server.t] with the requested parameters, including those
     specified in [Tls.Config.server]. The handler function exposes the low-level
     [Session.t] to accommodate cases like interrogating a client certificate *)

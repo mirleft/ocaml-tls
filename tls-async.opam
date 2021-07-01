@@ -20,6 +20,7 @@ depends: [
   "x509" {>= "0.13.0"}
   "ptime" {>= "0.8.1"}
   "async" {>= "v0.14"}
+  "async_find" {>= "v0.14"}
   "async_unix" {>= "v0.14"}
   "core" {>= "v0.14"}
   "cstruct-async"

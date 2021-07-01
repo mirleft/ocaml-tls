@@ -1,1 +1,3 @@
-include Io.S with type Fd.t = Async.Reader.t * Async.Writer.t
+open! Core
+open! Async
+include Io.S with type Fd.t = Reader.t * Writer.t

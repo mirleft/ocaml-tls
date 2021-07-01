@@ -1,6 +1,7 @@
 open! Core
 open! Async
 module Session = Session
+module X509_async = X509_async
 
 let try_to_close t =
   match%map Session.close_tls t with
