@@ -213,7 +213,7 @@ module Signing_request : sig
   val sign
     :  ?allowed_hashes:Mirage_crypto.Hash.hash list
     -> ?digest:Mirage_crypto.Hash.hash
-    -> ?serial:Zarith.Z.t
+    -> ?serial:Z.t
     -> ?extensions:Extension.t
     -> t
     -> Private_key.t
