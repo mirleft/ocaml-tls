@@ -4,34 +4,12 @@ open! Async
 let server_cert = "./certificates/server.pem"
 let server_key = "./certificates/server.key"
 
-module X509_async = struct
-  let lift_of_result_msg : ('a, [< `Msg of string ]) result -> 'a Or_error.t =
-    Result.map_error ~f:(fun (`Msg message) -> Error.of_string message)
-  ;;
-
-  let x509_of_pem pem =
-    Cstruct.of_string pem |> X509.Certificate.decode_pem_multiple |> lift_of_result_msg
-  ;;
-
-  let certs_of_pems ca_file = Reader.file_contents ca_file >>| x509_of_pem
-
-  let private_of_pems ~cert ~priv_key =
-    let open Deferred.Or_error.Let_syntax in
-    let%bind certs = certs_of_pems cert in
-    let%map priv_key =
-      let%bind priv =
-        Reader.file_contents priv_key |> Deferred.ok >>| Cstruct.of_string
-      in
-      X509.Private_key.decode_pem priv |> lift_of_result_msg |> Deferred.return
-    in
-    certs, priv_key
-  ;;
-end
-
 let serve_tls port handler =
-  let%bind certificate, priv_key =
-    X509_async.private_of_pems ~cert:server_cert ~priv_key:server_key
-    |> Deferred.Or_error.ok_exn
+  let%bind certificate =
+    Tls_async.X509_async.Certificate.of_pem_file server_cert |> Deferred.Or_error.ok_exn
+  in
+  let%bind priv_key =
+    Tls_async.X509_async.Private_key.of_pem_file server_key |> Deferred.Or_error.ok_exn
   in
   let config =
     Tls.Config.(
