@@ -87,6 +87,7 @@ let assemble_ciphersuite c =
   assemble_any_ciphersuite acs
 
 let assemble_hostname host =
+  let host = Domain_name.to_string host in
   (* 8 bit hostname type; 16 bit length; value *)
   let vallength = String.length host in
   let buf = create 3 in

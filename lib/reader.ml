@@ -347,8 +347,16 @@ let parse_client_extension raw =
     match int_to_extension_type etype with
     | Some SERVER_NAME ->
        (match parse_hostnames buf with
-        | [name] -> `Hostname name
-        | _      -> raise_unknown "bad server name indication (multiple names)")
+       | [name] ->
+         (match Domain_name.of_string name with
+         | Error (`Msg err) ->
+           raise_unknown ("unable to canonicalize " ^ name ^ "into a domain name: " ^ err)
+         | Ok domain_name ->
+           (match Domain_name.host domain_name with
+           | Error (`Msg err) ->
+             raise_unknown ("unable to build a hostname from " ^ name ^ ": " ^ err)
+           | Ok hostname -> `Hostname hostname))
+       | _      -> raise_unknown "bad server name indication (multiple names)")
     | Some SUPPORTED_GROUPS ->
        let gs = parse_supported_groups buf in
        `SupportedGroups gs

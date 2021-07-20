@@ -373,15 +373,15 @@ let rw_handshake_client_hello_vals =
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) } ;
 
-          ClientHello { ch with extensions = [ `Hostname "foobar" ] } ;
-          ClientHello { ch with extensions = [ `Hostname "foobarblubb" ] } ;
+          ClientHello { ch with extensions = [ make_hostname_ext "foobar" ] } ;
+          ClientHello { ch with extensions = [ make_hostname_ext "foobarblubb" ] } ;
 
-          ClientHello { ch with extensions = [ `Hostname "foobarblubb" ; `SupportedGroups Packet.([SECP521R1; SECP384R1]) ] } ;
+          ClientHello { ch with extensions = [ make_hostname_ext "foobarblubb" ; `SupportedGroups Packet.([SECP521R1; SECP384R1]) ] } ;
 
           ClientHello { ch with extensions = [ `ALPN ["h2"; "http/1.1"] ] } ;
 
           ClientHello { ch with extensions = [
-                             `Hostname "foobarblubb" ;
+                             make_hostname_ext "foobarblubb" ;
                              `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
                              `SignatureAlgorithms [`RSA_PKCS1_MD5] ;
                              `ALPN ["h2"; "http/1.1"]
@@ -390,13 +390,13 @@ let rw_handshake_client_hello_vals =
           ClientHello { ch with
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) ;
-                        extensions = [ `Hostname "foobarblubb" ] } ;
+                        extensions = [ make_hostname_ext "foobarblubb" ] } ;
 
           ClientHello { ch with
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) ;
                         extensions = [
-                             `Hostname "foobarblubb" ;
+                             make_hostname_ext "foobarblubb" ;
                              `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
                              `SignatureAlgorithms [`RSA_PKCS1_SHA1; `RSA_PKCS1_SHA512] ;
                              `ALPN ["h2"; "http/1.1"]
@@ -406,7 +406,7 @@ let rw_handshake_client_hello_vals =
                         ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) ;
                         extensions = [
-                             `Hostname "foobarblubb" ;
+                             make_hostname_ext "foobarblubb" ;
                              `SupportedGroups Packet.([SECP521R1; SECP384R1]) ;
                              `SignatureAlgorithms [`RSA_PKCS1_MD5; `RSA_PKCS1_SHA256] ;
                              `SecureRenegotiation client_random ;
