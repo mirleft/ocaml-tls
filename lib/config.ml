@@ -530,8 +530,8 @@ let client
     } in
   let config = validate_common config in
   validate_client config ;
-  Log.info (fun m -> m "client with %s"
-               (Sexplib.Sexp.to_string_hum (sexp_of_config config)));
+  Log.debug (fun m -> m "client with %s"
+                (Sexplib.Sexp.to_string_hum (sexp_of_config config)));
   config
 
 let server
@@ -555,6 +555,6 @@ let server
     } in
   let config = validate_server config in
   let config = validate_common config in
-  Log.info (fun m -> m "server with %s"
-               (Sexplib.Sexp.to_string_hum (sexp_of_config config)));
+  Log.debug (fun m -> m "server with %s"
+                (Sexplib.Sexp.to_string_hum (sexp_of_config config)));
   config
