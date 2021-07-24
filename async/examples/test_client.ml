@@ -9,7 +9,9 @@ let test_client () =
   let port = 8443 in
   let hnp = Host_and_port.create ~host ~port in
   let%bind (_ : Tls_async.Session.t), rd, wr =
-    Tls_async.connect config (Tcp.Where_to_connect.of_host_and_port hnp) ~host:(Some host)
+    (* we can't build a [[ `host ] Domain_name.t] from an IP address *)
+    let host = None in
+    Tls_async.connect config (Tcp.Where_to_connect.of_host_and_port hnp) ~host
   in
   let req =
     String.concat
