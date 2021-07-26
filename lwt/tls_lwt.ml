@@ -2,8 +2,7 @@ open Lwt
 
 exception Tls_alert   of Tls.Packet.alert_type
 exception Tls_failure of Tls.Engine.failure
-
-let o f g x = f (g x)
+exception Tls_timeout
 
 (* This really belongs just about anywhere else: generic unix name resolution. *)
 let resolve host service =
@@ -28,7 +27,7 @@ module Lwt_cs = struct
 
   let rec write_full fd = function
     | cs when Cstruct.length cs = 0 -> return_unit
-    | cs -> write fd cs >>= o (write_full fd) (Cstruct.shift cs)
+    | cs -> write fd cs >>= fun w -> write_full fd (Cstruct.shift cs w)
 end
 
 module Unix = struct
@@ -141,7 +140,16 @@ module Unix = struct
           | `Eof     -> fail End_of_file
           | `Ok cs   -> push_linger t cs ; drain_handshake t
 
-  let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
+  let default_timeout = Duration.of_sec 60
+
+  let with_timeout timeout f =
+    if timeout > 0L then
+      let timeout = Duration.to_f timeout in
+      Lwt.pick [ f ; Lwt_unix.sleep timeout >|= fun () -> raise Tls_timeout ]
+    else
+      f
+
+  let reneg ?(timeout = default_timeout) ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
     match t.state with
     | `Error err  -> fail err
     | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
@@ -151,9 +159,10 @@ module Unix = struct
         | Some (tls', buf) ->
            if drop then t.linger <- None ;
            t.state <- `Active tls' ;
-           write_t t buf >>= fun () ->
-           drain_handshake t >>= fun _ ->
-           return_unit
+           with_timeout timeout
+             (write_t t buf >>= fun () ->
+              drain_handshake t >>= fun _ ->
+              return_unit)
 
   let key_update ?request t =
     match t.state with
@@ -177,15 +186,16 @@ module Unix = struct
   let close t =
     safely (close_tls t) >>= fun () -> Lwt_unix.close t.fd
 
-  let server_of_fd config fd =
-    drain_handshake {
-      state    = `Active (Tls.Engine.server config) ;
-      fd       = fd ;
-      linger   = None ;
-      recv_buf = Cstruct.create 4096
-    }
+  let server_of_fd ?(timeout = default_timeout) config fd =
+    with_timeout timeout
+      (drain_handshake {
+          state    = `Active (Tls.Engine.server config) ;
+          fd       = fd ;
+          linger   = None ;
+          recv_buf = Cstruct.create 4096
+        })
 
-  let client_of_fd config ?host fd =
+  let client_of_fd ?(timeout = default_timeout) config ?host fd =
     let config' = match host with
       | None -> config
       | Some host -> Tls.Config.peer config host
@@ -198,23 +208,22 @@ module Unix = struct
     } in
     let (tls, init) = Tls.Engine.client config' in
     let t = { t with state  = `Active tls } in
-    write_t t init >>= fun () ->
-    drain_handshake t
+    with_timeout timeout
+      (write_t t init >>= fun () ->
+       drain_handshake t)
 
-
-
-  let accept conf fd =
+  let accept ?timeout conf fd =
     Lwt_unix.accept fd >>= fun (fd', addr) ->
-    Lwt.catch (fun () -> server_of_fd conf fd' >|= fun t -> (t, addr))
+    Lwt.catch (fun () -> server_of_fd ?timeout conf fd' >|= fun t -> (t, addr))
       (fun exn -> safely (Lwt_unix.close fd') >>= fun () -> fail exn)
 
-  let connect conf (host, port) =
+  let connect ?timeout conf (host, port) =
     resolve host (string_of_int port) >>= fun addr ->
     let fd = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
-    Lwt.catch (fun () -> 
+    Lwt.catch (fun () ->
       (* A different exception could be raised here. [Invalid_argument] is a bit generic. *)
       let host = Domain_name.of_string_exn host |> Domain_name.host_exn in
-      Lwt_unix.connect fd addr >>= fun () -> client_of_fd conf ~host fd)
+      Lwt_unix.connect fd addr >>= fun () -> client_of_fd ?timeout conf ~host fd)
       (fun exn -> safely (Lwt_unix.close fd) >>= fun () -> fail exn)
 
   let read_bytes t bs off len =
@@ -249,19 +258,19 @@ let of_t ?close t =
   (Lwt_io.make ~close ~mode:Lwt_io.Output @@
     fun a b c -> Unix.write_bytes t a b c >>= fun () -> return c)
 
-let accept_ext conf fd =
-  Unix.accept conf fd >|= fun (t, peer) -> (of_t t, peer)
+let accept_ext ?timeout conf fd =
+  Unix.accept ?timeout conf fd >|= fun (t, peer) -> (of_t t, peer)
 
-and connect_ext conf addr =
-  Unix.connect conf addr >|= of_t
+and connect_ext ?timeout conf addr =
+  Unix.connect ?timeout conf addr >|= of_t
 
-let accept certificate =
-  let config = Tls.Config.server ~certificates:certificate ()
-  in accept_ext config
+let accept ?timeout certificate =
+  let config = Tls.Config.server ~certificates:certificate () in
+  accept_ext ?timeout config
 
-and connect authenticator addr =
-  let config = Tls.Config.client ~authenticator ()
-  in connect_ext config addr
+and connect ?timeout authenticator addr =
+  let config = Tls.Config.client ~authenticator () in
+  connect_ext ?timeout config addr
 
 (* Boot the entropy loop at module init time. *)
 let () = Mirage_crypto_rng_lwt.initialize ()
@@ -272,4 +281,5 @@ let () =
         Some ("TLS alert from peer: " ^ Tls.Packet.alert_type_to_string typ)
       | Tls_failure f ->
         Some ("TLS failure: " ^ Tls.Engine.string_of_failure f)
+      | Tls_timeout -> Some "TLS timeout"
       | _ -> None)

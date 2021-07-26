@@ -1,7 +1,7 @@
 (** Effectful operations using Mirage for pure TLS. *)
 
 (** TLS module given a flow *)
-module Make (F : Mirage_flow.S) : sig
+module Make (F : Mirage_flow.S) (T : Mirage_time.S) : sig
 
   module FLOW : Mirage_flow.S
 
@@ -10,7 +10,8 @@ module Make (F : Mirage_flow.S) : sig
   type error  = [ `Tls_alert   of Tls.Packet.alert_type
                 | `Tls_failure of Tls.Engine.failure
                 | `Read of F.error
-                | `Write of F.write_error ]
+                | `Write of F.write_error
+                | `Tls_timeout ]
 
   type write_error = [ `Closed | error ]
   (** The type for write errors. *)
@@ -20,13 +21,14 @@ module Make (F : Mirage_flow.S) : sig
     with type error := error
      and type write_error := write_error
 
-
-  (** [reneg ~authenticator ~acceptable_cas ~cert ~drop t] renegotiates the
-      session, and blocks until the renegotiation finished.  Optionally, a new
-      [authenticator] and [acceptable_cas] can be used.  The own certificate can
-      be adjusted by [cert]. If [drop] is [true] (the default),
-      application data received before the renegotiation finished is dropped. *)
-  val reneg : ?authenticator:X509.Authenticator.t ->
+  (** [reneg ~timeout ~authenticator ~acceptable_cas ~cert ~drop t] renegotiates
+      the session, and blocks until the renegotiation finished.  Optionally, a
+      new [authenticator] and [acceptable_cas] can be used.  The own certificate
+      can be adjusted by [cert]. If [drop] is [true] (the default),
+      application data received before the renegotiation finished is dropped.
+      The [timeout] is specified in nanoseconds and defaults to 60 seconds. If
+      0 is provided, no timeout is used. *)
+  val reneg : ?timeout:int64 -> ?authenticator:X509.Authenticator.t ->
     ?acceptable_cas:X509.Distinguished_name.t list -> ?cert:Tls.Config.own_cert ->
     ?drop:bool -> flow -> (unit, write_error) result Lwt.t
 
@@ -35,14 +37,19 @@ module Make (F : Mirage_flow.S) : sig
       This is only supported in TLS 1.3. *)
   val key_update : ?request:bool -> flow -> (unit, write_error) result Lwt.t
 
-  (** [client_of_flow client ~host flow] upgrades the existing connection
-      to TLS using the [client] configuration, using [host] as peer name. *)
-  val client_of_flow : Tls.Config.client -> ?host:[ `host ] Domain_name.t ->
-     FLOW.flow -> (flow, write_error) result Lwt.t
+  (** [client_of_flow ~timeout client ~host flow] upgrades the existing
+      connection to TLS using the [client] configuration, using [host] as peer
+      name. The [timeout] is specified in nanoseconds and defaults to 60
+      seconds. If 0 is provided, no timeout is used. *)
+  val client_of_flow : ?timeout:int64 -> Tls.Config.client ->
+    ?host:[ `host ] Domain_name.t -> FLOW.flow ->
+    (flow, write_error) result Lwt.t
 
-  (** [server_of_flow server flow] upgrades the flow to a TLS
-      connection using the [server] configuration. *)
-  val server_of_flow : Tls.Config.server -> FLOW.flow ->
+  (** [server_of_flow ~timeout server flow] upgrades the flow to a TLS
+      connection using the [server] configuration. The [timeout] is specified
+      in nanoseconds and defaults to 60 seconds. If 0 is provided, no timeout
+      is used. *)
+  val server_of_flow : ?timeout:int64 -> Tls.Config.server -> FLOW.flow ->
     (flow, write_error) result Lwt.t
 
   (** [epoch flow] extracts information of the established session. *)

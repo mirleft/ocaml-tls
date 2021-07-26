@@ -1,13 +1,14 @@
 open Lwt
 
-module Make (F : Mirage_flow.S) = struct
+module Make (F : Mirage_flow.S) (T : Mirage_time.S) = struct
 
   module FLOW = F
 
   type error  = [ `Tls_alert   of Tls.Packet.alert_type
                 | `Tls_failure of Tls.Engine.failure
                 | `Read of F.error
-                | `Write of F.write_error ]
+                | `Write of F.write_error
+                | `Tls_timeout ]
 
   type write_error = [ Mirage_flow.write_error | error ]
 
@@ -16,6 +17,7 @@ module Make (F : Mirage_flow.S) = struct
     | `Tls_alert a   -> Fmt.string ppf @@ Tls.Packet.alert_type_to_string a
     | `Read  e       -> F.pp_error ppf e
     | `Write e       -> F.pp_write_error ppf e
+    | `Tls_timeout       -> Fmt.string ppf "timeout"
 
   let pp_write_error ppf = function
     | #Mirage_flow.write_error as e -> Mirage_flow.pp_write_error ppf e
@@ -131,7 +133,15 @@ module Make (F : Mirage_flow.S) = struct
         | `Error e -> return @@ Error (e :> write_error)
         | `Eof     -> return @@ Error `Closed
 
-  let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) flow =
+  let with_timeout timeout f =
+    if timeout > 0L then
+      Lwt.pick [ f ; T.sleep_ns timeout >|= fun () -> Error `Tls_timeout ]
+    else
+      f
+
+  let default_timeout = Duration.of_sec 60
+
+  let reneg ?(timeout = default_timeout) ?authenticator ?acceptable_cas ?cert ?(drop = true) flow =
     match flow.state with
     | `Eof        -> return @@ Error `Closed
     | `Error e    -> return @@ Error (e :> write_error)
@@ -143,10 +153,11 @@ module Make (F : Mirage_flow.S) = struct
         | Some (tls', buf) ->
             if drop then flow.linger <- [] ;
             flow.state <- `Active tls' ;
-            FLOW.write flow.flow buf >>= fun _ ->
-            drain_handshake flow >|= function
-            | Ok _         -> Ok ()
-            | Error _ as e -> e
+            with_timeout timeout
+              (FLOW.write flow.flow buf >>= fun _ ->
+               drain_handshake flow >|= function
+               | Ok _         -> Ok ()
+               | Error _ as e -> e)
 
   let key_update ?request flow =
     match flow.state with
@@ -167,7 +178,7 @@ module Make (F : Mirage_flow.S) = struct
       FLOW.(write flow.flow buf >>= fun _ -> close flow.flow)
     | _           -> return_unit
 
-  let client_of_flow conf ?host flow =
+  let client_of_flow ?(timeout = default_timeout)  conf ?host flow =
     let conf' = match host with
       | None      -> conf
       | Some host -> Tls.Config.peer conf host
@@ -179,16 +190,17 @@ module Make (F : Mirage_flow.S) = struct
       state  = `Active tls ;
       linger = [] ;
     } in
-    FLOW.write flow init >>= fun _ -> drain_handshake tls_flow
+    FLOW.write flow init >>= fun _ ->
+    with_timeout timeout (drain_handshake tls_flow)
 
-  let server_of_flow conf flow =
+  let server_of_flow ?(timeout = default_timeout) conf flow =
     let tls_flow = {
       role   = `Server ;
       flow   = flow ;
       state  = `Active (Tls.Engine.server conf) ;
       linger = [] ;
     } in
-    drain_handshake tls_flow
+    with_timeout timeout (drain_handshake tls_flow)
 
   let epoch flow =
     match flow.state with
