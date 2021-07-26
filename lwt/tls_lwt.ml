@@ -143,8 +143,9 @@ module Unix = struct
   let default_timeout = Duration.of_sec 60
 
   let with_timeout timeout f =
-    let timeout = Duration.to_f timeout in
-    Lwt.pick [ f ; Lwt_unix.sleep timeout >|= fun () -> raise Tls_timeout ]
+    Lwt.pick [
+      f ; Lwt_unix.sleep (Duration.to_f timeout) >|= fun () -> raise Tls_timeout
+    ]
 
   let reneg ?(timeout = default_timeout) ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
     match t.state with
