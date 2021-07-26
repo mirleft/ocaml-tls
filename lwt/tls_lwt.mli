@@ -30,30 +30,27 @@ module Unix : sig
 
   (** [server_of_fd server fd] is [t], after server-side TLS handshake of [fd]
       using [server] configuration. The [timeout] is specified in nanoseconds
-      and defaults to 60 seconds. If 0 is provided, no timeout is used. *)
+      and defaults to 60 seconds. *)
   val server_of_fd : ?timeout:int64 -> Tls.Config.server ->
     Lwt_unix.file_descr -> t Lwt.t
 
   (** [client_of_fd client ~host fd] is [t], after client-side TLS handshake of
       [fd] using [client] configuration and [host]. The [timeout] is specified
-      in nanoseconds and defaults to 60 seconds. If 0 is provided, no timeout is
-      used.  *)
+      in nanoseconds and defaults to 60 seconds. *)
   val client_of_fd : ?timeout:int64 -> Tls.Config.client ->
     ?host:[ `host ] Domain_name.t -> Lwt_unix.file_descr -> t Lwt.t
 
   (** [accept server fd] is [t, sockaddr], after accepting a client on [fd] and
       upgrading to a TLS connection. The [timeout] is specified in nanoseconds
-      and defaults to 60 seconds. If 0 is provided, no timeout is used. This is
-      the timeout for the TLS handshake, i.e. once the TCP session is
-      established. *)
+      and defaults to 60 seconds. This is the timeout for the TLS handshake,
+      i.e. once the TCP session is established. *)
   val accept  : ?timeout:int64 -> Tls.Config.server -> Lwt_unix.file_descr ->
     (t * Lwt_unix.sockaddr) Lwt.t
 
   (** [connect client (host, port)] is [t], after successful connection to
       [host] on [port] and TLS upgrade. The [timeout] is specified in
-      nanoseconds and defaults to 60 seconds. If 0 is provided, no timeout is
-      used. This is the timeout for the TLS handshake, i.e. once the TCP session
-      is established. *)
+      nanoseconds and defaults to 60 seconds. This is the timeout for the TLS
+      handshake, i.e. once the TCP session is established. *)
   val connect : ?timeout:int64 -> Tls.Config.client -> string * int -> t Lwt.t
 
   (** {2 Common stream operations} *)
@@ -87,8 +84,7 @@ module Unix : sig
       [authenticator] and [acceptable_cas] can be used.  The own certificate can
       be adjusted by [cert]. If [drop] is [true] (the default),
       application data received before the renegotiation finished is dropped.
-      The [timeout] is specified in nanoseconds and defaults to 60 seconds. If
-      0 is provided, no timeout is used. *)
+      The [timeout] is specified in nanoseconds and defaults to 60 seconds. *)
   val reneg : ?timeout:int64 -> ?authenticator:X509.Authenticator.t ->
     ?acceptable_cas:X509.Distinguished_name.t list -> ?cert:Tls.Config.own_cert ->
     ?drop:bool -> t -> unit Lwt.t
@@ -111,34 +107,32 @@ type oc = Lwt_io.output_channel
 (** [accept_ext server fd] is [(ic, oc), sockaddr], the input and output channel
     from an accepted connection on the given [fd], after upgrading to TLS using
     the [server] configuration.  The [timeout] is specified in nanoseconds
-    and defaults to 60 seconds. If 0 is provided, no timeout is used. This is
-    the timeout for the TLS handshake, i.e. once the TCP session is
-    established.  *)
+    and defaults to 60 seconds. This is the timeout for the TLS handshake, i.e.
+    once the TCP session is established.  *)
 val accept_ext : ?timeout:int64 -> Tls.Config.server -> Lwt_unix.file_descr ->
   ((ic * oc) * Lwt_unix.sockaddr) Lwt.t
 
 (** [accept own_cert fd] is [(ic, oc), sockaddr], the input and output channel
     from the accepted connection on [fd], using the default configuration with
     the given [own_cert]. The [timeout] is specified in nanoseconds and defaults
-    to 60 seconds. If 0 is provided, no timeout is used. This is the timeout for
-    the TLS handshake, i.e. once the TCP session is established. *)
+    to 60 seconds. This is the timeout for the TLS handshake, i.e. once the TCP
+    session is established. *)
 val accept : ?timeout:int64 -> Tls.Config.own_cert -> Lwt_unix.file_descr ->
   ((ic * oc) * Lwt_unix.sockaddr) Lwt.t
 
 (** [connect_ext client (host, port)] is [ic, oc], the input and output channel
     of a TLS connection to [host] on [port] using the [client] configuration.
-    The [timeout] is specified in nanoseconds and defaults to 60 seconds. If 0
-    is provided, no timeout is used. This is the timeout for the TLS handshake,
-    i.e. once the TCP session is established. *)
+    The [timeout] is specified in nanoseconds and defaults to 60 seconds. This
+    is the timeout for the TLS handshake, i.e. once the TCP session is
+    established. *)
 val connect_ext : ?timeout:int64 -> Tls.Config.client -> string * int ->
   (ic * oc) Lwt.t
 
 (** [connect authenticator (host, port)] is [ic, oc], the input and output
     channel of a TLS connection to [host] on [port] using the default
     configuration and the [authenticator]. The [timeout] is specified in
-    nanoseconds and defaults to 60 seconds. If 0 is provided, no timeout is
-    used. This is the timeout for the TLS handshake, i.e. once the TCP session
-    is established. *)
+    nanoseconds and defaults to 60 seconds. This is the timeout for the TLS
+    handshake, i.e. once the TCP session is established. *)
 val connect : ?timeout:int64 -> X509.Authenticator.t -> string * int ->
   (ic * oc) Lwt.t
 

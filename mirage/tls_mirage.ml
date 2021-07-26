@@ -134,10 +134,7 @@ module Make (F : Mirage_flow.S) (T : Mirage_time.S) = struct
         | `Eof     -> return @@ Error `Closed
 
   let with_timeout timeout f =
-    if timeout > 0L then
-      Lwt.pick [ f ; T.sleep_ns timeout >|= fun () -> Error `Tls_timeout ]
-    else
-      f
+    Lwt.pick [ f ; T.sleep_ns timeout >|= fun () -> Error `Tls_timeout ]
 
   let default_timeout = Duration.of_sec 60
 

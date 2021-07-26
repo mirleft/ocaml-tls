@@ -26,8 +26,7 @@ module Make (F : Mirage_flow.S) (T : Mirage_time.S) : sig
       new [authenticator] and [acceptable_cas] can be used.  The own certificate
       can be adjusted by [cert]. If [drop] is [true] (the default),
       application data received before the renegotiation finished is dropped.
-      The [timeout] is specified in nanoseconds and defaults to 60 seconds. If
-      0 is provided, no timeout is used. *)
+      The [timeout] is specified in nanoseconds and defaults to 60 seconds. *)
   val reneg : ?timeout:int64 -> ?authenticator:X509.Authenticator.t ->
     ?acceptable_cas:X509.Distinguished_name.t list -> ?cert:Tls.Config.own_cert ->
     ?drop:bool -> flow -> (unit, write_error) result Lwt.t
@@ -40,15 +39,14 @@ module Make (F : Mirage_flow.S) (T : Mirage_time.S) : sig
   (** [client_of_flow ~timeout client ~host flow] upgrades the existing
       connection to TLS using the [client] configuration, using [host] as peer
       name. The [timeout] is specified in nanoseconds and defaults to 60
-      seconds. If 0 is provided, no timeout is used. *)
+      seconds. *)
   val client_of_flow : ?timeout:int64 -> Tls.Config.client ->
     ?host:[ `host ] Domain_name.t -> FLOW.flow ->
     (flow, write_error) result Lwt.t
 
   (** [server_of_flow ~timeout server flow] upgrades the flow to a TLS
       connection using the [server] configuration. The [timeout] is specified
-      in nanoseconds and defaults to 60 seconds. If 0 is provided, no timeout
-      is used. *)
+      in nanoseconds and defaults to 60 seconds. *)
   val server_of_flow : ?timeout:int64 -> Tls.Config.server -> FLOW.flow ->
     (flow, write_error) result Lwt.t
 
