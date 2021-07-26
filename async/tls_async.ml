@@ -53,15 +53,15 @@ let upgrade_connection tls_session ((_ : Reader.t), outer_writer) =
   tls_session, inner_reader, inner_writer, `Tls_closed_and_flushed_downstream outer_cafd
 ;;
 
-let upgrade_server_reader_writer_to_tls config rw =
+let upgrade_server_reader_writer_to_tls ?timeout config rw =
   let open Deferred.Or_error.Let_syntax in
-  let%bind tls_session = Session.server_of_fd config rw in
+  let%bind tls_session = Session.server_of_fd ?timeout config rw in
   upgrade_connection tls_session rw |> Deferred.ok
 ;;
 
-let upgrade_client_reader_writer_to_tls ?host config rw =
+let upgrade_client_reader_writer_to_tls ?timeout ?host config rw =
   let open Deferred.Or_error.Let_syntax in
-  let%bind tls_session = Session.client_of_fd ?host config rw in
+  let%bind tls_session = Session.client_of_fd ?timeout ?host config rw in
   upgrade_connection tls_session rw |> Deferred.ok
 ;;
 
@@ -71,6 +71,7 @@ let listen
       ?max_accepts_per_batch
       ?backlog
       ?socket
+      ?tls_timeout:timeout
       ~on_handler_error
       config
       where_to_listen
@@ -82,7 +83,7 @@ let listen
              , inner_writer
              , `Tls_closed_and_flushed_downstream inner_cafd )
       =
-      upgrade_server_reader_writer_to_tls config (outer_reader, outer_writer)
+      upgrade_server_reader_writer_to_tls ?timeout config (outer_reader, outer_writer)
       |> Deferred.Or_error.ok_exn
     in
     Monitor.protect
@@ -114,6 +115,7 @@ let connect
       ~host
   =
   let open Deferred.Or_error.Let_syntax in
+  let start_time = Time.now () in
   let%bind (_ : ([ `Active ], 'a) Socket.t), outer_reader, outer_writer =
     Tcp.connect
       ?socket
@@ -130,7 +132,12 @@ let connect
            , inner_writer
            , `Tls_closed_and_flushed_downstream inner_cafd )
     =
-    upgrade_client_reader_writer_to_tls ?host config (outer_reader, outer_writer)
+    let timeout =
+      Option.map timeout ~f:(fun timeout ->
+        let tcp_time_elapsed = Time.(diff (now ()) start_time) in
+        Time.Span.(timeout - tcp_time_elapsed))
+    in
+    upgrade_client_reader_writer_to_tls ?timeout ?host config (outer_reader, outer_writer)
   in
   don't_wait_for
     (let%bind.Deferred () = inner_cafd in

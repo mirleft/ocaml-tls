@@ -13,6 +13,7 @@ module Tls_error = struct
     | Unexpected_eof
     | Unable_to_renegotiate
     | Unable_to_update_key
+    | Tls_timeout
   [@@deriving sexp_of]
 end
 
@@ -123,7 +124,22 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
          drain_handshake t)
   ;;
 
-  let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
+  let default_timeout = Time.Span.of_sec 60.
+
+  let with_timeout timeout ~f =
+    match%bind.Deferred with_timeout timeout (f ()) with
+    | `Result r -> Deferred.return r
+    | `Timeout -> tls_error Tls_timeout
+  ;;
+
+  let reneg
+        ?(timeout = default_timeout)
+        ?authenticator
+        ?acceptable_cas
+        ?cert
+        ?(drop = true)
+        t
+    =
     match t.state with
     | Error err -> tls_error err
     | Eof -> tls_error Connection_closed
@@ -133,9 +149,10 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
        | Some (tls', buf) ->
          if drop then t.linger <- None;
          t.state <- Active tls';
-         let%bind () = Fd.write_full t.fd buf in
-         let%bind _ = drain_handshake t in
-         return ())
+         with_timeout timeout ~f:(fun () ->
+           let%bind () = Fd.write_full t.fd buf in
+           let%bind _ = drain_handshake t in
+           return ()))
   ;;
 
   let key_update ?request t =
@@ -159,16 +176,17 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
     | _ -> return ()
   ;;
 
-  let server_of_fd config fd =
-    drain_handshake
-      { state = Active (Tls.Engine.server config)
-      ; fd
-      ; linger = None
-      ; recv_buf = Cstruct.create 4096
-      }
+  let server_of_fd ?(timeout = default_timeout) config fd =
+    with_timeout timeout ~f:(fun () ->
+      drain_handshake
+        { state = Active (Tls.Engine.server config)
+        ; fd
+        ; linger = None
+        ; recv_buf = Cstruct.create 4096
+        })
   ;;
 
-  let client_of_fd config ?host fd =
+  let client_of_fd ?(timeout = default_timeout) ?host config fd =
     let config' =
       match host with
       | None -> config
@@ -177,8 +195,9 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
     let t = { state = Eof; fd; linger = None; recv_buf = Cstruct.create 4096 } in
     let tls, init = Tls.Engine.client config' in
     let t = { t with state = Active tls } in
-    let%bind () = Fd.write_full t.fd init in
-    drain_handshake t
+    with_timeout timeout ~f:(fun () ->
+      let%bind () = Fd.write_full t.fd init in
+      drain_handshake t)
   ;;
 
   let epoch t =

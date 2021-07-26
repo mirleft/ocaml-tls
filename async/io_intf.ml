@@ -18,13 +18,18 @@ module type S = sig
 
   (** [server_of_fd server fd] is [t], after server-side TLS
       handshake of [fd] using [server] configuration. *)
-  val server_of_fd : Tls.Config.server -> Fd.t -> t Deferred.Or_error.t
+  val server_of_fd
+    :  ?timeout:Time.Span.t
+    -> Tls.Config.server
+    -> Fd.t
+    -> t Deferred.Or_error.t
 
   (** [client_of_fd client ~host fd] is [t], after client-side
       TLS handshake of [fd] using [client] configuration and [host]. *)
   val client_of_fd
-    :  Tls.Config.client
+    :  ?timeout:Time.Span.t
     -> ?host:[ `host ] Domain_name.t
+    -> Tls.Config.client
     -> Fd.t
     -> t Deferred.Or_error.t
 
@@ -46,7 +51,8 @@ module type S = sig
       be adjusted by [cert]. If [drop] is [true] (the default),
       application data received before the renegotiation finished is dropped. *)
   val reneg
-    :  ?authenticator:X509.Authenticator.t
+    :  ?timeout:Time.Span.t
+    -> ?authenticator:X509.Authenticator.t
     -> ?acceptable_cas:X509.Distinguished_name.t list
     -> ?cert:Tls.Config.own_cert
     -> ?drop:bool

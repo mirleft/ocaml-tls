@@ -18,6 +18,7 @@ val listen
   -> ?max_accepts_per_batch:int (** defaults to [1]. *)
   -> ?backlog:int (** defaults to [64]. *)
   -> ?socket:([ `Unconnected ], ([< Socket.Address.t ] as 'address)) Socket.t
+  -> ?tls_timeout:Time.Span.t
   -> on_handler_error:[ `Call of 'address -> exn -> unit | `Ignore | `Raise ]
   -> Tls.Config.server
   -> ('address, 'listening_on) Tcp.Where_to_listen.t
