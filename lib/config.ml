@@ -18,11 +18,6 @@ type own_cert = [
 type session_cache = SessionID.t -> epoch_data option
 let sexp_of_session_cache _ = Sexplib.Sexp.Atom "SESSION_CACHE"
 
-module Peer_name = struct
-  type t = [ `host ] Domain_name.t
-  let sexp_of_t t = Sexplib.Sexp.Atom (Domain_name.to_string t)
-end
-
 module Auth = struct
   type t = X509.Authenticator.t
   let sexp_of_t _ = Sexplib.Sexp.Atom "Authenticator"

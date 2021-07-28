@@ -151,7 +151,7 @@ let answer_client_hello ~hrr state ch raw =
                 if c' = cipher &&
                    match hostname, old_epoch.own_name with
                    | None, None -> true
-                   | Some x, Some y -> Domain_name.equal x (Domain_name.of_string_exn y)
+                   | Some x, Some y -> Domain_name.equal x y
                    | _ -> false
                 then
                   let now = cache.Config.timestamp () in
@@ -222,9 +222,8 @@ let answer_client_hello ~hrr state ch raw =
         | _ -> Error (`Fatal `InvalidSession)) >>= fun (chain, priv) ->
       alpn_protocol config ch >>= fun alpn_protocol ->
       let session =
-        let own_name = match hostname with None -> None | Some x -> Some (Domain_name.to_string x) in
         let common_session_data13 = { session.common_session_data13 with
-                                      own_name = own_name ; own_certificate = chain ;
+                                      own_name = hostname ; own_certificate = chain ;
                                       own_private_key = Some priv ; alpn_protocol }
         in
         { session with common_session_data13 }
