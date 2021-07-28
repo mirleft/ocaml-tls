@@ -24,7 +24,7 @@ let serve_ssl port callback =
   let handle ep channels addr =
     let host = match ep with
       | Ok data -> ( match data.Tls.Core.own_name with
-          | Some n -> n
+          | Some n -> Domain_name.to_string n
           | None -> "no name" )
       | Error () -> "no session"
     in
