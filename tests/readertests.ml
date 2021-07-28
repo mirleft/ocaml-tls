@@ -438,7 +438,7 @@ let bad_dh_param_parser buf _ =
   match Reader.parse_dh_parameters buf with
   | Error _ -> ()
   | Ok (_, _, rst) ->
-      if Cstruct.length rst == 0 then
+      if Cstruct.length rst = 0 then
         assert_failure "dh params parser broken"
 
 let bad_dh_params_tests =
