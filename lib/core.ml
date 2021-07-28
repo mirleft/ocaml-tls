@@ -112,7 +112,7 @@ type psk_identity = (Cstruct_sexp.t * int32) * Cstruct_sexp.t [@@deriving sexp_o
 
 let binders_len psks =
   let binder_len (_, binder) =
-    Cstruct.len binder + 1 (* binder len *)
+    Cstruct.length binder + 1 (* binder len *)
   in
   2 (* binder len *) + List.fold_left (+) 0 (List.map binder_len psks)
 

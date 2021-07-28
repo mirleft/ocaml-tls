@@ -103,7 +103,7 @@ let answer_client_hello ~hrr state ch raw =
          | None -> Error (`Fatal (`InvalidClientHello `NoCookie))
          | Some c ->
            (* log is: 254 00 00 length c :: HRR *)
-           let hash_hdr = Writer.assemble_message_hash (Cstruct.len c) in
+           let hash_hdr = Writer.assemble_message_hash (Cstruct.length c) in
            let hrr = { retry_version = `TLS_1_3 ; ciphersuite = cipher ; sessionid = ch.sessionid ; selected_group = group ; extensions = [ `Cookie c ]} in
            let hs_buf = Writer.assemble_handshake (HelloRetryRequest hrr) in
            Ok (Cstruct.concat [ hash_hdr ; c ; hs_buf ])
@@ -182,7 +182,7 @@ let answer_client_hello ~hrr state ch raw =
                         let early_secret = secret ~psk:psk.secret () in
                         let binder_key = Handshake_crypto13.derive_secret early_secret "res binder" Cstruct.empty in
                         let binders_len = binders_len ids in
-                        let ch_part = Cstruct.(sub raw 0 (len raw - binders_len)) in
+                        let ch_part = Cstruct.(sub raw 0 (length raw - binders_len)) in
                         let log = Cstruct.append log ch_part in
                         let binder' = Handshake_crypto13.finished early_secret.hash binder_key log in
                         if Cstruct.equal binder binder' then begin
@@ -295,7 +295,7 @@ let answer_client_hello ~hrr state ch raw =
       in
       let session' = { session' with server_app_secret ; client_app_secret } in
 
-      guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
+      guard (Cstruct.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
 
       (* send sessionticket early *)
       (* TODO track the nonce across handshakes / newsessionticket messages (i.e. after post-handshake auth) - needs to be unique! *)
@@ -397,7 +397,7 @@ let answer_client_finished state fin client_fini dec_ctx st raw log =
     let hash = Ciphersuite.hash13 session.ciphersuite13 in
     let data = finished hash client_fini log in
     guard (Cstruct.equal data fin) (`Fatal `BadFinished) >>= fun () ->
-    guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
+    guard (Cstruct.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
     let session' = match st, state.config.Config.ticket_cache with
       | None, _ | _, None -> session
       | Some st, Some cache ->
@@ -426,7 +426,7 @@ let handle_end_of_early_data state cf hs_ctx cc st buf log =
 let handle_key_update state req =
   match state.session with
   | `TLS13 session :: _ ->
-    guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
+    guard (Cstruct.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>= fun () ->
     let client_app_secret, client_ctx =
       app_secret_n_1 session.master_secret session.client_app_secret
     in

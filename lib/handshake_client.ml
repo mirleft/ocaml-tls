@@ -63,8 +63,8 @@ let default_client_hello config =
   in
   let sessionid =
     match config.use_reneg, config.cached_session with
-    | _, Some { session_id ; extended_ms ; _ } when extended_ms && not (Cstruct.len session_id = 0) -> Some session_id
-    | false, Some { session_id ; _ } when not (Cstruct.len session_id = 0) -> Some session_id
+    | _, Some { session_id ; extended_ms ; _ } when extended_ms && not (Cstruct.length session_id = 0) -> Some session_id
+    | false, Some { session_id ; _ } when not (Cstruct.length session_id = 0) -> Some session_id
     | _ -> None
   in
   let ch = {
@@ -82,7 +82,7 @@ let common_server_hello_validation config reneg (sh : server_hello) (ch : client
     match reneg, data with
     | Some (cvd, svd), Some x -> guard (Cstruct.equal (cvd <+> svd) x) (`Fatal `InvalidRenegotiation)
     | Some _, None -> Error (`Fatal `NoSecureRenegotiation)
-    | None, Some x -> guard (Cstruct.len x = 0) (`Fatal `InvalidRenegotiation)
+    | None, Some x -> guard (Cstruct.length x = 0) (`Fatal `InvalidRenegotiation)
     | None, None -> Ok ()
   in
   guard (List.mem sh.ciphersuite config.ciphers)
@@ -398,7 +398,7 @@ let answer_server_finished state (session : session_data) client_verify fin log 
     Handshake_crypto.finished (state_version state) session.ciphersuite session.common_session_data.master_secret "server finished" log
   in
   guard (Cstruct.equal computed fin) (`Fatal `BadFinished) >>= fun () ->
-  guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
+  guard (Cstruct.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
   let machina = Established
   and session = { session with renegotiation = (client_verify, computed) } in
   ({ state with machina = Client machina ; session = `TLS session :: state.session }, [])
@@ -409,7 +409,7 @@ let answer_server_finished_resume state (session : session_data) fin raw log =
     (checksum "client finished" (log @ [raw]), checksum "server finished" log)
   in
   guard (Cstruct.equal server fin) (`Fatal `BadFinished) >>= fun () ->
-  guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
+  guard (Cstruct.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
   let machina = Established
   and session = { session with renegotiation = (client, server) }
   in
@@ -442,12 +442,12 @@ let answer_hello_request state =
 let handle_change_cipher_spec cs state packet =
   match Reader.parse_change_cipher_spec packet, cs with
   | Ok (), AwaitServerChangeCipherSpec (session, server_ctx, client_verify, log) ->
-     guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
+     guard (Cstruct.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
      let machina = AwaitServerFinished (session, client_verify, log) in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;
      ({ state with machina = Client machina }, [`Change_dec server_ctx])
   | Ok (), AwaitServerChangeCipherSpecResume (session, client_ctx, server_ctx, log) ->
-     guard (Cstruct.len state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
+     guard (Cstruct.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) >>| fun () ->
      let ccs = change_cipher_spec in
      let machina = AwaitServerFinishedResume (session, log) in
      Tracing.cs ~tag:"change-cipher-spec-in" packet ;

@@ -27,7 +27,7 @@ module Lwt_cs = struct
   and read  = naked ~name:"Tls_lwt.read"  Lwt_bytes.read
 
   let rec write_full fd = function
-    | cs when Cstruct.len cs = 0 -> return_unit
+    | cs when Cstruct.length cs = 0 -> return_unit
     | cs -> write fd cs >>= o (write_full fd) (Cstruct.shift cs)
 end
 
@@ -92,8 +92,8 @@ module Unix = struct
 
     let writeout res =
       let open Cstruct in
-      let rlen = len res in
-      let n    = min (len buf) rlen in
+      let rlen = length res in
+      let n    = min (length buf) rlen in
       blit res 0 buf 0 n ;
       t.linger <-
         (if n < rlen then Some (sub res n (rlen - n)) else None) ;

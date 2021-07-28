@@ -24,14 +24,14 @@ let readerwriter_header (v, ct, cs) _ =
   match Reader.parse_record buf with
   | Ok (`Record ((hdr, payload), f)) ->
     let open Core in
-    assert_equal 0 (Cstruct.len f) ;
+    assert_equal 0 (Cstruct.length f) ;
     assert_equal (v :> tls_any_version) hdr.version ;
     assert_equal ct hdr.content_type ;
     assert_cs_eq cs payload ;
     let buf' = Writer.assemble_hdr v (hdr.content_type, payload) in
     (match Reader.parse_record buf' with
      | Ok (`Record ((hdr, payload), f)) ->
-       assert_equal 0 (Cstruct.len f) ;
+       assert_equal 0 (Cstruct.length f) ;
        assert_equal (v :> tls_any_version) hdr.version ;
        assert_equal ct hdr.content_type ;
        assert_cs_eq cs payload ;
@@ -188,14 +188,14 @@ let readerwriter_dh_params params _ =
   let buf = Writer.assemble_dh_parameters params in
   match Reader.parse_dh_parameters buf with
   | Ok (p, raw, rst) ->
-      assert_equal (Cstruct.len rst) 0 ;
+      assert_equal (Cstruct.length rst) 0 ;
       assert_dh_eq p params ;
       assert_equal buf raw ;
       (* lets get crazy and do it one more time *)
       let buf' = Writer.assemble_dh_parameters p in
       (match Reader.parse_dh_parameters buf' with
       | Ok (p', raw', rst') ->
-          assert_equal (Cstruct.len rst') 0 ;
+          assert_equal (Cstruct.length rst') 0 ;
           assert_dh_eq p' params ;
           assert_equal buf raw' ;
       | Error _ -> assert_failure "inner read and write dh params broken")
