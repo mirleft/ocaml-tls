@@ -427,7 +427,7 @@ let good_dh_param_parser xs _ =
   let buf = list_to_cstruct xs in
   match Reader.parse_dh_parameters buf with
   | Error _        -> assert_failure "dh params parser broken"
-  | Ok (_, _, rst) -> assert_equal 0 (Cstruct.len rst)
+  | Ok (_, _, rst) -> assert_equal 0 (Cstruct.length rst)
 
 let good_dh_params_tests =
   List.mapi
@@ -438,12 +438,12 @@ let bad_dh_param_parser buf _ =
   match Reader.parse_dh_parameters buf with
   | Error _ -> ()
   | Ok (_, _, rst) ->
-      if Cstruct.len rst == 0 then
+      if Cstruct.length rst == 0 then
         assert_failure "dh params parser broken"
 
 let bad_dh_params_tests =
   let param = list_to_cstruct (List.hd good_dhparams) in
-  let l = Cstruct.len param in
+  let l = Cstruct.length param in
   let bad_params =
     [
       param <+> Cstruct.create 1 ;
@@ -460,7 +460,7 @@ let bad_dh_params_tests =
     ]
   in
   let lastparam = list_to_cstruct (List.nth good_dhparams 5) in
-  let l = Cstruct.len lastparam in
+  let l = Cstruct.length lastparam in
   let more_bad =
     [
       Cstruct.sub lastparam 0 130 <+> list_to_cstruct [0 ; 5 ; 1] <+> Cstruct.sub lastparam 130 (l - 130) ;
@@ -588,7 +588,7 @@ let good_digitally_signed_1_2_tests =
 
 let bad_dss_1_2 =
   let ds = list_to_cstruct (List.hd good_digitally_signed_1_2) in
-  let l = Cstruct.len ds in
+  let l = Cstruct.length ds in
   [
     Cstruct.sub ds 2 20 ;
     Cstruct.sub ds 0 20 ;
@@ -632,7 +632,7 @@ let good_digitally_signed_tests =
 
 let bad_dss =
   let ds = Cstruct.shift (list_to_cstruct (List.hd good_digitally_signed_1_2)) 2 in
-  let l = Cstruct.len ds in
+  let l = Cstruct.length ds in
   [
     list_to_cstruct [0xff ; 0xff] <+> ds ;
     list_to_cstruct [0xff ; 0xff] <+> Cstruct.shift ds 2 ;

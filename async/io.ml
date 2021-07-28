@@ -72,8 +72,8 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
   let rec read t buf =
     let writeout res =
       let open Cstruct in
-      let rlen = len res in
-      let n = min (len buf) rlen in
+      let rlen = length res in
+      let n = min (length buf) rlen in
       blit res 0 buf 0 n;
       t.linger <- (if n < rlen then Some (sub res n (rlen - n)) else None);
       return n

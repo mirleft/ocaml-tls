@@ -16,7 +16,7 @@ module Fd = struct
 
   let rec write_full fd buf =
     let open Deferred.Or_error.Let_syntax in
-    match Cstruct.len buf with
+    match Cstruct.length buf with
     | 0 -> return ()
     | len ->
       let%bind () = write fd buf in
