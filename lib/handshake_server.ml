@@ -296,7 +296,6 @@ let answer_client_hello_common state reneg ch raw =
 
     alpn_protocol config ch >>| fun alpn_protocol ->
 
-    let own_name = match host with None -> None | Some h -> Some (Domain_name.to_string h) in
     let group =
       if Ciphersuite.ecdhe cipher then
         ecc_group
@@ -311,7 +310,7 @@ let answer_client_hello_common state reneg ch raw =
         client_random    = ch.client_random ;
         own_certificate  = chain ;
         own_private_key  = priv ;
-        own_name         = own_name ;
+        own_name         = host ;
         alpn_protocol    = alpn_protocol
       } in
       { session with

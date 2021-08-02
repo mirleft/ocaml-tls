@@ -414,7 +414,7 @@ type epoch_data = {
   own_random             : Cstruct_sexp.t ;
   own_certificate        : Cert.t list ;
   own_private_key        : Priv.t option ;
-  own_name               : string option ;
+  own_name               : Peer_name.t option ;
   master_secret          : master_secret ;
   session_id             : SessionID.t ;
   extended_ms            : bool ;
