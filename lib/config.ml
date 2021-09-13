@@ -463,11 +463,6 @@ let validate_server config =
           (rsa_cert && keytype = `RSA) || (ec_cert && keytype = `EC))
       config.ciphers
   in
-  let signature_algorithms =
-    let pk = List.map snd certificate_chains in
-    List.filter (fun sa -> List.exists (fun p -> pk_matches_sa p sa) pk)
-      config.signature_algorithms
-  in
   ( match config.own_certificates with
     | `Multiple cs
     | `Multiple_default (_, cs) ->
@@ -488,7 +483,7 @@ let validate_server config =
       in
       PK.iter (fun _ chains -> non_overlapping chains) pk
     | _ -> () );
-  { config with ciphers ; signature_algorithms }
+  { config with ciphers }
 
 type client = config [@@deriving sexp_of]
 type server = config [@@deriving sexp_of]
