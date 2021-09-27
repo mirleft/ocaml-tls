@@ -105,7 +105,7 @@ let answer_encrypted_extensions state (session : session_data13) server_hs_secre
 let answer_certificate state (session : session_data13) server_hs_secret client_hs_secret sigalgs certs raw log =
   (* certificates are (cs, ext) list - ext being statusrequest or signed_cert_timestamp *)
   let certs = List.map fst certs in
-  validate_chain state.config.authenticator certs state.config.peer_name >>=
+  validate_chain state.config.authenticator certs state.config.ip state.config.peer_name >>=
   fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
   let session =
     let common_session_data13 = {

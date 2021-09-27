@@ -467,9 +467,9 @@ let verify_digitally_signed version ?context_string sig_algs data signature_data
           (X509.Public_key.verify hash ~scheme ~signature pubkey (`Message data))
       | Error re -> Error (`Fatal (`ReaderError re)))
 
-let validate_chain authenticator certificates hostname =
+let validate_chain authenticator certificates ip hostname =
   let authenticate authenticator host certificates =
-    match authenticator ~host certificates with
+    match authenticator ?ip ~host certificates with
     | Error err  -> Error (`Error (`AuthenticationFailure err))
     | Ok anchor -> Ok anchor
 

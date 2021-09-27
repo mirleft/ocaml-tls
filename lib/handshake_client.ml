@@ -204,7 +204,7 @@ let validate_keyusage certificate kex =
 
 let answer_certificate_RSA state (session : session_data) cs raw log =
   let cfg = state.config in
-  validate_chain cfg.authenticator cs cfg.peer_name >>= fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
+  validate_chain cfg.authenticator cs cfg.ip cfg.peer_name >>= fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
   validate_keyusage peer_certificate `RSA >>= fun () ->
   let session =
     let common_session_data = { session.common_session_data with received_certificates ; peer_certificate ; peer_certificate_chain ; trust_anchor } in
@@ -230,7 +230,7 @@ let answer_certificate_RSA state (session : session_data) cs raw log =
 
 let answer_certificate_DHE state (session : session_data) cs raw log =
   let cfg = state.config in
-  validate_chain cfg.authenticator cs cfg.peer_name >>= fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
+  validate_chain cfg.authenticator cs cfg.ip cfg.peer_name >>= fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
   validate_keyusage peer_certificate `FFDHE >>| fun () ->
   let session =
     let common_session_data = { session.common_session_data with received_certificates ; peer_certificate ; peer_certificate_chain ; trust_anchor } in
