@@ -1,3 +1,7 @@
+## v0.15.0 (2021-10-07)
+
+* Adapt to x509 0.15.0 changes (#440 @hannesm)
+
 ## v0.14.1 (2021-09-13)
 
 * Bugfix: do not filter signature_algorithms based on server certificate. Since
