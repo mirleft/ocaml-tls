@@ -25,9 +25,9 @@ depends: [
   "mirage-crypto-ec" {>= "0.10.0"}
   "mirage-crypto-pk"
   "mirage-crypto-rng" {>= "0.8.0"}
-  "x509" {>= "0.13.0"}
+  "x509" {>= "0.15.0"}
   "domain-name" {>= "0.3.0"}
-  "fmt"
+  "fmt" {>= "0.8.7"}
   "rresult"
   "cstruct-unix" {with-test & >= "3.0.0"}
   "ounit2" {with-test & >= "2.2.0"}
@@ -35,6 +35,8 @@ depends: [
   "ptime" {>= "0.8.1"}
   "hkdf"
   "logs"
+  "ipaddr"
+  "ipaddr-sexp"
   "alcotest" {with-test}
   "randomconv" {with-test}
 ]

@@ -26,7 +26,7 @@ let cached_session : Tls.Core.epoch_data =
 
 let echo_client ?ca hostname port =
   let open Lwt_io in
-  auth ~hostname ?ca () >>= fun authenticator ->
+  auth ?ca () >>= fun authenticator ->
   X509_lwt.private_of_pems
     ~cert:server_cert
     ~priv_key:server_key >>= fun certificate ->

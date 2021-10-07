@@ -79,8 +79,8 @@ let private_key (session : session_data) =
     | Some priv -> Ok priv
     | None      -> Error (`Fatal `InvalidSession) (* TODO: assert false / ensure via typing in config *)
 
-let validate_certs certs authenticator (session : session_data) =
-  validate_chain authenticator certs None >>| fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
+let validate_certs certs authenticator ip (session : session_data) =
+  validate_chain authenticator certs ip None >>| fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
   let common_session_data = {
     session.common_session_data with
     received_certificates ;
@@ -91,12 +91,12 @@ let validate_certs certs authenticator (session : session_data) =
   { session with common_session_data }
 
 let answer_client_certificate_RSA state (session : session_data) certs raw log =
-  validate_certs certs state.config.authenticator session >>| fun session ->
+  validate_certs certs state.config.authenticator state.config.ip session >>| fun session ->
   let machina = AwaitClientKeyExchange_RSA (session, log @ [raw]) in
   ({ state with machina = Server machina }, [])
 
 let answer_client_certificate_DHE state (session : session_data) dh_sent certs raw log =
-  validate_certs certs state.config.authenticator session >>| fun session ->
+  validate_certs certs state.config.authenticator state.config.ip session >>| fun session ->
   let machina = AwaitClientKeyExchange_DHE (session, dh_sent, log @ [raw]) in
   ({ state with machina = Server machina }, [])
 

@@ -368,7 +368,7 @@ let answer_client_certificate state cert (sd : session_data13) client_fini dec_c
     (* TODO what to do with ctx? send through authenticator? *)
     (* TODO what to do with extensions? *)
     let certs = List.map fst cert_exts in
-    validate_chain auth certs None >>| fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
+    validate_chain auth certs state.config.Config.ip None >>| fun (peer_certificate, received_certificates, peer_certificate_chain, trust_anchor) ->
     let sd' = let common_session_data13 = {
         sd.common_session_data13 with
         received_certificates ;
