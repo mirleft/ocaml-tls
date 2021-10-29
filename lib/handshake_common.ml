@@ -489,7 +489,14 @@ let validate_chain authenticator certificates ip hostname =
 
   and parse_certificates certs =
     let certificates =
-      let f cs = match X509.Certificate.decode_der cs with Ok c -> Some c | _ -> None in
+      let f cs =
+        match X509.Certificate.decode_der cs with
+        | Ok c -> Some c
+        | Error `Msg msg ->
+          Log.warn (fun m -> m "cannot decode certificate %s:@.%a" msg
+                       Cstruct.hexdump_pp cs);
+          None
+      in
       filter_map ~f certs
     in
     let* () =
