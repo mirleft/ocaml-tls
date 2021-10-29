@@ -1,3 +1,10 @@
+## v0.15.1 (2021-10-29)
+
+* Tls_lwt: avoid exception if connect is executed with a non-host name string
+  (e.g. an IP address) (#441 @hannesm)
+* Bugfix: log a warning if certificate decoding fails (#441 @hannesm)
+* Remove rresult dependency (#441 @hannesm)
+
 ## v0.15.0 (2021-10-07)
 
 * Adapt to x509 0.15.0 changes (#440 @hannesm)
