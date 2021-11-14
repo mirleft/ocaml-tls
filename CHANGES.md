@@ -1,3 +1,7 @@
+## v0.15.2 (2021-11-14)
+
+* Drop dependency on async_find (#442 @torinnd)
+
 ## v0.15.1 (2021-10-29)
 
 * Tls_lwt: avoid exception if connect is executed with a non-host name string
