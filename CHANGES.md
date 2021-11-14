@@ -1,6 +1,8 @@
 ## v0.15.2 (2021-11-14)
 
-* Drop dependency on async_find (#442 @torinnd)
+* Tls_async: drop dependency on async_find, now trust anchors in a directory
+  are not recursively read - aligns it with the lwt and mirage implementations
+  (#442 @torinnd)
 
 ## v0.15.1 (2021-10-29)
 
