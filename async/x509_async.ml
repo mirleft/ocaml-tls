@@ -8,10 +8,9 @@ let file_contents file =
 
 let load_all_in_directory ~directory ~f =
   let open Deferred.Or_error.Let_syntax in
-  let options = Async_find.Options.ignore_errors in
-  let%bind files = Async_find.find_all ~options directory |> Deferred.ok in
-  Deferred.Or_error.List.map files ~f:(fun (file, (_ : Unix.Stats.t)) ->
-    let%bind contents = file_contents file in
+  let%bind files = Deferred.Or_error.try_with (fun () -> Sys.ls_dir directory) in
+  Deferred.Or_error.List.map files ~f:(fun file ->
+    let%bind contents = file_contents (directory ^/ file) in
     f ~contents)
 ;;
 
