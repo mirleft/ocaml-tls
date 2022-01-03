@@ -40,6 +40,20 @@ val close : flow -> unit
 (** [close flow] sends a close notification to the peer and close the
     underlying [Unix] socket. *)
 
+(** [reneg ~authenticator ~acceptable_cas ~cert ~drop t] renegotiates the
+    session, and blocks until the renegotiation finished.  Optionally, a new
+    [authenticator] and [acceptable_cas] can be used.  The own certificate can
+    be adjusted by [cert]. If [drop] is [true] (the default),
+    application data received before the renegotiation finished is dropped. *)
+val reneg : ?authenticator:X509.Authenticator.t ->
+  ?acceptable_cas:X509.Distinguished_name.t list -> ?cert:Tls.Config.own_cert ->
+  ?drop:bool -> flow -> (unit, error) result
+
+(** [key_update ~request t] updates the traffic key and requests a traffic key
+    update from the peer if [request] is provided and [true] (the default).
+    This is only supported in TLS 1.3. *)
+val key_update : ?request:bool -> flow -> (unit, error) result
+
 (** [client_of_flow client ~host socket] upgrades the existing connection
     to TLS using [client] configuration, using [host] as peer name. *)
 val client_of_flow : Tls.Config.client -> ?host:[ `host ] Domain_name.t ->
