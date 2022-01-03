@@ -144,6 +144,35 @@ let read socket =
             drain_handshake flow
         | `Error e -> Error e
         | `Eof     -> Error Closed
+
+  let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) flow =
+    match flow.state with
+    | `Eof        -> Error Closed
+    | `Error e    -> Error e
+    | `Active tls ->
+        match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
+        | None             ->
+            (* XXX make this impossible to reach *)
+            invalid_arg "Renegotiation already in progress"
+        | Some (tls', buf) ->
+            if drop then flow.linger <- [] ;
+            flow.state <- `Active tls' ;
+            fully_write flow.flow buf |> fun _ ->
+            drain_handshake flow |> function
+            | Ok _         -> Ok ()
+            | Error _ as e -> e
+
+  let key_update ?request flow =
+    match flow.state with
+    | `Eof        -> Error Closed
+    | `Error e    -> Error e
+    | `Active tls ->
+      match Tls.Engine.key_update ?request tls with
+      | Error _ -> invalid_arg "Key update failed"
+      | Ok (tls', buf) ->
+        flow.state <- `Active tls' ;
+        fully_write flow.flow buf |> check_write flow
+
   let close flow =
     match flow.state with
     | `Active tls ->
