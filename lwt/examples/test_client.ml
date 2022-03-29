@@ -44,7 +44,9 @@ let jump _ =
 open Cmdliner
 
 let cmd =
-  Term.(ret (const jump $ setup_log)),
-  Term.info "test_client" ~version:"%%VERSION_NUM%%"
+  let term = Term.(ret (const jump $ setup_log))
+  and info = Cmd.info "test_client" ~version:"%%VERSION_NUM%%"
+  in
+  Cmd.v info term
 
-let () = match Term.eval cmd with `Ok () -> exit 0 | _ -> exit 1
+let () = exit (Cmd.eval cmd)
