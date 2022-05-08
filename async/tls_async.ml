@@ -65,6 +65,22 @@ let upgrade_client_reader_writer_to_tls ?host config rw =
   upgrade_connection tls_session rw |> Deferred.ok
 ;;
 
+let tls_handler ~config ~handle_client sock outer_reader outer_writer =
+  let%bind ( tls_session
+           , inner_reader
+           , inner_writer
+           , `Tls_closed_and_flushed_downstream inner_cafd )
+    =
+     upgrade_server_reader_writer_to_tls config (outer_reader, outer_writer)
+     |> Deferred.Or_error.ok_exn
+  in
+  Monitor.protect
+    (fun () -> handle_client sock tls_session inner_reader inner_writer)
+    ~finally:(fun () ->
+      Deferred.all_unit
+        [ Reader.close inner_reader; Writer.close inner_writer; inner_cafd ])
+;;
+
 let listen
       ?buffer_age_limit
       ?max_connections
@@ -76,21 +92,6 @@ let listen
       where_to_listen
       handle_client
   =
-  let tls_handler sock outer_reader outer_writer =
-    let%bind ( tls_session
-             , inner_reader
-             , inner_writer
-             , `Tls_closed_and_flushed_downstream inner_cafd )
-      =
-      upgrade_server_reader_writer_to_tls config (outer_reader, outer_writer)
-      |> Deferred.Or_error.ok_exn
-    in
-    Monitor.protect
-      (fun () -> handle_client sock tls_session inner_reader inner_writer)
-      ~finally:(fun () ->
-        Deferred.all_unit
-          [ Reader.close inner_reader; Writer.close inner_writer; inner_cafd ])
-  in
   Tcp.Server.create
     ?buffer_age_limit
     ?max_connections
@@ -99,7 +100,7 @@ let listen
     ?socket
     ~on_handler_error
     where_to_listen
-    tls_handler
+    (tls_handler ~config ~handle_client)
 ;;
 
 let connect
