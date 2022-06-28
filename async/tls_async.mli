@@ -9,19 +9,25 @@ module Session = Session
     certificates, such as loading from a Unix filesystem *)
 module X509_async = X509_async
 
-type 'address handle_client =
-('address -> Session.t -> Reader.t -> Writer.t -> unit Deferred.t)
+type 'address handle_client = ('address -> Session.t -> Reader.t -> Writer.t -> unit Deferred.t)
 
-(** [tls_handler] is what listen calls to handle each client. It is exposed
-    so that end-users of the library can use tls-async inside of tcp server
-    frameworks. *)
+(** [tls_handler] is what [listen] calls to handle each client. It is exposed
+    so that low-level end-users of the library can use tls-async inside of
+    code that manages Tcp services directly.
+
+    The [handle_client] argument will be called with the client address,
+    Tls session, and reader and writer to be used for cleartext data.
+
+    The outer [socket] is the socket for the connected client. The [reader]
+    and [writer] will read encrypted data from and write encrypted data to
+    the connected socket. *)
 val tls_handler
   :  config:Tls.Config.server
   -> handle_client:'address handle_client
   -> ([ `Active ], ([< Socket.Address.t ] as 'address)) Socket.t
   -> Reader.t
   -> Writer.t
-  -> unit
+  -> unit Deferred.t
 
 (** [listen] creates a [Tcp.Server.t] with the requested parameters, including those
     specified in [Tls.Config.server]. The handler function exposes the low-level

@@ -65,6 +65,8 @@ let upgrade_client_reader_writer_to_tls ?host config rw =
   upgrade_connection tls_session rw |> Deferred.ok
 ;;
 
+type 'address handle_client = ('address -> Session.t -> Reader.t -> Writer.t -> unit Deferred.t)
+
 let tls_handler ~config ~handle_client sock outer_reader outer_writer =
   let%bind ( tls_session
            , inner_reader
