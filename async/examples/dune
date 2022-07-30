@@ -1,11 +1,20 @@
 (executable
-  (name    test_client)
-  (modules test_client)
-  (preprocess (pps ppx_jane))
-  (libraries async core core_unix.command_unix tls-async))
+ (name test_client)
+ (modules test_client)
+ (preprocess
+  (pps ppx_jane))
+ (libraries async core core_unix.command_unix tls-async))
 
 (executable
-  (name    test_server)
-  (modules test_server)
-  (preprocess (pps ppx_jane))
-  (libraries async core core_unix.command_unix tls-async))
+ (name test_server)
+ (modules test_server)
+ (preprocess
+  (pps ppx_jane))
+ (libraries async core core_unix.command_unix tls-async))
+
+(executable
+ (name test_server_low_level)
+ (modules test_server_low_level)
+ (preprocess
+  (pps ppx_jane))
+ (libraries async core core_unix.command_unix tls-async))
