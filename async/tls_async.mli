@@ -23,8 +23,8 @@ type 'address handle_client = ('address -> Session.t -> Reader.t -> Writer.t -> 
     the connected socket. *)
 val tls_handler
   :  config:Tls.Config.server
-  -> handle_client:'address handle_client
-  -> ([ `Active ], ([< Socket.Address.t ] as 'address)) Socket.t
+  -> handle_client:Socket.Address.Inet.t handle_client
+  -> Socket.Address.Inet.t
   -> Reader.t
   -> Writer.t
   -> unit Deferred.t

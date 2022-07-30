@@ -24,7 +24,9 @@ let serve_tls port handle_client =
  Tcp.Server.create
      ~on_handler_error
      where_to_listen
-    (Tls_async.tls_handler ~config ~handle_client)
+    (fun sa r w ->
+      printf !"connection establised from %{Socket.Address.Inet} starting TLS\n" sa;
+      Tls_async.tls_handler ~config ~handle_client sa r w)
 ;;
 
 let test_server port =
