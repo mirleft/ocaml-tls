@@ -65,9 +65,10 @@ let upgrade_client_reader_writer_to_tls ?host config rw =
   upgrade_connection tls_session rw |> Deferred.ok
 ;;
 
-type 'address handle_client = ('address -> Session.t -> Reader.t -> Writer.t -> unit Deferred.t)
+type 'a io_handler = Reader.t -> Writer.t -> 'a Deferred.t
+type 'a tls_handler = Session.t -> 'a io_handler
 
-let tls_handler ~config ~handle_client sock outer_reader outer_writer =
+let upgrade_server_handler ~config handle_client outer_reader outer_writer =
   let%bind ( tls_session
            , inner_reader
            , inner_writer
@@ -77,7 +78,7 @@ let tls_handler ~config ~handle_client sock outer_reader outer_writer =
      |> Deferred.Or_error.ok_exn
   in
   Monitor.protect
-    (fun () -> handle_client sock tls_session inner_reader inner_writer)
+    (fun () -> handle_client tls_session inner_reader inner_writer)
     ~finally:(fun () ->
       Deferred.all_unit
         [ Reader.close inner_reader; Writer.close inner_writer; inner_cafd ])
@@ -102,7 +103,8 @@ let listen
     ?socket
     ~on_handler_error
     where_to_listen
-    (tls_handler ~config ~handle_client)
+    (fun sock ->
+      upgrade_server_handler ~config (handle_client sock))
 ;;
 
 let connect

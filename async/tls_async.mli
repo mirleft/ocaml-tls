@@ -9,25 +9,22 @@ module Session = Session
     certificates, such as loading from a Unix filesystem *)
 module X509_async = X509_async
 
-type 'address handle_client = ('address -> Session.t -> Reader.t -> Writer.t -> unit Deferred.t)
+(** [upgrade_server_handler] is what [listen] calls to handle each client.
+    It is exposed so that low-level end-users of the library can use tls-async
+    inside of code that manages Tcp services directly.
 
-(** [tls_handler] is what [listen] calls to handle each client. It is exposed
-    so that low-level end-users of the library can use tls-async inside of
-    code that manages Tcp services directly.
+    The [tls_handler] argument will be called with the client Tls session,
+    reader and writer to be used for cleartext data.
 
-    The [handle_client] argument will be called with the client address,
-    Tls session, and reader and writer to be used for cleartext data.
+    The outer [reader] and [writer] will read encrypted data from and write
+    encrypted data to the connected socket. *)
+type 'a io_handler = Reader.t -> Writer.t -> 'a Deferred.t
+type 'a tls_handler = Session.t -> 'a io_handler
 
-    The outer [socket] is the socket for the connected client. The [reader]
-    and [writer] will read encrypted data from and write encrypted data to
-    the connected socket. *)
-val tls_handler
-  :  config:Tls.Config.server
-  -> handle_client:Socket.Address.Inet.t handle_client
-  -> Socket.Address.Inet.t
-  -> Reader.t
-  -> Writer.t
-  -> unit Deferred.t
+val upgrade_server_handler
+  : config:Tls.Config.server
+  -> 'a tls_handler
+  -> 'a io_handler
 
 (** [listen] creates a [Tcp.Server.t] with the requested parameters, including those
     specified in [Tls.Config.server]. The handler function exposes the low-level
@@ -41,7 +38,7 @@ val listen
   -> on_handler_error:[ `Call of 'address -> exn -> unit | `Ignore | `Raise ]
   -> Tls.Config.server
   -> ('address, 'listening_on) Tcp.Where_to_listen.t
-  -> 'address handle_client
+  -> ('address -> Session.t -> Reader.t -> Writer.t -> unit Deferred.t)
   -> ('address, 'listening_on) Tcp.Server.t Deferred.t
 
 (** [connect] behaves similarly to [Tcp.connect], exposing a cleartext reader and writer.
