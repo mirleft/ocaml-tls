@@ -9,9 +9,6 @@ module Session = Session
     certificates, such as loading from a Unix filesystem *)
 module X509_async = X509_async
 
-type 'a io_handler = Reader.t -> Writer.t -> 'a Deferred.t
-type 'a tls_handler = Session.t -> 'a io_handler
-
 (** [listen] creates a [Tcp.Server.t] with the requested parameters, including those
     specified in [Tls.Config.server]. The handler function exposes the low-level
     [Session.t] to accommodate cases like interrogating a client certificate *)
@@ -26,6 +23,9 @@ val listen
   -> ('address, 'listening_on) Tcp.Where_to_listen.t
   -> ('address -> Session.t -> Reader.t -> Writer.t -> unit Deferred.t)
   -> ('address, 'listening_on) Tcp.Server.t Deferred.t
+
+type 'a io_handler = Reader.t -> Writer.t -> 'a Deferred.t
+type 'a tls_handler = Session.t -> 'a io_handler
 
 (** [upgrade_server_handler] is what [listen] calls to handle each client.
     It is exposed so that low-level end-users of the library can use tls-async
