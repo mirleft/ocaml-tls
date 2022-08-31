@@ -55,9 +55,9 @@ let server_key  = "server.key"
 let server_ec_cert = "server-ec.pem"
 let server_ec_key  = "server-ec.key"
 
-let serve_ssl port callback =
+let serve_ssl server_s callback =
+  Switch.run @@ fun sw ->
   Lwt_eio.run_lwt @@ fun () ->
-
   X509_eio.private_of_pems
     ~cert:server_cert
     ~priv_key:server_key >>= fun certificate ->
@@ -68,17 +68,10 @@ let serve_ssl port callback =
   let config =
     Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates ~ciphers:Ciphers.supported ()) in
 
-  let server_s =
-    let open Lwt_unix in
-    let s = socket PF_INET SOCK_STREAM 0 in
-    setsockopt s Unix.SO_REUSEADDR true ;
-    bind s (ADDR_INET (Unix.inet_addr_any, port)) >|= fun () ->
-    listen s 10 ;
-    s in
-
-  traceln "server -> start @@ %d" port;
-  server_s >>= fun s ->
-  Tls_eio.accept_ext config s >>= fun (channels, addr) ->
+  let client, addr = Eio.Net.accept ~sw server_s in
+  let s = Lwt_unix.of_unix_file_descr (Eio_unix.FD.take_opt client |> Option.get) in
+  Tls_eio.Unix.server_of_fd config s >>= fun s ->
+  let channels = Tls_eio.of_t ~close:Lwt.return s in
   traceln "server -> connect";
   callback channels addr >>= fun () ->
   traceln "server <- handler done";
@@ -91,20 +84,23 @@ let serve_ssl port callback =
 # Eio_main.run @@ fun env ->
   Mirage_crypto_rng_eio.run (module Mirage_crypto_rng.Fortuna) env @@ fun () ->
   Lwt_eio.with_event_loop ~clock:env#clock @@ fun () ->
+  Switch.run @@ fun sw ->
+  let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 4433) in
+  let listening_socket = Eio.Net.listen ~sw env#net ~backlog:5 ~reuse_addr:true addr in
   Fiber.both
     (fun () ->
-       serve_ssl 4433 @@ fun (ic, oc) _addr ->
+       traceln "server -> start @@ %a" Eio.Net.Sockaddr.pp addr;
+       serve_ssl listening_socket @@ fun (ic, oc) _addr ->
        traceln "handler accepted";
        Lwt_io.read_line ic >>= fun line ->
        traceln "handler + %s" line;
        Lwt_io.write_line oc line
     )
     (fun () ->
-       Eio_unix.sleep 0.1;
        test_client ()
     )
   ;;
-+server -> start @ 4433
++server -> start @ tcp:127.0.0.1:4433
 +server -> connect
 +handler accepted
 +handler + GET / HTTP/1.1
