@@ -32,7 +32,7 @@ let test_client () =
   let host = "127.0.0.1" in
   let authenticator = null_auth in
   let ic, oc = Lwt_eio.run_lwt @@ fun () ->
-    Tls_lwt.connect_ext
+    Tls_eio.connect_ext
       Tls.Config.(client ~version:(`TLS_1_0, `TLS_1_3) ?cached_ticket:!mypsk ~ticket_cache ~authenticator ~ciphers:Ciphers.supported ())
       (host, port)
   in
@@ -57,10 +57,10 @@ let server_ec_key  = "server-ec.key"
 let serve_ssl port callback =
   Lwt_eio.run_lwt @@ fun () ->
 
-  X509_lwt.private_of_pems
+  X509_eio.private_of_pems
     ~cert:server_cert
     ~priv_key:server_key >>= fun certificate ->
-  X509_lwt.private_of_pems
+  X509_eio.private_of_pems
     ~cert:server_ec_cert
     ~priv_key:server_ec_key >>= fun ec_certificate ->
   let certificates = `Multiple [ certificate ; ec_certificate ] in
@@ -77,7 +77,7 @@ let serve_ssl port callback =
 
   traceln "server -> start @@ %d" port;
   server_s >>= fun s ->
-  Tls_lwt.accept_ext config s >>= fun (channels, addr) ->
+  Tls_eio.accept_ext config s >>= fun (channels, addr) ->
   traceln "server -> connect";
   callback channels addr >>= fun () ->
   traceln "server <- handler done";

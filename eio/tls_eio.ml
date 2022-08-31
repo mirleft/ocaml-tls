@@ -23,8 +23,8 @@ module Lwt_cs = struct
     | None     -> return res
     | Some err -> fail @@ Unix.Unix_error (err, name, "")
 
-  let write = naked ~name:"Tls_lwt.write" Lwt_bytes.write
-  and read  = naked ~name:"Tls_lwt.read"  Lwt_bytes.read
+  let write = naked ~name:"Tls_eio.write" Lwt_bytes.write
+  and read  = naked ~name:"Tls_eio.read"  Lwt_bytes.read
 
   let rec write_full fd = function
     | cs when Cstruct.length cs = 0 -> return_unit
