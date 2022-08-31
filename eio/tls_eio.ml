@@ -3,7 +3,7 @@ module Flow = Eio.Flow
 exception Tls_alert   of Tls.Packet.alert_type
 exception Tls_failure of Tls.Engine.failure
 
-module Unix = struct
+module Raw = struct
 
   type t = {
     flow           : Flow.two_way ;
@@ -202,24 +202,24 @@ end
 
 type t = <
   Eio.Flow.two_way;
-  t : Unix.t;
+  t : Raw.t;
 >
 
 let of_t t =
   object
     inherit Eio.Flow.two_way
-    method read_into = Unix.read t
-    method copy = Unix.copy_from t
-    method shutdown = Unix.shutdown t
+    method read_into = Raw.read t
+    method copy = Raw.copy_from t
+    method shutdown = Raw.shutdown t
     method t = t
   end
 
-let server_of_flow config       flow = Unix.server_of_flow config       flow |> of_t
-let client_of_flow config ?host flow = Unix.client_of_flow config ?host flow |> of_t
+let server_of_flow config       flow = Raw.server_of_flow config       flow |> of_t
+let client_of_flow config ?host flow = Raw.client_of_flow config ?host flow |> of_t
 
-let reneg ?authenticator ?acceptable_cas ?cert ?drop (t:t) = Unix.reneg ?authenticator ?acceptable_cas ?cert ?drop t#t
-let key_update ?request (t:t) = Unix.key_update ?request t#t
-let epoch (t:t) = Unix.epoch t#t
+let reneg ?authenticator ?acceptable_cas ?cert ?drop (t:t) = Raw.reneg ?authenticator ?acceptable_cas ?cert ?drop t#t
+let key_update ?request (t:t) = Raw.key_update ?request t#t
+let epoch (t:t) = Raw.epoch t#t
 
 let () =
   Printexc.register_printer (function
