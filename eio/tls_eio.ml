@@ -32,6 +32,10 @@ module Raw = struct
        | `Active _ -> t.state <- `Error exn) ;
       raise exn
 
+  let try_write_t t cs =
+    try write_t t cs
+    with _ -> Eio.Fiber.check ()      (* Error is in [t.state] *)
+
   let rec read_react t =
 
     let handle tls buf =
@@ -43,10 +47,7 @@ module Raw = struct
             | `Alert a -> `Error (Tls_alert a)
           in
           t.state <- state' ;
-          resp |> Option.iter (fun resp ->
-              try write_t t resp
-              with _ -> Eio.Fiber.check ()      (* Error is in [t.state] *)
-            );
+          Option.iter (try_write_t t) resp;
           `Ok data
 
       | Error (alert, `Response resp) ->
