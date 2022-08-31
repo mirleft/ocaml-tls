@@ -265,9 +265,6 @@ and connect authenticator addr =
   let config = Tls.Config.client ~authenticator ()
   in connect_ext config addr
 
-(* Boot the entropy loop at module init time. *)
-let () = Mirage_crypto_rng_lwt.initialize ()
-
 let () =
   Printexc.register_printer (function
       | Tls_alert typ ->

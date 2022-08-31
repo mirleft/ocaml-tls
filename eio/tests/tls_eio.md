@@ -2,6 +2,7 @@
 # #require "eio_main";;
 # #require "lwt_eio";;
 # #require "tls-eio";;
+# #require "mirage-crypto-rng-eio";;
 ```
 
 ```ocaml
@@ -84,8 +85,11 @@ let serve_ssl port callback =
   Lwt.return_unit
 ```
 
+## Test case
+
 ```ocaml
 # Eio_main.run @@ fun env ->
+  Mirage_crypto_rng_eio.run (module Mirage_crypto_rng.Fortuna) env @@ fun () ->
   Lwt_eio.with_event_loop ~clock:env#clock @@ fun () ->
   Fiber.both
     (fun () ->
