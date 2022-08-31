@@ -90,12 +90,12 @@ module Raw = struct
   let writev t css =
     match t.state with
     | `Error err  -> raise err
-    | `Eof        -> raise @@ Invalid_argument "tls: closed socket"
+    | `Eof        -> invalid_arg "tls: closed socket"
     | `Active tls ->
         match Tls.Engine.send_application_data tls css with
         | Some (tls, tlsdata) ->
             ( t.state <- `Active tls ; write_t t tlsdata )
-        | None -> raise @@ Invalid_argument "tls: write: socket not ready"
+        | None -> invalid_arg "tls: write: socket not ready"
 
   let write t cs = writev t [cs]
 
@@ -123,10 +123,10 @@ module Raw = struct
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
     match t.state with
     | `Error err  -> raise err
-    | `Eof        -> raise @@ Invalid_argument "tls: closed socket"
+    | `Eof        -> invalid_arg "tls: closed socket"
     | `Active tls ->
         match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
-        | None -> raise @@ Invalid_argument "tls: can't renegotiate"
+        | None -> invalid_arg "tls: can't renegotiate"
         | Some (tls', buf) ->
            if drop then t.linger <- None ;
            t.state <- `Active tls' ;
@@ -136,10 +136,10 @@ module Raw = struct
   let key_update ?request t =
     match t.state with
     | `Error err  -> raise err
-    | `Eof        -> raise @@ Invalid_argument "tls: closed socket"
+    | `Eof        -> invalid_arg "tls: closed socket"
     | `Active tls ->
       match Tls.Engine.key_update ?request tls with
-      | Error _ -> raise @@ Invalid_argument "tls: can't update key"
+      | Error _ -> invalid_arg "tls: can't update key"
       | Ok (tls', buf) ->
         t.state <- `Active tls' ;
         write_t t buf
