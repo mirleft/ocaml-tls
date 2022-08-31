@@ -90,7 +90,7 @@ module Raw = struct
   let writev t css =
     match t.state with
     | `Error err  -> raise err
-    | `Eof        -> invalid_arg "tls: closed socket"
+    | `Eof        -> raise End_of_file
     | `Active tls ->
         match Tls.Engine.send_application_data tls css with
         | Some (tls, tlsdata) ->
@@ -123,7 +123,7 @@ module Raw = struct
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
     match t.state with
     | `Error err  -> raise err
-    | `Eof        -> invalid_arg "tls: closed socket"
+    | `Eof        -> raise End_of_file
     | `Active tls ->
         match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
         | None -> invalid_arg "tls: can't renegotiate"
@@ -136,7 +136,7 @@ module Raw = struct
   let key_update ?request t =
     match t.state with
     | `Error err  -> raise err
-    | `Eof        -> invalid_arg "tls: closed socket"
+    | `Eof        -> raise End_of_file
     | `Active tls ->
       match Tls.Engine.key_update ?request tls with
       | Error _ -> invalid_arg "tls: can't update key"
