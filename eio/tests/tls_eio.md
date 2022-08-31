@@ -1,12 +1,10 @@
 ```ocaml
 # #require "eio_main";;
-# #require "lwt_eio";;
 # #require "tls-eio";;
 # #require "mirage-crypto-rng-eio";;
 ```
 
 ```ocaml
-open Lwt.Infix
 open Eio.Std
 
 module Flow = Eio.Flow
@@ -59,24 +57,23 @@ let test_client ~net (host, service) =
 ## Test server
 
 ```ocaml
-let server_cert = "server.pem"
-let server_key  = "server.key"
-let server_ec_cert = "server-ec.pem"
-let server_ec_key  = "server-ec.key"
-
-let serve_ssl server_s callback =
-  Switch.run @@ fun sw ->
-  let config =
-    Lwt_eio.run_lwt @@ fun () ->
+let server_config dir =
+  let ( / ) = Eio.Path.( / ) in
+  let certificate =
     X509_eio.private_of_pems
-      ~cert:server_cert
-      ~priv_key:server_key >>= fun certificate ->
-    X509_eio.private_of_pems
-      ~cert:server_ec_cert
-      ~priv_key:server_ec_key >>= fun ec_certificate ->
-    let certificates = `Multiple [ certificate ; ec_certificate ] in
-    Lwt.return @@ Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates ~ciphers:Ciphers.supported ())
+      ~cert:(dir / "server.pem")
+      ~priv_key:(dir / "server.key")
   in
+  let ec_certificate =
+    X509_eio.private_of_pems
+      ~cert:(dir / "server-ec.pem")
+      ~priv_key:(dir / "server-ec.key")
+  in
+  let certificates = `Multiple [ certificate ; ec_certificate ] in
+  Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates ~ciphers:Ciphers.supported ())
+
+let serve_ssl ~config server_s callback =
+  Switch.run @@ fun sw ->
   let client, addr = Eio.Net.accept ~sw server_s in
   let flow = Tls_eio.server_of_flow config client in
   traceln "server -> connect";
@@ -88,8 +85,8 @@ let serve_ssl server_s callback =
 ```ocaml
 # Eio_main.run @@ fun env ->
   let net = env#net in
+  let certificates_dir = env#cwd in
   Mirage_crypto_rng_eio.run (module Mirage_crypto_rng.Fortuna) env @@ fun () ->
-  Lwt_eio.with_event_loop ~clock:env#clock @@ fun () ->
   Switch.run @@ fun sw ->
   let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 4433) in
   let listening_socket = Eio.Net.listen ~sw net ~backlog:5 ~reuse_addr:true addr in
@@ -97,7 +94,8 @@ let serve_ssl server_s callback =
   Fiber.both
     (fun () ->
        traceln "server -> start @@ %a" Eio.Net.Sockaddr.pp addr;
-       serve_ssl listening_socket @@ fun flow _addr ->
+       let config = server_config certificates_dir in
+       serve_ssl ~config listening_socket @@ fun flow _addr ->
        traceln "handler accepted";
        let r = Eio.Buf_read.of_flow flow ~max_size:max_int in
        let line = Eio.Buf_read.line r in

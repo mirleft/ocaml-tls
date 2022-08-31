@@ -10,5 +10,4 @@
     server-ec.pem
     server-ec.key
     (package tls-eio)
-    (package eio_main)
-    (package lwt)))
+    (package eio_main)))
