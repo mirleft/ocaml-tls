@@ -66,6 +66,7 @@ let crls_of_pem_dir path =
   Path.read_dir path
   |> Fiber.map (fun file -> crl_of_pem (path </> file))
 
+(* Would be better to take an Eio.Time.clock here, but that API is likely to change soon. *)
 let authenticator ?allowed_hashes ?crls param =
   let time () = Some (Ptime_clock.now ()) in
   let of_cas cas =

@@ -1,13 +1,56 @@
 ```ocaml
 # #require "eio_main";;
 # #require "tls-eio";;
-# #require "mirage-crypto-rng-eio";;
 ```
 
 ```ocaml
 open Eio.Std
 
 module Flow = Eio.Flow
+```
+
+## Mock RNG
+
+It's convenient to use a deterministic RNG when testing, to ensure the tests always give the same result.
+Also, it avoids a dependency on mirage-crypto-rng-eio, which isn't released yet.
+Obviously, you must not use this in a real application.
+
+```ocaml
+(* Override the normal RNG with a mock one for testing.
+   This has the same API as the real [Mirage_crypto_rng_eio] so if people copy the
+   test cases below then they should work right away. *)
+module Mirage_crypto_rng_eio = struct
+  module Insecure_test_rng = struct
+    type g = int ref
+
+    let block = 1
+
+    let create ?time:_ () = ref 1234
+
+    let generate ~g n =
+      let cs = Cstruct.create n in
+      for i = 0 to n - 1 do
+        Cstruct.set_uint8 cs i !g;
+        g := !g + 1
+      done;
+      cs
+
+    let reseed ~g:_ _ = ()
+
+    let accumulate ~g:_ _ = `Acc ignore
+
+    let seeded ~g:_ = true
+
+    let pools = 0
+  end
+
+  let run (module _ : Mirage_crypto_rng.Generator) env fn =
+    traceln "Installing non-secure RNG - for testing only!!";
+    let insecure_test_rng = Mirage_crypto_rng.create (module Insecure_test_rng) in
+    Mirage_crypto_rng.set_default_generator insecure_test_rng;
+    fn ()
+end
+
 ```
 
 ## Test client
@@ -106,6 +149,7 @@ let serve_ssl ~config server_s callback =
        test_client ~net ("127.0.0.1", "4433")
     )
   ;;
++Installing non-secure RNG - for testing only!!
 +server -> start @ tcp:127.0.0.1:4433
 +server -> connect
 +handler accepted
