@@ -1,2 +1,5 @@
-(lang dune 1.0)
+(lang dune 3.0)
 (name tls)
+(formatting disabled)
+(using mdx 0.2)
+(homepage https://github.com/mirleft/ocaml-tls)
