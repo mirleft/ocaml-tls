@@ -5,6 +5,8 @@ exception Tls_failure of Tls.Engine.failure
 
 module Raw = struct
 
+  (* We could replace [`Eof] with [`Error End_of_file] and then use
+     a regular [result] type here. *)
   type t = {
     flow           : Flow.two_way ;
     mutable state  : [ `Active of Tls.Engine.state
@@ -17,7 +19,9 @@ module Raw = struct
   let read_t t cs =
     try Flow.read t.flow cs
     with
-    | End_of_file -> 0
+    | End_of_file as ex ->
+      t.state <- `Eof;
+      raise ex
     | exn ->
       (match t.state with
        | `Error _ | `Eof -> ()
@@ -43,12 +47,12 @@ module Raw = struct
       | Ok (state', `Response resp, `Data data) ->
           let state' = match state' with
             | `Ok tls  -> `Active tls
-            | `Eof     -> `Eof
+            | `Eof     -> raise End_of_file
             | `Alert a -> `Error (Tls_alert a)
           in
           t.state <- state' ;
           Option.iter (try_write_t t) resp;
-          `Ok data
+          data
 
       | Error (alert, `Response resp) ->
           t.state <- `Error (Tls_failure alert) ;
@@ -57,14 +61,13 @@ module Raw = struct
 
     match t.state with
     | `Error e  -> raise e
-    | `Eof      -> `Eof
+    | `Eof      -> raise End_of_file
     | `Active _ ->
         let n = read_t t t.recv_buf in
         match (t.state, n) with
-        | (`Active _  , 0) -> t.state <- `Eof ; `Eof
         | (`Active tls, n) -> handle tls (Cstruct.sub t.recv_buf 0 n)
         | (`Error e, _)    -> raise e
-        | (`Eof, _)        -> `Eof
+        | (`Eof, _)        -> raise End_of_file
 
   let rec read t buf =
 
@@ -81,9 +84,8 @@ module Raw = struct
     | Some res -> writeout res
     | None     ->
         match read_react t with
-          | `Eof           -> raise End_of_file
-          | `Ok None       -> read t buf
-          | `Ok (Some res) -> writeout res
+          | None     -> read t buf
+          | Some res -> writeout res
 
   let writev t css =
     match t.state with
@@ -115,9 +117,8 @@ module Raw = struct
     | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
         t
     | _ ->
-        match read_react t with
-        | `Eof     -> raise End_of_file
-        | `Ok cs   -> push_linger t cs; drain_handshake t
+        let cs = read_react t in
+        push_linger t cs; drain_handshake t
 
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
     match t.state with
@@ -147,7 +148,7 @@ module Raw = struct
     match t.state with
     | `Active tls ->
         let (_, buf) = Tls.Engine.send_close_notify tls in
-        t.state <- `Eof ;
+        t.state <- `Eof ;       (* XXX: this looks wrong - we're only trying to close the sending side *)
         write_t t buf
     | _ -> ()
 
