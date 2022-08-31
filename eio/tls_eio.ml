@@ -1,40 +1,12 @@
-open Lwt
+module Flow = Eio.Flow
 
 exception Tls_alert   of Tls.Packet.alert_type
 exception Tls_failure of Tls.Engine.failure
 
-let o f g x = f (g x)
-
-(* This really belongs just about anywhere else: generic unix name resolution. *)
-let resolve host service =
-  let open Lwt_unix in
-  getprotobyname "tcp" >>= fun tcp ->
-  getaddrinfo host service [AI_PROTOCOL tcp.p_proto] >>= function
-  | []    ->
-      let msg = Printf.sprintf "no address for %s:%s" host service in
-      fail (Invalid_argument msg)
-  | ai::_ -> return ai.ai_addr
-
-module Lwt_cs = struct
-
-  let naked ~name f fd cs =
-    Cstruct.(f fd cs.buffer cs.off cs.len) >>= fun res ->
-    match Lwt_unix.getsockopt_error fd with
-    | None     -> return res
-    | Some err -> fail @@ Unix.Unix_error (err, name, "")
-
-  let write = naked ~name:"Tls_eio.write" Lwt_bytes.write
-  and read  = naked ~name:"Tls_eio.read"  Lwt_bytes.read
-
-  let rec write_full fd = function
-    | cs when Cstruct.length cs = 0 -> return_unit
-    | cs -> write fd cs >>= o (write_full fd) (Cstruct.shift cs)
-end
-
 module Unix = struct
 
   type t = {
-    fd             : Lwt_unix.file_descr ;
+    flow           : Flow.two_way ;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
                      | `Error of exn ] ;
@@ -42,21 +14,23 @@ module Unix = struct
     recv_buf       : Cstruct.t ;
   }
 
-  let safely th =
-    Lwt.catch (fun () -> th >>= fun _ -> return_unit) (fun _ -> return_unit)
+  let read_t t cs =
+    try Flow.read t.flow cs
+    with
+    | End_of_file -> 0
+    | exn ->
+      (match t.state with
+       | `Error _ | `Eof -> ()
+       | `Active _ -> t.state <- `Error exn) ;
+      raise exn
 
-  let (read_t, write_t) =
-    let recording_errors op t cs =
-      Lwt.catch
-        (fun () -> op t.fd cs)
-        (fun exn -> (match t.state with
-             | `Error _ | `Eof -> ()
-             | `Active _ -> t.state <- `Error exn) ;
-           fail exn)
-    in
-    (recording_errors Lwt_cs.read, recording_errors Lwt_cs.write_full)
-
-  let when_some f = function None -> return_unit | Some x -> f x
+  let write_t t cs =
+    try Flow.copy (Flow.cstruct_source [cs]) t.flow
+    with exn ->
+      (match t.state with
+       | `Error _ | `Eof -> ()
+       | `Active _ -> t.state <- `Error exn) ;
+      raise exn
 
   let rec read_react t =
 
@@ -69,24 +43,27 @@ module Unix = struct
             | `Alert a -> `Error (Tls_alert a)
           in
           t.state <- state' ;
-          safely (resp |> when_some (write_t t)) >|= fun () ->
+          resp |> Option.iter (fun resp ->
+              try write_t t resp
+              with _ -> Eio.Fiber.check ()      (* Error is in [t.state] *)
+            );
           `Ok data
 
       | Error (alert, `Response resp) ->
           t.state <- `Error (Tls_failure alert) ;
-          write_t t resp >>= fun () -> read_react t
+          write_t t resp; read_react t
     in
 
     match t.state with
-    | `Error e  -> fail e
-    | `Eof      -> return `Eof
+    | `Error e  -> raise e
+    | `Eof      -> `Eof
     | `Active _ ->
-        read_t t t.recv_buf >>= fun n ->
+        let n = read_t t t.recv_buf in
         match (t.state, n) with
-        | (`Active _  , 0) -> t.state <- `Eof ; return `Eof
+        | (`Active _  , 0) -> t.state <- `Eof ; `Eof
         | (`Active tls, n) -> handle tls (Cstruct.sub t.recv_buf 0 n)
-        | (`Error e, _)    -> fail e
-        | (`Eof, _)        -> return `Eof
+        | (`Error e, _)    -> raise e
+        | (`Eof, _)        -> `Eof
 
   let rec read t buf =
 
@@ -97,25 +74,25 @@ module Unix = struct
       blit res 0 buf 0 n ;
       t.linger <-
         (if n < rlen then Some (sub res n (rlen - n)) else None) ;
-      return n in
+      n in
 
     match t.linger with
     | Some res -> writeout res
     | None     ->
-        read_react t >>= function
-          | `Eof           -> return 0
+        match read_react t with
+          | `Eof           -> raise End_of_file
           | `Ok None       -> read t buf
           | `Ok (Some res) -> writeout res
 
   let writev t css =
     match t.state with
-    | `Error err  -> fail err
-    | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
+    | `Error err  -> raise err
+    | `Eof        -> raise @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
         match Tls.Engine.send_application_data tls css with
         | Some (tls, tlsdata) ->
             ( t.state <- `Active tls ; write_t t tlsdata )
-        | None -> fail @@ Invalid_argument "tls: write: socket not ready"
+        | None -> raise @@ Invalid_argument "tls: write: socket not ready"
 
   let write t cs = writev t [cs]
 
@@ -135,33 +112,32 @@ module Unix = struct
     in
     match t.state with
     | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
-        return t
+        t
     | _ ->
-        read_react t >>= function
-          | `Eof     -> fail End_of_file
-          | `Ok cs   -> push_linger t cs ; drain_handshake t
+        match read_react t with
+        | `Eof     -> raise End_of_file
+        | `Ok cs   -> push_linger t cs; drain_handshake t
 
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
     match t.state with
-    | `Error err  -> fail err
-    | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
+    | `Error err  -> raise err
+    | `Eof        -> raise @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
         match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
-        | None -> fail @@ Invalid_argument "tls: can't renegotiate"
+        | None -> raise @@ Invalid_argument "tls: can't renegotiate"
         | Some (tls', buf) ->
            if drop then t.linger <- None ;
            t.state <- `Active tls' ;
-           write_t t buf >>= fun () ->
-           drain_handshake t >>= fun _ ->
-           return_unit
+           write_t t buf;
+           ignore (drain_handshake t : t)
 
   let key_update ?request t =
     match t.state with
-    | `Error err  -> fail err
-    | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
+    | `Error err  -> raise err
+    | `Eof        -> raise @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
       match Tls.Engine.key_update ?request tls with
-      | Error _ -> fail @@ Invalid_argument "tls: can't update key"
+      | Error _ -> raise @@ Invalid_argument "tls: can't update key"
       | Ok (tls', buf) ->
         t.state <- `Active tls' ;
         write_t t buf
@@ -172,58 +148,39 @@ module Unix = struct
         let (_, buf) = Tls.Engine.send_close_notify tls in
         t.state <- `Eof ;
         write_t t buf
-    | _ -> return_unit
+    | _ -> ()
 
-  let close t =
-    safely (close_tls t) >>= fun () -> Lwt_unix.close t.fd
+  (* Not sure if we need to keep both directions open on the underlying flow when closing
+     one direction at the TLS level. *)
+  let shutdown t = function
+    | `Send -> close_tls t
+    | `All -> close_tls t; Flow.shutdown t.flow `All
+    | `Receive -> ()  (* Not obvious how to do this with TLS, so ignore for now. *)
 
-  let server_of_fd config fd =
+  let server_of_flow config flow =
     drain_handshake {
       state    = `Active (Tls.Engine.server config) ;
-      fd       = fd ;
+      flow     = (flow :> Flow.two_way) ;
       linger   = None ;
       recv_buf = Cstruct.create 4096
     }
 
-  let client_of_fd config ?host fd =
+  let client_of_flow config ?host flow =
     let config' = match host with
       | None -> config
       | Some host -> Tls.Config.peer config host
     in
     let t = {
       state    = `Eof ;
-      fd       = fd ;
+      flow     = (flow :> Flow.two_way);
       linger   = None ;
       recv_buf = Cstruct.create 4096
     } in
     let (tls, init) = Tls.Engine.client config' in
     let t = { t with state  = `Active tls } in
-    write_t t init >>= fun () ->
+    write_t t init;
     drain_handshake t
 
-
-
-  let accept conf fd =
-    Lwt_unix.accept fd >>= fun (fd', addr) ->
-    Lwt.catch (fun () -> server_of_fd conf fd' >|= fun t -> (t, addr))
-      (fun exn -> safely (Lwt_unix.close fd') >>= fun () -> fail exn)
-
-  let connect conf (host, port) =
-    resolve host (string_of_int port) >>= fun addr ->
-    let fd = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
-    Lwt.catch (fun () ->
-      let host =
-        Result.to_option
-          (Result.bind (Domain_name.of_string host) Domain_name.host)
-      in
-      Lwt_unix.connect fd addr >>= fun () -> client_of_fd conf ?host fd)
-      (fun exn -> safely (Lwt_unix.close fd) >>= fun () -> fail exn)
-
-  let read_bytes t bs off len =
-    read t (Cstruct.of_bigarray ~off ~len bs)
-
-  let write_bytes t bs off len =
-    write t (Cstruct.of_bigarray ~off ~len bs)
 
   let epoch t =
     match t.state with
@@ -232,38 +189,37 @@ module Unix = struct
         | `Epoch data   -> Ok data )
     | `Eof      -> Error ()
     | `Error _  -> Error ()
+
+  let copy_from t src =
+    try
+      while true do
+        let buf = Cstruct.create 4096 in
+        let got = Flow.read src buf in
+        write t (Cstruct.sub buf 0 got)
+      done
+    with End_of_file -> ()
 end
 
+type t = <
+  Eio.Flow.two_way;
+  t : Unix.t;
+>
 
-type ic = Lwt_io.input_channel
-type oc = Lwt_io.output_channel
+let of_t t =
+  object
+    inherit Eio.Flow.two_way
+    method read_into = Unix.read t
+    method copy = Unix.copy_from t
+    method shutdown = Unix.shutdown t
+    method t = t
+  end
 
-let of_t ?close t =
-  let close = match close with
-    | Some f -> (fun () -> Unix.safely (f ()))
-    | None   -> (fun () ->
-        (* avoid double-closes by checking if the fd has already been closed *)
-        match Lwt_unix.state t.Unix.fd with
-        | Lwt_unix.Closed -> Lwt.return_unit
-        | Lwt_unix.Opened | Lwt_unix.Aborted _ -> Unix.(safely (close t)))
-  in
-  (Lwt_io.make ~close ~mode:Lwt_io.Input (Unix.read_bytes t)),
-  (Lwt_io.make ~close ~mode:Lwt_io.Output @@
-    fun a b c -> Unix.write_bytes t a b c >>= fun () -> return c)
+let server_of_flow config       flow = Unix.server_of_flow config       flow |> of_t
+let client_of_flow config ?host flow = Unix.client_of_flow config ?host flow |> of_t
 
-let accept_ext conf fd =
-  Unix.accept conf fd >|= fun (t, peer) -> (of_t t, peer)
-
-and connect_ext conf addr =
-  Unix.connect conf addr >|= of_t
-
-let accept certificate =
-  let config = Tls.Config.server ~certificates:certificate ()
-  in accept_ext config
-
-and connect authenticator addr =
-  let config = Tls.Config.client ~authenticator ()
-  in connect_ext config addr
+let reneg ?authenticator ?acceptable_cas ?cert ?drop (t:t) = Unix.reneg ?authenticator ?acceptable_cas ?cert ?drop t#t
+let key_update ?request (t:t) = Unix.key_update ?request t#t
+let epoch (t:t) = Unix.epoch t#t
 
 let () =
   Printexc.register_printer (function

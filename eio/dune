@@ -2,4 +2,4 @@
  (name tls_eio)
  (public_name tls-eio)
  (wrapped false)
- (libraries tls lwt lwt.unix ptime.clock.os))
+ (libraries tls lwt lwt.unix lwt_eio ptime.clock.os))
