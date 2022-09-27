@@ -31,7 +31,7 @@
     functional matter ({!Engine}, this module), and effectful parts:
     {!Tls_lwt} and {!Tls_mirage}.
 
-    {e %%VERSION%% - {{:%%PKG_HOMEPAGE%% }homepage}} *)
+    {e %%VERSION%%} *)
 
 
 (** {1 Abstract state type} *)
