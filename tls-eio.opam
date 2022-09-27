@@ -3,7 +3,7 @@ homepage:     "https://github.com/mirleft/ocaml-tls"
 dev-repo:     "git+https://github.com/mirleft/ocaml-tls.git"
 bug-reports:  "https://github.com/mirleft/ocaml-tls/issues"
 doc:          "https://mirleft.github.io/ocaml-tls/doc"
-author:       ["David Kaloper <david@numm.org>" "Hannes Mehnert <hannes@mehnert.org>"]
+authors:      ["Thomas Leonard"]
 maintainer:   ["Hannes Mehnert <hannes@mehnert.org>" "David Kaloper <david@numm.org>"]
 license:      "BSD-2-Clause"
 
@@ -14,35 +14,18 @@ build: [
 ]
 
 depends: [
-  "ocaml" {>= "4.08.0"}
+  "ocaml" {>= "5.0.0"}
   "dune" {>= "3.0"}
-  "ppx_sexp_conv" {>= "v0.9.0"}
-  "ppx_cstruct" {>= "3.0.0"}
-  "cstruct" {>= "6.0.0"}
-  "cstruct-sexp"
-  "sexplib"
-  "mirage-crypto" {>= "0.8.1"}
-  "mirage-crypto-ec" {>= "0.10.0"}
-  "mirage-crypto-pk"
+  "tls" {= version}
   "mirage-crypto-rng" {>= "0.8.0"}
+  "mirage-crypto-rng-eio" {>= "0.8.0" with-test}
   "x509" {>= "0.15.0"}
-  "domain-name" {>= "0.3.0"}
-  "fmt" {>= "0.8.7"}
-  "cstruct-unix" {with-test & >= "3.0.0"}
-  "ounit2" {with-test & >= "2.2.0"}
-  "lwt" {>= "3.0.0"}
-  "ptime" {>= "0.8.1"}
-  "hkdf"
-  "logs"
-  "ipaddr"
-  "ipaddr-sexp"
-  "alcotest" {with-test}
-  "randomconv" {with-test}
-  "cmdliner" {dev & > "1.1.0"}
+  "eio" {>= "0.5"}
+  "eio_main" {>= "0.5" with-test}
+  "mdx" {with-test}
 ]
-conflicts: [ "result" {< "1.5"} ]
 tags: [ "org:mirage"]
-synopsis: "Transport Layer Security purely in OCaml"
+synopsis: "Transport Layer Security purely in OCaml - Eio"
 description: """
 Transport Layer Security (TLS) is probably the most widely deployed security
 protocol on the Internet. It provides communication privacy to prevent
