@@ -47,7 +47,7 @@ module Raw = struct
       | Ok (state', `Response resp, `Data data) ->
           let state' = match state' with
             | `Ok tls  -> `Active tls
-            | `Eof     -> raise End_of_file
+            | `Eof     -> `Eof
             | `Alert a -> `Error (Tls_alert a)
           in
           t.state <- state' ;
