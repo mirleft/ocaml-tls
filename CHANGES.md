@@ -1,3 +1,8 @@
+## v0.15.5 (2022-10-25)
+
+* tls-eio release only: fix end-of-file handling (#454 @talex5), avoid
+  deprecation warnings (#454 @hannesm)
+
 ## v0.15.4 (2022-09-27)
 
 * New package tls-eio (#451 @talex5)
