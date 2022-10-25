@@ -50,7 +50,7 @@ let certs_of_pem path =
 let certs_of_pem_dir path =
   Path.read_dir path
   |> List.filter (fun file -> extension file = Some "crt")
-  |> Eio.Fiber.map (fun file -> certs_of_pem (path </> file))
+  |> Fiber.List.map (fun file -> certs_of_pem (path </> file))
   |> List.concat
 
 let crl_of_pem path =
@@ -64,7 +64,7 @@ let crl_of_pem path =
 
 let crls_of_pem_dir path =
   Path.read_dir path
-  |> Fiber.map (fun file -> crl_of_pem (path </> file))
+  |> Fiber.List.map (fun file -> crl_of_pem (path </> file))
 
 (* Would be better to take an Eio.Time.clock here, but that API is likely to change soon. *)
 let authenticator ?allowed_hashes ?crls param =
