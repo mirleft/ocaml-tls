@@ -1,5 +1,3 @@
-open Utils
-
 open State
 open Core
 open Handshake_common
@@ -19,23 +17,23 @@ let answer_client_hello ~hrr state ch raw =
   Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version `TLS_1_3 ;
 
   let ciphers =
-    filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite13 ch.ciphersuites
+    List.filter_map Ciphersuite.any_ciphersuite_to_ciphersuite13 ch.ciphersuites
   in
 
   let* groups =
     let* gs =
       Option.to_result
         ~none:(`Fatal (`InvalidClientHello `NoSupportedGroupExtension))
-        (map_find ~f:(function `SupportedGroups gs -> Some gs | _ -> None) ch.extensions)
+        (Utils.map_find ~f:(function `SupportedGroups gs -> Some gs | _ -> None) ch.extensions)
     in
-    Ok (filter_map ~f:Core.named_group_to_group gs)
+    Ok (List.filter_map Core.named_group_to_group gs)
   in
 
   let* keyshares =
     let* ks =
       Option.to_result
         ~none:(`Fatal (`InvalidClientHello `NoKeyShareExtension))
-        (map_find ~f:(function `KeyShare ks -> Some ks | _ -> None) ch.extensions)
+        (Utils.map_find ~f:(function `KeyShare ks -> Some ks | _ -> None) ch.extensions)
     in
     List.fold_left (fun acc (g, ks) ->
         let* acc = acc in
@@ -71,8 +69,8 @@ let answer_client_hello ~hrr state ch raw =
   let keyshare_groups = List.map fst keyshares in
   let config = state.config in
   match
-    first_match keyshare_groups config.Config.groups,
-    first_match ciphers (Config.ciphers13 config)
+    Utils.first_match keyshare_groups config.Config.groups,
+    Utils.first_match ciphers (Config.ciphers13 config)
   with
   | _, None -> Error (`Error (`NoConfiguredCiphersuite ciphers))
   | None, Some cipher ->
@@ -81,7 +79,7 @@ let answer_client_hello ~hrr state ch raw =
       Error (`Fatal `NoSupportedGroup)
     else
       (* no keyshare, looks whether there's a supported group ++ send back HRR *)
-      begin match first_match groups config.Config.groups with
+      begin match Utils.first_match groups config.Config.groups with
         | None -> Error (`Fatal `NoSupportedGroup)
         | Some group ->
           let cookie = Mirage_crypto.Hash.digest (Ciphersuite.hash13 cipher) raw in
@@ -112,7 +110,7 @@ let answer_client_hello ~hrr state ch raw =
           let* c =
             Option.to_result
               ~none:(`Fatal (`InvalidClientHello `NoCookie))
-              (map_find ~f:(function `Cookie c -> Some c | _ -> None) ch.extensions)
+              (Utils.map_find ~f:(function `Cookie c -> Some c | _ -> None) ch.extensions)
           in
           (* log is: 254 00 00 length c :: HRR *)
           let hash_hdr = Writer.assemble_message_hash (Cstruct.length c) in
@@ -131,8 +129,8 @@ let answer_client_hello ~hrr state ch raw =
         let no_resume = secret (), None, [], false in
         match
           config.Config.ticket_cache,
-          map_find ~f:(function `PreSharedKeys ids -> Some ids | _ -> None) ch.extensions,
-          map_find ~f:(function `PskKeyExchangeModes ms -> Some ms | _ -> None) ch.extensions
+          Utils.map_find ~f:(function `PreSharedKeys ids -> Some ids | _ -> None) ch.extensions,
+          Utils.map_find ~f:(function `PskKeyExchangeModes ms -> Some ms | _ -> None) ch.extensions
         with
         | None, _, _ | _, None, _ -> no_resume
         | Some _, Some _, None -> no_resume (* should this lead to an error instead? *)
@@ -227,7 +225,7 @@ let answer_client_hello ~hrr state ch raw =
       let* sigalgs =
         Option.to_result
           ~none:(`Fatal (`InvalidClientHello `NoSignatureAlgorithmsExtension))
-          (map_find ~f:(function `SignatureAlgorithms sa -> Some sa | _ -> None) ch.extensions)
+          (Utils.map_find ~f:(function `SignatureAlgorithms sa -> Some sa | _ -> None) ch.extensions)
       in
       (* TODO respect certificate_signature_algs if present *)
 
@@ -248,8 +246,8 @@ let answer_client_hello ~hrr state ch raw =
       in
 
       let ee =
-        let hostname_ext = option [] (fun _ -> [`Hostname]) hostname
-        and alpn = option [] (fun proto -> [`ALPN proto]) alpn_protocol
+        let hostname_ext = Option.fold ~none:[] ~some:(fun _ -> [`Hostname]) hostname
+        and alpn = Option.fold ~none:[] ~some:(fun proto -> [`ALPN proto]) alpn_protocol
         and early_data = if can_use_early_data && config.Config.zero_rtt <> 0l then [ `EarlyDataIndication ] else []
         in
         EncryptedExtensions (hostname_ext @ alpn @ early_data)

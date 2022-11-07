@@ -1,5 +1,3 @@
-open Utils
-
 open Core
 open State
 open Handshake_common
@@ -153,7 +151,7 @@ let answer_server_hello state (ch : client_hello) sh secrets raw log =
   let epoch_matches (epoch : epoch_data) =
     epoch.ciphersuite = sh.ciphersuite &&
       epoch.protocol_version = sh.server_version &&
-        option false (SessionID.equal epoch.session_id) sh.sessionid &&
+        Option.fold ~none:false ~some:(SessionID.equal epoch.session_id) sh.sessionid &&
           (not cfg.use_reneg ||
              (List.mem `ExtendedMasterSecret sh.extensions && epoch.extended_ms))
   in
@@ -385,7 +383,7 @@ let answer_server_hello_done state (session : session_data) sigalgs kex premaste
        Ok ([kex], [ckex], log @ [ raw ; ckex ], None)
   in
 
-  let to_fin = raws @ option [] (fun x -> [x]) cert_verify in
+  let to_fin = raws @ Option.to_list cert_verify in
 
   let master_secret =
     Handshake_crypto.derive_master_secret (state_version state) session premaster raws

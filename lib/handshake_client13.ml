@@ -1,5 +1,3 @@
-open Utils
-
 open State
 open Core
 open Handshake_common
@@ -15,7 +13,7 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
 
     (* TODO: PSK *)
     (* TODO: early_secret elsewhere *)
-    match map_find ~f:(function `KeyShare ks -> Some ks | _ -> None) sh.extensions with
+    match Utils.map_find ~f:(function `KeyShare ks -> Some ks | _ -> None) sh.extensions with
     | None -> Error (`Fatal `InvalidServerHello)
     | Some (g, share) ->
       match List.find_opt (fun (g', _) -> g = g') secrets with
@@ -25,7 +23,7 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
         let hlen = Mirage_crypto.Hash.digest_size (Ciphersuite.hash13 cipher) in
         let* psk, resumed =
           match
-            map_find ~f:(function `PreSharedKey idx -> Some idx | _ -> None) sh.extensions,
+            Utils.map_find ~f:(function `PreSharedKey idx -> Some idx | _ -> None) sh.extensions,
             state.config.Config.cached_ticket
           with
           | None, _ | _, None -> Ok (Cstruct.create hlen, false)
@@ -71,7 +69,7 @@ let answer_hello_retry_request state (ch : client_hello) hrr _secrets raw log =
     (g, priv), (group_to_named_group g, share)
   in
   (* append server extensions (i.e. cookie!) *)
-  let cookie = match map_find ~f:(function `Cookie c -> Some c | _ -> None) hrr.extensions with
+  let cookie = match Utils.map_find ~f:(function `Cookie c -> Some c | _ -> None) hrr.extensions with
     | None -> []
     | Some c -> [ `Cookie c ]
   in
@@ -89,7 +87,7 @@ let answer_hello_retry_request state (ch : client_hello) hrr _secrets raw log =
 let answer_encrypted_extensions state (session : session_data13) server_hs_secret client_hs_secret ee raw log =
   (* TODO we now know: - hostname - early_data (preserve this in session!!) *)
   (* next message is either CertificateRequest or Certificate (or finished if PSK) *)
-  let alpn_protocol = map_find ~f:(function `ALPN proto -> Some proto | _ -> None) ee in
+  let alpn_protocol = Utils.map_find ~f:(function `ALPN proto -> Some proto | _ -> None) ee in
   let session =
     let common_session_data13 = { session.common_session_data13 with alpn_protocol } in
     { session with common_session_data13 }
@@ -135,7 +133,7 @@ let answer_certificate_request (state : handshake_state) (session : session_data
     let common_session_data13 = { session.common_session_data13 with client_auth = true } in
     { session with common_session_data13 }
   in
-  let sigalgs = map_find ~f:(function `SignatureAlgorithms s -> Some s | _ -> None) extensions in
+  let sigalgs = Utils.map_find ~f:(function `SignatureAlgorithms s -> Some s | _ -> None) extensions in
   let st = AwaitServerCertificate13 (session, server_hs_secret, client_hs_secret, sigalgs, log <+> raw) in
   Ok ({ state with machina = Client13 st }, [])
 
@@ -205,7 +203,7 @@ let answer_session_ticket state st =
            session.resumption_secret st.nonce
        in
        let issued_at = cache.timestamp () in
-       let early_data = match map_find ~f:(function `EarlyDataIndication x -> Some x | _ -> None) st.extensions with
+       let early_data = match Utils.map_find ~f:(function `EarlyDataIndication x -> Some x | _ -> None) st.extensions with
          | None -> 0l
          | Some x -> x
        in
