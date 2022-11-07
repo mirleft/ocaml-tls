@@ -1,4 +1,3 @@
-open Utils
 open Core
 
 open Sexplib.Std
@@ -346,13 +345,13 @@ let validate_common config =
       end
     | _ -> config.ciphers, config.signature_algorithms
   in
-  if not (List_set.is_proper_set ciphers) then
+  if not (Utils.List_set.is_proper_set ciphers) then
     invalid "set of ciphers is not a proper set" ;
   if List.length ciphers = 0 then
     invalid "set of ciphers is empty" ;
-  if not (List_set.is_proper_set config.groups) then
+  if not (Utils.List_set.is_proper_set config.groups) then
     invalid "set of groups is not a proper set" ;
-  if not (List_set.is_proper_set signature_algorithms) then
+  if not (Utils.List_set.is_proper_set signature_algorithms) then
     invalid "set of signature algorithms is not a proper set" ;
   if List.exists (fun proto -> let len = String.length proto in len = 0 || len > 255) config.alpn_protocols then
     invalid "invalid alpn protocol" ;
@@ -375,7 +374,7 @@ let validate_certificate_chain = function
       in
       if not (eq_pub pub (X509.Certificate.public_key s)) then
           invalid "public / private key combination" ) ;
-     ( match init_and_last chain with
+     ( match Utils.init_and_last chain with
        | Some (ch, trust) ->
          (* TODO: verify that certificates are x509 v3 if TLS_1_2 *)
          ( match X509.Validation.verify_chain_of_trust ~time:(fun () -> None) ~host:None ~anchors:[trust] (s :: ch) with

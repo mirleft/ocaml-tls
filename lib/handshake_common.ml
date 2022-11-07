@@ -1,4 +1,3 @@
-open Utils
 open Core
 open State
 
@@ -23,10 +22,10 @@ let change_cipher_spec =
   (Packet.CHANGE_CIPHER_SPEC, Writer.assemble_change_cipher_spec)
 
 let hostname (h : client_hello) : [ `host ] Domain_name.t option =
-  map_find ~f:(function `Hostname s -> Some s | _ -> None) h.extensions
+  Utils.map_find ~f:(function `Hostname s -> Some s | _ -> None) h.extensions
 
 let groups (h : client_hello) =
-  match map_find ~f:(function `SupportedGroups g -> Some g | _ -> None) h.extensions with
+  match Utils.map_find ~f:(function `SupportedGroups g -> Some g | _ -> None) h.extensions with
   | Some xs ->
     List.fold_left (fun acc g ->
         match named_group_to_group g with Some g -> g :: acc | _ -> acc)
@@ -89,17 +88,17 @@ let agreed_cert certs ?f ?signature_algorithms hostname =
     | [] -> Error (`Error `CouldntSelectCertificate)
 
 let get_secure_renegotiation exts =
-  map_find
+  Utils.map_find
     exts
     ~f:(function `SecureRenegotiation data -> Some data | _ -> None)
 
 let get_alpn_protocols (ch : client_hello) =
-  map_find ~f:(function `ALPN protocols -> Some protocols | _ -> None) ch.extensions
+  Utils.map_find ~f:(function `ALPN protocols -> Some protocols | _ -> None) ch.extensions
 
 let alpn_protocol config ch =
   match config.Config.alpn_protocols, get_alpn_protocols ch with
   | _, None | [], _ -> Ok None
-  | configured, Some client -> match first_match client configured with
+  | configured, Some client -> match Utils.first_match client configured with
     | Some proto -> Ok (Some proto)
     | None ->
       (* RFC7301 Section 3.2:
@@ -109,7 +108,7 @@ let alpn_protocol config ch =
       Error (`Fatal `NoApplicationProtocol)
 
 let get_alpn_protocol (sh : server_hello) =
-  map_find ~f:(function `ALPN protocol -> Some protocol | _ -> None) sh.extensions
+  Utils.map_find ~f:(function `ALPN protocol -> Some protocol | _ -> None) sh.extensions
 
 let empty_common_session_data = {
   server_random          = Cstruct.create 0 ;
@@ -237,7 +236,7 @@ let extension_types t exts = List.(
 let server_exts_subset_of_client sexts cexts =
   let (sexts', cexts') =
     (extension_types to_server_ext_type sexts, extension_types to_client_ext_type cexts) in
-  List_set.subset sexts' (`Cookie :: cexts')
+  Utils.List_set.subset sexts' (`Cookie :: cexts')
 
 module Group = struct
   type t = Packet.named_group
@@ -267,15 +266,15 @@ let client_hello_valid version (ch : client_hello) =
        else
          fail HANDSHAKE_FAILURE *)
   let sig_alg =
-    map_find
+    Utils.map_find
       ~f:(function `SignatureAlgorithms sa -> Some sa | _ -> None)
       ch.extensions
   and key_share =
-    map_find
+    Utils.map_find
       ~f:(function `KeyShare ks -> Some ks | _ -> None)
       ch.extensions
   and groups =
-    map_find
+    Utils.map_find
       ~f:(function `SupportedGroups gs -> Some gs | _ -> None)
       ch.extensions
   in
@@ -294,8 +293,8 @@ let client_hello_valid version (ch : client_hello) =
             | _, None -> Error `NoSupportedGroupExtension
             | Some ks, Some gs ->
               match
-                List_set.is_proper_set gs,
-                List_set.is_proper_set (List.map fst ks),
+                Utils.List_set.is_proper_set gs,
+                Utils.List_set.is_proper_set (List.map fst ks),
                 GroupSet.subset (of_list (List.map fst ks)) (of_list gs)
               with
               | true, true, true -> Ok ()
@@ -313,16 +312,16 @@ let client_hello_valid version (ch : client_hello) =
 
   let share_ciphers =
     match
-      first_match (List.filter_map Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites) Config.Ciphers.supported
+      Utils.first_match (List.filter_map Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites) Config.Ciphers.supported
     with
     | None -> false
     | Some _ -> true
   in
   match
     not (empty ch.ciphersuites),
-    List_set.is_proper_set ch.ciphersuites,
+    Utils.List_set.is_proper_set ch.ciphersuites,
     share_ciphers,
-    List_set.is_proper_set (extension_types to_client_ext_type ch.extensions)
+    Utils.List_set.is_proper_set (extension_types to_client_ext_type ch.extensions)
   with
   | true, _, true, true -> version_good
   | false, _ , _, _ -> Error `EmptyCiphersuites
@@ -333,7 +332,7 @@ let client_hello_valid version (ch : client_hello) =
 
 let server_hello_valid (sh : server_hello) =
   (* let open Ciphersuite in *)
-  List_set.is_proper_set (extension_types to_server_ext_type sh.extensions)
+  Utils.List_set.is_proper_set (extension_types to_server_ext_type sh.extensions)
   (* TODO:
       - EC stuff must be present if EC ciphersuite chosen
    *)
@@ -381,7 +380,7 @@ let signature version ?context_string data client_sig_algs signature_algorithms 
       | Some client_algos ->
         Option.to_result
           ~none:(`Error (`NoConfiguredSignatureAlgorithm client_algos))
-          (first_match client_algos (List.filter (pk_matches_sa private_key) signature_algorithms))
+          (Utils.first_match client_algos (List.filter (pk_matches_sa private_key) signature_algorithms))
     in
     let scheme = signature_scheme_of_signature_algorithm sig_alg
     and hash = hash_of_signature_algorithm sig_alg
@@ -407,7 +406,7 @@ let signature version ?context_string data client_sig_algs signature_algorithms 
       let sa = List.filter (pk_matches_sa private_key) sa in
       Option.to_result
         ~none:(`Error (`NoConfiguredSignatureAlgorithm client_algos))
-        (first_match client_algos sa)
+        (Utils.first_match client_algos sa)
     in
     let scheme = signature_scheme_of_signature_algorithm sig_alg
     and hash = hash_of_signature_algorithm sig_alg

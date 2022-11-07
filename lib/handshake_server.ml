@@ -1,5 +1,3 @@
-open Utils
-
 open Core
 open State
 open Handshake_common
@@ -172,12 +170,12 @@ let answer_client_key_exchange_DHE state session secret kex raw log =
   Ok (establish_master_secret state session pms raw log)
 
 let sig_algs (client_hello : client_hello) =
-  map_find
+  Utils.map_find
     ~f:(function `SignatureAlgorithms xs -> Some xs | _ -> None)
     client_hello.extensions
 
 let ecc_group configured_groups requested_groups =
-  first_match requested_groups configured_groups
+  Utils.first_match requested_groups configured_groups
 
 let agreed_cipher cert ecc requested =
   let usage_matches cipher =
@@ -220,7 +218,7 @@ let server_hello config (client_hello : client_hello) (session : session_data) v
     | None -> []
     | Some protocol -> [`ALPN protocol]
   and ecpointformat =
-    match map_find ~f:(function `ECPointFormats -> Some () | _ -> None) client_hello.extensions with
+    match Utils.map_find ~f:(function `ECPointFormats -> Some () | _ -> None) client_hello.extensions with
     | Some () when Ciphersuite.ecdhe session.ciphersuite -> [ `ECPointFormats ]
     | _ -> []
   in
@@ -292,13 +290,13 @@ let answer_client_hello_common state reneg ch raw =
     in
 
     let* cipher =
-      match first_match cciphers config.ciphers with
+      match Utils.first_match cciphers config.ciphers with
       | Some x -> Ok x
       | None   ->
         let* _ =
           Option.to_result
             ~none:(`Fatal (`InvalidClientHello (`NoSupportedCiphersuite ch.ciphersuites)))
-            (first_match cciphers Config.Ciphers.supported)
+            (Utils.first_match cciphers Config.Ciphers.supported)
         in
         Error (`Error (`NoConfiguredCiphersuite cciphers))
     in
