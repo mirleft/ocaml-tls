@@ -194,7 +194,7 @@ let agreed_cipher cert ecc requested =
 
 let server_hello config (client_hello : client_hello) (session : session_data) version reneg =
   (* RFC 4366: server shall reply with an empty hostname extension *)
-  let host = option [] (fun _ -> [`Hostname]) session.common_session_data.own_name
+  let host = Option.fold ~none:[] ~some:(fun _ -> [`Hostname]) session.common_session_data.own_name
   and server_random =
     let suffix =
       match version, max_protocol_version config.protocol_versions with
@@ -242,7 +242,7 @@ let answer_client_hello_common state reneg ch raw =
   let process_client_hello ch config =
     let host = hostname ch
     and groups = groups ch
-    and cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites
+    and cciphers = List.filter_map Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites
     in
     let configured_ecc_groups, other_groups = List.partition Config.elliptic_curve config.groups in
     let ecc_group = ecc_group configured_ecc_groups groups
@@ -456,7 +456,7 @@ let answer_client_hello_common state reneg ch raw =
 (* TODO could benefit from result monadd *)
 let agreed_version supported (client_hello : client_hello) =
   let raw_client_versions =
-    match Utils.filter_map ~f:(function `SupportedVersions vs -> Some vs | _ -> None) client_hello.extensions with
+    match List.filter_map (function `SupportedVersions vs -> Some vs | _ -> None) client_hello.extensions with
     | [] -> [client_hello.client_version]
     | [vs] -> vs
     | _ -> invalid_arg "bad supported version extension"
@@ -489,14 +489,14 @@ let answer_client_hello state (ch : client_hello) raw =
 
   and resume (ch : client_hello) state =
     let epoch_matches (epoch : Core.epoch_data) version ciphers extensions =
-      let cciphers = filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ciphers in
+      let cciphers = List.filter_map Ciphersuite.any_ciphersuite_to_ciphersuite ciphers in
       List.mem epoch.ciphersuite cciphers &&
         version = epoch.protocol_version &&
           (not state.config.use_reneg ||
              (List.mem `ExtendedMasterSecret extensions && epoch.extended_ms))
     in
 
-    match option None state.config.session_cache ch.sessionid with
+    match Option.bind ch.sessionid state.config.session_cache with
     | Some epoch when epoch_matches epoch state.protocol_version ch.ciphersuites ch.extensions ->
       let session =
         let session = session_of_epoch epoch in

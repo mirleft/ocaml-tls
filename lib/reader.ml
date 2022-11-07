@@ -467,7 +467,7 @@ let parse_encrypted_extension raw =
         | _      -> raise_unknown "bad server name indication (multiple names)")
     | Some SUPPORTED_GROUPS ->
        let gs = parse_supported_groups buf in
-       let supported = Utils.filter_map ~f:named_group_to_group gs in
+       let supported = List.filter_map named_group_to_group gs in
        `SupportedGroups supported
     | Some APPLICATION_LAYER_PROTOCOL_NEGOTIATION ->
       (match parse_alpn_protocols buf with

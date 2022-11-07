@@ -394,9 +394,10 @@ let validate_client config =
 
 let non_overlapping cs =
   let namessets =
-    filter_map cs ~f:(function
+    List.filter_map (function
         | (s :: _, _) -> Some s
         | _           -> None)
+      cs
     |> List.map X509.Certificate.hostnames
   in
   let rec check = function

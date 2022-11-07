@@ -19,7 +19,7 @@ let answer_client_hello ~hrr state ch raw =
   Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version `TLS_1_3 ;
 
   let ciphers =
-    filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite13 ch.ciphersuites
+    List.filter_map Ciphersuite.any_ciphersuite_to_ciphersuite13 ch.ciphersuites
   in
 
   let* groups =
@@ -28,7 +28,7 @@ let answer_client_hello ~hrr state ch raw =
         ~none:(`Fatal (`InvalidClientHello `NoSupportedGroupExtension))
         (map_find ~f:(function `SupportedGroups gs -> Some gs | _ -> None) ch.extensions)
     in
-    Ok (filter_map ~f:Core.named_group_to_group gs)
+    Ok (List.filter_map Core.named_group_to_group gs)
   in
 
   let* keyshares =
@@ -248,8 +248,8 @@ let answer_client_hello ~hrr state ch raw =
       in
 
       let ee =
-        let hostname_ext = option [] (fun _ -> [`Hostname]) hostname
-        and alpn = option [] (fun proto -> [`ALPN proto]) alpn_protocol
+        let hostname_ext = Option.fold ~none:[] ~some:(fun _ -> [`Hostname]) hostname
+        and alpn = Option.fold ~none:[] ~some:(fun proto -> [`ALPN proto]) alpn_protocol
         and early_data = if can_use_early_data && config.Config.zero_rtt <> 0l then [ `EarlyDataIndication ] else []
         in
         EncryptedExtensions (hostname_ext @ alpn @ early_data)

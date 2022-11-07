@@ -305,12 +305,15 @@ let client_hello_valid version (ch : client_hello) =
         | Some x -> Error (`NoGoodSignatureAlgorithms x)
       )
     | `SSL_3 | `TLS_1_0 | `TLS_1_1 ->
-      Utils.option (Ok ()) (fun _ -> Error `HasSignatureAlgorithmsExtension) sig_alg
+      Option.fold
+        ~none:(Error `HasSignatureAlgorithmsExtension)
+        ~some:(fun _ -> Ok ())
+        sig_alg
   in
 
   let share_ciphers =
     match
-      first_match (filter_map ~f:Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites) Config.Ciphers.supported
+      first_match (List.filter_map Ciphersuite.any_ciphersuite_to_ciphersuite ch.ciphersuites) Config.Ciphers.supported
     with
     | None -> false
     | Some _ -> true
@@ -497,7 +500,7 @@ let validate_chain authenticator certificates ip hostname =
                        Cstruct.hexdump_pp cs);
           None
       in
-      filter_map ~f certs
+      List.filter_map f certs
     in
     let* () =
       guard (List.length certs = List.length certificates)
@@ -518,9 +521,8 @@ let validate_chain authenticator certificates ip hostname =
   | Some authenticator ->
     let* anchor = authenticate authenticator hostname certs in
     let* () = key_size Config.min_rsa_key_size certs in
-    Ok (Utils.option
-          (server, certs, [], None)
-          (fun (chain, anchor) -> (server, certs, chain, Some anchor))
+    Ok (Option.fold ~none:(server, certs, [], None)
+          ~some:(fun (chain, anchor) -> (server, certs, chain, Some anchor))
           anchor)
 
 let output_key_update ~request state =
