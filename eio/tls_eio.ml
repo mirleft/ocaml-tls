@@ -3,194 +3,143 @@ module Flow = Eio.Flow
 exception Tls_alert   of Tls.Packet.alert_type
 exception Tls_failure of Tls.Engine.failure
 
+let src = Logs.Src.create "tls_eio" ~doc:"eio backend for ocaml-tls"
+module Log = (val Logs.src_log src: Logs.LOG)
+
+type application_data = Cstruct.t
+
 module Raw = struct
 
-  (* We could replace [`Eof] with [`Error End_of_file] and then use
-     a regular [result] type here. *)
   type t = {
     flow           : Flow.two_way ;
-    mutable state  : [ `Active of Tls.Engine.state
-                     | `Eof
-                     | `Error of exn ] ;
-    mutable linger : Cstruct.t option ;
+    mutable tls    : Tls.Engine.state ;
+    mutable linger : application_data ;
     recv_buf       : Cstruct.t ;
+    mutex          : Eio.Mutex.t;
   }
 
-  let read_t t cs =
-    try Flow.single_read t.flow cs
-    with
-    | End_of_file as ex ->
-      t.state <- `Eof;
+  let write_t t cs = Flow.copy (Flow.cstruct_source [cs]) t.flow
+
+  (* A TLS 'read' requires both reading and writing to an underlying
+     flow object - t.flow; therefore we use mutex to maintain the
+     integrity of 'read' from multiple fibres doing interleaving
+     read/write operations on the same underlying flow object. *)
+  let read_t t : application_data option =
+    try
+      Eio.Mutex.lock t.mutex ;
+      let got = Flow.single_read t.flow t.recv_buf in
+      let data = Cstruct.sub t.recv_buf 0 got in
+      match Tls.Engine.handle_tls t.tls data with
+      | Ok ( state, `Response resp, `Data application_data ) ->
+        begin match state with
+          | `Ok tls ->
+            t.tls <- tls ;
+            Option.iter (write_t t) resp ;
+            Eio.Mutex.unlock t.mutex ;
+            application_data
+          | `Eof -> raise End_of_file ;
+          | `Alert a -> raise (Tls_alert a)
+        end
+      | Error (failure, `Response resp) ->
+        write_t t resp ;
+        raise (Tls_failure failure)
+    with ex ->
+      Eio.Mutex.unlock t.mutex ;
       raise ex
-    | exn ->
-      (match t.state with
-       | `Error _ | `Eof -> ()
-       | `Active _ -> t.state <- `Error exn) ;
-      raise exn
 
-  let write_t t cs =
-    try Flow.copy (Flow.cstruct_source [cs]) t.flow
-    with exn ->
-      (match t.state with
-       | `Error _ | `Eof -> ()
-       | `Active _ -> t.state <- `Error exn) ;
-      raise exn
+  let rec read t flow_buf : int =
 
-  let try_write_t t cs =
-    try write_t t cs
-    with _ -> Eio.Fiber.check ()      (* Error is in [t.state] *)
-
-  let rec read_react t =
-
-    let handle tls buf =
-      match Tls.Engine.handle_tls tls buf with
-      | Ok (state', `Response resp, `Data data) ->
-          let state' = match state' with
-            | `Ok tls  -> `Active tls
-            | `Eof     -> `Eof
-            | `Alert a -> `Error (Tls_alert a)
-          in
-          t.state <- state' ;
-          Option.iter (try_write_t t) resp;
-          data
-
-      | Error (alert, `Response resp) ->
-          t.state <- `Error (Tls_failure alert) ;
-          write_t t resp; read_react t
-    in
-
-    match t.state with
-    | `Error e  -> raise e
-    | `Eof      -> raise End_of_file
-    | `Active _ ->
-        let n = read_t t t.recv_buf in
-        match (t.state, n) with
-        | (`Active tls, n) -> handle tls (Cstruct.sub t.recv_buf 0 n)
-        | (`Error e, _)    -> raise e
-        | (`Eof, _)        -> raise End_of_file
-
-  let rec read t buf =
-
-    let writeout res =
-      let open Cstruct in
-      let rlen = length res in
-      let n    = min (length buf) rlen in
-      blit res 0 buf 0 n ;
+    let write_application_data data =
+      let data_len = Cstruct.length data in
+      let n        = min (Cstruct.length flow_buf) data_len in
+      Cstruct.blit data 0 flow_buf 0 n ;
       t.linger <-
-        (if n < rlen then Some (sub res n (rlen - n)) else None) ;
+        if n < data_len
+        then Cstruct.sub data n (data_len -n)
+        else Cstruct.empty ;
       n in
 
-    match t.linger with
-    | Some res -> writeout res
-    | None     ->
-        match read_react t with
-          | None     -> read t buf
-          | Some res -> writeout res
+    if not @@ Cstruct.is_empty t.linger then
+      write_application_data t.linger
+    else
+      match read_t t with
+      | Some data -> write_application_data data
+      | None -> read t flow_buf
 
-  let writev t css =
-    match t.state with
-    | `Error err  -> raise err
-    | `Eof        -> raise End_of_file
-    | `Active tls ->
-        match Tls.Engine.send_application_data tls css with
-        | Some (tls, tlsdata) ->
-            ( t.state <- `Active tls ; write_t t tlsdata )
-        | None -> invalid_arg "tls: write: socket not ready"
+  let write t cs =
+    match Tls.Engine.send_application_data t.tls [cs] with
+    | Some (tls, tlsdata) ->
+      t.tls <- tls ;
+      write_t t tlsdata
+    | None -> invalid_arg "tls: write: socket not ready"
 
-  let write t cs = writev t [cs]
-
-  (*
-   * XXX bad XXX
-   * This is a point that should particularly be protected from concurrent r/w.
-   * Doing this before a `t` is returned is safe; redoing it during rekeying is
-   * not, as the API client already sees the `t` and can mistakenly interleave
-   * writes while this is in progress.
-   * *)
   let rec drain_handshake t =
-    let push_linger t mcs =
-      match (mcs, t.linger) with
-      | (None, _)         -> ()
-      | (scs, None)       -> t.linger <- scs
-      | (Some cs, Some l) -> t.linger <- Some (Cstruct.append l cs)
-    in
-    match t.state with
-    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
-        t
-    | _ ->
-        let cs = read_react t in
-        push_linger t cs; drain_handshake t
+    if not (Tls.Engine.handshake_in_progress t.tls) then t
+    else
+      let application_data = read_t t in
+      Option.iter (fun data ->
+          t.linger <-
+            if Cstruct.is_empty t.linger then data
+            else Cstruct.append t.linger data
+        ) application_data ;
+      drain_handshake t
 
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
-    match t.state with
-    | `Error err  -> raise err
-    | `Eof        -> raise End_of_file
-    | `Active tls ->
-        match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
-        | None -> invalid_arg "tls: can't renegotiate"
-        | Some (tls', buf) ->
-           if drop then t.linger <- None ;
-           t.state <- `Active tls' ;
-           write_t t buf;
-           ignore (drain_handshake t : t)
+    match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert t.tls with
+    | None -> invalid_arg "tls: can't renegotiate"
+    | Some (tls', buf) ->
+      if drop then t.linger <- Cstruct.empty ;
+      t.tls <- tls' ;
+      write_t t buf ;
+      ignore (drain_handshake t : t)
 
   let key_update ?request t =
-    match t.state with
-    | `Error err  -> raise err
-    | `Eof        -> raise End_of_file
-    | `Active tls ->
-      match Tls.Engine.key_update ?request tls with
-      | Error _ -> invalid_arg "tls: can't update key"
-      | Ok (tls', buf) ->
-        t.state <- `Active tls' ;
-        write_t t buf
+    match Tls.Engine.key_update ?request t.tls with
+    | Error _ -> invalid_arg "tls: can't update key"
+    | Ok (tls', buf) ->
+      t.tls <- tls' ;
+      write_t t buf
 
   let close_tls t =
-    match t.state with
-    | `Active tls ->
-        let (_, buf) = Tls.Engine.send_close_notify tls in
-        t.state <- `Eof ;       (* XXX: this looks wrong - we're only trying to close the sending side *)
-        write_t t buf
-    | _ -> ()
+    let (tls, buf) = Tls.Engine.send_close_notify t.tls in
+    write_t t buf ;
+    t.tls <- tls
 
-  (* Not sure if we need to keep both directions open on the underlying flow when closing
-     one direction at the TLS level. *)
   let shutdown t = function
-    | `Send -> close_tls t
-    | `All -> close_tls t; Flow.shutdown t.flow `All
-    | `Receive -> ()  (* Not obvious how to do this with TLS, so ignore for now. *)
+    | `Send -> close_tls t ; Flow.shutdown t.flow `Send
+    | `All -> close_tls t ; Flow.shutdown t.flow `All
+    | `Receive -> close_tls t ; Flow.shutdown t.flow `Receive
 
   let server_of_flow config flow =
-    drain_handshake {
-      state    = `Active (Tls.Engine.server config) ;
-      flow     = (flow :> Flow.two_way) ;
-      linger   = None ;
-      recv_buf = Cstruct.create 4096
-    }
+    drain_handshake
+      { tls      = Tls.Engine.server config ;
+        flow     = (flow :> Flow.two_way) ;
+        linger   = Cstruct.empty ;
+        recv_buf = Cstruct.create 4096 ;
+        mutex    = Eio.Mutex.create ()
+      }
 
   let client_of_flow config ?host flow =
     let config' = match host with
       | None -> config
       | Some host -> Tls.Config.peer config host
     in
-    let t = {
-      state    = `Eof ;
-      flow     = (flow :> Flow.two_way);
-      linger   = None ;
-      recv_buf = Cstruct.create 4096
-    } in
     let (tls, init) = Tls.Engine.client config' in
-    let t = { t with state  = `Active tls } in
-    write_t t init;
+    let t = {
+      tls ;
+      flow     = (flow :> Flow.two_way) ;
+      linger   = Cstruct.empty ;
+      recv_buf = Cstruct.create 4096 ;
+      mutex    = Eio.Mutex.create ()
+    }
+    in
+    write_t t init ;
     drain_handshake t
 
-
   let epoch t =
-    match t.state with
-    | `Active tls -> ( match Tls.Engine.epoch tls with
-        | `InitialEpoch -> assert false (* can never occur! *)
-        | `Epoch data   -> Ok data )
-    | `Eof      -> Error ()
-    | `Error _  -> Error ()
+    match Tls.Engine.epoch t.tls with
+    | `InitialEpoch -> assert false (* can never occur! *)
+    | `Epoch data   -> Ok data
 
   let copy_from t src =
     try

@@ -54,13 +54,17 @@ let parse_version = catch parse_version_exn
 let parse_any_version = catch parse_any_version_exn
 
 let parse_record buf =
+  Printf.printf "parse_record\n%!";
+
   if length buf < 5 then
     Ok (`Fragment buf)
   else
     let typ = get_uint8 buf 0
     and version = parse_version_int (shift buf 1)
     in
-    match BE.get_uint16 buf 3 with
+    let record_length = BE.get_uint16 buf 3 in
+    Printf.printf "record length:%d, typ:%d\n%!" record_length typ;
+    match record_length with
     | x when x > (1 lsl 14 + 2048) ->
       (* 2 ^ 14 + 2048 for TLSCiphertext
          2 ^ 14 + 1024 for TLSCompressed
