@@ -25,7 +25,7 @@ let create ~to_peer ~from_peer label =
             | `Bytes n -> n
           in
           let buf = Cstruct.create size in
-          let got = Eio.Flow.read src buf in
+          let got = Eio.Flow.single_read src buf in
           W.cstruct to_peer (Cstruct.sub buf 0 got);
           Log.info (fun f -> f "%s: wrote %d bytes to network" label got);
         done

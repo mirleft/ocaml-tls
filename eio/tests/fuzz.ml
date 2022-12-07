@@ -141,7 +141,7 @@ end = struct
           end
         );
         let buf = Cstruct.create 4096 in
-        let got = Eio.Flow.read recv buf in
+        let got = Eio.Flow.single_read recv buf in
         let received = Cstruct.to_string buf ~len:got in
         Log.info (fun f -> f "%a: received %S" pp_dir t received);
         let expected = String.sub t.message t.recv got in
