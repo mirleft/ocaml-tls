@@ -520,7 +520,6 @@ let assemble_records (version : tls_version) rs =
 
 (* main entry point *)
 let handle_tls state buf =
-  Printf.printf "handle_tls\n%!";
 
   Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ;
 

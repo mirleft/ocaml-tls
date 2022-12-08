@@ -3,17 +3,12 @@ module Flow = Eio.Flow
 exception Tls_alert   of Tls.Packet.alert_type
 exception Tls_failure of Tls.Engine.failure
 
-let src = Logs.Src.create "tls_eio" ~doc:"eio backend for ocaml-tls"
-module Log = (val Logs.src_log src: Logs.LOG)
-
-type application_data = Cstruct.t
-
 module Raw = struct
 
   type t = {
     flow           : Flow.two_way ;
     mutable tls    : Tls.Engine.state ;
-    mutable linger : application_data ;
+    mutable linger : Cstruct.t ;
     recv_buf       : Cstruct.t ;
     mutex          : Eio.Mutex.t;
   }
@@ -24,7 +19,7 @@ module Raw = struct
      flow object - t.flow; therefore we use mutex to maintain the
      integrity of 'read' from multiple fibres doing interleaving
      read/write operations on the same underlying flow object. *)
-  let read_t t : application_data option =
+  let read_t t =
     try
       Eio.Mutex.lock t.mutex ;
       let got = Flow.single_read t.flow t.recv_buf in
@@ -43,7 +38,8 @@ module Raw = struct
       | Error (failure, `Response resp) ->
         write_t t resp ;
         raise (Tls_failure failure)
-    with ex ->
+    with 
+    | ( End_of_file | Tls_alert _ | Tls_failure _ ) as ex ->
       Eio.Mutex.unlock t.mutex ;
       raise ex
 
