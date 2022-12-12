@@ -17,7 +17,7 @@ module Raw = struct
   }
 
   let read_t t cs =
-    try Flow.read t.flow cs
+    try Flow.single_read t.flow cs
     with
     | End_of_file as ex ->
       t.state <- `Eof;
@@ -196,7 +196,7 @@ module Raw = struct
     try
       while true do
         let buf = Cstruct.create 4096 in
-        let got = Flow.read src buf in
+        let got = Flow.single_read src buf in
         write t (Cstruct.sub buf 0 got)
       done
     with End_of_file -> ()

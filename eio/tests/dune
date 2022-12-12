@@ -11,3 +11,19 @@
     server-ec.key
     (package tls-eio)
     (package eio_main)))
+
+; "dune runtest" just does a quick run with random inputs.
+;
+; To run with afl-fuzz instead:
+;
+; dune runtest
+; mkdir input
+; echo hi > input/foo
+; cp certificates/server.{key,pem} .
+; afl-fuzz -m 1000 -i input -o output ./_build/default/eio/tests/fuzz.exe @@
+(test
+  (package tls-eio)
+  (libraries crowbar tls-eio eio.mock logs logs.fmt)
+  (deps server.pem server.key)
+  (name fuzz)
+  (action (run %{test} --repeat 200)))
