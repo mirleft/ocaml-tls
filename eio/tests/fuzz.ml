@@ -1,3 +1,31 @@
+(* Fuzz testing for tls-eio.
+
+   This code picks two random strings, one for the client to send and one for
+   the server. It then starts a send and receive fiber for each end.
+
+   A dispatcher fiber then sends commands to these worker fibers
+   (see [action] for the possible actions).
+
+   This is intended to check for bugs in the Eio wrapper (rather than in Tls itself).
+   At the moment, it's just checking that tls-eio works when used correctly.
+   Each endpoint overlaps reads with writes (but not reads with other reads or
+   writes with other writes).
+
+   Some possible future improvements:
+
+   - It currently only checks the basic read/write/close operations.
+     It should be extended to check [reneg], etc too.
+
+   - Currently, cancelling a read operation marks the Tls flow as broken.
+     We should allow resuming after a cancelled read, and test that here.
+
+   - We should try injecting faults and make sure they're handled sensibly.
+
+   - It would be good to get coverage reports for these tests.
+     However, this requires changes to crowbar:
+     https://github.com/stedolan/crowbar/issues/4#issuecomment-1310277551
+     (a patched version reported 54% coverage of Tls_eio.ml) *)
+
 open Eio.Std
 
 let src = Logs.Src.create "fuzz" ~doc:"Fuzz tests"
@@ -47,7 +75,7 @@ let dir =
    the receiver has shut down its sending side by then. *)
    
 let action =
-  Crowbar.option (Crowbar.pair dir op)  (* None means yield *)   (* XXX: yield individual fibers? *)
+  Crowbar.option (Crowbar.pair dir op)  (* None means yield *)
 
 (* A [Path] is one direction (either server-to-client or client-to-server).
    The two paths can be tested mostly independently (except for shutdown at the moment). *)
