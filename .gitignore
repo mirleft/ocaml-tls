@@ -15,3 +15,5 @@ Makefile
 key_gen.ml
 
 random/
+vendor
+dune
