@@ -19,15 +19,18 @@ let create ~to_peer ~from_peer label =
     method copy src =
       try
         while true do
-          let size =
-            match Eio.Stream.take output_sizes with
-            | `Drain -> Eio.Stream.add output_sizes `Drain; 4096
-            | `Bytes n -> n
+          let rec write = function
+            | 0 -> ()
+            | size ->
+              let buf = Cstruct.create size in
+              let got = Eio.Flow.single_read src buf in
+              W.cstruct to_peer (Cstruct.sub buf 0 got);
+              Log.info (fun f -> f "%s: wrote %d bytes to network" label got);
+              write (size - got)
           in
-          let buf = Cstruct.create size in
-          let got = Eio.Flow.single_read src buf in
-          W.cstruct to_peer (Cstruct.sub buf 0 got);
-          Log.info (fun f -> f "%s: wrote %d bytes to network" label got);
+          match Eio.Stream.take output_sizes with
+          | `Drain -> Eio.Stream.add output_sizes `Drain; write 4096
+          | `Bytes n -> write n
         done
       with End_of_file -> ()
 
