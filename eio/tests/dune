@@ -15,7 +15,7 @@
 
 ; "dune runtest" just does a quick run with random inputs.
 ;
-; To run with afl-fuzz instead:
+; To run with afl-fuzz instead (make sure you have a compiler with the afl option on!):
 ;
 ; dune runtest
 ; mkdir input
