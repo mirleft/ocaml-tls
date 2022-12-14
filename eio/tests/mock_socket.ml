@@ -42,7 +42,10 @@ let create ~to_peer ~from_peer label =
       | `Send -> 
         Log.info (fun f -> f "%s: close writer" label);
         W.close to_peer
-      | _ -> failwith "Not implemented"
+      | `Receive ->
+        Log.info (fun f -> f "%s: close socket receive" label);
+        W.close from_peer
+      | `All -> failwith "Not implemented"
   end
 
 let create_pair () =

@@ -32,19 +32,22 @@ module Raw = struct
             Option.iter (write_t t) resp ;
             Eio.Mutex.unlock t.mutex ;
             application_data
-          | `Eof -> raise End_of_file ;
+          | `Eof ->
+            (* received "close_notify" alert from peer so shutdown receving data
+              from the peer socket. https://www.rfc-editor.org/rfc/rfc8446#section-6.1 *)
+            Eio.Flow.shutdown t.flow `Receive ;
+            None
           | `Alert a -> raise (Tls_alert a)
         end
       | Error (failure, `Response resp) ->
         write_t t resp ;
         raise (Tls_failure failure)
-    with 
+    with
     | ( End_of_file | Tls_alert _ | Tls_failure _ ) as ex ->
       Eio.Mutex.unlock t.mutex ;
       raise ex
 
   let rec read t flow_buf : int =
-
     let write_application_data data =
       let data_len = Cstruct.length data in
       let n        = min (Cstruct.length flow_buf) data_len in
@@ -104,7 +107,7 @@ module Raw = struct
   let shutdown t = function
     | `Send -> close_tls t ; Flow.shutdown t.flow `Send
     | `All -> close_tls t ; Flow.shutdown t.flow `All
-    | `Receive -> close_tls t ; Flow.shutdown t.flow `Receive
+    | `Receive -> Flow.shutdown t.flow `Receive
 
   let server_of_flow config flow =
     drain_handshake

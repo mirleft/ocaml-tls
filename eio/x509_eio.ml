@@ -12,7 +12,7 @@ let extension str =
   let rec scan = function
     | i when i = 0 -> None
     | i when str.[i - 1] = '.' ->
-        Some (String.sub str i (n - i))
+      Some (String.sub str i (n - i))
     | i -> scan (pred i) in
   scan n
 
