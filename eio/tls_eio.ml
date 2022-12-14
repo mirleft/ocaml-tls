@@ -29,7 +29,7 @@ module Raw = struct
       raise exn
 
   let write_t t cs =
-    try Flow.copy (Flow.cstruct_source [cs]) t.flow
+    try Flow.write t.flow [cs]
     with exn ->
       (match t.state with
        | `Error _ | `Eof -> ()
