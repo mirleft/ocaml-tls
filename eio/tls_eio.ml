@@ -6,11 +6,15 @@ exception Tls_failure of Tls.Engine.failure
 module Raw = struct
 
   type t = {
-    flow           : Flow.two_way ;
-    mutable tls    : Tls.Engine.state ;
-    mutable linger : Cstruct.t ;
-    recv_buf       : Cstruct.t ;
-    mutex          : Eio.Mutex.t;
+    flow                      : Flow.two_way ;
+    recv_buf                  : Cstruct.t ;
+    mutex                     : Eio.Mutex.t;
+    mutable tls               : Tls.Engine.state ;
+    mutable linger            : Cstruct.t ;
+
+    (* We track 'close_notify' here since Tls.Engine.state doesn't track it. 
+       https://github.com/mirleft/ocaml-tls/issues/452 *)
+    mutable close_notify_sent : bool ;
   }
 
   let write_t t cs = Flow.copy (Flow.cstruct_source [cs]) t.flow
@@ -29,16 +33,24 @@ module Raw = struct
         begin match state with
           | `Ok tls ->
             t.tls <- tls ;
-            Option.iter (write_t t) resp ;
-            Eio.Mutex.unlock t.mutex ;
-            application_data
+            Option.iter (write_t t) resp
           | `Eof ->
             (* received "close_notify" alert from peer so shutdown receving data
-              from the peer socket. https://www.rfc-editor.org/rfc/rfc8446#section-6.1 *)
+               from the peer socket. https://www.rfc-editor.org/rfc/rfc8446#section-6.1 *)
             Eio.Flow.shutdown t.flow `Receive ;
-            None
+
+            (* We set it to true since 'Tls.Engine.handle_tls t.tls data' returns 'close_notify'
+               as `Response resp when it encounters `close_notify` in data. *)
+            if not t.close_notify_sent then begin
+              Option.iter (write_t t) resp ;
+              t.close_notify_sent <- true
+            end
           | `Alert a -> raise (Tls_alert a)
-        end
+        end ;
+
+        Eio.Mutex.unlock t.mutex ;
+        application_data
+
       | Error (failure, `Response resp) ->
         write_t t resp ;
         raise (Tls_failure failure)
@@ -100,9 +112,12 @@ module Raw = struct
       write_t t buf
 
   let close_tls t =
-    let (tls, buf) = Tls.Engine.send_close_notify t.tls in
-    write_t t buf ;
-    t.tls <- tls
+    if not t.close_notify_sent then begin
+      let (tls, buf) = Tls.Engine.send_close_notify t.tls in
+      write_t t buf ;
+      t.tls <- tls ;
+      t.close_notify_sent <- true ;
+    end
 
   let shutdown t = function
     | `Send -> close_tls t ; Flow.shutdown t.flow `Send
@@ -115,7 +130,8 @@ module Raw = struct
         flow     = (flow :> Flow.two_way) ;
         linger   = Cstruct.empty ;
         recv_buf = Cstruct.create 4096 ;
-        mutex    = Eio.Mutex.create ()
+        mutex    = Eio.Mutex.create () ;
+        close_notify_sent = false ;
       }
 
   let client_of_flow config ?host flow =
@@ -129,7 +145,8 @@ module Raw = struct
       flow     = (flow :> Flow.two_way) ;
       linger   = Cstruct.empty ;
       recv_buf = Cstruct.create 4096 ;
-      mutex    = Eio.Mutex.create ()
+      mutex    = Eio.Mutex.create () ;
+      close_notify_sent = false ;
     }
     in
     write_t t init ;
