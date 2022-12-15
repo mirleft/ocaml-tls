@@ -114,3 +114,80 @@ let serve_ssl ~config server_s callback =
 +client done.
 - : unit = ()
 ```
+
+## Flow Shutdown Send semantics
+
+```ocaml
+# Eio_main.run @@ fun env ->
+  let net = env#net in
+  let certificates_dir = env#cwd in
+  Mirage_crypto_rng_eio.run (module Mirage_crypto_rng.Fortuna) env @@ fun () ->
+  Switch.run @@ fun sw ->
+  let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 4433) in
+  let listening_socket = Eio.Net.listen ~sw net ~backlog:5 ~reuse_addr:true addr in
+  (* Eio.Time.with_timeout_exn env#clock 0.1 @@ fun () -> *)
+  Fiber.both
+    (fun () ->
+       traceln "server -> start @@ %a" Eio.Net.Sockaddr.pp addr;
+       let config = server_config certificates_dir in
+       serve_ssl ~config listening_socket @@ fun flow _addr ->
+       traceln "handler accepted";
+    )
+    (fun () ->
+        try
+            Eio.Net.with_tcp_connect ~host:"127.0.0.1" ~service:"4433" net @@ fun flow ->
+            let config = Tls.Config.client ~authenticator:null_auth () in
+            let flow = (Tls_eio.client_of_flow config flow :> Flow.two_way) in
+            Flow.shutdown flow `Send ;
+            Flow.copy_string "hello" flow ;
+            Eio.traceln "FAIL"
+        with Unix.Unix_error(Unix.ENOTCONN, _, _) ->
+            Eio.traceln "PASS"
+    )
+  ;;
++server -> start @ tcp:127.0.0.1:4433
++server -> connect
++handler accepted
++PASS
+- : unit = ()
+```
+
+## Flow Shutdown Receive semantics
+
+```ocaml
+# Eio_main.run @@ fun env ->
+  let net = env#net in
+  let certificates_dir = env#cwd in
+  Mirage_crypto_rng_eio.run (module Mirage_crypto_rng.Fortuna) env @@ fun () ->
+  Switch.run @@ fun sw ->
+  let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 4433) in
+  let listening_socket = Eio.Net.listen ~sw net ~backlog:5 ~reuse_addr:true addr in
+  (* Eio.Time.with_timeout_exn env#clock 0.1 @@ fun () -> *)
+  Fiber.both
+    (fun () ->
+       traceln "server -> start @@ %a" Eio.Net.Sockaddr.pp addr;
+       let config = server_config certificates_dir in
+       serve_ssl ~config listening_socket @@ fun flow _addr ->
+       traceln "handler accepted";
+       Eio.Flow.copy_string "hello" flow
+    )
+    (fun () ->
+        try
+            Eio.Net.with_tcp_connect ~host:"127.0.0.1" ~service:"4433" net @@ fun flow ->
+            let config = Tls.Config.client ~authenticator:null_auth () in
+            let flow = (Tls_eio.client_of_flow config flow :> Flow.two_way) in
+            Flow.shutdown flow `Receive ;
+            let r = Eio.Buf_read.of_flow flow ~max_size:max_int in
+            let line = Eio.Buf_read.line r in
+            traceln "client + %s" line;
+            Eio.traceln "FAIL"
+        with End_of_file ->
+            Eio.traceln "PASS"
+    )
+  ;;
++server -> start @ tcp:127.0.0.1:4433
++server -> connect
++handler accepted
++PASS
+- : unit = ()
+```

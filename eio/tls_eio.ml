@@ -155,9 +155,11 @@ module Raw = struct
   (* Not sure if we need to keep both directions open on the underlying flow when closing
      one direction at the TLS level. *)
   let shutdown t = function
-    | `Send -> close_tls t
+    | `Send -> close_tls t ; Flow.shutdown t.flow `Send
     | `All -> close_tls t; Flow.shutdown t.flow `All
-    | `Receive -> ()  (* Not obvious how to do this with TLS, so ignore for now. *)
+    | `Receive ->
+        (* XXX talex Not obvious how to do this with TLS, so ignore for now. *)
+        Flow.shutdown t.flow `Receive
 
   let server_of_flow config flow =
     drain_handshake {
