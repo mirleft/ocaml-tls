@@ -22,6 +22,9 @@ module Raw = struct
     | End_of_file as ex ->
       t.state <- `Eof;
       raise ex
+    | Eio.Cancel.Cancelled _ as ex ->
+      (* No need to break the flow just because a read got cancelled. *)
+      raise ex
     | exn ->
       (match t.state with
        | `Error _ | `Eof -> ()

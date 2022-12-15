@@ -39,6 +39,7 @@ type op =
   | Send of int                   (* The application sends some bytes to Tls *)
   | Transmit of transmit_amount   (* The network sends some types to the peer *)
   | Recv                          (* The application tries to read some data *)
+  | Cancel_recv                   (* The application aborts any current read *)
   | Shutdown_send                 (* The application shuts down the sending side *)
 
 let label name gen =
@@ -49,6 +50,7 @@ let op =
     Crowbar.(map [range 4096]) (fun n -> Send n);
     Crowbar.(map [range ~min:1 4096]) (fun n -> Transmit (`Bytes n));
     label "recv" @@ Crowbar.const Recv;
+    label "cancel-recv" @@ Crowbar.const Cancel_recv;
     label "shutdown-send" @@ Crowbar.const Shutdown_send;
   ]
 
@@ -113,6 +115,7 @@ end = struct
     send_commands : [`Send of int | `Exit] Eio.Stream.t;  (* Commands for the sending fiber *)
     recv_commands : [`Recv | `Drain] Eio.Stream.t;        (* Commands for the receiving fiber *)
     transmit : transmit_amount -> unit;
+    cancel_read : Eio.Condition.t;
     (* FIXME: We shouldn't need to care about these, but see issue #452: *)
     sender_closed : bool ref;
     receiver_closed : bool ref;
@@ -124,8 +127,9 @@ end = struct
   let create ~sender ~receiver ~sender_closed ~receiver_closed ~transmit dir message =
     let send_commands = Eio.Stream.create max_int in
     let recv_commands = Eio.Stream.create max_int in
+    let cancel_read = Eio.Condition.create () in
     { dir; message; sender; receiver; sent = 0; recv = 0;
-      send_commands; recv_commands;
+      send_commands; cancel_read; recv_commands;
       transmit; sender_closed; receiver_closed }
 
   let shutdown t =
@@ -171,13 +175,20 @@ end = struct
           end
         );
         let buf = Cstruct.create 4096 in
-        let got = Eio.Flow.single_read recv buf in
-        let received = Cstruct.to_string buf ~len:got in
-        Log.info (fun f -> f "%a: received %S" pp_dir t received);
-        let expected = String.sub t.message t.recv got in
-        if received <> expected then
-          Fmt.failwith "%a: excepted %S but got %S!" pp_dir t expected received;
-        t.recv <- t.recv + got
+        Fiber.first
+          (fun () ->
+             Eio.Condition.await_no_mutex t.cancel_read;
+             Log.info (fun f -> f "%a: read cancelled" pp_dir t);
+          )
+          (fun () ->
+             let got = Eio.Flow.single_read recv buf in
+             let received = Cstruct.to_string buf ~len:got in
+             Log.info (fun f -> f "%a: received %S" pp_dir t received);
+             let expected = String.sub t.message t.recv got in
+             if received <> expected then
+               Fmt.failwith "%a: excepted %S but got %S!" pp_dir t expected received;
+             t.recv <- t.recv + got
+          )
       done
     with End_of_file ->
       if not !(t.receiver_closed) then (
@@ -205,6 +216,9 @@ end = struct
     | Recv ->
       Log.info (fun f -> f "%a: enqueue read from Tls" pp_dir t);
       Eio.Stream.add t.recv_commands @@ `Recv;
+    | Cancel_recv ->
+      Log.info (fun f -> f "%a: cancel read" pp_dir t);
+      Eio.Condition.broadcast t.cancel_read
     | Transmit i ->
       Log.info (fun f -> f "%a: enqueue transmit %a over network" pp_dir t pp_amount i);
       t.transmit i
@@ -318,6 +332,7 @@ let () =
       Some (To_server, Send 4);
       Some (To_server, Transmit (`Bytes 4096));
       None;
+      Some (To_client, Cancel_recv);
       Some (To_client, Send 4);
       Some (To_client, Transmit (`Bytes 4096));
       None;
