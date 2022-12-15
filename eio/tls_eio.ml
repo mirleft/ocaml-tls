@@ -39,11 +39,31 @@ module Raw = struct
                from the peer socket. https://www.rfc-editor.org/rfc/rfc8446#section-6.1 *)
             Eio.Flow.shutdown t.flow `Receive ;
 
-            (* We set it to true since 'Tls.Engine.handle_tls t.tls data' returns 'close_notify'
-               as `Response resp when it encounters `close_notify` in data. *)
+            (* XXX should we send a 'close_notify' response in return to 'close_notify'?
+               We really shouldn't since this results in full shutdown as both sides will
+               have indicated that they are not going to send data anymore. TLS 1.3 doesn't
+               require it and 'close_notify' should only result in partial shutdown of write
+               on the sending side and partial shutdown of receive on the receiving side. *)
+
+            (* Set it to true since 'Tls.Engine.handle_tls t.tls data' returns 'close_notify'
+               as `Response resp when it encounters `close_notify` in data. See above comment
+               on why we really shouldn't do this? *)
             if not t.close_notify_sent then begin
               Option.iter (write_t t) resp ;
-              t.close_notify_sent <- true
+              t.close_notify_sent <- true ;
+
+              (* XXX shouldn't we now close 'Send' side of flow since we are sending 
+                'close_notify' message ? lwt doesn't so we don't too and the fuzz
+                test fails if we do, so we don't too. But we really, really should shutdown
+                'Send' side of the connection here. 
+
+                TLS 1.3 [https://www.rfc-editor.org/rfc/rfc8446#section-6.1] is very specific
+                about this behaviour.                 
+                
+                Discuss with @talex, @hannes what should really happend on close_notify.
+                
+                Uncomment line to see fuzz test failing. *)
+              (* Eio.Flow.shutdown t.flow `Send ; *)
             end
           | `Alert a -> raise (Tls_alert a)
         end ;
