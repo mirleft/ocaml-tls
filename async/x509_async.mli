@@ -16,6 +16,7 @@ module Authenticator : sig
     val ca_file
       :  ?allowed_hashes:Mirage_crypto.Hash.hash list
       -> ?crls:Filename.t
+      -> ?allow_ca_cert:bool
       -> Filename.t
       -> unit
       -> t
@@ -23,6 +24,7 @@ module Authenticator : sig
     val ca_dir
       :  ?allowed_hashes:Mirage_crypto.Hash.hash list
       -> ?crls:Filename.t
+      -> ?allow_ca_cert:bool
       -> Filename.t
       -> unit
       -> t

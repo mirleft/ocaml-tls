@@ -83,6 +83,7 @@ module Authenticator = struct
         { trust_anchors : [ `File of Filename.t | `Directory of Filename.t ]
         ; allowed_hashes : Mirage_crypto.Hash.hash list option
         ; crls : Filename.t option
+        ; allow_ca_cert : bool option
         }
 
       let to_certs = function
@@ -96,14 +97,14 @@ module Authenticator = struct
       | Cert_fingerprint of Mirage_crypto.Hash.hash * string
       | Key_fingerprint of Mirage_crypto.Hash.hash * string
 
-    let ca_file ?allowed_hashes ?crls filename () =
+    let ca_file ?allowed_hashes ?crls ?allow_ca_cert filename () =
       let trust_anchors = `File filename in
-      Chain_of_trust { trust_anchors; allowed_hashes; crls }
+      Chain_of_trust { trust_anchors; allowed_hashes; crls; allow_ca_cert }
     ;;
 
-    let ca_dir ?allowed_hashes ?crls directory_name () =
+    let ca_dir ?allowed_hashes ?crls ?allow_ca_cert directory_name () =
       let trust_anchors = `Directory directory_name in
-      Chain_of_trust { trust_anchors; allowed_hashes; crls }
+      Chain_of_trust { trust_anchors; allowed_hashes; crls; allow_ca_cert }
     ;;
 
     let cert_fingerprint hash fingerprint = Cert_fingerprint (hash, fingerprint)
@@ -117,7 +118,7 @@ module Authenticator = struct
       |> Cstruct.of_hex
     ;;
 
-    let of_cas ~time ({ trust_anchors; allowed_hashes; crls } : Chain_of_trust.t) =
+    let of_cas ~time ({ trust_anchors; allowed_hashes; crls; allow_ca_cert } : Chain_of_trust.t) =
       let open Deferred.Or_error.Let_syntax in
       let%bind cas = Chain_of_trust.to_certs trust_anchors in
       let%map crls =
@@ -127,7 +128,7 @@ module Authenticator = struct
           Some crls
         | None -> return None
       in
-      X509.Authenticator.chain_of_trust ?allowed_hashes ?crls ~time cas
+      X509.Authenticator.chain_of_trust ?allowed_hashes ?crls ?allow_ca_cert ~time cas
     ;;
 
     let of_cert_fingerprint ~time hash fingerprint =
