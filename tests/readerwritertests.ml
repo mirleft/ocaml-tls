@@ -363,14 +363,14 @@ let rw_handshake_client_hello_vals =
           ClientHello { ch with client_version = `TLS_1_0 } ;
           ClientHello { ch with client_version = `TLS_1_1 } ;
 
-          ClientHello { ch with ciphersuites = [ Packet.TLS_NULL_WITH_NULL_NULL ] } ;
-          ClientHello { ch with ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) } ;
+          ClientHello { ch with ciphersuites = [ Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA ] } ;
+          ClientHello { ch with ciphersuites = Packet.([ TLS_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_AES_256_CBC_SHA ]) } ;
 
           ClientHello { ch with sessionid = (Some (list_to_cstruct rnd)) } ;
           ClientHello { ch with sessionid = (Some client_random) } ;
 
           ClientHello { ch with
-                        ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        ciphersuites = Packet.([ TLS_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) } ;
 
           ClientHello { ch with extensions = [ make_hostname_ext "foobar" ] } ;
@@ -388,12 +388,12 @@ let rw_handshake_client_hello_vals =
                            ] } ;
 
           ClientHello { ch with
-                        ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        ciphersuites = Packet.([ TLS_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) ;
                         extensions = [ make_hostname_ext "foobarblubb" ] } ;
 
           ClientHello { ch with
-                        ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        ciphersuites = Packet.([ TLS_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) ;
                         extensions = [
                              make_hostname_ext "foobarblubb" ;
@@ -403,7 +403,7 @@ let rw_handshake_client_hello_vals =
                       ] } ;
 
           ClientHello { ch with
-                        ciphersuites = Packet.([ TLS_NULL_WITH_NULL_NULL ; TLS_RSA_WITH_NULL_MD5 ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
+                        ciphersuites = Packet.([ TLS_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_AES_256_CBC_SHA ]) ;
                         sessionid = (Some client_random) ;
                         extensions = [
                              make_hostname_ext "foobarblubb" ;
