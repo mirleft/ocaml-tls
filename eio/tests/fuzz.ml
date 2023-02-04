@@ -148,10 +148,12 @@ end = struct
       | `Send len ->
         let available = String.length t.message - t.sent in
         let len = min len available in
-        let msg = Cstruct.of_string ~off:t.sent ~len t.message in
-        t.sent <- t.sent + len;
-        Log.info (fun f -> f "%a: sending %S" pp_dir t (Cstruct.to_string msg));
-        Eio.Flow.write sender [msg];
+        if len > 0 then (
+          let msg = Cstruct.of_string ~off:t.sent ~len t.message in
+          t.sent <- t.sent + len;
+          Log.info (fun f -> f "%a: sending %S" pp_dir t (Cstruct.to_string msg));
+          Eio.Flow.write sender [msg];
+        );
         aux ()
     in
     aux()
@@ -253,7 +255,27 @@ let dispatch_commands ~to_server ~to_client actions =
   in
   aux actions
 
-let main client_message server_message actions =
+(* In some runs we automatically perform these actions first, which allows the handshake to complete.
+   This lets the fuzz tester get to the interesting cases more quickly. *)
+let quickstart_actions = [
+  Some (To_server, Transmit (`Bytes 4096));
+  None; (* Client sends handshake *)
+  None; (* Server reads handshake *)
+  Some (To_client, Transmit (`Bytes 4096));
+  None; (* Server replies to handshake *)
+  None; (* Client reads reply *)
+  Some (To_server, Transmit (`Bytes 4096));
+  None; (* Client sends final part *)
+  None; (* Server receives it *)
+  Some (To_client, Recv);
+  Some (To_server, Recv);
+]
+
+let main client_message server_message quickstart actions =
+  let actions =
+    if quickstart then quickstart_actions @ actions
+    else actions
+  in
   Eio_mock.Backend.run @@ fun () ->
   Switch.run @@ fun sw ->
   let insecure_test_rng = Mirage_crypto_rng.create (module Test_rng) in
@@ -287,13 +309,4 @@ let main client_message server_message actions =
   ]
 
 let () =
-  Crowbar.(add_test ~name:"random ops" [bytes; bytes; list action] main)
-(*
-  Logs.(set_level (Some Info));
-  Logs.set_reporter (Logs_fmt.reporter ());
-  ignore action;
-  main "ping" "pong" [
-    Some (To_server, Send 5);
-    Some (To_client, Send 5);
-  ]
-*)
+  Crowbar.(add_test ~name:"random ops" [bytes; bytes; bool; list action] main)
