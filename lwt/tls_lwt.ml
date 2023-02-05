@@ -276,7 +276,7 @@ and connect authenticator addr =
   in connect_ext config addr
 
 (* Boot the entropy loop at module init time. *)
-let () = Mirage_crypto_rng_lwt.initialize ()
+let () = Mirage_crypto_rng_lwt.initialize (module Mirage_crypto_rng.Fortuna)
 
 let () =
   Printexc.register_printer (function
