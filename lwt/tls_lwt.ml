@@ -43,16 +43,22 @@ module Unix = struct
   }
 
   let safely th =
-    Lwt.catch (fun () -> th >>= fun _ -> return_unit) (fun _ -> return_unit)
+    Lwt.catch
+      (fun () -> th >>= fun _ -> return_unit)
+      (function
+        | Out_of_memory -> raise Out_of_memory
+        | _ -> return_unit)
 
   let (read_t, write_t) =
     let recording_errors op t cs =
       Lwt.catch
         (fun () -> op t.fd cs)
-        (fun exn -> (match t.state with
-             | `Error _ | `Eof -> ()
-             | `Active _ -> t.state <- `Error exn) ;
-           fail exn)
+        (function
+          | Out_of_memory -> raise Out_of_memory
+          | exn -> (match t.state with
+              | `Error _ | `Eof -> ()
+              | `Active _ -> t.state <- `Error exn) ;
+            fail exn)
     in
     (recording_errors Lwt_cs.read, recording_errors Lwt_cs.write_full)
 
@@ -206,7 +212,9 @@ module Unix = struct
   let accept conf fd =
     Lwt_unix.accept fd >>= fun (fd', addr) ->
     Lwt.catch (fun () -> server_of_fd conf fd' >|= fun t -> (t, addr))
-      (fun exn -> safely (Lwt_unix.close fd') >>= fun () -> fail exn)
+      (function
+        | Out_of_memory -> raise Out_of_memory
+        | exn -> safely (Lwt_unix.close fd') >>= fun () -> fail exn)
 
   let connect conf (host, port) =
     resolve host (string_of_int port) >>= fun addr ->
@@ -217,7 +225,9 @@ module Unix = struct
           (Result.bind (Domain_name.of_string host) Domain_name.host)
       in
       Lwt_unix.connect fd addr >>= fun () -> client_of_fd conf ?host fd)
-      (fun exn -> safely (Lwt_unix.close fd) >>= fun () -> fail exn)
+      (function
+        | Out_of_memory -> raise Out_of_memory
+        | exn -> safely (Lwt_unix.close fd) >>= fun () -> fail exn)
 
   let read_bytes t bs off len =
     read t (Cstruct.of_bigarray ~off ~len bs)
