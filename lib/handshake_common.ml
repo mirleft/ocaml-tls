@@ -303,11 +303,7 @@ let client_hello_valid version (ch : client_hello) =
               | _, _, false -> Error (`NotSubsetKeyShareSupportedGroup (gs, ks)) )
         | Some x -> Error (`NoGoodSignatureAlgorithms x)
       )
-    | `SSL_3 | `TLS_1_0 | `TLS_1_1 ->
-      Option.fold
-        ~none:(Error `HasSignatureAlgorithmsExtension)
-        ~some:(fun _ -> Ok ())
-        sig_alg
+    | `SSL_3 | `TLS_1_0 | `TLS_1_1 -> Ok ()
   in
 
   let share_ciphers =

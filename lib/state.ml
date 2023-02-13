@@ -237,7 +237,6 @@ type client_hello_errors = [
   | `NotSetCiphersuites of Packet.any_ciphersuite list
   | `NoSupportedCiphersuite of Packet.any_ciphersuite list
   | `NotSetExtension of client_extension list
-  | `HasSignatureAlgorithmsExtension
   | `NoSignatureAlgorithmsExtension
   | `NoGoodSignatureAlgorithms of signature_algorithm list
   | `NoKeyShareExtension
