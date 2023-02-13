@@ -159,15 +159,7 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
                   (CBC { c with iv_mode = Iv iv' }, m) )
 
           | AEAD c ->
-            match c.cipher with
-            | ChaCha20_Poly1305 _ ->
-              (* RFC 7905: no explicit nonce, instead TLS 1.3 construction is adapted *)
-              let nonce = Crypto.aead_nonce c.nonce ctx.sequence in
-              let msg =
-                Crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
-              in
-              (AEAD c, msg)
-            | _ ->
+            if c.explicit_nonce then
               let explicit_nonce = Crypto.sequence_buf ctx.sequence in
               let nonce = c.nonce <+> explicit_nonce
               in
@@ -175,6 +167,13 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
                 Crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
               in
               (AEAD c, explicit_nonce <+> msg)
+            else
+              (* RFC 7905: no explicit nonce, instead TLS 1.3 construction is adapted *)
+              let nonce = Crypto.aead_nonce c.nonce ctx.sequence in
+              let msg =
+                Crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
+              in
+              (AEAD c, msg)
         in
         (Some { sequence = Int64.succ ctx.sequence ; cipher_st = c_st }, ty, enc)
 
@@ -233,18 +232,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
               Ok (CBC c, msg) )
 
     | AEAD c ->
-      match c.cipher with
-      | ChaCha20_Poly1305 _ ->
-        (* RFC 7905: no explicit nonce, instead TLS 1.3 construction is adapted *)
-        let adata =
-          let ver = pair_of_tls_version version in
-          Crypto.pseudo_header seq ty ver (Cstruct.length buf - Crypto.tag_len c.cipher)
-        and nonce = Crypto.aead_nonce c.nonce seq
-        in
-        (match Crypto.decrypt_aead ~adata ~cipher:c.cipher ~key:c.cipher_secret ~nonce buf with
-         | None -> Error (`Fatal `MACMismatch)
-         | Some x -> Ok (AEAD c, x))
-      | _ ->
+      if c.explicit_nonce then
         let explicit_nonce_len = 8 in
         if Cstruct.length buf < explicit_nonce_len then
           Error (`Fatal `MACUnderflow)
@@ -258,6 +246,16 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
           match Crypto.decrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
           | None -> Error (`Fatal `MACMismatch)
           | Some x -> Ok (AEAD c, x)
+      else
+        (* RFC 7905: no explicit nonce, instead TLS 1.3 construction is adapted *)
+        let adata =
+          let ver = pair_of_tls_version version in
+          Crypto.pseudo_header seq ty ver (Cstruct.length buf - Crypto.tag_len c.cipher)
+        and nonce = Crypto.aead_nonce c.nonce seq
+        in
+        (match Crypto.decrypt_aead ~adata ~cipher:c.cipher ~key:c.cipher_secret ~nonce buf with
+         | None -> Error (`Fatal `MACMismatch)
+         | Some x -> Ok (AEAD c, x))
   in
   match st, version with
   | None, _ when ty = Packet.APPLICATION_DATA ->

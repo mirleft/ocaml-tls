@@ -26,15 +26,13 @@ type 'k cbc_state = {
 
 type nonce = Cstruct.t
 
-type 'k aead_cipher =
-  | CCM of (module Cipher_block.S.CCM16 with type key = 'k)
-  | GCM of (module Cipher_block.S.GCM with type key = 'k)
-  | ChaCha20_Poly1305 of (module AEAD with type key = 'k)
-
+type 'k aead_cipher = (module AEAD with type key = 'k)
 type 'k aead_state = {
   cipher         : 'k aead_cipher ;
   cipher_secret  : 'k ;
-  nonce          : nonce
+  nonce          : nonce ;
+  explicit_nonce : bool ; (* RFC 7905: no explicit nonce, instead TLS 1.3 construction is adapted *)
+
 }
 
 (* state of a symmetric cipher *)
