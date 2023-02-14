@@ -1,3 +1,21 @@
+## v0.16.0 (2023-02-14)
+
+* BREAKING: new opam package tls-lwt (formerly tls.lwt), in dune:
+  (libraries tls.lwt) should now be libraries (tls-lwt)
+  (#468 @hannesm, reported #449 by @mbacarella)
+* tls: update to mirage-crypto 0.11 API (#468 @hannesm)
+* tls: relax SignatureAlgorithms extension handling to allow OpenSSL
+  interoperability tests with TLS 1.0 and TLS 1.1 (#469 @hannesm)
+* tls: remove Utils.filter_map and and Utils.option, use Stdlib instead (#455
+  @hannesm)
+* tls: do not globally open Utils (#455 @hannesm)
+* tls: export log source of Tracing module (#461 @bikallem)
+* tls: remove unused ciphersuites to reduce binary size (#467 @hannesm)
+* tls-lwt: do not catch out of memory exception (#469 @hannesm)
+* tls-eio: add fuzz testing using crowbar (#456 #463 @talex5)
+* tls-eio: update to eio 0.7 (#456 @talex5)
+* tls-eio: fix test for develop with vendoring (#462 @bikallem)
+
 ## v0.15.5 (2022-10-25)
 
 * tls-eio release only: fix end-of-file handling (#454 @talex5), avoid
