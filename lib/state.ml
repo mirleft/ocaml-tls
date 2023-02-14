@@ -27,7 +27,7 @@ type 'k cbc_state = {
 type nonce = Cstruct.t
 
 type 'k aead_cipher =
-  | CCM of (module Cipher_block.S.CCM with type key = 'k)
+  | CCM16 of (module Cipher_block.S.CCM16 with type key = 'k)
   | GCM of (module Cipher_block.S.GCM with type key = 'k)
   | ChaCha20_Poly1305 of (module AEAD with type key = 'k)
 

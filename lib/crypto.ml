@@ -41,10 +41,9 @@ module Ciphers = struct
     let open Cipher_block.AES in
     function
     | AES_128_CCM | AES_256_CCM ->
-       let cipher = (module CCM : Cipher_block.S.CCM with type key = CCM.key) in
-       (* TODO the 16 should either be input or extracted from ciphersuite name *)
-       let cipher_secret = CCM.of_secret ~maclen:16 secret in
-       State.(AEAD { cipher = CCM cipher ; cipher_secret ; nonce })
+       let cipher = (module CCM16 : Cipher_block.S.CCM16 with type key = CCM16.key) in
+       let cipher_secret = CCM16.of_secret secret in
+       State.(AEAD { cipher = CCM16 cipher ; cipher_secret ; nonce })
     | AES_128_GCM | AES_256_GCM ->
        let cipher = (module GCM : Cipher_block.S.GCM with type key = GCM.key) in
        let cipher_secret = GCM.of_secret secret in
@@ -139,14 +138,8 @@ let cbc_unpad data =
   with Invalid_argument _ -> None
 
 let tag_len (type a) = function
-  | State.CCM cipher ->
-    let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
-    (* TODO this is wrong (but works since "16" is always passed in above,
-       which indeed is the AES128/256 block size). There should be a
-       C.tag_size (in CCM this needs to depend on the key though (due to
-       different possible mac sizes), in contrast to GCM where we always have
-       a static one) - maybe mirage-crypto CCM should take mac len as functor
-       argument? *)
+  | State.CCM16 cipher ->
+    let module C = (val cipher : Cipher_block.S.CCM16 with type key = a) in
     C.block_size
   | State.GCM cipher ->
     let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
@@ -156,8 +149,8 @@ let tag_len (type a) = function
 
 let encrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
   match cipher with
-  | State.CCM cipher ->
-    let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
+  | State.CCM16 cipher ->
+    let module C = (val cipher : Cipher_block.S.CCM16 with type key = a) in
     C.authenticate_encrypt ~key ~nonce ?adata data
   | State.GCM cipher ->
     let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
@@ -168,8 +161,8 @@ let encrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
 
 let decrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
   match cipher with
-  | State.CCM cipher ->
-     let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
+  | State.CCM16 cipher ->
+     let module C = (val cipher : Cipher_block.S.CCM16 with type key = a) in
      C.authenticate_decrypt ~key ~nonce ?adata data
   | State.GCM cipher ->
      let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
