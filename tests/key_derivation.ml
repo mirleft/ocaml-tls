@@ -680,5 +680,5 @@ let () =
   Fmt_tty.setup_std_outputs ();
   Logs.set_level (Some Logs.Debug);
   Logs.set_reporter (Logs_fmt.reporter ~dst:Format.std_formatter ()) ;
-  Mirage_crypto_rng_unix.initialize () ;
+  Mirage_crypto_rng_unix.initialize (module Mirage_crypto_rng.Fortuna) ;
   Alcotest.run "Key derivation tests" [ "key extraction and derivation", tests ]

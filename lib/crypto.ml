@@ -37,22 +37,25 @@ module Ciphers = struct
         K_CBC ( (module CBC : Cipher_block.S.CBC with type key = CBC.key),
                 CBC.of_secret )
 
-  let get_aead ~secret ~nonce =
+  type aead_keyed = | K_AEAD : 'k State.aead_cipher * (Cstruct.t -> 'k) * bool -> aead_keyed
+  let get_aead =
     let open Cipher_block.AES in
     function
     | AES_128_CCM | AES_256_CCM ->
-       let cipher = (module CCM : Cipher_block.S.CCM with type key = CCM.key) in
-       (* TODO the 16 should either be input or extracted from ciphersuite name *)
-       let cipher_secret = CCM.of_secret ~maclen:16 secret in
-       State.(AEAD { cipher = CCM cipher ; cipher_secret ; nonce })
+       K_AEAD ((module CCM16 : AEAD with type key = CCM16.key),
+               CCM16.of_secret, true)
     | AES_128_GCM | AES_256_GCM ->
-       let cipher = (module GCM : Cipher_block.S.GCM with type key = GCM.key) in
-       let cipher_secret = GCM.of_secret secret in
-       State.(AEAD { cipher = GCM cipher ; cipher_secret ; nonce })
+       K_AEAD ((module GCM : AEAD with type key = GCM.key),
+               GCM.of_secret, true)
     | CHACHA20_POLY1305 ->
-      let cipher = (module Chacha20 : AEAD with type key = Chacha20.key) in
-      let cipher_secret = Chacha20.of_secret secret in
-      State.(AEAD { cipher = ChaCha20_Poly1305 cipher ; cipher_secret ; nonce })
+       K_AEAD ((module Chacha20 : AEAD with type key = Chacha20.key),
+               Chacha20.of_secret, false)
+
+  let get_aead_cipher ~secret ~nonce aead_cipher =
+    match get_aead aead_cipher with
+    | K_AEAD (cipher, sec, explicit_nonce) ->
+      let cipher_secret = sec secret in
+      State.(AEAD { cipher ; cipher_secret ; nonce ; explicit_nonce })
 
   let get_cipher ~secret ~hmac_secret ~iv_mode ~nonce = function
     | `Block (cipher, hmac) ->
@@ -62,7 +65,7 @@ module Ciphers = struct
             State.(CBC { cipher ; cipher_secret ; iv_mode ; hmac ; hmac_secret })
        )
 
-    | `AEAD cipher -> get_aead ~secret ~nonce cipher
+    | `AEAD cipher -> get_aead_cipher ~secret ~nonce cipher
 end
 
 let sequence_buf seq =
@@ -138,45 +141,17 @@ let cbc_unpad data =
     if check 0 then Some res else None
   with Invalid_argument _ -> None
 
-let tag_len (type a) = function
-  | State.CCM cipher ->
-    let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
-    (* TODO this is wrong (but works since "16" is always passed in above,
-       which indeed is the AES128/256 block size). There should be a
-       C.tag_size (in CCM this needs to depend on the key though (due to
-       different possible mac sizes), in contrast to GCM where we always have
-       a static one) - maybe mirage-crypto CCM should take mac len as functor
-       argument? *)
-    C.block_size
-  | State.GCM cipher ->
-    let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
-    C.tag_size
-  | State.ChaCha20_Poly1305 _ ->
-    Poly1305.mac_size
+let tag_len (type a) cipher =
+  let module C = (val cipher : AEAD with type key = a) in
+  C.tag_size
 
 let encrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
-  match cipher with
-  | State.CCM cipher ->
-    let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
-    C.authenticate_encrypt ~key ~nonce ?adata data
-  | State.GCM cipher ->
-    let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
-    C.authenticate_encrypt ~key ~nonce ?adata data
-  | State.ChaCha20_Poly1305 cipher ->
-    let module C = (val cipher : AEAD with type key = a) in
-    C.authenticate_encrypt ~key ~nonce ?adata data
+  let module C = (val cipher : AEAD with type key = a) in
+  C.authenticate_encrypt ~key ~nonce ?adata data
 
 let decrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
-  match cipher with
-  | State.CCM cipher ->
-     let module C = (val cipher : Cipher_block.S.CCM with type key = a) in
-     C.authenticate_decrypt ~key ~nonce ?adata data
-  | State.GCM cipher ->
-     let module C = (val cipher : Cipher_block.S.GCM with type key = a) in
-     C.authenticate_decrypt ~key ~nonce ?adata data
-  | State.ChaCha20_Poly1305 cipher ->
-    let module C = (val cipher : AEAD with type key = a) in
-    C.authenticate_decrypt ~key ~nonce ?adata data
+  let module C = (val cipher : AEAD with type key = a) in
+  C.authenticate_decrypt ~key ~nonce ?adata data
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
   let module C = (val cipher : Cipher_block.S.CBC with type key = a) in
