@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Handshake_server13 (tls.Tls.Handshake_server13)</title><link rel="stylesheet" href="../../../odoc.css"/><meta charset="utf-8"/><meta name="generator" content="odoc 2.1.1"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../../highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../../index.html">tls</a> &#x00BB; <a href="../index.html">Tls</a> &#x00BB; Handshake_server13</nav><header class="odoc-preamble"><h1>Module <code><span>Tls.Handshake_server13</span></code></h1></header><div class="odoc-content"><div class="odoc-spec"><div class="spec value" id="val-answer_client_hello" class="anchored"><a href="#val-answer_client_hello" class="anchor"></a><code><span><span class="keyword">val</span> answer_client_hello : 
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Handshake_server13 (tls.Tls.Handshake_server13)</title><link rel="stylesheet" href="../../../odoc.css"/><meta charset="utf-8"/><meta name="generator" content="odoc 2.2.0"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../../highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../../index.html">tls</a> &#x00BB; <a href="../index.html">Tls</a> &#x00BB; Handshake_server13</nav><header class="odoc-preamble"><h1>Module <code><span>Tls.Handshake_server13</span></code></h1></header><div class="odoc-content"><div class="odoc-spec"><div class="spec value anchored" id="val-answer_client_hello"><a href="#val-answer_client_hello" class="anchor"></a><code><span><span class="keyword">val</span> answer_client_hello : 
   <span>hrr:bool <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../State/index.html#type-handshake_state">State.handshake_state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../Core/index.html#type-client_hello">Core.client_hello</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
-  <span><span>( <a href="../State/index.html#type-handshake_state">State.handshake_state</a>
-    * <span><span>[&gt; <span>`Change_dec of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
-      <span><span>| `Change_enc</span> of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
-      <span><span>| `Record</span> of <a href="../Packet/index.html#type-content_type">Packet.content_type</a> * <span class="xref-unresolved">Cstruct</span>.t</span> ]</span>
-        list</span>,
+  <span><span>(<a href="../State/index.html#type-handshake_state">State.handshake_state</a>
+   * <span><span>[&gt; <span>`Change_dec of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
+     <span><span>| `Change_enc</span> of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
+     <span><span>| `Record</span> of <a href="../Packet/index.html#type-content_type">Packet.content_type</a> * <span class="xref-unresolved">Cstruct</span>.t</span> ]</span>
+       list</span>,
     <span>[&gt; <span>`Error of
          <span>[&gt; `CouldntSelectCertificate
          <span>| `NoCertificateConfigured</span>
@@ -26,7 +26,6 @@
       <span><span>| `InvalidClientHello</span> of
         <span>[&gt; `EmptyCiphersuites
         <span>| `Has0rttAfterHRR</span>
-        <span>| `HasSignatureAlgorithmsExtension</span>
         <span>| `NoCookie</span>
         <span><span>| `NoGoodSignatureAlgorithms</span> of <span><a href="../Core/index.html#type-signature_algorithm">Core.signature_algorithm</a> list</span></span>
         <span>| `NoKeyShareExtension</span>
@@ -43,8 +42,8 @@
       <span>| `KeyTooSmall</span>
       <span>| `NoApplicationProtocol</span>
       <span>| `NoSupportedGroup</span>
-      <span><span>| `SigningFailed</span> of string</span> ]</span></span> ]</span> )</span>
-    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value" id="val-answer_client_certificate" class="anchored"><a href="#val-answer_client_certificate" class="anchor"></a><code><span><span class="keyword">val</span> answer_client_certificate : 
+      <span><span>| `SigningFailed</span> of string</span> ]</span></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-answer_client_certificate"><a href="#val-answer_client_certificate" class="anchor"></a><code><span><span class="keyword">val</span> answer_client_certificate : 
   <span><a href="../State/index.html#type-handshake_state">State.handshake_state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../State/index.html#type-session_data13">State.session_data13</a> <span class="arrow">&#45;&gt;</span></span>
@@ -53,15 +52,15 @@
   <span><span><a href="../Core/index.html#type-session_ticket">Core.session_ticket</a> option</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
-  <span><span>( <a href="../State/index.html#type-handshake_state">State.handshake_state</a> * <span><span class="type-var">'a</span> list</span>,
+  <span><span>(<a href="../State/index.html#type-handshake_state">State.handshake_state</a> * <span><span class="type-var">'a</span> list</span>,
     <span>[&gt; <span>`Error of
          <span>[&gt; <span>`AuthenticationFailure of <span class="xref-unresolved">X509</span>.Validation.validation_error</span> ]</span></span>
     <span><span>| `Fatal</span> of
       <span>[&gt; `BadCertificateChain
       <span>| `InvalidSession</span>
       <span>| `KeyTooSmall</span>
-      <span><span>| `ReaderError</span> of <a href="../Reader/index.html#type-error">Reader.error</a></span> ]</span></span> ]</span> )</span>
-    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value" id="val-answer_client_certificate_verify" class="anchored"><a href="#val-answer_client_certificate_verify" class="anchor"></a><code><span><span class="keyword">val</span> answer_client_certificate_verify : 
+      <span><span>| `ReaderError</span> of <a href="../Reader/index.html#type-error">Reader.error</a></span> ]</span></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-answer_client_certificate_verify"><a href="#val-answer_client_certificate_verify" class="anchor"></a><code><span><span class="keyword">val</span> answer_client_certificate_verify : 
   <span><a href="../State/index.html#type-handshake_state">State.handshake_state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../State/index.html#type-session_data13">State.session_data13</a> <span class="arrow">&#45;&gt;</span></span>
@@ -70,14 +69,14 @@
   <span><span><a href="../Core/index.html#type-session_ticket">Core.session_ticket</a> option</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
-  <span><span>( <a href="../State/index.html#type-handshake_state">State.handshake_state</a> * <span><span class="type-var">'a</span> list</span>,
+  <span><span>(<a href="../State/index.html#type-handshake_state">State.handshake_state</a> * <span><span class="type-var">'a</span> list</span>,
     <span>[&gt; <span>`Error of
          <span>[&gt; <span>`NoConfiguredSignatureAlgorithm of <span><a href="../Core/index.html#type-signature_algorithm">Core.signature_algorithm</a> list</span></span> ]</span></span>
     <span><span>| `Fatal</span> of
       <span>[&gt; `NoCertificateReceived
       <span><span>| `ReaderError</span> of <a href="../Reader/index.html#type-error">Reader.error</a></span>
-      <span><span>| `SignatureVerificationFailed</span> of string</span> ]</span></span> ]</span> )</span>
-    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value" id="val-answer_client_finished" class="anchored"><a href="#val-answer_client_finished" class="anchor"></a><code><span><span class="keyword">val</span> answer_client_finished : 
+      <span><span>| `SignatureVerificationFailed</span> of string</span> ]</span></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-answer_client_finished"><a href="#val-answer_client_finished" class="anchor"></a><code><span><span class="keyword">val</span> answer_client_finished : 
   <span><a href="../State/index.html#type-handshake_state">State.handshake_state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
@@ -85,10 +84,10 @@
   <span><span><a href="../Core/index.html#type-session_ticket">Core.session_ticket</a> option</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
-  <span><span>( <a href="../State/index.html#type-handshake_state">State.handshake_state</a> * <span><span>[&gt; <span>`Change_dec of <span class="type-var">'a</span></span> ]</span> list</span>,
+  <span><span>(<a href="../State/index.html#type-handshake_state">State.handshake_state</a> * <span><span>[&gt; <span>`Change_dec of <span class="type-var">'a</span></span> ]</span> list</span>,
     <span>[&gt; <span>`Fatal of
-         <span>[&gt; `BadFinished <span>| `HandshakeFragmentsNotEmpty</span> <span>| `InvalidSession</span> ]</span></span> ]</span> )</span>
-    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value" id="val-handle_end_of_early_data" class="anchored"><a href="#val-handle_end_of_early_data" class="anchor"></a><code><span><span class="keyword">val</span> handle_end_of_early_data : 
+         <span>[&gt; `BadFinished <span>| `HandshakeFragmentsNotEmpty</span> <span>| `InvalidSession</span> ]</span></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-handle_end_of_early_data"><a href="#val-handle_end_of_early_data" class="anchor"></a><code><span><span class="keyword">val</span> handle_end_of_early_data : 
   <span><a href="../State/index.html#type-handshake_state">State.handshake_state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct_sexp</span>.t <span class="arrow">&#45;&gt;</span></span>
   <span><span class="type-var">'a</span> <span class="arrow">&#45;&gt;</span></span>
@@ -96,26 +95,26 @@
   <span><span><a href="../Core/index.html#type-session_ticket">Core.session_ticket</a> option</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
-  <span><span>( <a href="../State/index.html#type-handshake_state">State.handshake_state</a> * <span><span>[&gt; <span>`Change_dec of <span class="type-var">'a</span></span> ]</span> list</span>,
-    <span>[&gt; <span>`Fatal of <span>[&gt; `InvalidSession ]</span></span> ]</span> )</span>
-    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value" id="val-handle_key_update" class="anchored"><a href="#val-handle_key_update" class="anchor"></a><code><span><span class="keyword">val</span> handle_key_update : 
+  <span><span>(<a href="../State/index.html#type-handshake_state">State.handshake_state</a> * <span><span>[&gt; <span>`Change_dec of <span class="type-var">'a</span></span> ]</span> list</span>,
+    <span>[&gt; <span>`Fatal of <span>[&gt; `InvalidSession ]</span></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-handle_key_update"><a href="#val-handle_key_update" class="anchor"></a><code><span><span class="keyword">val</span> handle_key_update : 
   <span><a href="../State/index.html#type-handshake_state">State.handshake_state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../Packet/index.html#type-key_update_request_type">Packet.key_update_request_type</a> <span class="arrow">&#45;&gt;</span></span>
-  <span><span>( <a href="../State/index.html#type-handshake_state">State.handshake_state</a>
-    * <span><span>[&gt; <span>`Change_dec of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
-      <span><span>| `Change_enc</span> of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
-      <span><span>| `Record</span> of <a href="../Packet/index.html#type-content_type">Packet.content_type</a> * <span class="xref-unresolved">Cstruct</span>.t</span> ]</span>
-        list</span>,
-    <span>[&gt; <span>`Fatal of <span>[&gt; `HandshakeFragmentsNotEmpty <span>| `InvalidSession</span> ]</span></span> ]</span> )</span>
-    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value" id="val-handle_handshake" class="anchored"><a href="#val-handle_handshake" class="anchor"></a><code><span><span class="keyword">val</span> handle_handshake : 
+  <span><span>(<a href="../State/index.html#type-handshake_state">State.handshake_state</a>
+   * <span><span>[&gt; <span>`Change_dec of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
+     <span><span>| `Change_enc</span> of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
+     <span><span>| `Record</span> of <a href="../Packet/index.html#type-content_type">Packet.content_type</a> * <span class="xref-unresolved">Cstruct</span>.t</span> ]</span>
+       list</span>,
+    <span>[&gt; <span>`Fatal of <span>[&gt; `HandshakeFragmentsNotEmpty <span>| `InvalidSession</span> ]</span></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-handle_handshake"><a href="#val-handle_handshake" class="anchor"></a><code><span><span class="keyword">val</span> handle_handshake : 
   <span><a href="../State/index.html#type-server13_handshake_state">State.server13_handshake_state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../State/index.html#type-handshake_state">State.handshake_state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
-  <span><span>( <a href="../State/index.html#type-handshake_state">State.handshake_state</a>
-    * <span><span>[&gt; <span>`Change_dec of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
-      <span><span>| `Change_enc</span> of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
-      <span><span>| `Record</span> of <a href="../Packet/index.html#type-content_type">Packet.content_type</a> * <span class="xref-unresolved">Cstruct</span>.t</span> ]</span>
-        list</span>,
+  <span><span>(<a href="../State/index.html#type-handshake_state">State.handshake_state</a>
+   * <span><span>[&gt; <span>`Change_dec of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
+     <span><span>| `Change_enc</span> of <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span>
+     <span><span>| `Record</span> of <a href="../Packet/index.html#type-content_type">Packet.content_type</a> * <span class="xref-unresolved">Cstruct</span>.t</span> ]</span>
+       list</span>,
     <span>[&gt; <span>`Error of
          <span>[&gt; <span>`AuthenticationFailure of <span class="xref-unresolved">X509</span>.Validation.validation_error</span>
          <span>| `CouldntSelectCertificate</span>
@@ -136,7 +135,6 @@
       <span><span>| `InvalidClientHello</span> of
         <span>[&gt; `EmptyCiphersuites
         <span>| `Has0rttAfterHRR</span>
-        <span>| `HasSignatureAlgorithmsExtension</span>
         <span>| `NoCookie</span>
         <span><span>| `NoGoodSignatureAlgorithms</span> of <span><a href="../Core/index.html#type-signature_algorithm">Core.signature_algorithm</a> list</span></span>
         <span>| `NoKeyShareExtension</span>
@@ -157,5 +155,5 @@
       <span><span>| `ReaderError</span> of <a href="../Reader/index.html#type-error">Reader.error</a></span>
       <span><span>| `SignatureVerificationFailed</span> of string</span>
       <span><span>| `SigningFailed</span> of string</span>
-      <span><span>| `UnexpectedHandshake</span> of <a href="../Core/index.html#type-tls_handshake">Core.tls_handshake</a></span> ]</span></span> ]</span> )</span>
+      <span><span>| `UnexpectedHandshake</span> of <a href="../Core/index.html#type-tls_handshake">Core.tls_handshake</a></span> ]</span></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div></div></body></html>
