@@ -3,10 +3,20 @@ open! Async
 include Io_intf
 
 module Tls_error = struct
+  module Alert = struct
+    type t = Tls.Packet.alert_type
+    let sexp_of_t a =
+      Sexplib.Sexp.Atom (Tls.Packet.alert_type_to_string a)
+  end
+  module Fail = struct
+    type t = Tls.Engine.failure
+    let sexp_of_t a =
+      Sexplib.Sexp.Atom (Fmt.to_to_string Tls.Engine.pp_failure a)
+  end
   type t =
-    | Tls_alert of Tls.Packet.alert_type
+    | Tls_alert of Alert.t
     (** [Tls_alert] exception received from the other endpoint *)
-    | Tls_failure of Tls.Engine.failure
+    | Tls_failure of Fail.t
     (** [Tls_failure] exception while processing incoming data *)
     | Connection_closed
     | Connection_not_ready
