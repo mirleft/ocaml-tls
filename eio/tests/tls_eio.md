@@ -19,11 +19,7 @@ let mypsk = ref None
 
 let ticket_cache = {
   Tls.Config.lookup = (fun _ -> None) ;
-  ticket_granted = (fun psk epoch ->
-      Logs.info (fun m -> m "ticket granted %a %a"
-                    Sexplib.Sexp.pp_hum (Tls.Core.sexp_of_psk13 psk)
-                    Sexplib.Sexp.pp_hum (Tls.Core.sexp_of_epoch_data epoch)) ;
-      mypsk := Some (psk, epoch)) ;
+  ticket_granted = (fun psk epoch -> mypsk := Some (psk, epoch)) ;
   lifetime = 0l ;
   timestamp = Ptime_clock.now
 }
