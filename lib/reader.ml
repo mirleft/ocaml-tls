@@ -2,8 +2,6 @@ open Packet
 open Core
 open Cstruct
 
-open Sexplib.Conv
-
 type error =
   | TrailingBytes  of string
   | WrongLength    of string
@@ -12,7 +10,15 @@ type error =
   | Overflow       of int
   | UnknownVersion of (int * int)
   | UnknownContent of int
-  [@@deriving sexp_of]
+
+let pp_error ppf = function
+  | TrailingBytes msg -> Fmt.pf ppf "reader error: trailing bytes: %s" msg
+  | WrongLength msg -> Fmt.pf ppf "reader error: wrong length: %s" msg
+  | Unknown msg -> Fmt.pf ppf "unknown reader error: %s" msg
+  | Underflow -> Fmt.pf ppf "reader error: underflow"
+  | Overflow n -> Fmt.pf ppf "reader error: overflow %u" n
+  | UnknownVersion (m, n) -> Fmt.pf ppf "reader error: unknown version %u.%u" m n
+  | UnknownContent c -> Fmt.pf ppf "reader error: unknown content %u" c
 
 exception Reader_error of error
 

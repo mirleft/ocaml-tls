@@ -531,7 +531,7 @@ let self_signature () =
              (Mirage_crypto.Hash.digest hash log) cert
     with
     | Ok () -> ()
-    | Error e -> Alcotest.fail ("self-verification failed " ^ (Tls.Engine.string_of_failure e))
+    | Error e -> Alcotest.fail ("self-verification failed " ^ Fmt.to_to_string Tls.Engine.pp_failure e)
 
 let wire_signature () =
   (* let buf = Writer.assemble_handshake (CertificateVerify data) in
@@ -542,7 +542,7 @@ let wire_signature () =
           (Mirage_crypto.Hash.digest hash log) cert
   with
   | Ok () -> ()
-  | Error e -> Alcotest.fail ("trace-verification failed " ^ (Tls.Engine.string_of_failure e))
+  | Error e -> Alcotest.fail ("trace-verification failed " ^ Fmt.to_to_string Tls.Engine.pp_failure e)
 
 let res_secret_00 = Cstruct.of_hex {|
 4e cd 0e b6 ec 3b 4d 87  f5 d6 02 8f 92 2c a4 c5

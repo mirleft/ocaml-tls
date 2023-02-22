@@ -8,8 +8,6 @@ let set_uint24_len buf num =
   Cstruct.BE.set_uint16 buf 0 (num / 0x100);
   Cstruct.set_uint8 buf 2 (num mod 0x100)
 
-let to_sexp i = Sexplib.Sexp.Atom (string_of_int i)
-
 (* TLS record content type *)
 type content_type =
   | CHANGE_CIPHER_SPEC
@@ -32,12 +30,21 @@ and int_to_content_type = function
   | 24 -> Some HEARTBEAT
   | _ -> None
 
-let sexp_of_content_type ct = to_sexp (content_type_to_int ct)
+let pp_content_type ppf = function
+  | CHANGE_CIPHER_SPEC -> Fmt.string ppf "change cipher spec"
+  | ALERT -> Fmt.string ppf "alert"
+  | HANDSHAKE -> Fmt.string ppf "handshake"
+  | APPLICATION_DATA -> Fmt.string ppf "application data"
+  | HEARTBEAT -> Fmt.string ppf "heartbeat"
 
 (* TLS alert level *)
 type alert_level =
   | WARNING
   | FATAL
+
+let pp_alert_level ppf = function
+  | WARNING -> Fmt.string ppf "warning"
+  | FATAL -> Fmt.string ppf "fatal"
 
 let alert_level_to_int = function
   | WARNING -> 1
@@ -46,9 +53,6 @@ and int_to_alert_level = function
   | 1 -> Some WARNING
   | 2 -> Some FATAL
   | _ -> None
-
-let sexp_of_alert_level al =
-  to_sexp (alert_level_to_int al)
 
 (* TLS alert types *)
 type alert_type =
@@ -86,6 +90,42 @@ type alert_type =
   | UNKNOWN_PSK_IDENTITY            [@id 115] (*RFC4279*)
   | CERTIFICATE_REQUIRED            [@id 116] (*RFC8446*)
   | NO_APPLICATION_PROTOCOL         [@id 120] (*RFC7301*)
+
+let alert_type_to_string = function
+  | CLOSE_NOTIFY -> "close notify"
+  | UNEXPECTED_MESSAGE -> "unexpected message"
+  | BAD_RECORD_MAC -> "bad record mac"
+  | DECRYPTION_FAILED -> "decryption failed"
+  | RECORD_OVERFLOW -> "record overflow"
+  | DECOMPRESSION_FAILURE -> "decompression failure"
+  | HANDSHAKE_FAILURE -> "handshake failure"
+  | NO_CERTIFICATE_RESERVED -> "no certificate"
+  | BAD_CERTIFICATE -> "bad certificate"
+  | UNSUPPORTED_CERTIFICATE -> "unsupported certificate"
+  | CERTIFICATE_REVOKED -> "certificate revoked"
+  | CERTIFICATE_EXPIRED -> "certificate expired"
+  | CERTIFICATE_UNKNOWN -> "certificate unknown"
+  | ILLEGAL_PARAMETER -> "illegal parameter"
+  | UNKNOWN_CA -> "unknown CA"
+  | ACCESS_DENIED -> "access denied"
+  | DECODE_ERROR -> "decode error"
+  | DECRYPT_ERROR -> "decrypt error"
+  | EXPORT_RESTRICTION_RESERVED -> "export restrictions"
+  | PROTOCOL_VERSION -> "protocol version"
+  | INSUFFICIENT_SECURITY -> "insufficient security"
+  | INTERNAL_ERROR -> "internal error"
+  | INAPPROPRIATE_FALLBACK -> "inappropriate fallback"
+  | USER_CANCELED -> "user canceled"
+  | NO_RENEGOTIATION -> "no renegotiation"
+  | MISSING_EXTENSION -> "missing extension"
+  | UNSUPPORTED_EXTENSION -> "unsupported extension"
+  | CERTIFICATE_UNOBTAINABLE -> "certificate unobtainable"
+  | UNRECOGNIZED_NAME -> "unrecognized name"
+  | BAD_CERTIFICATE_STATUS_RESPONSE -> "bad certificate status response"
+  | BAD_CERTIFICATE_HASH_VALUE -> "bad certificate hash value"
+  | UNKNOWN_PSK_IDENTITY -> "unknown psk identity"
+  | CERTIFICATE_REQUIRED -> "certificate required"
+  | NO_APPLICATION_PROTOCOL -> "no application protocol"
 
 let alert_type_to_int = function
   | CLOSE_NOTIFY                    -> 0   (*RFC5246*)
@@ -159,10 +199,8 @@ and int_to_alert_type = function
   | 120 -> Some NO_APPLICATION_PROTOCOL
   | _ -> None
 
-let alert_type_to_string at =
-  string_of_int (alert_type_to_int at)
-let sexp_of_alert_type at =
-  to_sexp (alert_type_to_int at)
+let pp_alert ppf (lvl, typ) =
+  Fmt.pf ppf "ALERT %a %s" pp_alert_level lvl (alert_type_to_string typ)
 
 (* TLS handshake type *)
 type handshake_type =
@@ -228,9 +266,6 @@ and int_to_handshake_type = function
   | 254 -> Some MESSAGE_HASH
   | _ -> None
 
-let sexp_of_handshake_type ht =
-  to_sexp (handshake_type_to_int ht)
-
 (* TLS certificate types *)
 type client_certificate_type =
   | RSA_SIGN                  [@id 1]  (*RFC5246*)
@@ -267,9 +302,6 @@ and int_to_client_certificate_type = function
   | 65 -> Some RSA_FIXED_ECDH
   | 66 -> Some ECDSA_FIXED_ECDH
   | _ -> None
-
-let sexp_of_client_certificate_type cct =
-  to_sexp (client_certificate_type_to_int cct)
 
 (* TLS compression methods, used in hello packets *)
 type compression_method =
@@ -450,9 +482,6 @@ and int_to_max_fragment_length = function
   | 4 -> Some TWO_12
   | _ -> None
 
-let sexp_of_max_fragment_length mfl =
-  to_sexp (max_fragment_length_to_int mfl)
-
 (* TLS 1.3 pre-shared key mode (4.2.9) *)
 type psk_key_exchange_mode =
   | PSK_KE [@id 0]
@@ -465,9 +494,6 @@ and int_to_psk_key_exchange_mode = function
   | 0 -> Some PSK_KE
   | 1 -> Some PSK_KE_DHE
   | _ -> None
-
-let sexp_of_psk_key_exchange_mode kex =
-  to_sexp (psk_key_exchange_mode_to_int kex)
 
 (* TLS 1.3 4.2.3 *)
 type signature_alg =
@@ -621,9 +647,6 @@ and int_to_named_group = function
   | 260 -> Some FFDHE8192
   | _ -> None
 
-let sexp_of_named_group ng =
-  to_sexp (named_group_to_int ng)
-
 (** enum of all TLS ciphersuites *)
 type any_ciphersuite =
   | TLS_RSA_WITH_3DES_EDE_CBC_SHA          [@id 0x000A]
@@ -758,11 +781,6 @@ and int_to_any_ciphersuite = function
   | 0xCCAA -> Some TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
   | _ -> None
 
-let any_ciphersuite_to_string cs =
-  string_of_int (any_ciphersuite_to_int cs)
-let sexp_of_any_ciphersuite cs =
-  to_sexp (any_ciphersuite_to_int cs)
-
 type key_update_request_type =
   | UPDATE_NOT_REQUESTED [@id 0]
   | UPDATE_REQUESTED [@id 1]
@@ -774,9 +792,6 @@ and int_to_key_update_request_type = function
   | 0 -> Some UPDATE_NOT_REQUESTED
   | 1 -> Some UPDATE_REQUESTED
   | _ -> None
-
-let sexp_of_key_update_request_type ku =
-  to_sexp (key_update_request_type_to_int ku)
 
 let helloretryrequest = Mirage_crypto.Hash.digest `SHA256 (Cstruct.of_string "HelloRetryRequest")
 let downgrade12 = Cstruct.of_hex "44 4F 57 4E 47 52 44 01"

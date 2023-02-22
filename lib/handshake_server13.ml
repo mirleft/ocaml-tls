@@ -14,7 +14,7 @@ let answer_client_hello ~hrr state ch raw =
     guard (not (hrr && List.mem `EarlyDataIndication ch.extensions))
       (`Fatal (`InvalidClientHello `Has0rttAfterHRR))
   in
-  Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version `TLS_1_3 ;
+  Tracing.debug (fun m -> m "version %a" pp_tls_version `TLS_1_3) ;
 
   let ciphers =
     List.filter_map Ciphersuite.any_ciphersuite_to_ciphersuite13 ch.ciphersuites
@@ -85,7 +85,7 @@ let answer_client_hello ~hrr state ch raw =
           let cookie = Mirage_crypto.Hash.digest (Ciphersuite.hash13 cipher) raw in
           let hrr = { retry_version = `TLS_1_3 ; ciphersuite = cipher ; sessionid = ch.sessionid ; selected_group = group ; extensions = [ `Cookie cookie ] } in
           let hrr_raw = Writer.assemble_handshake (HelloRetryRequest hrr) in
-          Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (HelloRetryRequest hrr) ;
+          Tracing.hs ~tag:"handshake-out" (HelloRetryRequest hrr) ;
           (* there is no early data anymore if HRR was sent (see 4.1.2) *)
           (* but the client wouldn't know until it received the HRR *)
           let early_data_left = if List.mem `EarlyDataIndication ch.extensions then config.Config.zero_rtt else 0l in
@@ -97,8 +97,8 @@ let answer_client_hello ~hrr state ch raw =
                    | Some _ -> [`Record change_cipher_spec]))
       end
   | Some group, Some cipher ->
-    Log.debug (fun m -> m "cipher %a" Sexplib.Sexp.pp_hum (Ciphersuite.sexp_of_ciphersuite13 cipher)) ;
-    Log.debug (fun m -> m "group %a" Sexplib.Sexp.pp_hum (Core.sexp_of_group group)) ;
+    Log.debug (fun m -> m "cipher %a" Ciphersuite.pp_ciphersuite cipher) ;
+    Log.debug (fun m -> m "group %a" pp_group group) ;
 
     match List.mem group groups, keyshare group with
     | false, _ | _, None -> Error (`Fatal `NoSupportedGroup) (* TODO: better error type? *)
@@ -217,7 +217,7 @@ let answer_client_hello ~hrr state ch raw =
 
       let sh, session = base_server_hello ?epoch cipher (`KeyShare (group, public) :: exts) in
       let sh_raw = Writer.assemble_handshake (ServerHello sh) in
-      Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ServerHello sh) ;
+      Tracing.hs ~tag:"handshake-out" (ServerHello sh) ;
 
       let log = log <+> raw <+> sh_raw in
       let server_hs_secret, server_ctx, client_hs_secret, client_ctx = hs_ctx hs_secret log in
@@ -254,7 +254,7 @@ let answer_client_hello ~hrr state ch raw =
       in
       (* TODO also max_fragment_length ; client_certificate_url ; trusted_ca_keys ; user_mapping ; client_authz ; server_authz ; cert_type ; use_srtp ; heartbeat ; alpn ; status_request_v2 ; signed_cert_timestamp ; client_cert_type ; server_cert_type *)
       let ee_raw = Writer.assemble_handshake ee in
-      Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ee ;
+      Tracing.hs ~tag:"handshake-out" ee ;
       let log = Cstruct.append log ee_raw in
 
       let* c_out, log, session' =
@@ -273,7 +273,7 @@ let answer_client_hello ~hrr state ch raw =
                 in
                 CertificateRequest (Writer.assemble_certificate_request_1_3 exts)
               in
-              Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake certreq ;
+              Tracing.hs ~tag:"handshake-out" certreq ;
               let raw_cert_req = Writer.assemble_handshake certreq in
               let common_session_data13 = { session.common_session_data13 with client_auth = true } in
               [raw_cert_req], log <+> raw_cert_req, { session with common_session_data13 }
@@ -282,7 +282,7 @@ let answer_client_hello ~hrr state ch raw =
           let certs = List.map X509.Certificate.encode_der chain in
           let cert = Certificate (Writer.assemble_certificates_1_3 Cstruct.empty certs) in
           let cert_raw = Writer.assemble_handshake cert in
-          Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ;
+          Tracing.hs ~tag:"handshake-out" cert ;
           let log = log <+> cert_raw in
 
           let tbs = Mirage_crypto.Hash.digest (Ciphersuite.hash13 cipher) log in
@@ -293,7 +293,7 @@ let answer_client_hello ~hrr state ch raw =
           in
           let cv = CertificateVerify signed in
           let cv_raw = Writer.assemble_handshake cv in
-          Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cv ;
+          Tracing.hs ~tag:"handshake-out" cv ;
           let log = log <+> cv_raw in
           Ok (out @ [cert_raw; cv_raw], log, session)
       in
@@ -305,7 +305,7 @@ let answer_client_hello ~hrr state ch raw =
       let fin = Finished f_data in
       let fin_raw = Writer.assemble_handshake fin in
 
-      Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
+      Tracing.hs ~tag:"handshake-out" fin ;
 
       let log = log <+> fin_raw in
       let server_app_secret, server_app_ctx, client_app_secret, client_app_ctx =
@@ -335,7 +335,7 @@ let answer_client_hello ~hrr state ch raw =
             | x -> [ `EarlyDataIndication x ]
           in
           let st = { lifetime = cache.Config.lifetime ; age_add ; nonce ; ticket = psk_id ; extensions } in
-          Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (SessionTicket st);
+          Tracing.hs ~tag:"handshake-out" (SessionTicket st) ;
           let st_raw = Writer.assemble_handshake (SessionTicket st) in
           (Some st, [st_raw])
       in
@@ -469,6 +469,7 @@ let handle_key_update state req =
           app_secret_n_1 session.master_secret session.server_app_secret
         in
         let ku = KeyUpdate Packet.UPDATE_NOT_REQUESTED in
+        Tracing.hs ~tag:"handshake-out" ku ;
         let ku_raw = Writer.assemble_handshake ku in
         { session' with server_app_secret },
         [ `Record (Packet.HANDSHAKE, ku_raw); `Change_enc server_ctx ]
@@ -481,7 +482,7 @@ let handle_key_update state req =
 let handle_handshake cs hs buf =
   let open Reader in
   let* handshake = map_reader_error (parse_handshake buf) in
-  Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake;
+  Tracing.hs ~tag:"handshake-in" handshake;
   match cs, handshake with
   | AwaitClientHelloHRR13, ClientHello ch ->
     answer_client_hello ~hrr:true hs ch buf

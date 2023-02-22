@@ -81,7 +81,7 @@ let answer_hello_retry_request state (ch : client_hello) hrr _secrets raw log =
   let ch0_hdr = Writer.assemble_message_hash (Cstruct.length ch0_data) in
   let st = AwaitServerHello13 (new_ch, [secret], Cstruct.concat [ ch0_hdr ; ch0_data ; raw ; new_ch_raw ]) in
 
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (ClientHello new_ch);
+  Tracing.hs ~tag:"handshake-out" (ClientHello new_ch);
   Ok ({ state with machina = Client13 st ; protocol_version = `TLS_1_3 }, [`Record (Packet.HANDSHAKE, new_ch_raw)])
 
 let answer_encrypted_extensions state (session : session_data13) server_hs_secret client_hs_secret ee raw log =
@@ -159,6 +159,7 @@ let answer_finished state (session : session_data13) server_hs_secret client_hs_
         Certificate (Writer.assemble_certificates_1_3 Cstruct.empty cs)
       in
       let cert_raw = Writer.assemble_handshake certificate in
+      Tracing.hs ~tag:"handshake-out" certificate ;
       let log = log <+> cert_raw in
       match own_private_key with
       | None ->
@@ -170,6 +171,7 @@ let answer_finished state (session : session_data13) server_hs_secret client_hs_
             tbs sigalgs state.config.Config.signature_algorithms priv
         in
         let cv = CertificateVerify signed in
+        Tracing.hs ~tag:"handshake-out" cv ;
         let cv_raw = Writer.assemble_handshake cv in
         Ok ([ cert_raw ; cv_raw ], log <+> cv_raw)
     else
@@ -183,7 +185,7 @@ let answer_finished state (session : session_data13) server_hs_secret client_hs_
   let session = { session with resumption_secret ; client_app_secret ; server_app_secret } in
   let machina = Client13 Established13 in
 
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake (Finished myfin);
+  Tracing.hs ~tag:"handshake-out" (Finished myfin);
 
   Ok ({ state with machina ; session = `TLS13 session :: state.session },
       List.map (fun data -> `Record (Packet.HANDSHAKE, data)) c_cv @
@@ -227,6 +229,7 @@ let handle_key_update state req =
           Handshake_crypto13.app_secret_n_1 session.master_secret session.client_app_secret
         in
         let ku = KeyUpdate Packet.UPDATE_NOT_REQUESTED in
+        Tracing.hs ~tag:"handshake-out" ku ;
         let ku_raw = Writer.assemble_handshake ku in
         { session' with client_app_secret },
         [ `Record (Packet.HANDSHAKE, ku_raw); `Change_enc client_ctx ]
@@ -239,7 +242,7 @@ let handle_key_update state req =
 let handle_handshake cs hs buf =
   let open Reader in
   let* handshake = map_reader_error (parse_handshake buf) in
-  Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake;
+  Tracing.hs ~tag:"handshake-in" handshake;
   match cs, handshake with
   | AwaitServerHello13 (ch, secrets, log), ServerHello sh ->
     answer_server_hello hs ch sh secrets buf log

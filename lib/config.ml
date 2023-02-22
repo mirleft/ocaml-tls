@@ -1,31 +1,39 @@
 open Core
 
-open Sexplib.Std
-
 let src = Logs.Src.create "tls.config" ~doc:"TLS config"
 module Log = (val Logs.src_log src : Logs.LOG)
 
-type certchain = Cert.t list * Priv.t [@@deriving sexp_of]
+type certchain = X509.Certificate.t list * X509.Private_key.t
 
 type own_cert = [
   | `None
   | `Single of certchain
   | `Multiple of certchain list
   | `Multiple_default of certchain * certchain list
-] [@@deriving sexp_of]
+]
+
+let pp_cert ppf cs =
+  let from, until = X509.Certificate.validity cs in
+  Fmt.pf ppf "subject %a@ issuer %a@ valid from %a until %a"
+    X509.Distinguished_name.pp (X509.Certificate.subject cs)
+    X509.Distinguished_name.pp (X509.Certificate.issuer cs)
+    (Ptime.pp_human ~tz_offset_s:0 ()) from
+    (Ptime.pp_human ~tz_offset_s:0 ()) until
+
+let pp_certchain ppf (chain, _) =
+  Fmt.(list ~sep:(any "@.") pp_cert) ppf chain
+
+let pp_own_cert ppf = function
+  | `None -> Fmt.string ppf "NONE"
+  | `Single chain -> pp_certchain ppf chain
+  | `Multiple cs ->
+    Fmt.pf ppf "multiple: %a" Fmt.(list ~sep:(any "@.@.") pp_certchain) cs
+  | `Multiple_default (c, cs) ->
+    Fmt.pf ppf "multiple default:@.%a@.others:@.%a"
+      pp_certchain c
+      Fmt.(list ~sep:(any "@.@.") pp_certchain) cs
 
 type session_cache = SessionID.t -> epoch_data option
-let sexp_of_session_cache _ = Sexplib.Sexp.Atom "SESSION_CACHE"
-
-module Auth = struct
-  type t = X509.Authenticator.t
-  let sexp_of_t _ = Sexplib.Sexp.Atom "Authenticator"
-end
-
-module DN = struct
-  type t = X509.Distinguished_name.t
-  let sexp_of_t _ = Sexplib.Sexp.Atom "distinguished name"
-end
 
 type ticket_cache = {
   lookup : Cstruct.t -> (psk13 * epoch_data) option ;
@@ -34,28 +42,50 @@ type ticket_cache = {
   timestamp : unit -> Ptime.t
 }
 
-type ticket_cache_opt = ticket_cache option
-let sexp_of_ticket_cache_opt _ = Sexplib.Sexp.Atom "TICKET_CACHE"
-
 (* TODO: min_rsa, min_dh *)
 type config = {
   ciphers : Ciphersuite.ciphersuite list ;
   protocol_versions : tls_version * tls_version ;
   signature_algorithms : signature_algorithm list ;
   use_reneg : bool ;
-  authenticator : Auth.t option ;
-  peer_name : Peer_name.t option ;
+  authenticator : X509.Authenticator.t option ;
+  peer_name : [`host] Domain_name.t option ;
   own_certificates : own_cert ;
-  acceptable_cas : DN.t list ;
+  acceptable_cas : X509.Distinguished_name.t list ;
   session_cache : session_cache ;
-  ticket_cache : ticket_cache_opt ;
+  ticket_cache : ticket_cache option ;
   cached_session : epoch_data option ;
   cached_ticket : (psk13 * epoch_data) option ;
   alpn_protocols : string list ;
   groups : group list ;
   zero_rtt : int32 ;
-  ip : Ipaddr_sexp.t option ;
-} [@@deriving sexp_of]
+  ip : Ipaddr.t option ;
+}
+
+let pp_config ppf cfg =
+  Fmt.pf ppf
+    "ciphers: %a@. \
+     minimal protocol version: %a@. \
+     maximum protocol version: %a@. \
+     signature algorithms: %a@. \
+     renegotiation enabled %B@. \
+     peer name: %a@. \
+     own certificate: %a@. \
+     acceptable CAs: %a@. \
+     alpn protocols: %a@. \
+     groups: %a@. \
+     IP: %a@."
+    Fmt.(list ~sep:(any ", ") Ciphersuite.pp_ciphersuite) cfg.ciphers
+    pp_tls_version (fst cfg.protocol_versions)
+    pp_tls_version (snd cfg.protocol_versions)
+    Fmt.(list ~sep:(any ", ") pp_signature_algorithm) cfg.signature_algorithms
+    cfg.use_reneg
+    Fmt.(option ~none:(any "none provided") Domain_name.pp) cfg.peer_name
+    pp_own_cert cfg.own_certificates
+    Fmt.(list ~sep:(any ", ") X509.Distinguished_name.pp) cfg.acceptable_cas
+    Fmt.(list ~sep:(any ", ") string) cfg.alpn_protocols
+    Fmt.(list ~sep:(any ", ") pp_group) cfg.groups
+    Fmt.(option ~none:(any "none provided") Ipaddr.pp) cfg.ip
 
 let ciphers13 cfg =
   List.rev
@@ -510,11 +540,8 @@ let validate_keys_sig_algs config =
     then
       invalid "certificate provided which does not allow any signature algorithm"
 
-type client = config [@@deriving sexp_of]
-type server = config [@@deriving sexp_of]
-
-let client_of_sexp _ = invalid_arg "couldn't decode client configuration"
-let server_of_sexp _ = invalid_arg "couldn't decode server configuration"
+type client = config
+type server = config
 
 let of_server conf = conf
 and of_client conf = conf
@@ -551,8 +578,7 @@ let client
     } in
   let config = validate_common config in
   validate_client config ;
-  Log.debug (fun m -> m "client with %s"
-                (Sexplib.Sexp.to_string_hum (sexp_of_config config)));
+  Log.debug (fun m -> m "client with %a" pp_config config);
   config
 
 let server
@@ -578,6 +604,5 @@ let server
   let config = validate_server config in
   let config = validate_common config in
   validate_keys_sig_algs config;
-  Log.debug (fun m -> m "server with %s"
-                (Sexplib.Sexp.to_string_hum (sexp_of_config config)));
+  Log.debug (fun m -> m "server with %a" pp_config config);
   config

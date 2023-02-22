@@ -228,5 +228,5 @@ let () =
       | Tls_alert typ ->
         Some ("TLS alert from peer: " ^ Tls.Packet.alert_type_to_string typ)
       | Tls_failure f ->
-        Some ("TLS failure: " ^ Tls.Engine.string_of_failure f)
+        Some ("TLS failure: " ^ Fmt.to_to_string Tls.Engine.pp_failure f)
       | _ -> None)

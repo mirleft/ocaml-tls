@@ -5,7 +5,7 @@ open Core
 (** {1 Config type} *)
 
 (** certificate chain and private key of the first certificate *)
-type certchain = Cert.t list * X509.Private_key.t
+type certchain = X509.Certificate.t list * X509.Private_key.t
 
 (** polymorphic variant of own certificates *)
 type own_cert = [
@@ -24,8 +24,6 @@ type ticket_cache = {
   timestamp : unit -> Ptime.t
 }
 
-type ticket_cache_opt = ticket_cache option
-
 (** configuration parameters *)
 type config = private {
   ciphers : Ciphersuite.ciphersuite list ; (** ordered list (regarding preference) of supported cipher suites *)
@@ -37,23 +35,23 @@ type config = private {
   own_certificates : own_cert ; (** optional default certificate chain and other certificate chains *)
   acceptable_cas : X509.Distinguished_name.t list ; (** ordered list of acceptable certificate authorities *)
   session_cache : session_cache ;
-  ticket_cache : ticket_cache_opt ;
+  ticket_cache : ticket_cache option ;
   cached_session : epoch_data option ;
   cached_ticket : (psk13 * epoch_data) option ;
   alpn_protocols : string list ; (** optional ordered list of accepted alpn_protocols *)
   groups : group list ; (** the first FFDHE will be used for TLS 1.2 and below if a DHE ciphersuite is used *)
   zero_rtt : int32 ;
   ip : Ipaddr.t option ;
-} [@@deriving sexp_of]
+}
 
 (** [ciphers13 config] are the ciphersuites for TLS 1.3 in the configuration. *)
 val ciphers13 : config -> Ciphersuite.ciphersuite13 list
 
 (** opaque type of a client configuration *)
-type client [@@deriving sexp]
+type client
 
 (** opaque type of a server configuration *)
-type server [@@deriving sexp]
+type server
 
 (** {1 Constructors} *)
 

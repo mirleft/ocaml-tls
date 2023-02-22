@@ -127,13 +127,13 @@ type fatal = [
 type failure = [
   | `Error of error
   | `Fatal of fatal
-] [@@deriving sexp_of]
+]
 
 (** [alert_of_failure failure] is [alert], the TLS alert type for this failure. *)
 val alert_of_failure : failure -> Packet.alert_type
 
-(** [string_of_failure failure] is [string], the string representation of the [failure]. *)
-val string_of_failure : failure -> string
+(** [pp_failure failure] pretty-prints failure. *)
+val pp_failure : failure Fmt.t
 
 (** {1 Protocol handling} *)
 
@@ -192,7 +192,7 @@ val key_update : ?request:bool -> state -> (state * Cstruct.t, failure) result
 type epoch = [
   | `InitialEpoch
   | `Epoch of Core.epoch_data
-] [@@deriving sexp_of]
+]
 
 (** [epoch state] is [epoch], which contains the session
     information. *)
