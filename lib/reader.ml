@@ -11,14 +11,18 @@ type error =
   | UnknownVersion of (int * int)
   | UnknownContent of int
 
-let pp_error ppf = function
-  | TrailingBytes msg -> Fmt.pf ppf "reader error: trailing bytes: %s" msg
-  | WrongLength msg -> Fmt.pf ppf "reader error: wrong length: %s" msg
-  | Unknown msg -> Fmt.pf ppf "unknown reader error: %s" msg
-  | Underflow -> Fmt.pf ppf "reader error: underflow"
-  | Overflow n -> Fmt.pf ppf "reader error: overflow %u" n
-  | UnknownVersion (m, n) -> Fmt.pf ppf "reader error: unknown version %u.%u" m n
-  | UnknownContent c -> Fmt.pf ppf "reader error: unknown content %u" c
+let pp_error ppf =
+  let re = "reader error:"
+  and unk = "unknown"
+  in
+  function
+  | TrailingBytes msg -> Fmt.pf ppf "%s trailing bytes: %s" re msg
+  | WrongLength msg -> Fmt.pf ppf "%s wrong length: %s" re msg
+  | Unknown msg -> Fmt.pf ppf "%s %s %s" unk re msg
+  | Underflow -> Fmt.pf ppf "%s underflow" re
+  | Overflow n -> Fmt.pf ppf "%s overflow %u" re n
+  | UnknownVersion (m, n) -> Fmt.pf ppf "%s %s version %u.%u" re unk m n
+  | UnknownContent c -> Fmt.pf ppf "%s %s content %u" re unk c
 
 exception Reader_error of error
 
