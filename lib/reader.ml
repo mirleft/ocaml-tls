@@ -89,36 +89,20 @@ let validate_alert (lvl, typ) =
   match lvl, typ with
   (* from RFC, find out which ones must be always FATAL
      and report if this does not meet the expectations *)
-  | WARNING, UNEXPECTED_MESSAGE -> raise_unknown "unexpected_message must always be fatal"
-  | WARNING, BAD_RECORD_MAC -> raise_unknown "bad_record_mac must always be fatal"
-  | WARNING, DECRYPTION_FAILED -> raise_unknown "decryption_failed must always be fatal"
-  | WARNING, RECORD_OVERFLOW -> raise_unknown "record_overflow must always be fatal"
-  | WARNING, DECOMPRESSION_FAILURE -> raise_unknown "decompression_failure must always be fatal"
-  | WARNING, HANDSHAKE_FAILURE -> raise_unknown "handshake_failure must always be fatal"
-  | WARNING, BAD_CERTIFICATE -> raise_unknown "bad_certificate must always be fatal"
-  | WARNING, UNSUPPORTED_CERTIFICATE -> raise_unknown "unsupported_certificate must always be fatal"
-  | WARNING, CERTIFICATE_REVOKED -> raise_unknown "certificate_revoked must always be fatal"
-  | WARNING, CERTIFICATE_UNKNOWN -> raise_unknown "certificate_unknown must always be fatal"
-  | WARNING, ILLEGAL_PARAMETER -> raise_unknown "illegal_parameter must always be fatal"
-  | WARNING, UNKNOWN_CA -> raise_unknown "unknown_ca must always be fatal"
-  | WARNING, ACCESS_DENIED -> raise_unknown "access_denied must always be fatal"
-  | WARNING, DECODE_ERROR -> raise_unknown "decode_error must always be fatal"
-  | WARNING, DECRYPT_ERROR -> raise_unknown "decrypt_error must always be fatal"
-  | WARNING, PROTOCOL_VERSION -> raise_unknown "protocol_version must always be fatal"
-  | WARNING, INSUFFICIENT_SECURITY -> raise_unknown "insufficient_security must always be fatal"
-  | WARNING, INTERNAL_ERROR -> raise_unknown "internal_error must always be fatal"
-  | WARNING, INAPPROPRIATE_FALLBACK -> raise_unknown "inappropriate_fallback must always be fatal"
-  | WARNING, MISSING_EXTENSION -> raise_unknown "missing_extension must always be fatal"
-  | WARNING, UNSUPPORTED_EXTENSION -> raise_unknown "unsupported_extension must always be fatal"
-  | WARNING, UNRECOGNIZED_NAME -> raise_unknown "unrecognized_name must always be fatal"
-  | WARNING, BAD_CERTIFICATE_STATUS_RESPONSE -> raise_unknown "bad_certificate_status_response must always be fatal"
-  | WARNING, UNKNOWN_PSK_IDENTITY -> raise_unknown "unknown_psk_identity must always be fatal"
-  | WARNING, CERTIFICATE_REQUIRED -> raise_unknown "certificate_required must always be fatal"
-  | WARNING, NO_APPLICATION_PROTOCOL -> raise_unknown "no_application_protocol must always be fatal"
+  | WARNING, (UNEXPECTED_MESSAGE | BAD_RECORD_MAC | DECRYPTION_FAILED |
+              RECORD_OVERFLOW | DECOMPRESSION_FAILURE | HANDSHAKE_FAILURE |
+              BAD_CERTIFICATE | UNSUPPORTED_CERTIFICATE | CERTIFICATE_REVOKED |
+              CERTIFICATE_UNKNOWN | ILLEGAL_PARAMETER | UNKNOWN_CA |
+              ACCESS_DENIED | DECODE_ERROR | DECRYPT_ERROR | PROTOCOL_VERSION |
+              INSUFFICIENT_SECURITY | INTERNAL_ERROR | INAPPROPRIATE_FALLBACK |
+              MISSING_EXTENSION | UNSUPPORTED_EXTENSION | UNRECOGNIZED_NAME |
+              BAD_CERTIFICATE_STATUS_RESPONSE | UNKNOWN_PSK_IDENTITY |
+              CERTIFICATE_REQUIRED | NO_APPLICATION_PROTOCOL as x) ->
+    raise_unknown (alert_type_to_string x ^ " must always be fatal")
 
   (* those are always warnings *)
-  | FATAL, USER_CANCELED -> raise_unknown "user_canceled must always be a warning"
-  | FATAL, NO_RENEGOTIATION -> raise_unknown "no_renegotiation must always be a warning"
+  | FATAL, (USER_CANCELED | NO_RENEGOTIATION as x) ->
+    raise_unknown (alert_type_to_string x ^ " must always be a warning")
 
   | lvl, typ -> (lvl, typ)
 
