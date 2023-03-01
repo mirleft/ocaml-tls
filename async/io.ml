@@ -11,7 +11,7 @@ module Tls_error = struct
   module Fail = struct
     type t = Tls.Engine.failure
     let sexp_of_t a =
-      Sexplib.Sexp.Atom (Fmt.to_to_string Tls.Engine.pp_failure a)
+      Sexplib.Sexp.Atom (Tls.Engine.string_of_failure a)
   end
   type t =
     | Tls_alert of Alert.t

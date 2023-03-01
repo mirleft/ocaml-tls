@@ -78,6 +78,8 @@ let alert_of_failure = function
 
 let pp_failure = State.pp_failure
 
+let string_of_failure = Fmt.to_to_string pp_failure
+
 type ret =
   ([ `Ok of state | `Eof | `Alert of Packet.alert_type ]
    * [ `Response of Cstruct.t option ]

@@ -1,4 +1,4 @@
-## v0.16.1 (2023-03-01)
+## v0.17.0 (2023-03-01)
 
 * tls-async: remove ocaml < 5.0.0 constraint (#471 #474 @hannesm)
 * remove dependency on ppx, especially ppx_cstruct and ppx_sexp_conv across

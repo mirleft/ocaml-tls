@@ -132,6 +132,9 @@ type failure = [
 (** [alert_of_failure failure] is [alert], the TLS alert type for this failure. *)
 val alert_of_failure : failure -> Packet.alert_type
 
+(** [string_of_failure failure] is [string], the string representation of the [failure]. *)
+val string_of_failure : failure -> string
+
 (** [pp_failure failure] pretty-prints failure. *)
 val pp_failure : failure Fmt.t
 

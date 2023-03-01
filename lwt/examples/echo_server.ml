@@ -28,7 +28,7 @@ let serve_ssl port callback =
           | Tls_lwt.Tls_alert a ->
             yap ~tag @@ "handler: " ^ Tls.Packet.alert_type_to_string a
           | Tls_lwt.Tls_failure a ->
-            yap ~tag @@ "handler: " ^ Fmt.to_to_string Tls.Engine.pp_failure a
+            yap ~tag @@ "handler: " ^ Tls.Engine.string_of_failure a
           | Unix.Unix_error (e, f, p) ->
             yap ~tag @@ "handler: " ^ (string_of_unix_err e f p)
           | _exn -> yap ~tag "handler: exception")
@@ -43,7 +43,7 @@ let serve_ssl port callback =
        (function
          | Unix.Unix_error (e, f, p) -> return (`L (string_of_unix_err e f p))
          | Tls_lwt.Tls_alert a -> return (`L (Tls.Packet.alert_type_to_string a))
-         | Tls_lwt.Tls_failure f -> return (`L (Fmt.to_to_string Tls.Engine.pp_failure f))
+         | Tls_lwt.Tls_failure f -> return (`L (Tls.Engine.string_of_failure f))
          | exn -> return (`L ("loop: exception: " ^ Printexc.to_string exn)))) >>= function
     | `R (channels, addr) ->
       yap ~tag "-> connect" >>= fun () -> ( handle channels addr ; loop s )

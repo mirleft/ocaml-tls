@@ -22,7 +22,7 @@ module Flow = struct
         (rewrap_st (state, st'), ans, appdata)
     | Error (a, _) ->
         failwith @@ Printf.sprintf "[%s] %s error: %s"
-          tag descr (Fmt.to_to_string Tls.Engine.pp_failure a)
+          tag descr (Tls.Engine.string_of_failure a)
     | Ok _ -> failwith "decoded alert"
 end
 
