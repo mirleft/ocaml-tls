@@ -7,14 +7,7 @@ let src = Logs.Src.create "handshake" ~doc:"TLS handshake"
 module Log = (val Logs.src_log src : Logs.LOG)
 
 let trace_cipher cipher =
-  let kex = Ciphersuite.ciphersuite_kex cipher
-  and papr = Ciphersuite.ciphersuite_privprot cipher
-  in
-  let sexp = lazy (Sexplib.Sexp.(List Ciphersuite.(
-      [ sexp_of_key_exchange_algorithm kex ;
-        sexp_of_payload_protection papr ])))
-  in
-  Tracing.sexp ~tag:"cipher" sexp
+  Tracing.debug (fun m -> m "%a" Ciphersuite.pp_ciphersuite cipher)
 
 let empty = function [] -> true | _ -> false
 

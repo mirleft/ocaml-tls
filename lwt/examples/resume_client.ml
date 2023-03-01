@@ -14,7 +14,6 @@ let http_client ?ca ?fp hostname port =
     | Ok e -> e
     | Error () -> invalid_arg "error retrieving epoch"
   in
-  Printf.printf "cached session: %s\n" (Sexplib.Sexp.to_string_hum (Tls.Core.sexp_of_epoch_data cached_session)) ;
   Tls_lwt.Unix.close t >>= fun () ->
   Printf.printf "closed session\n" ;
   let config = Tls.Config.client ~authenticator ~cached_session () in

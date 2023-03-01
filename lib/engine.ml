@@ -6,7 +6,7 @@ type state = State.state
 type client_hello_errors = State.client_hello_errors
 type error = State.error
 type fatal = State.fatal
-type failure = State.failure [@@deriving sexp_of]
+type failure = State.failure
 
 let alert_of_authentication_failure = function
   | `LeafCertificateExpired _ -> Packet.CERTIFICATE_EXPIRED
@@ -76,11 +76,7 @@ let alert_of_failure = function
   | `Error x -> alert_of_error x
   | `Fatal x -> alert_of_fatal x
 
-let string_of_failure = function
-  | `Error (`AuthenticationFailure v) ->
-    let s = Fmt.to_to_string X509.Validation.pp_validation_error v in
-    "authentication failure: " ^ s
-  | f -> Sexplib.Sexp.to_string_hum (sexp_of_failure f)
+let pp_failure = State.pp_failure
 
 type ret =
   ([ `Ok of state | `Eof | `Alert of Packet.alert_type ]
@@ -110,7 +106,14 @@ let new_state config role =
     fragment  = Cstruct.create 0 ;
   }
 
-type raw_record = tls_hdr * Cstruct_sexp.t [@@deriving sexp_of]
+type raw_record = tls_hdr * Cstruct.t
+
+let pp_raw_record ppf (hdr, data) =
+  Fmt.pf ppf "%a (%u bytes data)" pp_tls_hdr hdr (Cstruct.length data)
+
+let pp_frame ppf (ty, data) =
+  Fmt.pf ppf "%a (%u bytes data)" Packet.pp_content_type ty
+    (Cstruct.length data)
 
 (* well-behaved pure encryptor *)
 let encrypt (version : tls_version) (st : crypto_state) ty buf =
@@ -354,11 +357,11 @@ module Alert = struct
   let handle buf =
     let* alert = map_reader_error (Reader.parse_alert buf) in
     let _, a_type = alert in
-    Tracing.sexpf ~tag:"alert-in" ~f:sexp_of_tls_alert alert ;
+    Tracing.debug (fun m -> m "alert-in %a" pp_alert alert) ;
     let err = match a_type with
       | CLOSE_NOTIFY -> `Eof
       | _            -> `Alert a_type in
-    Tracing.sexpf ~tag:"alert-out" ~f:sexp_of_tls_alert (Packet.WARNING, Packet.CLOSE_NOTIFY) ;
+    Tracing.debug (fun m -> m "alert-out %a" pp_alert (Packet.WARNING, Packet.CLOSE_NOTIFY)) ;
     Ok (err, [`Record close_notify])
 end
 
@@ -471,7 +474,7 @@ let decrement_early_data hs ty buf =
 (* the main thingy *)
 let handle_raw_record state (hdr, buf as record : raw_record) =
 
-  Tracing.sexpf ~tag:"record-in" ~f:sexp_of_raw_record record ;
+  Tracing.debug (fun m -> m "record-in %a" pp_raw_record record) ;
   let hs = state.handshake in
   let version = hs.protocol_version in
   let* () =
@@ -489,20 +492,20 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   in
   let* dec_st, dec, ty = decrypt ~trial version state.decryptor hdr.content_type buf in
   let* handshake = decrement_early_data hs ty buf in
-  Tracing.sexpf ~tag:"frame-in" ~f:sexp_of_record (ty, dec) ;
+  Tracing.debug (fun m -> m "frame-in %a" pp_frame (ty, dec)) ;
   let* handshake, items, data, err = handle_packet handshake dec ty in
   let encryptor, decryptor, encs =
     List.fold_left (fun (enc, dec, es) -> function
       | `Change_enc enc' -> (Some enc', dec, es)
       | `Change_dec dec' -> (enc, Some dec', es)
       | `Record r       ->
-         Tracing.sexpf ~tag:"frame-out" ~f:sexp_of_record r ;
+         Tracing.debug (fun m -> m "frame-out %a" pp_frame r) ;
          let (enc', encbuf) = encrypt_records enc handshake.protocol_version [r] in
          (enc', dec, es @ encbuf))
     (state.encryptor, dec_st, [])
     items
   in
-  List.iter (Tracing.sexpf ~tag:"record-out" ~f:sexp_of_record) encs ;
+  List.iter (fun f -> Tracing.debug (fun m -> m "record-out %a" pp_frame f)) encs ;
   let state' = { state with handshake ; encryptor ; decryptor } in
   Ok (state', encs, data, err)
 
@@ -518,9 +521,6 @@ let assemble_records (version : tls_version) rs =
 
 (* main entry point *)
 let handle_tls state buf =
-
-  Tracing.sexpf ~tag:"state-in" ~f:sexp_of_state state ;
-
   Tracing.cs ~tag:"wire-in" buf ;
 
   let rec handle_records st = function
@@ -549,10 +549,10 @@ let handle_tls state buf =
   | Ok (state, resp, data, err) ->
       let res = match err with
         | `Eof ->
-          Tracing.sexpf ~tag:"eof-out" ~f:Sexplib.Conv.sexp_of_unit () ;
+          Tracing.debug (fun m -> m "eof-out") ;
           `Eof
         | `Alert al ->
-          Tracing.sexpf ~tag:"ok-alert-out" ~f:Packet.sexp_of_alert_type al ;
+          Tracing.debug (fun m -> m "ok-alert-out %s" (Packet.alert_type_to_string al));
           `Alert al
         | `No_err ->
           (* Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ; *)
@@ -565,16 +565,16 @@ let handle_tls state buf =
       let record  = Alert.make alert in
       let _, enc  = encrypt_records state.encryptor version [record] in
       let resp    = assemble_records version enc in
-      Tracing.sexpf ~tag:"fail-alert-out" ~f:sexp_of_tls_alert (Packet.FATAL, alert) ;
-      Tracing.sexpf ~tag:"failure" ~f:sexp_of_failure x ;
+      Tracing.debug (fun m -> m "fail-alert-out %a" Packet.pp_alert (Packet.FATAL, alert)) ;
+      Tracing.debug (fun m -> m "failure %a" pp_failure x) ;
       Error (x, `Response resp)
 
 let send_records (st : state) records =
   let version = st.handshake.protocol_version in
-  List.iter (Tracing.sexpf ~tag:"frame-out" ~f:sexp_of_record) records ;
+  List.iter (fun f -> Tracing.debug (fun m -> m "frame-out %a" pp_frame f)) records ;
   let (encryptor, encs) =
     encrypt_records st.encryptor version records in
-  List.iter (Tracing.sexpf ~tag:"record-out" ~f:sexp_of_record) encs ;
+  List.iter (fun f -> Tracing.debug (fun m -> m "record-out %a" pp_frame f)) encs ;
   let data = assemble_records version encs in
   Tracing.cs ~tag:"wire-out" data ;
   ({ st with encryptor }, data)
@@ -591,7 +591,7 @@ let handshake_in_progress s = match s.handshake.machina with
 let send_application_data st css =
   match can_handle_appdata st with
   | true ->
-     Tracing.css ~tag:"application-data-out" css ;
+     List.iter (fun cs -> Tracing.cs ~tag:"application-data-out" cs) css ;
      let datas = match st.encryptor with
        (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
        | Some { cipher_st = CBC { iv_mode = Iv _ ; _ } ; _ } -> Cstruct.create 0 :: css
@@ -728,8 +728,7 @@ let client config =
   } in
   let state = { state with handshake } in
 
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ch ;
-  Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ;
+  Tracing.hs ~tag:"handshake-out" ch ;
   send_records state [(Packet.HANDSHAKE, raw)]
 
 let server config = new_state Config.(of_server config) `Server
@@ -737,7 +736,7 @@ let server config = new_state Config.(of_server config) `Server
 type epoch = [
   | `InitialEpoch
   | `Epoch of epoch_data
-] [@@deriving sexp_of]
+]
 
 let epoch state =
   match epoch_of_hs state.handshake with

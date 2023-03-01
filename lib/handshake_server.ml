@@ -10,7 +10,7 @@ let state_version state = match state.protocol_version with
 let hello_request state =
   if state.config.use_reneg then
     let hr = HelloRequest in
-    Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake hr ;
+    Tracing.hs ~tag:"handshake-out" hr ;
     let state = { state with machina = Server AwaitClientHelloRenegotiate } in
     Ok (state, [`Record (Packet.HANDSHAKE, Writer.assemble_handshake hr)])
   else
@@ -35,7 +35,7 @@ let answer_client_finished state (session : session_data) client_fin raw log =
   let session = { session with renegotiation = (client, server) }
   and machina = Server Established
   in
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
+  Tracing.hs ~tag:"handshake-out" fin ;
   Ok ({ state with machina ; session = `TLS session :: state.session },
       [`Record (Packet.HANDSHAKE, fin_raw)])
 
@@ -230,8 +230,8 @@ let server_hello config (client_hello : client_hello) (session : session_data) v
         extensions     = secren :: host @ ems @ alpn @ ecpointformat }
   in
   trace_cipher session.ciphersuite ;
-  Tracing.sexpf ~tag:"version" ~f:sexp_of_tls_version version ;
-  Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake sh ;
+  Tracing.debug (fun m -> m "version %a" pp_tls_version version) ;
+  Tracing.hs ~tag:"handshake-out" sh ;
   let common_session_data = { session.common_session_data with server_random } in
   (Writer.assemble_handshake sh,
    { session with common_session_data ; session_id })
@@ -303,7 +303,7 @@ let answer_client_hello_common state reneg ch raw =
 
     let extended_ms = List.mem `ExtendedMasterSecret ch.extensions in
 
-    Tracing.sexpf ~tag:"cipher" ~f:Ciphersuite.sexp_of_ciphersuite cipher ;
+    Log.debug (fun m -> m "cipher %a" Ciphersuite.pp_ciphersuite cipher) ;
 
     let* alpn_protocol = alpn_protocol config ch in
 
@@ -340,7 +340,7 @@ let answer_client_hello_common state reneg ch raw =
     | certs ->
        let cs = List.map X509.Certificate.encode_der certs in
        let cert = Certificate (Writer.assemble_certificates cs) in
-       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake cert ;
+       Tracing.hs ~tag:"handshake-out" cert ;
        [ Writer.assemble_handshake cert ]
 
   and cert_request version config (session : session_data) =
@@ -368,7 +368,7 @@ let answer_client_hello_common state reneg ch raw =
            Error (`Fatal (`BadRecordVersion (version :> tls_any_version)))
        in
        let certreq = CertificateRequest data in
-       Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake certreq ;
+       Tracing.hs ~tag:"handshake-out" certreq ;
        let common_session_data = { session.common_session_data with client_auth = true } in
        Ok ([ assemble_handshake certreq ], { session with common_session_data })
 
@@ -406,7 +406,7 @@ let answer_client_hello_common state reneg ch raw =
     let* sgn = signature version data sig_algs config.signature_algorithms priv in
     let kex = ServerKeyExchange (written <+> sgn) in
     let hs = Writer.assemble_handshake kex in
-    Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake kex ;
+    Tracing.hs ~tag:"handshake-out" kex ;
     Ok (hs, secret)
   in
 
@@ -433,7 +433,7 @@ let answer_client_hello_common state reneg ch raw =
         else
           AwaitClientKeyExchange_DHE (session, dh, log)
       in
-      Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
+      Tracing.hs ~tag:"handshake-out" ServerHelloDone ;
       Ok (outs, machina)
     | `RSA ->
       let outs = sh :: certificates @ cert_req @ [ hello_done ] in
@@ -444,7 +444,7 @@ let answer_client_hello_common state reneg ch raw =
         else
           AwaitClientKeyExchange_RSA (session, log)
       in
-      Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake ServerHelloDone ;
+      Tracing.hs ~tag:"handshake-out" ServerHelloDone ;
       Ok (outs, machina)
   in
 
@@ -528,7 +528,7 @@ let answer_client_hello state (ch : client_hello) raw =
     let fin = Finished server in
     let fin_raw = Writer.assemble_handshake fin in
     Tracing.cs ~tag:"change-cipher-spec-out" (snd ccs) ;
-    Tracing.sexpf ~tag:"handshake-out" ~f:sexp_of_tls_handshake fin ;
+    Tracing.hs ~tag:"handshake-out" fin ;
     let machina = AwaitClientChangeCipherSpecResume (session, client_ctx, server, log @ [fin_raw]) in
     Ok ({ state with machina = Server machina },
         [ `Record (Packet.HANDSHAKE, sh) ;
@@ -598,7 +598,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
      answer_client_hello_common state (Some reneg) ch raw
   | false, _             ->
     let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
-    Tracing.sexpf ~tag:"alert-out" ~f:sexp_of_tls_alert (Packet.WARNING, Packet.NO_RENEGOTIATION) ;
+    Tracing.debug (fun m -> m "alert-out (warning, no_renegotiation)") ;
     Ok (state, [`Record (Packet.ALERT, no_reneg)])
   | true , _             -> Error (`Fatal `InvalidSession) (* I'm pretty sure this can be an assert false *)
 
@@ -633,7 +633,7 @@ let handle_change_cipher_spec ss state packet =
 
 let handle_handshake ss hs buf =
   let* handshake = map_reader_error (Reader.parse_handshake buf) in
-  Tracing.sexpf ~tag:"handshake-in" ~f:sexp_of_tls_handshake handshake;
+  Tracing.hs ~tag:"handshake-in" handshake;
   match ss, handshake with
   | AwaitClientHello, ClientHello ch ->
     answer_client_hello hs ch buf
