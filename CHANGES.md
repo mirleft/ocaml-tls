@@ -1,3 +1,9 @@
+## v0.16.1 (2023-03-01)
+
+* tls-async: remove ocaml < 5.0.0 constraint (#471 #474 @hannesm)
+* remove dependency on ppx, especially ppx_cstruct and ppx_sexp_conv across
+  the libraries (#473 @hannesm, discussion in #472)
+
 ## v0.16.0 (2023-02-14)
 
 * BREAKING: new opam package tls-lwt (formerly tls.lwt), in dune:
