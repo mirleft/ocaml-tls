@@ -23,3 +23,10 @@ Read [further](https://nqsb.io) and our [Usenix Security 2015 paper](https://use
 ## Installation
 
 `opam install tls` will install this library.
+
+You can also build this locally by conducting the steps:
+
+```bash
+opam install --deps-only -t . # or a named package instead of `.` - i.e. ./tls-lwt.opam
+dune build --profile=release # you can also put a package list here, i.e. tls,tls-lwt -- you can also use `@all` target to compile examples as well
+```
