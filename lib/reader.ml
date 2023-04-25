@@ -176,7 +176,7 @@ let parse_hostnames buf =
        let entrylen = BE.get_uint16 buf 1 in
        let rt = shift buf (3 + entrylen) in
        match typ with
-       | 0 -> let hostname = copy buf 3 entrylen in
+       | 0 -> let hostname = to_string ~off:3 ~len:entrylen buf in
               (Some hostname, rt)
        | _ -> (None, rt)
      in
