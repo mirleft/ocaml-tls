@@ -18,8 +18,6 @@ Read [further](https://nqsb.io) and our [Usenix Security 2015 paper](https://use
 
 ## Documentation
 
-[![Build Status](https://travis-ci.org/mirleft/ocaml-tls.svg?branch=master)](https://travis-ci.org/mirleft/ocaml-tls)
-
 [API documentation](https://mirleft.github.io/ocaml-tls/doc)
 
 ## Installation
