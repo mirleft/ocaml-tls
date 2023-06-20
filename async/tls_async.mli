@@ -55,4 +55,4 @@ val connect
       -> 'addr Tcp.Where_to_connect.t
       -> host:[ `host ] Domain_name.t option
       -> (Session.t * Reader.t * Writer.t) Deferred.Or_error.t)
-       Tcp.with_connect_options
+       Tcp.Aliases.with_connect_options

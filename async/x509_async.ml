@@ -9,7 +9,7 @@ let file_contents file =
 let load_all_in_directory ~directory ~f =
   let open Deferred.Or_error.Let_syntax in
   let%bind files = Deferred.Or_error.try_with (fun () -> Sys.ls_dir directory) in
-  Deferred.Or_error.List.map files ~f:(fun file ->
+  Deferred.Or_error.List.map ~how:`Sequential files ~f:(fun file ->
     let%bind contents = file_contents (directory ^/ file) in
     f ~contents)
 ;;
