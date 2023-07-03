@@ -1,3 +1,8 @@
+## v0.17.1 (2023-07-03)
+
+* tls-async: update to 0.16 series (#476 @tmcgilchrist, review by @torinnd)
+* avoid Cstruct.copy (@hannesm)
+
 ## v0.17.0 (2023-03-01)
 
 * tls-async: remove ocaml < 5.0.0 constraint (#471 #474 @hannesm)
