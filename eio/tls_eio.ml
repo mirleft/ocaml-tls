@@ -3,6 +3,12 @@ module Flow = Eio.Flow
 exception Tls_alert   of Tls.Packet.alert_type
 exception Tls_failure of Tls.Engine.failure
 
+type Eio.Exn.Backend.t += Tls_socket_closed
+let () = Eio.Exn.Backend.register_pp (fun f -> function
+    | Tls_socket_closed -> Fmt.pf f "TLS_socket_closed"; true
+    | _ -> false
+  )
+
 module Raw = struct
 
   (* We could replace [`Eof] with [`Error End_of_file] and then use
@@ -90,7 +96,7 @@ module Raw = struct
   let writev t css =
     match t.state with
     | `Error err  -> raise err
-    | `Eof        -> raise End_of_file
+    | `Eof        -> raise (Eio.Net.err (Connection_reset Tls_socket_closed))
     | `Active tls ->
         match Tls.Engine.send_application_data tls css with
         | Some (tls, tlsdata) ->

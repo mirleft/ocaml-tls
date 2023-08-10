@@ -156,7 +156,12 @@ end = struct
         );
         aux ()
     in
-    aux()
+    try
+      aux()
+    with Eio.Io (Eio.Net.E Connection_reset _, _) ->
+      (* Due to #452, if we get told that the receiver will no longer send, then
+         we can't send either. *)
+      assert !(t.receiver_closed)
 
   let run_recv_thread t =
     let recv = Promise.await_exn t.receiver in
@@ -309,4 +314,6 @@ let main client_message server_message quickstart actions =
   ]
 
 let () =
+  Logs.set_level (Some Warning);
+  Logs.set_reporter (Logs_fmt.reporter ());
   Crowbar.(add_test ~name:"random ops" [bytes; bytes; bool; list action] main)
