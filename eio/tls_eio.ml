@@ -1,3 +1,5 @@
+open Eio.Std
+
 module Flow = Eio.Flow
 
 exception Tls_alert   of Tls.Packet.alert_type
@@ -9,12 +11,15 @@ let () = Eio.Exn.Backend.register_pp (fun f -> function
     | _ -> false
   )
 
+type ty = [ `Tls | Eio.Flow.two_way_ty ]
+type t = ty r
+
 module Raw = struct
 
   (* We could replace [`Eof] with [`Error End_of_file] and then use
      a regular [result] type here. *)
   type t = {
-    flow           : Flow.two_way ;
+    flow           : Flow.two_way_ty r;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Eof
                      | `Error of exn ] ;
@@ -75,7 +80,7 @@ module Raw = struct
         | (`Error e, _)    -> raise e
         | (`Eof, _)        -> raise End_of_file
 
-  let rec read t buf =
+  let rec single_read t buf =
 
     let writeout res =
       let open Cstruct in
@@ -90,7 +95,7 @@ module Raw = struct
     | Some res -> writeout res
     | None     ->
         match read_react t with
-          | None     -> read t buf
+          | None     -> single_read t buf
           | Some res -> writeout res
 
   let writev t css =
@@ -103,7 +108,9 @@ module Raw = struct
             ( t.state <- `Active tls ; write_t t tlsdata )
         | None -> invalid_arg "tls: write: socket not ready"
 
-  let write t cs = writev t [cs]
+  let single_write t bufs =
+    writev t bufs;
+    Cstruct.lenv bufs
 
   (*
    * XXX bad XXX
@@ -168,7 +175,7 @@ module Raw = struct
   let server_of_flow config flow =
     drain_handshake {
       state    = `Active (Tls.Engine.server config) ;
-      flow     = (flow :> Flow.two_way) ;
+      flow     = (flow :> Flow.two_way_ty r) ;
       linger   = None ;
       recv_buf = Cstruct.create 4096
     }
@@ -180,7 +187,7 @@ module Raw = struct
     in
     let t = {
       state    = `Eof ;
-      flow     = (flow :> Flow.two_way);
+      flow     = (flow :> Flow.two_way_ty r);
       linger   = None ;
       recv_buf = Cstruct.create 4096
     } in
@@ -198,36 +205,31 @@ module Raw = struct
     | `Eof      -> Error ()
     | `Error _  -> Error ()
 
-  let copy_from t src =
-    try
-      while true do
-        let buf = Cstruct.create 4096 in
-        let got = Flow.single_read src buf in
-        write t (Cstruct.sub buf 0 got)
-      done
-    with End_of_file -> ()
+  let copy t ~src = Eio.Flow.Pi.simple_copy ~single_write t ~src
+
+  let read_methods = []
+
+  type (_, _, _) Eio.Resource.pi += T : ('t, 't -> t, ty) Eio.Resource.pi
 end
 
-type t = <
-  Eio.Flow.two_way;
-  t : Raw.t;
->
+let raw (Eio.Resource.T (t, ops)) = Eio.Resource.get ops Raw.T t
 
-let of_t t =
-  object
-    inherit Eio.Flow.two_way
-    method read_into = Raw.read t
-    method copy = Raw.copy_from t
-    method shutdown = Raw.shutdown t
-    method t = t
-  end
+let handler =
+  Eio.Resource.handler [
+    H (Eio.Flow.Pi.Source, (module Raw));
+    H (Eio.Flow.Pi.Sink, (module Raw));
+    H (Eio.Flow.Pi.Shutdown, (module Raw));
+    H (Raw.T, Fun.id);
+  ]
+
+let of_t t = Eio.Resource.T (t, handler)
 
 let server_of_flow config       flow = Raw.server_of_flow config       flow |> of_t
 let client_of_flow config ?host flow = Raw.client_of_flow config ?host flow |> of_t
 
-let reneg ?authenticator ?acceptable_cas ?cert ?drop (t:t) = Raw.reneg ?authenticator ?acceptable_cas ?cert ?drop t#t
-let key_update ?request (t:t) = Raw.key_update ?request t#t
-let epoch (t:t) = Raw.epoch t#t
+let reneg ?authenticator ?acceptable_cas ?cert ?drop (t:t) = Raw.reneg ?authenticator ?acceptable_cas ?cert ?drop (raw t)
+let key_update ?request (t:t) = Raw.key_update ?request (raw t)
+let epoch (t:t) = Raw.epoch (raw t)
 
 let () =
   Printexc.register_printer (function

@@ -296,7 +296,7 @@ let main client_message server_message quickstart actions =
       ~receiver:server_flow
       ~sender_closed:client_closed
       ~receiver_closed:server_closed
-      ~transmit:client_socket#transmit
+      ~transmit:(Mock_socket.transmit client_socket)
       To_server client_message in
   let to_client =
     Path.create
@@ -304,7 +304,7 @@ let main client_message server_message quickstart actions =
       ~receiver:client_flow
       ~sender_closed:server_closed
       ~receiver_closed:client_closed
-      ~transmit:server_socket#transmit
+      ~transmit:(Mock_socket.transmit server_socket)
       To_client server_message
   in
   Fiber.all [
