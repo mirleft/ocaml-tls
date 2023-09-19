@@ -24,6 +24,8 @@ depends: [
   "eio_main" {>= "0.12" with-test}
   "mdx" {with-test}
   "crowbar" {>= "0.2.1" with-test}
+  "logs" {>= "0.7.0" with-test}
+  "ptime" {>= "1.0.0"}
 ]
 tags: [ "org:mirage"]
 synopsis: "Transport Layer Security purely in OCaml - Eio"
