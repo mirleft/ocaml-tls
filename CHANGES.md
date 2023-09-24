@@ -1,3 +1,7 @@
+## v0.17.2 (2023-09-24)
+
+* tls-eio: update to eio 0.12 (#479 @talex5)
+
 ## v0.17.1 (2023-07-03)
 
 * tls-async: update to 0.16 series (#476 @tmcgilchrist, review by @torinnd)
