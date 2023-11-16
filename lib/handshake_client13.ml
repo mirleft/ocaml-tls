@@ -181,8 +181,9 @@ let answer_finished state (session : session_data13) server_hs_secret client_hs_
   let myfin = Handshake_crypto13.finished hash client_hs_secret log in
   let mfin = Writer.assemble_handshake (Finished myfin) in
 
-  let resumption_secret = Handshake_crypto13.resumption session.master_secret  (log <+> mfin) in
-  let session = { session with resumption_secret ; client_app_secret ; server_app_secret } in
+  let exporter_master_secret = Handshake_crypto13.exporter session.master_secret log in
+  let resumption_secret = Handshake_crypto13.resumption session.master_secret (log <+> mfin) in
+  let session = { session with resumption_secret ; exporter_master_secret ; client_app_secret ; server_app_secret } in
   let machina = Client13 Established13 in
 
   Tracing.hs ~tag:"handshake-out" (Finished myfin);

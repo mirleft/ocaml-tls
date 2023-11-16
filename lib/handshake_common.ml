@@ -129,14 +129,15 @@ let empty_session = {
 }
 
 let empty_session13 cipher = {
-  common_session_data13 = empty_common_session_data ;
-  ciphersuite13         = cipher ;
-  master_secret         = Handshake_crypto13.empty cipher ;
-  resumption_secret     = Cstruct.empty ;
-  state                 = `Established ;
-  resumed               = false ;
-  client_app_secret     = Cstruct.empty ;
-  server_app_secret     = Cstruct.empty ;
+  common_session_data13  = empty_common_session_data ;
+  ciphersuite13          = cipher ;
+  master_secret          = Handshake_crypto13.empty cipher ;
+  exporter_master_secret = Cstruct.empty ;
+  resumption_secret      = Cstruct.empty ;
+  state                  = `Established ;
+  resumed                = false ;
+  client_app_secret      = Cstruct.empty ;
+  server_app_secret      = Cstruct.empty ;
 }
 
 let common_session_data_of_epoch (epoch : epoch_data) common_session_data =
@@ -170,6 +171,7 @@ let session13_of_epoch cipher (epoch : epoch_data) : session_data13 =
     common_session_data13 ;
     ciphersuite13 = cipher ;
     state = epoch.state ;
+    exporter_master_secret = epoch.exporter_master_secret ;
   }
 
 let supported_protocol_version (min, max) v =

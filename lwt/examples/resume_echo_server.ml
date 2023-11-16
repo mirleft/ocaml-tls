@@ -30,7 +30,8 @@ let serve_ssl port callback =
   let hex = Cstruct.of_hex in
   let epoch =
     {
-      Tls.Core.state = `Established ;
+      Tls.Core.side = `Client ;
+      state = `Established ;
       protocol_version = `TLS_1_3 ;
       ciphersuite = `DHE_RSA_WITH_AES_128_GCM_SHA256 ;
       peer_random = hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" ;
@@ -44,7 +45,8 @@ let serve_ssl port callback =
       own_private_key = Some (snd cert) ;
       own_name = Some Domain_name.(host_exn (of_string_exn "tls13test.nqsb.io")) ;
       master_secret = hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" ;
-      session_id = Cstruct.create 0 ;
+      exporter_master_secret = Cstruct.empty ;
+      session_id = Cstruct.empty ;
       extended_ms = true ;
       alpn_protocol = None ;
     }

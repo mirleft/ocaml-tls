@@ -123,6 +123,7 @@ type session_data13 = {
   common_session_data13  : common_session_data ;
   ciphersuite13          : Ciphersuite.ciphersuite13 ;
   master_secret          : kdf ;
+  exporter_master_secret : Cstruct.t ;
   resumption_secret      : Cstruct.t ;
   state                  : epoch_state ;
   resumed                : bool ;
@@ -377,7 +378,8 @@ let common_data_to_epoch common is_server peer_name =
       common.client_random, common.server_random
   in
   let epoch : epoch_data =
-    { state                  = `Established ;
+    { side                   = if is_server then `Server else `Client ;
+      state                  = `Established ;
       protocol_version       = `TLS_1_0 ;
       ciphersuite            = `DHE_RSA_WITH_AES_256_CBC_SHA ;
       peer_random ;
@@ -391,6 +393,7 @@ let common_data_to_epoch common is_server peer_name =
       own_name               = common.own_name ;
       received_certificates  = common.received_certificates ;
       master_secret          = common.master_secret ;
+      exporter_master_secret = Cstruct.empty ;
       alpn_protocol          = common.alpn_protocol ;
       session_id             = Cstruct.empty ;
       extended_ms            = false ;
@@ -411,9 +414,11 @@ let epoch_of_session server peer_name protocol_version = function
     let epoch : epoch_data = common_data_to_epoch session.common_session_data13 server peer_name in
     {
       epoch with
+      protocol_version       = protocol_version ;
       ciphersuite            = (session.ciphersuite13 :> Ciphersuite.ciphersuite) ;
       extended_ms            = true ; (* RFC 8446, Appendix D, last paragraph *)
       state                  = session.state ;
+      exporter_master_secret = session.exporter_master_secret ;
     }
 
 let epoch_of_hs hs =
