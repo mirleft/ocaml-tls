@@ -465,6 +465,7 @@ type epoch_state = [ `ZeroRTT | `Established ]
 
 (** information about an open session *)
 type epoch_data = {
+  side                   : [ `Client | `Server ] ;
   state                  : epoch_state ;
   protocol_version       : tls_version ;
   ciphersuite            : Ciphersuite.ciphersuite ;
@@ -479,6 +480,7 @@ type epoch_data = {
   own_private_key        : X509.Private_key.t option ;
   own_name               : [`host] Domain_name.t option ;
   master_secret          : master_secret ;
+  exporter_master_secret : master_secret ;
   session_id             : SessionID.t ;
   extended_ms            : bool ;
   alpn_protocol          : string option ;

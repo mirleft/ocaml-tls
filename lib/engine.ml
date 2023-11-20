@@ -744,3 +744,36 @@ let epoch state =
   match epoch_of_hs state.handshake with
   | None -> `InitialEpoch
   | Some e -> `Epoch e
+
+let export_key_material (e : epoch_data) ?context label length =
+  match e.protocol_version with
+  | `TLS_1_3 ->
+    let hash =
+      let cipher = Option.get (Ciphersuite.ciphersuite_to_ciphersuite13 e.ciphersuite) in
+      Ciphersuite.hash13 cipher
+    in
+    let ems = e.exporter_master_secret in
+    let prk =
+      let ctx = Mirage_crypto.Hash.digest hash Cstruct.empty in
+      Handshake_crypto13.derive_secret_no_hash hash ems ~ctx label
+    in
+    let ctx = Option.(value ~default:Cstruct.empty (map Cstruct.of_string context)) in
+    Handshake_crypto13.derive_secret_no_hash
+      hash prk ~ctx:(Mirage_crypto.Hash.digest hash ctx)
+      ~length "exporter"
+  | #tls_before_13 as v ->
+    let seed =
+      let base =
+        match e.side with
+        | `Server -> Cstruct.append e.peer_random e.own_random
+        | `Client -> Cstruct.append e.own_random e.peer_random
+      in
+      match context with
+      | None -> base
+      | Some data ->
+        let len = Cstruct.create 2 in
+        Cstruct.BE.set_uint16 len 0 (String.length data);
+        Cstruct.concat [ base ; len ; Cstruct.of_string data ]
+    in
+    Handshake_crypto.pseudo_random_function v e.ciphersuite
+      length e.master_secret label seed

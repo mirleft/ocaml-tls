@@ -200,3 +200,9 @@ type epoch = [
 (** [epoch state] is [epoch], which contains the session
     information. *)
 val epoch : state -> epoch
+
+(** [export_key_material epoch_data ?context label length] is the RFC 5705
+    exported key material of [length] bytes using [label] and, if provided,
+    [context]. *)
+val export_key_material : Core.epoch_data -> ?context:string -> string -> int ->
+  Cstruct.t
