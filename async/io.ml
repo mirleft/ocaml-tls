@@ -193,10 +193,9 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
 
   let epoch t =
     match t.state with
-    | Active tls ->
-      (match Tls.Engine.epoch tls with
-       | `InitialEpoch -> assert false (* can never occur! *)
-       | `Epoch data -> Ok data)
+    | Active tls -> (match Tls.Engine.epoch tls with
+       | Ok _ as o -> o
+       | Error () -> Or_error.error_string "no TLS state available yet")
     | Eof -> Or_error.error_string "TLS state is end of file"
     | Error _ -> Or_error.error_string "TLS state is error"
   ;;

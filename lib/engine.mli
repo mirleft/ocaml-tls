@@ -188,18 +188,9 @@ val key_update : ?request:bool -> state -> (state * Cstruct.t, failure) result
 
 (** {1 Session information} *)
 
-(** polymorphic variant of session information.  The first variant
-    [`InitialEpoch] will only be used for TLS states without completed
-    handshake.  The second variant, [`Epoch], contains actual session
-    data. *)
-type epoch = [
-  | `InitialEpoch
-  | `Epoch of Core.epoch_data
-]
-
 (** [epoch state] is [epoch], which contains the session
-    information. *)
-val epoch : state -> epoch
+    information. If there's no established session yet, an error is returned. *)
+val epoch : state -> (Core.epoch_data, unit) result
 
 (** [export_key_material epoch_data ?context label length] is the RFC 5705
     exported key material of [length] bytes using [label] and, if provided,

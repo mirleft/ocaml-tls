@@ -1,3 +1,14 @@
+## v0.17.3 (2023-11-20)
+
+* tls: provide Engine.export_key_material, which implements RFC 5705 (and 8446)
+  TLS EKM (#482 @hannesm)
+* tls: fix protocol_version in Engine.epoch (TLS 1.3 always pretended TLS 1.0)
+  (#482 @hannesm)
+* tls: add the side (`` `Client `` or `` `Server ``) to epoch_data
+  (#482 @hannesm)
+* BREAKING tls: Engine.epoch - return result instead of custom variant
+  (#483 @hannesm)
+
 ## v0.17.2 (2023-09-24)
 
 * tls-eio: update to eio 0.12 (#479 @talex5)

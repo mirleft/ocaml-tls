@@ -193,10 +193,7 @@ module Make (F : Mirage_flow.S) = struct
   let epoch flow =
     match flow.state with
     | `Eof | `Error _ -> Error ()
-    | `Active tls     ->
-        match Tls.Engine.epoch tls with
-        | `InitialEpoch -> assert false (* `drain_handshake` invariant. *)
-        | `Epoch e      -> Ok e
+    | `Active tls     -> Tls.Engine.epoch tls
 
 (*   let create_connection t tls_params host (addr, port) =
     |+ XXX addr -> (host : string) +|
