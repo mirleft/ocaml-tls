@@ -199,11 +199,8 @@ module Raw = struct
 
   let epoch t =
     match t.state with
-    | `Active tls -> ( match Tls.Engine.epoch tls with
-        | `InitialEpoch -> assert false (* can never occur! *)
-        | `Epoch data   -> Ok data )
-    | `Eof      -> Error ()
-    | `Error _  -> Error ()
+    | `Active tls -> Tls.Engine.epoch tls
+    | `Eof | `Error _ -> Error ()
 
   let copy t ~src = Eio.Flow.Pi.simple_copy ~single_write t ~src
 

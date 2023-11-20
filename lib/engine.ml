@@ -735,15 +735,8 @@ let client config =
 
 let server config = new_state Config.(of_server config) `Server
 
-type epoch = [
-  | `InitialEpoch
-  | `Epoch of epoch_data
-]
-
 let epoch state =
-  match epoch_of_hs state.handshake with
-  | None -> `InitialEpoch
-  | Some e -> `Epoch e
+  Option.to_result ~none:() (epoch_of_hs state.handshake)
 
 let export_key_material (e : epoch_data) ?context label length =
   match e.protocol_version with
