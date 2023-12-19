@@ -33,8 +33,6 @@ module Make (F : Mirage_flow.S) = struct
   let tls_alert a = `Error (`Tls_alert a)
   let tls_fail f  = `Error (`Tls_failure f)
 
-  let list_of_option = function None -> [] | Some x -> [x]
-
   let lift_read_result = function
     | Ok (`Data _ | `Eof as x) -> x
     | Error e                  -> `Error (`Read e)
@@ -126,7 +124,7 @@ module Make (F : Mirage_flow.S) = struct
       (* read_react re-throws *)
         read_react flow >>= function
         | `Ok mbuf ->
-            flow.linger <- list_of_option mbuf @ flow.linger ;
+            flow.linger <- Option.to_list mbuf @ flow.linger ;
             drain_handshake flow
         | `Error e -> return @@ Error (e :> write_error)
         | `Eof     -> return @@ Error `Closed
