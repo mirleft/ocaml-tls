@@ -129,33 +129,35 @@ module Make (F : Mirage_flow.S) = struct
         | `Error e -> Lwt.return @@ Error (e :> write_error)
         | `Eof     -> Lwt.return @@ Error `Closed
 
+  type wr_or_msg = [ write_error | `Msg of string ]
+
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) flow =
     match flow.state with
     | `Eof        -> Lwt.return @@ Error `Closed
-    | `Error e    -> Lwt.return @@ Error (e :> write_error)
+    | `Error e    -> Lwt.return @@ Error (e :> wr_or_msg)
     | `Active tls ->
         match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
-        | None             ->
-            (* XXX make this impossible to reach *)
-            invalid_arg "Renegotiation already in progress"
+        | None             -> Lwt.return (Error (`Msg "Renegotiation already in progress"))
         | Some (tls', buf) ->
             if drop then flow.linger <- [] ;
             flow.state <- `Active tls' ;
             FLOW.write flow.flow buf >>= fun _ ->
             drain_handshake flow >|= function
-            | Ok _         -> Ok ()
-            | Error _ as e -> e
+            | Ok _    -> Ok ()
+            | Error e -> Error (e :> wr_or_msg)
 
   let key_update ?request flow =
     match flow.state with
     | `Eof        -> Lwt.return @@ Error `Closed
-    | `Error e    -> Lwt.return @@ Error (e :> write_error)
+    | `Error e    -> Lwt.return @@ Error (e :> wr_or_msg)
     | `Active tls ->
       match Tls.Engine.key_update ?request tls with
-      | Error _ -> invalid_arg "Key update failed"
+      | Error _ -> Lwt.return (Error (`Msg "Key update failed"))
       | Ok (tls', buf) ->
         flow.state <- `Active tls' ;
-        FLOW.write flow.flow buf >>= check_write flow
+        FLOW.write flow.flow buf >>= check_write flow >|= function
+        | Ok _ as o -> o
+        | Error e   -> Error (e :> wr_or_msg)
 
   let close flow =
     match flow.state with

@@ -28,12 +28,12 @@ module Make (F : Mirage_flow.S) : sig
       application data received before the renegotiation finished is dropped. *)
   val reneg : ?authenticator:X509.Authenticator.t ->
     ?acceptable_cas:X509.Distinguished_name.t list -> ?cert:Tls.Config.own_cert ->
-    ?drop:bool -> flow -> (unit, write_error) result Lwt.t
+    ?drop:bool -> flow -> (unit, [ write_error | `Msg of string ]) result Lwt.t
 
   (** [key_update ~request t] updates the traffic key and requests a traffic key
       update from the peer if [request] is provided and [true] (the default).
       This is only supported in TLS 1.3. *)
-  val key_update : ?request:bool -> flow -> (unit, write_error) result Lwt.t
+  val key_update : ?request:bool -> flow -> (unit, [ write_error | `Msg of string ]) result Lwt.t
 
   (** [client_of_flow client ~host flow] upgrades the existing connection
       to TLS using the [client] configuration, using [host] as peer name. *)
