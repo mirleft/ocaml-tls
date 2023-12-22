@@ -37,16 +37,10 @@ module Make (F : Mirage_flow.S) = struct
     | Ok (`Data _ | `Eof as x) -> x
     | Error e                  -> `Error (`Read e)
 
-  let lift_write_result = function
-    | Ok ()   -> `Ok ()
-    | Error e -> `Error (`Write e)
-
   let check_write flow f_res =
-    let res = lift_write_result f_res in
-    ( match flow.state, res with
-      | `Active _, (`Eof | `Error _ as e) ->
-          flow.state <- e ; FLOW.close flow.flow
-      | _ -> Lwt.return_unit ) >|= fun () ->
+    ( match flow.state, f_res with
+      | `Active _, Error e -> flow.state <- `Error (`Write e)
+      | _ -> () );
     match f_res with
     | Ok ()   -> Ok ()
     | Error e -> Error (`Write e :> write_error)
@@ -62,10 +56,7 @@ module Make (F : Mirage_flow.S) = struct
             | `Alert alert -> tls_alert alert );
           ( match resp with
             | None     -> Lwt.return @@ Ok ()
-            | Some buf -> FLOW.write flow.flow buf >>= check_write flow ) >>= fun _ ->
-          ( match res with
-            | `Ok _ -> Lwt.return_unit
-            | _     -> FLOW.close flow.flow ) >>= fun () ->
+            | Some buf -> FLOW.write flow.flow buf >|= check_write flow ) >>= fun _ ->
           Lwt.return @@ `Ok data
       | Error (fail, `Response resp) ->
           let reason = tls_fail fail in
@@ -102,7 +93,7 @@ module Make (F : Mirage_flow.S) = struct
         match Tls.Engine.send_application_data tls bufs with
         | Some (tls, answer) ->
             flow.state <- `Active tls ;
-            FLOW.write flow.flow answer >>= check_write flow
+            FLOW.write flow.flow answer >|= check_write flow
         | None ->
             (* "Impossible" due to handshake draining. *)
             assert false
@@ -157,7 +148,7 @@ module Make (F : Mirage_flow.S) = struct
       | Error _ -> Lwt.return (Error (`Msg "Key update failed"))
       | Ok (tls', buf) ->
         flow.state <- `Active tls' ;
-        FLOW.write flow.flow buf >>= check_write flow >|= function
+        FLOW.write flow.flow buf >|= check_write flow >|= function
         | Ok _ as o -> o
         | Error e   -> Error (e :> wr_or_msg)
 
