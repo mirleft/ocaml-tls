@@ -14,20 +14,17 @@ type content_type =
   | ALERT
   | HANDSHAKE
   | APPLICATION_DATA
-  | HEARTBEAT
 
 let content_type_to_int = function
   | CHANGE_CIPHER_SPEC -> 20
   | ALERT -> 21
   | HANDSHAKE -> 22
   | APPLICATION_DATA -> 23
-  | HEARTBEAT -> 24
 and int_to_content_type = function
   | 20 -> Some CHANGE_CIPHER_SPEC
   | 21 -> Some ALERT
   | 22 -> Some HANDSHAKE
   | 23 -> Some APPLICATION_DATA
-  | 24 -> Some HEARTBEAT
   | _ -> None
 
 let pp_content_type ppf = function
@@ -35,7 +32,6 @@ let pp_content_type ppf = function
   | ALERT -> Fmt.string ppf "alert"
   | HANDSHAKE -> Fmt.string ppf "handshake"
   | APPLICATION_DATA -> Fmt.string ppf "application data"
-  | HEARTBEAT -> Fmt.string ppf "heartbeat"
 
 (* TLS alert level *)
 type alert_level =

@@ -52,10 +52,6 @@ let header_tests =
     "ReadWrite header" >:: readerwriter_header (`TLS_1_1, Packet.CHANGE_CIPHER_SPEC, a) ;
     "ReadWrite header" >:: readerwriter_header (`TLS_1_2, Packet.CHANGE_CIPHER_SPEC, a) ;
 
-    "ReadWrite header" >:: readerwriter_header (`TLS_1_0, Packet.HEARTBEAT, a) ;
-    "ReadWrite header" >:: readerwriter_header (`TLS_1_1, Packet.HEARTBEAT, a) ;
-    "ReadWrite header" >:: readerwriter_header (`TLS_1_2, Packet.HEARTBEAT, a) ;
-
     "ReadWrite header" >:: readerwriter_header (`TLS_1_0, Packet.ALERT, a) ;
     "ReadWrite header" >:: readerwriter_header (`TLS_1_1, Packet.ALERT, a) ;
     "ReadWrite header" >:: readerwriter_header (`TLS_1_2, Packet.ALERT, a) ;

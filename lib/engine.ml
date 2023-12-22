@@ -454,8 +454,6 @@ let handle_packet hs buf = function
      in
      Ok (hs, items, None, `No_err)
 
-  | Packet.HEARTBEAT -> Error (`Fatal `NoHeartbeat)
-
 let decrement_early_data hs ty buf =
   let bytes left cipher =
     let count = Cstruct.length buf - fst (Ciphersuite.kn_13 (Ciphersuite.privprot13 cipher)) in
