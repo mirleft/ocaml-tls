@@ -479,11 +479,11 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   let version = hs.protocol_version in
   let* () =
     match hs.machina, version with
-    | Client (AwaitServerHello _), _       -> Ok ()
-    | Server AwaitClientHello    , _       -> Ok ()
-    | Server13 AwaitClientHelloHRR13, _       -> Ok ()
-    | _                          , `TLS_1_3 -> guard (hdr.version = `TLS_1_2) (`Fatal (`BadRecordVersion hdr.version))
-    | _                          , v       -> guard (version_eq hdr.version v) (`Fatal (`BadRecordVersion hdr.version))
+    | Client (AwaitServerHello _), _ -> Ok ()
+    | Server AwaitClientHello, _ -> Ok ()
+    | Server13 AwaitClientHelloHRR13, _ -> Ok ()
+    | _, `TLS_1_3 -> guard (hdr.version = `TLS_1_2) (`Fatal (`BadRecordVersion hdr.version))
+    | _, v -> guard (version_eq hdr.version v) (`Fatal (`BadRecordVersion hdr.version))
   in
   let trial = match hs.machina with
     | Server13 (AwaitEndOfEarlyData13 _) | Server13 Established13 -> false
