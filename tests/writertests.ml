@@ -42,11 +42,6 @@ let hdr_assembler_tests = [
   (`TLS_1_1, Packet.APPLICATION_DATA, [], [23; 3; 2; 0; 0]) ;
   (`TLS_1_0, Packet.APPLICATION_DATA, [], [23; 3; 1; 0; 0]) ;
   (`TLS_1_2, Packet.APPLICATION_DATA, [0; 0; 0], [23; 3; 3; 0; 3; 0; 0; 0]) ;
-
-  (`TLS_1_2, Packet.HEARTBEAT, [], [24; 3; 3; 0; 0]) ;
-  (`TLS_1_1, Packet.HEARTBEAT, [], [24; 3; 2; 0; 0]) ;
-  (`TLS_1_0, Packet.HEARTBEAT, [], [24; 3; 1; 0; 0]) ;
-  (`TLS_1_2, Packet.HEARTBEAT, [0; 0; 0], [24; 3; 3; 0; 3; 0; 0; 0]) ;
 ]
 
 let hdr_tests =

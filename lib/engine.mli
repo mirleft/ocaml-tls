@@ -5,7 +5,8 @@
     layer security} in OCaml.  TLS is a widely used security protocol
     which establishes an end-to-end secure channel (with optional
     (mutual) authentication) between two endpoints.  It uses TCP/IP as
-    transport.  This library supports all three versions of TLS:
+    transport.  This library supports all four versions of TLS:
+    {{:https://tools.ietf.org/html/rfc8446}1.3, RFC8446},
     {{:https://tools.ietf.org/html/rfc5246}1.2, RFC5246},
     {{:https://tools.ietf.org/html/rfc4346}1.1, RFC4346}, and
     {{:https://tools.ietf.org/html/rfc2246}1.0, RFC2246}.  SSL, the

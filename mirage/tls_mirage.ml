@@ -1,4 +1,4 @@
-open Lwt
+open Lwt.Infix
 
 module Make (F : Mirage_flow.S) = struct
 
@@ -46,7 +46,7 @@ module Make (F : Mirage_flow.S) = struct
     ( match flow.state, res with
       | `Active _, (`Eof | `Error _ as e) ->
           flow.state <- e ; FLOW.close flow.flow
-      | _ -> return_unit ) >|= fun () ->
+      | _ -> Lwt.return_unit ) >|= fun () ->
     match f_res with
     | Ok ()   -> Ok ()
     | Error e -> Error (`Write e :> write_error)
@@ -61,43 +61,43 @@ module Make (F : Mirage_flow.S) = struct
             | `Eof         -> `Eof
             | `Alert alert -> tls_alert alert );
           ( match resp with
-            | None     -> return @@ Ok ()
+            | None     -> Lwt.return @@ Ok ()
             | Some buf -> FLOW.write flow.flow buf >>= check_write flow ) >>= fun _ ->
           ( match res with
-            | `Ok _ -> return_unit
+            | `Ok _ -> Lwt.return_unit
             | _     -> FLOW.close flow.flow ) >>= fun () ->
-          return @@ `Ok data
+          Lwt.return @@ `Ok data
       | Error (fail, `Response resp) ->
           let reason = tls_fail fail in
           flow.state <- reason ;
-          FLOW.(write flow.flow resp >>= fun _ -> close flow.flow) >>= fun () -> return reason
+          FLOW.(write flow.flow resp >>= fun _ -> close flow.flow) >>= fun () -> Lwt.return reason
     in
     match flow.state with
-    | `Eof | `Error _ as e -> return e
+    | `Eof | `Error _ as e -> Lwt.return e
     | `Active _            ->
       FLOW.read flow.flow >|= lift_read_result >>=
       function
-      | `Eof | `Error _ as e -> flow.state <- e ; return e
+      | `Eof | `Error _ as e -> flow.state <- e ; Lwt.return e
       | `Data buf            -> match flow.state with
         | `Active tls          -> handle tls buf
-        | `Eof | `Error _ as e -> return e
+        | `Eof | `Error _ as e -> Lwt.return e
 
   let rec read flow =
     match flow.linger with
     | [] ->
       ( read_react flow >>= function
           | `Ok None       -> read flow
-          | `Ok (Some buf) -> return @@ Ok (`Data buf)
-          | `Eof           -> return @@ Ok `Eof
-          | `Error e       -> return @@ Error e )
+          | `Ok (Some buf) -> Lwt.return @@ Ok (`Data buf)
+          | `Eof           -> Lwt.return @@ Ok `Eof
+          | `Error e       -> Lwt.return @@ Error e )
     | bufs ->
       flow.linger <- [] ;
-      return @@ Ok (`Data (Cstruct.concat @@ List.rev bufs))
+      Lwt.return @@ Ok (`Data (Cstruct.concat @@ List.rev bufs))
 
   let writev flow bufs =
     match flow.state with
-    | `Eof     -> return @@ Error `Closed
-    | `Error e -> return @@ Error (e :> write_error)
+    | `Eof     -> Lwt.return @@ Error `Closed
+    | `Error e -> Lwt.return @@ Error (e :> write_error)
     | `Active tls ->
         match Tls.Engine.send_application_data tls bufs with
         | Some (tls, answer) ->
@@ -119,43 +119,47 @@ module Make (F : Mirage_flow.S) = struct
   let rec drain_handshake flow =
     match flow.state with
     | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
-        return @@ Ok flow
+        Lwt.return @@ Ok flow
     | _ ->
       (* read_react re-throws *)
         read_react flow >>= function
         | `Ok mbuf ->
             flow.linger <- Option.to_list mbuf @ flow.linger ;
             drain_handshake flow
-        | `Error e -> return @@ Error (e :> write_error)
-        | `Eof     -> return @@ Error `Closed
+        | `Error e -> Lwt.return @@ Error (e :> write_error)
+        | `Eof     -> Lwt.return @@ Error `Closed
+
+  type wr_or_msg = [ write_error | `Msg of string ]
+
+  let underlying flow = flow.flow
 
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) flow =
     match flow.state with
-    | `Eof        -> return @@ Error `Closed
-    | `Error e    -> return @@ Error (e :> write_error)
+    | `Eof        -> Lwt.return @@ Error `Closed
+    | `Error e    -> Lwt.return @@ Error (e :> wr_or_msg)
     | `Active tls ->
         match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
-        | None             ->
-            (* XXX make this impossible to reach *)
-            invalid_arg "Renegotiation already in progress"
+        | None             -> Lwt.return (Error (`Msg "Renegotiation already in progress"))
         | Some (tls', buf) ->
             if drop then flow.linger <- [] ;
             flow.state <- `Active tls' ;
             FLOW.write flow.flow buf >>= fun _ ->
             drain_handshake flow >|= function
-            | Ok _         -> Ok ()
-            | Error _ as e -> e
+            | Ok _    -> Ok ()
+            | Error e -> Error (e :> wr_or_msg)
 
   let key_update ?request flow =
     match flow.state with
-    | `Eof        -> return @@ Error `Closed
-    | `Error e    -> return @@ Error (e :> write_error)
+    | `Eof        -> Lwt.return @@ Error `Closed
+    | `Error e    -> Lwt.return @@ Error (e :> wr_or_msg)
     | `Active tls ->
       match Tls.Engine.key_update ?request tls with
-      | Error _ -> invalid_arg "Key update failed"
+      | Error _ -> Lwt.return (Error (`Msg "Key update failed"))
       | Ok (tls', buf) ->
         flow.state <- `Active tls' ;
-        FLOW.write flow.flow buf >>= check_write flow
+        FLOW.write flow.flow buf >>= check_write flow >|= function
+        | Ok _ as o -> o
+        | Error e   -> Error (e :> wr_or_msg)
 
   let close flow =
     match flow.state with
@@ -163,7 +167,7 @@ module Make (F : Mirage_flow.S) = struct
       flow.state <- `Eof ;
       let (_, buf) = Tls.Engine.send_close_notify tls in
       FLOW.(write flow.flow buf >>= fun _ -> close flow.flow)
-    | _           -> return_unit
+    | _           -> Lwt.return_unit
 
   let client_of_flow conf ?host flow =
     let conf' = match host with
@@ -212,8 +216,8 @@ module X509 (KV : Mirage_kv.RO) (C: Mirage_clock.PCLOCK) = struct
   let default_cert  = "server"
 
   let err_fail pp = function
-    | Ok x -> return x
-    | Error e -> Fmt.kstr fail_with "%a" pp e
+    | Ok x -> Lwt.return x
+    | Error e -> Fmt.kstr Lwt.fail_with "%a" pp e
 
   let pp_msg ppf = function `Msg m -> Fmt.string ppf m
 

@@ -391,10 +391,10 @@ let early_data s =
 
 let rec separate_handshakes buf =
   match Reader.parse_handshake_frame buf with
-  | None, rest   -> Ok ([], rest)
+  | None, rest -> [], rest
   | Some hs, rest ->
-    let* rt, frag = separate_handshakes rest in
-    Ok (hs :: rt, frag)
+    let rt, frag = separate_handshakes rest in
+    hs :: rt, frag
 
 let handle_change_cipher_spec = function
   | Client cs -> Handshake_client.handle_change_cipher_spec cs
@@ -443,7 +443,7 @@ let handle_packet hs buf = function
      Ok (hs, items, None, `No_err)
 
   | Packet.HANDSHAKE ->
-     let* hss, hs_fragment = separate_handshakes (hs.hs_fragment <+> buf) in
+     let hss, hs_fragment = separate_handshakes (hs.hs_fragment <+> buf) in
      let hs = { hs with hs_fragment } in
      let* hs, items =
        List.fold_left (fun acc raw ->
@@ -453,8 +453,6 @@ let handle_packet hs buf = function
          (Ok (hs, [])) hss
      in
      Ok (hs, items, None, `No_err)
-
-  | Packet.HEARTBEAT -> Error (`Fatal `NoHeartbeat)
 
 let decrement_early_data hs ty buf =
   let bytes left cipher =
@@ -481,11 +479,11 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   let version = hs.protocol_version in
   let* () =
     match hs.machina, version with
-    | Client (AwaitServerHello _), _       -> Ok ()
-    | Server AwaitClientHello    , _       -> Ok ()
-    | Server13 AwaitClientHelloHRR13, _       -> Ok ()
-    | _                          , `TLS_1_3 -> guard (hdr.version = `TLS_1_2) (`Fatal (`BadRecordVersion hdr.version))
-    | _                          , v       -> guard (version_eq hdr.version v) (`Fatal (`BadRecordVersion hdr.version))
+    | Client (AwaitServerHello _), _ -> Ok ()
+    | Server AwaitClientHello, _ -> Ok ()
+    | Server13 AwaitClientHelloHRR13, _ -> Ok ()
+    | _, `TLS_1_3 -> guard (hdr.version = `TLS_1_2) (`Fatal (`BadRecordVersion hdr.version))
+    | _, v -> guard (version_eq hdr.version v) (`Fatal (`BadRecordVersion hdr.version))
   in
   let trial = match hs.machina with
     | Server13 (AwaitEndOfEarlyData13 _) | Server13 Established13 -> false
@@ -608,18 +606,9 @@ let send_close_notify st = send_records st [Alert.close_notify]
 
 let reneg ?authenticator ?acceptable_cas ?cert st =
   let config = st.handshake.config in
-  let config = match authenticator with
-    | None -> config
-    | Some auth -> Config.with_authenticator config auth
-  in
-  let config = match acceptable_cas with
-    | None -> config
-    | Some cas -> Config.with_acceptable_cas config cas
-  in
-  let config = match cert with
-    | None -> config
-    | Some cert -> Config.with_own_certificates config cert
-  in
+  let config = Option.fold ~none:config ~some:(Config.with_authenticator config) authenticator in
+  let config = Option.fold ~none:config ~some:(Config.with_acceptable_cas config) acceptable_cas in
+  let config = Option.fold ~none:config ~some:(Config.with_own_certificates config) cert in
   let hs = { st.handshake with config } in
   match hs.machina with
   | Server Established ->

@@ -103,7 +103,6 @@ let good_records =
     ([ 21 ; 3 ; 2 ; 0 ; 0 ], `Record (({ content_type = ALERT ; version = `TLS_1_1 }, empty), empty) ) ;
     ([ 22 ; 3 ; 3 ; 0 ; 0 ], `Record (({ content_type = HANDSHAKE ; version = `TLS_1_2 }, empty), empty) ) ;
     ([ 23 ; 3 ; 0 ; 0 ; 0 ], `Record (({ content_type = APPLICATION_DATA ; version = `SSL_3 }, empty), empty) ) ;
-    ([ 24 ; 3 ; 4 ; 0 ; 0 ], `Record (({ content_type = HEARTBEAT ; version = `TLS_1_3 }, empty), empty) ) ;
     ([ 16 ; 3 ; 1 ; 0 ; 0 ], `UnknownContent 16 ) ;
     ([ 19 ; 3 ; 1 ; 0 ; 0 ], `UnknownContent 19 ) ;
     ([ 20 ; 5 ; 1 ; 0 ; 0 ], `UnknownVersion (5, 1) ) ;
