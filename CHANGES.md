@@ -1,3 +1,9 @@
+* tls-mirage: avoid exceptions in reneg and rekey (#487 @hannesm)
+* tls: remove HEARTBEAT decoding - HEARTBEAT was never supported in this
+  library, the decoder was superfluous (#487 @hannesm)
+* tls-mirage: provide `underlying : flow -> FLOW.flow` (#487 @hannesm,
+  fixes #425 @dinosaure)
+
 ## v0.17.3 (2023-11-20)
 
 * tls: provide Engine.export_key_material, which implements RFC 5705 (and 8446)
