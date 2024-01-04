@@ -131,6 +131,8 @@ module Make (F : Mirage_flow.S) = struct
 
   type wr_or_msg = [ write_error | `Msg of string ]
 
+  let underlying flow = flow.flow
+
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) flow =
     match flow.state with
     | `Eof        -> Lwt.return @@ Error `Closed

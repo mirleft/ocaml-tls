@@ -20,6 +20,9 @@ module Make (F : Mirage_flow.S) : sig
     with type error := error
      and type write_error := write_error
 
+  (** [underlying t] returns the underlying flow. This is useful to extract
+      information such as [src] and [dst] of that flow. *)
+  val underlying : flow -> FLOW.flow
 
   (** [reneg ~authenticator ~acceptable_cas ~cert ~drop t] renegotiates the
       session, and blocks until the renegotiation finished.  Optionally, a new
