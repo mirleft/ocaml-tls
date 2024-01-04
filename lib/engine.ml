@@ -73,15 +73,16 @@ let alert_of_fatal = function
   | `Downgrade12 | `Downgrade11 -> Packet.ILLEGAL_PARAMETER
 
 let alert_of_failure = function
-  | `Error x -> alert_of_error x
-  | `Fatal x -> alert_of_fatal x
+  | `Error x -> Packet.FATAL, alert_of_error x
+  | `Fatal x -> Packet.FATAL, alert_of_fatal x
+  | `Alert _ -> Packet.WARNING, Packet.CLOSE_NOTIFY
 
 let pp_failure = State.pp_failure
 
 let string_of_failure = Fmt.to_to_string pp_failure
 
 type ret =
-  ([ `Ok of state | `Eof | `Alert of Packet.alert_type ]
+  (state * [ `Eof ] option
    * [ `Response of Cstruct.t option ]
    * [ `Data of Cstruct.t option ],
    failure * [ `Response of Cstruct.t ]) result
@@ -105,7 +106,9 @@ let new_state config role =
     handshake = handshake ;
     decryptor = None ;
     encryptor = None ;
-    fragment  = Cstruct.create 0 ;
+    fragment  = Cstruct.empty ;
+    read_closed = false ;
+    write_closed = false ;
   }
 
 type raw_record = tls_hdr * Cstruct.t
@@ -349,6 +352,10 @@ let encrypt_records encryptor version records =
   crypt encryptor (split records)
 
 module Alert = struct
+  (* The alert protocol:
+     - close_notify leads to eof (i.e. we will never read() any further data)
+     - any fatal alert leads to close_notify and session closed
+  *)
 
   open Packet
 
@@ -360,11 +367,9 @@ module Alert = struct
     let* alert = map_reader_error (Reader.parse_alert buf) in
     let _, a_type = alert in
     Tracing.debug (fun m -> m "alert-in %a" pp_alert alert) ;
-    let err = match a_type with
-      | CLOSE_NOTIFY -> `Eof
-      | _            -> `Alert a_type in
-    Tracing.debug (fun m -> m "alert-out %a" pp_alert (Packet.WARNING, Packet.CLOSE_NOTIFY)) ;
-    Ok (err, [`Record close_notify])
+    match a_type with
+    | CLOSE_NOTIFY | USER_CANCELED -> Ok true
+    | _ -> Error (`Alert a_type)
 end
 
 let hs_can_handle_appdata s =
@@ -428,19 +433,19 @@ let handle_packet hs buf = function
  *)
 
   | Packet.ALERT ->
-    let* err, out = Alert.handle buf in
-    Ok (hs, out, None, err)
+    let* eof = Alert.handle buf in
+    Ok (hs, [], None, eof)
 
   | Packet.APPLICATION_DATA ->
     if hs_can_handle_appdata hs || (early_data hs && Cstruct.length hs.hs_fragment = 0) then
       (Tracing.cs ~tag:"application-data-in" buf;
-       Ok (hs, [], non_empty buf, `No_err))
+       Ok (hs, [], non_empty buf, false))
     else
       Error (`Fatal `CannotHandleApplicationDataYet)
 
   | Packet.CHANGE_CIPHER_SPEC ->
      let* hs, items = handle_change_cipher_spec hs.machina hs buf in
-     Ok (hs, items, None, `No_err)
+     Ok (hs, items, None, false)
 
   | Packet.HANDSHAKE ->
      let hss, hs_fragment = separate_handshakes (hs.hs_fragment <+> buf) in
@@ -452,7 +457,7 @@ let handle_packet hs buf = function
            Ok (hs', items @ items'))
          (Ok (hs, [])) hss
      in
-     Ok (hs, items, None, `No_err)
+     Ok (hs, items, None, false)
 
 let decrement_early_data hs ty buf =
   let bytes left cipher =
@@ -493,7 +498,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   let* dec_st, dec, ty = decrypt ~trial version state.decryptor hdr.content_type buf in
   let* handshake = decrement_early_data hs ty buf in
   Tracing.debug (fun m -> m "frame-in %a" pp_frame (ty, dec)) ;
-  let* handshake, items, data, err = handle_packet handshake dec ty in
+  let* handshake, items, data, read_closed = handle_packet handshake dec ty in
   let encryptor, decryptor, encs =
     List.fold_left (fun (enc, dec, es) -> function
       | `Change_enc enc' -> (Some enc', dec, es)
@@ -506,8 +511,9 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
     items
   in
   List.iter (fun f -> Tracing.debug (fun m -> m "record-out %a" pp_frame f)) encs ;
-  let state' = { state with handshake ; encryptor ; decryptor } in
-  Ok (state', encs, data, err)
+  let read_closed = read_closed || state.read_closed in
+  let state' = { state with handshake ; encryptor ; decryptor ; read_closed } in
+  Ok (state', encs, data)
 
 let maybe_app a b = match a, b with
   | Some x, Some y -> Some (x <+> y)
@@ -524,18 +530,15 @@ let handle_tls state buf =
   Tracing.cs ~tag:"wire-in" buf ;
 
   let rec handle_records st = function
-    | []    -> Ok (st, [], None, `No_err)
+    | []    -> Ok (st, [], None)
     | r::rs ->
-      let* r = handle_raw_record st r in
-      match r with
-      | st, raw_rs, data, `No_err ->
-        let* st', raw_rs', data', err' = handle_records st rs in
-        Ok (st', raw_rs @ raw_rs', maybe_app data data', err')
-      | res -> Ok res
+      let* st, raw_rs, data = handle_raw_record st r in
+      let* st', raw_rs', data' = handle_records st rs in
+      Ok (st', raw_rs @ raw_rs', maybe_app data data')
   in
   match
     let* in_records, fragment = separate_records (state.fragment <+> buf) in
-    let* state', out_records, data, err = handle_records state in_records in
+    let* state', out_records, data = handle_records state in_records in
     let version = state'.handshake.protocol_version in
     let resp = match out_records with
       | [] -> None
@@ -544,27 +547,24 @@ let handle_tls state buf =
         Tracing.cs ~tag:"wire-out" out ;
         Some out
     in
-    Ok ({ state' with fragment }, resp, data, err)
+    Ok ({ state' with fragment }, resp, data)
   with
-  | Ok (state, resp, data, err) ->
-      let res = match err with
-        | `Eof ->
+  | Ok (state, resp, data) ->
+      let res =
+        if state.read_closed then begin
           Tracing.debug (fun m -> m "eof-out") ;
-          `Eof
-        | `Alert al ->
-          Tracing.debug (fun m -> m "ok-alert-out %s" (Packet.alert_type_to_string al));
-          `Alert al
-        | `No_err ->
-          (* Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ; *)
-          `Ok state
+          Some `Eof
+        end else
+          None
       in
-      Ok (res, `Response resp, `Data data)
+      (* Tracing.sexpf ~tag:"state-out" ~f:sexp_of_state state ; *)
+      Ok (state, res, `Response resp, `Data data)
   | Error x ->
       let version = state.handshake.protocol_version in
-      let alert   = alert_of_failure x in
-      let record  = Alert.make alert in
-      let _, enc  = encrypt_records state.encryptor version [record] in
-      let resp    = assemble_records version enc in
+      let level, alert = alert_of_failure x in
+      let record  = Alert.make ~level alert in
+      let _, enc = encrypt_records state.encryptor version [record] in
+      let resp = assemble_records version enc in
       Tracing.debug (fun m -> m "fail-alert-out %a" Packet.pp_alert (Packet.FATAL, alert)) ;
       Tracing.debug (fun m -> m "failure %a" pp_failure x) ;
       Error (x, `Response resp)
@@ -602,7 +602,9 @@ let send_application_data st css =
      Some (send_records st data)
   | false -> None
 
-let send_close_notify st = send_records st [Alert.close_notify]
+let send_close_notify st =
+  let st = { st with write_closed = true } in
+  send_records st [Alert.close_notify]
 
 let reneg ?authenticator ?acceptable_cas ?cert st =
   let config = st.handshake.config in

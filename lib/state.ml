@@ -186,6 +186,8 @@ type state = {
   decryptor : crypto_state ; (* the current decryption state *)
   encryptor : crypto_state ; (* the current encryption state *)
   fragment  : Cstruct.t ; (* the leftover fragment from TCP fragmentation *)
+  read_closed : bool ;
+  write_closed : bool ;
 }
 
 type error = [
@@ -364,11 +366,13 @@ let pp_fatal ppf = function
 type failure = [
   | `Error of error
   | `Fatal of fatal
+  | `Alert of Packet.alert_type
 ]
 
 let pp_failure ppf = function
   | `Error e -> pp_error ppf e
   | `Fatal f -> pp_fatal ppf f
+  | `Alert a -> Fmt.pf ppf "alert %s" (Packet.alert_type_to_string a)
 
 let common_data_to_epoch common is_server peer_name =
   let own_random, peer_random =

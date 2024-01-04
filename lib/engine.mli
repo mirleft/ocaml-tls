@@ -128,10 +128,11 @@ type fatal = [
 type failure = [
   | `Error of error
   | `Fatal of fatal
+  | `Alert of Packet.alert_type
 ]
 
 (** [alert_of_failure failure] is [alert], the TLS alert type for this failure. *)
-val alert_of_failure : failure -> Packet.alert_type
+val alert_of_failure : failure -> Packet.alert_level * Packet.alert_type
 
 (** [string_of_failure failure] is [string], the string representation of the [failure]. *)
 val string_of_failure : failure -> string
@@ -148,7 +149,7 @@ val pp_failure : failure Fmt.t
     Possibly some [`Response] to the other endpoint is needed, and
     potentially some [`Data] for the application was received. *)
 type ret =
-  ([ `Ok of state | `Eof | `Alert of Packet.alert_type ]
+  (state * [ `Eof ] option
    * [ `Response of Cstruct.t option ]
    * [ `Data of Cstruct.t option ],
    failure * [ `Response of Cstruct.t ]) result
