@@ -191,7 +191,7 @@ module Unix = struct
     | `Write_closed _ | `Closed -> Lwt.fail @@ Invalid_argument "tls: closed socket"
     | `Active tls | `Read_closed tls ->
       match Tls.Engine.key_update ?request tls with
-      | Error _ -> Lwt.fail @@ Invalid_argument "tls: can't update key"
+      | Error f -> Lwt.fail @@ Invalid_argument (Format.asprintf "tls: can't update key: %a" Tls.Engine.pp_failure f)
       | Ok (tls', buf) ->
         t.state <- inject_state tls' t.state ;
         write_t t buf
