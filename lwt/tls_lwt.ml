@@ -1,4 +1,4 @@
-open Lwt
+open Lwt.Infix
 
 exception Tls_alert   of Tls.Packet.alert_type
 exception Tls_failure of Tls.Engine.failure
@@ -12,22 +12,22 @@ let resolve host service =
   getaddrinfo host service [AI_PROTOCOL tcp.p_proto] >>= function
   | []    ->
       let msg = Printf.sprintf "no address for %s:%s" host service in
-      fail (Invalid_argument msg)
-  | ai::_ -> return ai.ai_addr
+      Lwt.fail (Invalid_argument msg)
+  | ai::_ -> Lwt.return ai.ai_addr
 
 module Lwt_cs = struct
 
   let naked ~name f fd cs =
     Cstruct.(f fd cs.buffer cs.off cs.len) >>= fun res ->
     match Lwt_unix.getsockopt_error fd with
-    | None     -> return res
-    | Some err -> fail @@ Unix.Unix_error (err, name, "")
+    | None     -> Lwt.return res
+    | Some err -> Lwt.fail @@ Unix.Unix_error (err, name, "")
 
   let write = naked ~name:"Tls_lwt.write" Lwt_bytes.write
   and read  = naked ~name:"Tls_lwt.read"  Lwt_bytes.read
 
   let rec write_full fd = function
-    | cs when Cstruct.length cs = 0 -> return_unit
+    | cs when Cstruct.length cs = 0 -> Lwt.return_unit
     | cs -> write fd cs >>= o (write_full fd) (Cstruct.shift cs)
 end
 
@@ -63,10 +63,10 @@ module Unix = struct
 
   let safely th =
     Lwt.catch
-      (fun () -> th >>= fun _ -> return_unit)
+      (fun () -> th >>= fun _ -> Lwt.return_unit)
       (function
         | Out_of_memory -> raise Out_of_memory
-        | _ -> return_unit)
+        | _ -> Lwt.return_unit)
 
   let (read_t, write_t) =
     let recording_errors op t cs =
@@ -77,11 +77,11 @@ module Unix = struct
           | exn -> (match t.state with
               | `Error _ -> ()
               | _ -> t.state <- `Error exn) ;
-            fail exn)
+            Lwt.fail exn)
     in
     (recording_errors Lwt_cs.read, recording_errors Lwt_cs.write_full)
 
-  let when_some f = function None -> return_unit | Some x -> f x
+  let when_some f = function None -> Lwt.return_unit | Some x -> f x
 
   let rec read_react t =
 
@@ -102,20 +102,20 @@ module Unix = struct
     in
 
     match t.state with
-    | `Error e -> fail e
+    | `Error e -> Lwt.fail e
     | `Closed
-    | `Read_closed _ -> return `Eof
+    | `Read_closed _ -> Lwt.return `Eof
     | _ ->
         read_t t t.recv_buf >>= function
         | 0 ->
           t.state <- half_close t.state `read;
-          return `Eof
+          Lwt.return `Eof
         | n ->
           match t.state with
-          | `Error e -> fail e
+          | `Error e -> Lwt.fail e
           | `Active tls | `Read_closed tls | `Write_closed tls ->
             handle tls (Cstruct.sub t.recv_buf 0 n)
-          | `Closed -> return `Eof
+          | `Closed -> Lwt.return `Eof
 
   let rec read t buf =
 
@@ -126,25 +126,25 @@ module Unix = struct
       blit res 0 buf 0 n ;
       t.linger <-
         (if n < rlen then Some (sub res n (rlen - n)) else None) ;
-      return n in
+      Lwt.return n in
 
     match t.linger with
     | Some res -> writeout res
     | None     ->
         read_react t >>= function
-          | `Eof           -> return 0
+          | `Eof           -> Lwt.return 0
           | `Ok None       -> read t buf
           | `Ok (Some res) -> writeout res
 
   let writev t css =
     match t.state with
-    | `Error err  -> fail err
-    | `Write_closed _ | `Closed -> fail @@ Invalid_argument "tls: closed socket"
+    | `Error err  -> Lwt.fail err
+    | `Write_closed _ | `Closed -> Lwt.fail @@ Invalid_argument "tls: closed socket"
     | `Active tls | `Read_closed tls ->
         match Tls.Engine.send_application_data tls css with
         | Some (tls, tlsdata) ->
             ( t.state <- inject_state tls t.state ; write_t t tlsdata )
-        | None -> fail @@ Invalid_argument "tls: write: socket not ready"
+        | None -> Lwt.fail @@ Invalid_argument "tls: write: socket not ready"
 
   let write t cs = writev t [cs]
 
@@ -164,52 +164,52 @@ module Unix = struct
     in
     match t.state with
     | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
-        return t
+        Lwt.return t
     | _ ->
         read_react t >>= function
-          | `Eof     -> fail End_of_file
+          | `Eof     -> Lwt.fail End_of_file
           | `Ok cs   -> push_linger t cs ; drain_handshake t
 
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
     match t.state with
-    | `Error err  -> fail err
+    | `Error err  -> Lwt.fail err
     | `Closed | `Read_closed _ | `Write_closed _ ->
-        fail @@ Invalid_argument "tls: closed socket"
+        Lwt.fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
         match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
-        | None -> fail @@ Invalid_argument "tls: can't renegotiate"
+        | None -> Lwt.fail @@ Invalid_argument "tls: can't renegotiate"
         | Some (tls', buf) ->
            if drop then t.linger <- None ;
            t.state <- inject_state tls' t.state ;
            write_t t buf >>= fun () ->
            drain_handshake t >>= fun _ ->
-           return_unit
+           Lwt.return_unit
 
   let key_update ?request t =
     match t.state with
-    | `Error err -> fail err
-    | `Write_closed _ | `Closed -> fail @@ Invalid_argument "tls: closed socket"
+    | `Error err -> Lwt.fail err
+    | `Write_closed _ | `Closed -> Lwt.fail @@ Invalid_argument "tls: closed socket"
     | `Active tls | `Read_closed tls ->
       match Tls.Engine.key_update ?request tls with
-      | Error _ -> fail @@ Invalid_argument "tls: can't update key"
+      | Error _ -> Lwt.fail @@ Invalid_argument "tls: can't update key"
       | Ok (tls', buf) ->
         t.state <- inject_state tls' t.state ;
         write_t t buf
 
   let shutdown t mode =
     (match mode with
-     | `read -> return_unit
+     | `read -> Lwt.return_unit
      | `write | `read_write ->
        match t.state with
        | `Active tls | `Read_closed tls ->
          let tls', buf = Tls.Engine.send_close_notify tls in
          t.state <- inject_state tls' (half_close t.state `write) ;
          write_t t buf
-       | _ -> return_unit) >>= fun () ->
+       | _ -> Lwt.return_unit) >>= fun () ->
     t.state <- half_close t.state mode;
     match t.state with
     | `Closed | `Error _ -> safely (Lwt_unix.close t.fd)
-    | _ -> return_unit
+    | _ -> Lwt.return_unit
 
   let close t = shutdown t `read_write
 
@@ -242,7 +242,7 @@ module Unix = struct
     Lwt.catch (fun () -> server_of_fd conf fd' >|= fun t -> (t, addr))
       (function
         | Out_of_memory -> raise Out_of_memory
-        | exn -> safely (Lwt_unix.close fd') >>= fun () -> fail exn)
+        | exn -> safely (Lwt_unix.close fd') >>= fun () -> Lwt.fail exn)
 
   let connect conf (host, port) =
     resolve host (string_of_int port) >>= fun addr ->
@@ -255,7 +255,7 @@ module Unix = struct
       Lwt_unix.connect fd addr >>= fun () -> client_of_fd conf ?host fd)
       (function
         | Out_of_memory -> raise Out_of_memory
-        | exn -> safely (Lwt_unix.close fd) >>= fun () -> fail exn)
+        | exn -> safely (Lwt_unix.close fd) >>= fun () -> Lwt.fail exn)
 
   let read_bytes t bs off len =
     read t (Cstruct.of_bigarray ~off ~len bs)
@@ -284,7 +284,7 @@ let of_t ?close t =
   in
   (Lwt_io.make ~close ~mode:Lwt_io.Input (Unix.read_bytes t)),
   (Lwt_io.make ~close ~mode:Lwt_io.Output @@
-    fun a b c -> Unix.write_bytes t a b c >>= fun () -> return c)
+    fun a b c -> Unix.write_bytes t a b c >>= fun () -> Lwt.return c)
 
 let accept_ext conf fd =
   Unix.accept conf fd >|= fun (t, peer) -> (of_t t, peer)
