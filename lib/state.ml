@@ -307,6 +307,7 @@ type fatal = [
   | `MissingContentType
   | `Downgrade12
   | `Downgrade11
+  | `WriteHalfClosed
 ]
 
 let pp_fatal ppf = function
@@ -362,6 +363,7 @@ let pp_fatal ppf = function
   | `MissingContentType -> Fmt.string ppf "missing content type"
   | `Downgrade12 -> Fmt.string ppf "downgrade 1.2"
   | `Downgrade11 -> Fmt.string ppf "downgrade 1.1"
+  | `WriteHalfClosed -> Fmt.string ppf "write half already closed"
 
 type failure = [
   | `Error of error

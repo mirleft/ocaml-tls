@@ -71,6 +71,7 @@ let alert_of_fatal = function
   | `Toomany0rttbytes -> Packet.UNEXPECTED_MESSAGE
   | `MissingContentType -> Packet.UNEXPECTED_MESSAGE
   | `Downgrade12 | `Downgrade11 -> Packet.ILLEGAL_PARAMETER
+  | `WriteHalfClosed -> Packet.UNEXPECTED_MESSAGE
 
 let alert_of_failure = function
   | `Error x -> Packet.FATAL, alert_of_error x
@@ -579,54 +580,60 @@ let send_records (st : state) records =
   Tracing.cs ~tag:"wire-out" data ;
   ({ st with encryptor }, data)
 
-(* utility for user *)
-let can_handle_appdata s = hs_can_handle_appdata s.handshake
-
 let handshake_in_progress s = match s.handshake.machina with
   | Client Established | Server Established -> false
   | Client13 Established13 | Server13 Established13 -> false
   | _ -> true
 
-(* another entry for user data *)
+(* entry for user data *)
 let send_application_data st css =
-  match can_handle_appdata st with
-  | true ->
-     List.iter (fun cs -> Tracing.cs ~tag:"application-data-out" cs) css ;
-     let datas = match st.encryptor with
-       (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
-       | Some { cipher_st = CBC { iv_mode = Iv _ ; _ } ; _ } -> Cstruct.create 0 :: css
-       | _                                                   -> css
-     in
-     let ty = Packet.APPLICATION_DATA in
-     let data = List.map (fun cs -> (ty, cs)) datas in
-     Some (send_records st data)
-  | false -> None
+  if st.write_closed || not (hs_can_handle_appdata st.handshake) then
+    None
+  else begin
+    List.iter (fun cs -> Tracing.cs ~tag:"application-data-out" cs) css ;
+    let datas = match st.encryptor with
+      (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
+      | Some { cipher_st = CBC { iv_mode = Iv _ ; _ } ; _ } -> Cstruct.create 0 :: css
+      | _                                                   -> css
+    in
+    let ty = Packet.APPLICATION_DATA in
+    let data = List.map (fun cs -> (ty, cs)) datas in
+    Some (send_records st data)
+  end
 
 let send_close_notify st =
   let st = { st with write_closed = true } in
   send_records st [Alert.close_notify]
 
 let reneg ?authenticator ?acceptable_cas ?cert st =
-  let config = st.handshake.config in
-  let config = Option.fold ~none:config ~some:(Config.with_authenticator config) authenticator in
-  let config = Option.fold ~none:config ~some:(Config.with_acceptable_cas config) acceptable_cas in
-  let config = Option.fold ~none:config ~some:(Config.with_own_certificates config) cert in
-  let hs = { st.handshake with config } in
-  match hs.machina with
-  | Server Established ->
-     ( match Handshake_server.hello_request hs with
-       | Ok (handshake, [`Record hr]) -> Some (send_records { st with handshake } [hr])
-       | _ -> None )
-  | Client Established ->
-     ( match Handshake_client.answer_hello_request hs with
-       | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
-       | _ -> None )
-  | _ -> None
+  if st.write_closed || st.read_closed then
+    (* this is a full handshake (with messages from both sides), thus if either
+       direction has closed the flow, the reneg won't succeed *)
+    None
+  else
+    let config = st.handshake.config in
+    let config = Option.fold ~none:config ~some:(Config.with_authenticator config) authenticator in
+    let config = Option.fold ~none:config ~some:(Config.with_acceptable_cas config) acceptable_cas in
+    let config = Option.fold ~none:config ~some:(Config.with_own_certificates config) cert in
+    let hs = { st.handshake with config } in
+    match hs.machina with
+    | Server Established ->
+      ( match Handshake_server.hello_request hs with
+        | Ok (handshake, [`Record hr]) -> Some (send_records { st with handshake } [hr])
+        | _ -> None )
+    | Client Established ->
+      ( match Handshake_client.answer_hello_request hs with
+        | Ok (handshake, [`Record ch]) -> Some (send_records { st with handshake } [ch])
+        | _ -> None )
+    | _ -> None
 
 let key_update ?(request = true) state =
-  let* state', out = Handshake_common.output_key_update ~request state in
-  let _, outbuf = send_records state [out] in
-  Ok (state', outbuf)
+  if state.write_closed then
+    Error (`Fatal `WriteHalfClosed)
+  else
+    let* state', out = Handshake_common.output_key_update ~request state in
+    let _, outbuf = send_records state [out] in
+    Ok (state', outbuf)
 
 let client config =
   let config = Config.of_client config in

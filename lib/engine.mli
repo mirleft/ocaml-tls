@@ -122,6 +122,7 @@ type fatal = [
   | `MissingContentType
   | `Downgrade12
   | `Downgrade11
+  | `WriteHalfClosed
 ]
 
 (** type of failures *)
@@ -157,10 +158,6 @@ type ret =
 (** [handle_tls state buffer] is [ret], depending on incoming [state]
     and [buffer], the result is the appropriate {!ret} *)
 val handle_tls           : state -> Cstruct.t -> ret
-
-(** [can_handle_appdata state] is a predicate which indicates when the
-    connection has already completed a handshake. *)
-val can_handle_appdata    : state -> bool
 
 (** [handshake_in_progrss state] is a predicate which indicates whether there
     is a handshake in progress or scheduled. *)
