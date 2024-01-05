@@ -36,11 +36,30 @@ module Unix = struct
   type t = {
     fd             : Lwt_unix.file_descr ;
     mutable state  : [ `Active of Tls.Engine.state
-                     | `Eof
+                     | `Read_closed of Tls.Engine.state
+                     | `Write_closed of Tls.Engine.state
+                     | `Closed
                      | `Error of exn ] ;
     mutable linger : Cstruct.t option ;
     recv_buf       : Cstruct.t ;
   }
+
+  let half_close state mode =
+    match state, mode with
+    | `Active tls, `read -> `Read_closed tls
+    | `Active tls, `write -> `Write_closed tls
+    | `Active _, `read_write -> `Closed
+    | `Read_closed tls, `read -> `Read_closed tls
+    | `Read_closed _, (`write | `read_write) -> `Closed
+    | `Write_closed tls, `write -> `Write_closed tls
+    | `Write_closed _, (`read | `read_write) -> `Closed
+    | (`Closed | `Error _) as e, (`read | `write | `read_write) -> e
+
+  let inject_state tls = function
+    | `Active _ -> `Active tls
+    | `Read_closed _ -> `Read_closed tls
+    | `Write_closed _ -> `Write_closed tls
+    | (`Closed | `Error _) as e -> e
 
   let safely th =
     Lwt.catch
@@ -56,8 +75,8 @@ module Unix = struct
         (function
           | Out_of_memory -> raise Out_of_memory
           | exn -> (match t.state with
-              | `Error _ | `Eof -> ()
-              | `Active _ -> t.state <- `Error exn) ;
+              | `Error _ -> ()
+              | _ -> t.state <- `Error exn) ;
             fail exn)
     in
     (recording_errors Lwt_cs.read, recording_errors Lwt_cs.write_full)
@@ -68,31 +87,35 @@ module Unix = struct
 
     let handle tls buf =
       match Tls.Engine.handle_tls tls buf with
-      | Ok (state', `Response resp, `Data data) ->
-          let state' = match state' with
-            | `Ok tls  -> `Active tls
-            | `Eof     -> `Eof
-            | `Alert a -> `Error (Tls_alert a)
-          in
+      | Ok (state', eof, `Response resp, `Data data) ->
+          let state' = inject_state state' t.state in
+          let state' = Option.(value ~default:state' (map (fun `Eof -> half_close state' `read) eof)) in
           t.state <- state' ;
           safely (resp |> when_some (write_t t)) >|= fun () ->
           `Ok data
 
-      | Error (alert, `Response resp) ->
-          t.state <- `Error (Tls_failure alert) ;
+      | Error (fail, `Response resp) ->
+          t.state <- `Error (match fail with
+            | `Alert a -> Tls_alert a
+            | f -> Tls_failure f);
           write_t t resp >>= fun () -> read_react t
     in
 
     match t.state with
-    | `Error e  -> fail e
-    | `Eof      -> return `Eof
-    | `Active _ ->
-        read_t t t.recv_buf >>= fun n ->
-        match (t.state, n) with
-        | (`Active _  , 0) -> t.state <- `Eof ; return `Eof
-        | (`Active tls, n) -> handle tls (Cstruct.sub t.recv_buf 0 n)
-        | (`Error e, _)    -> fail e
-        | (`Eof, _)        -> return `Eof
+    | `Error e -> fail e
+    | `Closed
+    | `Read_closed _ -> return `Eof
+    | _ ->
+        read_t t t.recv_buf >>= function
+        | 0 ->
+          t.state <- half_close t.state `read;
+          return `Eof
+        | n ->
+          match t.state with
+          | `Error e -> fail e
+          | `Active tls | `Read_closed tls | `Write_closed tls ->
+            handle tls (Cstruct.sub t.recv_buf 0 n)
+          | `Closed -> return `Eof
 
   let rec read t buf =
 
@@ -116,11 +139,11 @@ module Unix = struct
   let writev t css =
     match t.state with
     | `Error err  -> fail err
-    | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
-    | `Active tls ->
+    | `Write_closed _ | `Closed -> fail @@ Invalid_argument "tls: closed socket"
+    | `Active tls | `Read_closed tls ->
         match Tls.Engine.send_application_data tls css with
         | Some (tls, tlsdata) ->
-            ( t.state <- `Active tls ; write_t t tlsdata )
+            ( t.state <- inject_state tls t.state ; write_t t tlsdata )
         | None -> fail @@ Invalid_argument "tls: write: socket not ready"
 
   let write t cs = writev t [cs]
@@ -150,38 +173,45 @@ module Unix = struct
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
     match t.state with
     | `Error err  -> fail err
-    | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
+    | `Closed | `Read_closed _ | `Write_closed _ ->
+        fail @@ Invalid_argument "tls: closed socket"
     | `Active tls ->
         match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
         | None -> fail @@ Invalid_argument "tls: can't renegotiate"
         | Some (tls', buf) ->
            if drop then t.linger <- None ;
-           t.state <- `Active tls' ;
+           t.state <- inject_state tls' t.state ;
            write_t t buf >>= fun () ->
            drain_handshake t >>= fun _ ->
            return_unit
 
   let key_update ?request t =
     match t.state with
-    | `Error err  -> fail err
-    | `Eof        -> fail @@ Invalid_argument "tls: closed socket"
-    | `Active tls ->
+    | `Error err -> fail err
+    | `Write_closed _ | `Closed -> fail @@ Invalid_argument "tls: closed socket"
+    | `Active tls | `Read_closed tls ->
       match Tls.Engine.key_update ?request tls with
       | Error _ -> fail @@ Invalid_argument "tls: can't update key"
       | Ok (tls', buf) ->
-        t.state <- `Active tls' ;
+        t.state <- inject_state tls' t.state ;
         write_t t buf
 
-  let close_tls t =
+  let shutdown t mode =
+    (match mode with
+     | `read -> return_unit
+     | `write | `read_write ->
+       match t.state with
+       | `Active tls | `Read_closed tls ->
+         let tls', buf = Tls.Engine.send_close_notify tls in
+         t.state <- inject_state tls' (half_close t.state `write) ;
+         write_t t buf
+       | _ -> return_unit) >>= fun () ->
+    t.state <- half_close t.state mode;
     match t.state with
-    | `Active tls ->
-        let (_, buf) = Tls.Engine.send_close_notify tls in
-        t.state <- `Eof ;
-        write_t t buf
+    | `Closed | `Error _ -> safely (Lwt_unix.close t.fd)
     | _ -> return_unit
 
-  let close t =
-    safely (close_tls t) >>= fun () -> Lwt_unix.close t.fd
+  let close t = shutdown t `read_write
 
   let server_of_fd config fd =
     drain_handshake {
@@ -196,18 +226,16 @@ module Unix = struct
       | None -> config
       | Some host -> Tls.Config.peer config host
     in
+    let (tls, init) = Tls.Engine.client config' in
     let t = {
-      state    = `Eof ;
+      state    = `Active tls ;
       fd       = fd ;
       linger   = None ;
       recv_buf = Cstruct.create 4096
-    } in
-    let (tls, init) = Tls.Engine.client config' in
-    let t = { t with state  = `Active tls } in
+    }
+    in
     write_t t init >>= fun () ->
     drain_handshake t
-
-
 
   let accept conf fd =
     Lwt_unix.accept fd >>= fun (fd', addr) ->
@@ -237,8 +265,8 @@ module Unix = struct
 
   let epoch t =
     match t.state with
-    | `Active tls -> Tls.Engine.epoch tls
-    | `Eof | `Error _ -> Error ()
+    | `Active tls | `Read_closed tls | `Write_closed tls -> Tls.Engine.epoch tls
+    | `Closed | `Error _ -> Error ()
 end
 
 
@@ -249,7 +277,7 @@ let of_t ?close t =
   let close = match close with
     | Some f -> (fun () -> Unix.safely (f ()))
     | None   -> (fun () ->
-        (* avoid double-closes by checking if the fd has already been closed *)
+        (* (partially) avoid double-closes by checking if the fd has already been closed *)
         match Lwt_unix.state t.Unix.fd with
         | Lwt_unix.Closed -> Lwt.return_unit
         | Lwt_unix.Opened | Lwt_unix.Aborted _ -> Unix.(safely (close t)))
@@ -265,12 +293,12 @@ and connect_ext conf addr =
   Unix.connect conf addr >|= of_t
 
 let accept certificate =
-  let config = Tls.Config.server ~certificates:certificate ()
-  in accept_ext config
+  let config = Tls.Config.server ~certificates:certificate () in
+  accept_ext config
 
 and connect authenticator addr =
-  let config = Tls.Config.client ~authenticator ()
-  in connect_ext config addr
+  let config = Tls.Config.client ~authenticator () in
+  connect_ext config addr
 
 (* Boot the entropy loop at module init time. *)
 let () = Mirage_crypto_rng_lwt.initialize (module Mirage_crypto_rng.Fortuna)

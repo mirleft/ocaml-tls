@@ -6,7 +6,7 @@ module Flow = struct
   let unwrap_st = function `S st -> st | `C st -> st
 
   let can_handle_appdata st =
-    Tls.Engine.can_handle_appdata (unwrap_st st)
+    not (Tls.Engine.handshake_in_progress (unwrap_st st))
 
   let send_application_data state data =
     match Tls.Engine.send_application_data (unwrap_st state) data with
