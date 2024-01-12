@@ -11,7 +11,7 @@ let () = Eio.Exn.Backend.register_pp (fun f -> function
     | _ -> false
   )
 
-type ty = [ `Tls | Eio.Flow.two_way_ty ]
+type ty = [ `Tls | Eio.Flow.two_way_ty | Eio.Resource.close_ty ]
 type t = ty r
 
 module Raw = struct
@@ -215,6 +215,12 @@ module Raw = struct
 
   let read_methods = []
 
+  let close t =
+    let Eio.Resource.T (flow, handler) = t.flow in
+    match Eio.Resource.get_opt handler Eio.Resource.Close with
+    | None -> ()
+    | Some close -> close flow
+
   type (_, _, _) Eio.Resource.pi += T : ('t, 't -> t, ty) Eio.Resource.pi
 end
 
@@ -225,6 +231,7 @@ let handler =
     H (Eio.Flow.Pi.Source, (module Raw));
     H (Eio.Flow.Pi.Sink, (module Raw));
     H (Eio.Flow.Pi.Shutdown, (module Raw));
+    H (Eio.Resource.Close, Raw.close);
     H (Raw.T, Fun.id);
   ]
 
