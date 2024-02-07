@@ -354,8 +354,8 @@ let encrypt_records encryptor version records =
 
 module Alert = struct
   (* The alert protocol:
-     - close_notify leads to eof (i.e. we will never read() any further data)
-     - any fatal alert leads to close_notify and session closed
+     - receiving a close_notify leads to eof (never read() any further data)
+     - any fatal alert leads to sending a close_notify and state is closed
   *)
 
   open Packet

@@ -18,7 +18,9 @@ module Flow = struct
       | `S st -> (st, "server")
       | `C st -> (st, "client") in
     match Tls.Engine.handle_tls st msg with
-    | Ok (`Ok st', `Response (Some ans), `Data appdata) ->
+    | Ok (st', Some `Eof, _, _) ->
+        failwith "received eof"
+    | Ok (st', _eof, `Response (Some ans), `Data appdata) ->
         (rewrap_st (state, st'), ans, appdata)
     | Error (a, _) ->
         failwith @@ Printf.sprintf "[%s] %s error: %s"
