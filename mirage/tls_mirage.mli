@@ -3,8 +3,6 @@
 (** TLS module given a flow *)
 module Make (F : Mirage_flow.S) : sig
 
-  module FLOW : Mirage_flow.S
-
   (** possible errors: incoming alert, processing failure, or a
       problem in the underlying flow. *)
   type error  = [ `Tls_alert   of Tls.Packet.alert_type
@@ -22,7 +20,7 @@ module Make (F : Mirage_flow.S) : sig
 
   (** [underlying t] returns the underlying flow. This is useful to extract
       information such as [src] and [dst] of that flow. *)
-  val underlying : flow -> FLOW.flow
+  val underlying : flow -> F.flow
 
   (** [reneg ~authenticator ~acceptable_cas ~cert ~drop t] renegotiates the
       session, and blocks until the renegotiation finished.  Optionally, a new
@@ -41,19 +39,17 @@ module Make (F : Mirage_flow.S) : sig
   (** [client_of_flow client ~host flow] upgrades the existing connection
       to TLS using the [client] configuration, using [host] as peer name. *)
   val client_of_flow : Tls.Config.client -> ?host:[ `host ] Domain_name.t ->
-     FLOW.flow -> (flow, write_error) result Lwt.t
+     F.flow -> (flow, write_error) result Lwt.t
 
   (** [server_of_flow server flow] upgrades the flow to a TLS
       connection using the [server] configuration. *)
-  val server_of_flow : Tls.Config.server -> FLOW.flow ->
+  val server_of_flow : Tls.Config.server -> F.flow ->
     (flow, write_error) result Lwt.t
 
   (** [epoch flow] extracts information of the established session. *)
   val epoch : flow -> (Tls.Core.epoch_data, unit) result
 
 end
-  with module FLOW = F
-
 
 (** X.509 handling given a key value store and a clock *)
 module X509 (KV : Mirage_kv.RO) (C : Mirage_clock.PCLOCK) : sig
