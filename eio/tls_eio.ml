@@ -19,7 +19,7 @@ module Raw = struct
   (* We could replace [`Eof] with [`Error End_of_file] and then use
      a regular [result] type here. *)
   type t = {
-    flow           : Flow.two_way_ty r;
+    flow           : [Flow.two_way_ty | Eio.Resource.close_ty] r;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Read_closed of Tls.Engine.state
                      | `Write_closed of Tls.Engine.state
@@ -185,7 +185,7 @@ module Raw = struct
   let server_of_flow config flow =
     drain_handshake {
       state    = `Active (Tls.Engine.server config) ;
-      flow     = (flow :> Flow.two_way_ty r) ;
+      flow     = (flow :> [Flow.two_way_ty | Eio.Resource.close_ty] r) ;
       linger   = None ;
       recv_buf = Cstruct.create 4096
     }
@@ -198,7 +198,7 @@ module Raw = struct
     let (tls, init) = Tls.Engine.client config' in
     let t = {
       state    = `Active tls ;
-      flow     = (flow :> Flow.two_way_ty r);
+      flow     = (flow :> [Flow.two_way_ty | Eio.Resource.close_ty] r);
       linger   = None ;
       recv_buf = Cstruct.create 4096
     } in
@@ -215,11 +215,7 @@ module Raw = struct
 
   let read_methods = []
 
-  let close t =
-    let Eio.Resource.T (flow, handler) = t.flow in
-    match Eio.Resource.get_opt handler Eio.Resource.Close with
-    | None -> ()
-    | Some close -> close flow
+  let close t = Eio.Resource.close t.flow
 
   type (_, _, _) Eio.Resource.pi += T : ('t, 't -> t, ty) Eio.Resource.pi
 end
