@@ -55,18 +55,17 @@ module Raw = struct
 
     let handle tls buf =
       match Tls.Engine.handle_tls tls buf with
-      | Ok (state', `Response resp, `Data data) ->
-          let state' = match state' with
-            | `Ok tls  -> `Active tls
-            | `Eof     -> `Eof
-            | `Alert a -> `Error (Tls_alert a)
+      | Ok (state', eof, `Response resp, `Data data) ->
+          let state' = match eof with
+            | None -> `Active state'
+            | Some `Eof -> `Eof
           in
           t.state <- state' ;
           Option.iter (try_write_t t) resp;
           data
 
       | Error (alert, `Response resp) ->
-          t.state <- `Error (Tls_failure alert) ;
+          t.state <- `Error (match alert with `Alert a -> Tls_alert a | f -> Tls_failure f) ;
           write_t t resp; read_react t
     in
 

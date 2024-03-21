@@ -48,12 +48,11 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
   let rec read_react t =
     let handle tls buf =
       match Tls.Engine.handle_tls tls buf with
-      | Ok (state, `Response resp, `Data data) ->
+      | Ok (state, eof, `Response resp, `Data data) ->
         t.state
-        <- (match state with
-          | `Ok tls -> Active tls
-          | `Eof -> Eof
-          | `Alert a -> Error (Tls_alert a));
+        <- (match eof with
+          | None -> Active state
+          | Some `Eof -> Eof);
         let%map () =
           match resp with
           | None -> return ()
@@ -61,7 +60,7 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
         in
         `Ok data
       | Error (alert, `Response resp) ->
-        t.state <- Error (Tls_failure alert);
+        t.state <- Error (match alert with `Alert a -> Tls_alert a | f -> Tls_failure f);
         let%bind () = Fd.write_full t.fd resp in
         read_react t
     in
