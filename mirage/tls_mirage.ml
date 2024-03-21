@@ -77,7 +77,7 @@ module Make (F : Mirage_flow.S) = struct
           | f -> tls_fail f
         in
         flow.state <- reason ;
-        F.(write flow.flow resp >>= fun _ -> close flow.flow) >>= fun () ->
+        F.write flow.flow resp >>= fun _ ->
         Lwt.return reason
     in
     match flow.state with
