@@ -21,6 +21,7 @@ depends: [
   "x509" {>= "0.15.0"}
   "lwt" {>= "5.7.0"}
   "cmdliner" {>= "1.1.0"}
+  "ptime" {>= "0.8.1"}
   "randomconv" {with-test & < "0.2.0"}
 ]
 conflicts: [ "result" {< "1.5"} ]
