@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Handshake_common (tls.Tls.Handshake_common)</title><link rel="stylesheet" href="../../../odoc.support/odoc.css"/><meta charset="utf-8"/><meta name="generator" content="odoc 2.2.1"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../../index.html">tls</a> &#x00BB; <a href="../index.html">Tls</a> &#x00BB; Handshake_common</nav><header class="odoc-preamble"><h1>Module <code><span>Tls.Handshake_common</span></code></h1></header><div class="odoc-content"><div class="odoc-spec"><div class="spec value anchored" id="val-src"><a href="#val-src" class="anchor"></a><code><span><span class="keyword">val</span> src : <span class="xref-unresolved">Logs</span>.src</span></code></div></div><div class="odoc-spec"><div class="spec module anchored" id="module-Log"><a href="#module-Log" class="anchor"></a><code><span><span class="keyword">module</span> Log</span><span> : <span class="xref-unresolved">Logs</span>.LOG</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-trace_cipher"><a href="#val-trace_cipher" class="anchor"></a><code><span><span class="keyword">val</span> trace_cipher : 
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Handshake_common (tls.Tls.Handshake_common)</title><meta charset="utf-8"/><link rel="stylesheet" href="../../../odoc.support/odoc.css"/><meta name="generator" content="odoc 2.4.1"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../../index.html">tls</a> &#x00BB; <a href="../index.html">Tls</a> &#x00BB; Handshake_common</nav><header class="odoc-preamble"><h1>Module <code><span>Tls.Handshake_common</span></code></h1></header><div class="odoc-content"><div class="odoc-spec"><div class="spec value anchored" id="val-src"><a href="#val-src" class="anchor"></a><code><span><span class="keyword">val</span> src : <span class="xref-unresolved">Logs</span>.src</span></code></div></div><div class="odoc-spec"><div class="spec module anchored" id="module-Log"><a href="#module-Log" class="anchor"></a><code><span><span class="keyword">module</span> Log</span><span> : <span class="xref-unresolved">Logs</span>.LOG</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-trace_cipher"><a href="#val-trace_cipher" class="anchor"></a><code><span><span class="keyword">val</span> trace_cipher : 
   <span><span>[&lt; `AES_128_CCM_SHA256
   <span>| `AES_128_GCM_SHA256</span>
   <span>| `AES_256_GCM_SHA384</span>
@@ -66,8 +66,8 @@
     <span>(<span><span class="xref-unresolved">X509</span>.Certificate.t list</span> * <span class="type-var">'g</span>)</span> * <span><span>(<span><span class="xref-unresolved">X509</span>.Certificate.t list</span> * <span class="type-var">'h</span>)</span> list</span></span>
   <span>| `None</span>
   <span><span>| `Single</span> of <span><span class="xref-unresolved">X509</span>.Certificate.t list</span> * <span class="type-var">'g</span></span> ]</span> <span class="arrow">&#45;&gt;</span></span>
-  <span>?f:<span>(<span><span class="xref-unresolved">X509</span>.Certificate.t <span class="arrow">&#45;&gt;</span></span> bool)</span> <span class="arrow">&#45;&gt;</span></span>
-  <span>?signature_algorithms:
+  <span><span class="optlabel">?f</span>:<span>(<span><span class="xref-unresolved">X509</span>.Certificate.t <span class="arrow">&#45;&gt;</span></span> bool)</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="optlabel">?signature_algorithms</span>:
     <span><span>[&lt; `ECDSA_SECP256R1_SHA1
     <span>| `ECDSA_SECP256R1_SHA256</span>
     <span>| `ECDSA_SECP384R1_SHA384</span>
@@ -217,7 +217,7 @@
       <span><a href="../Packet/index.html#type-named_group">Packet.named_group</a> list</span> * <span><span>(<a href="../Packet/index.html#type-named_group">Packet.named_group</a> * <span class="xref-unresolved">Cstruct</span>.t)</span> list</span></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-server_hello_valid"><a href="#val-server_hello_valid" class="anchor"></a><code><span><span class="keyword">val</span> server_hello_valid : <span><a href="../Core/index.html#type-server_hello">Core.server_hello</a> <span class="arrow">&#45;&gt;</span></span> bool</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-to_sign_1_3"><a href="#val-to_sign_1_3" class="anchor"></a><code><span><span class="keyword">val</span> to_sign_1_3 : <span><span>string option</span> <span class="arrow">&#45;&gt;</span></span> <span class="xref-unresolved">Cstruct</span>.t</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-signature"><a href="#val-signature" class="anchor"></a><code><span><span class="keyword">val</span> signature : 
   <span><span>[&lt; `TLS_1_0 <span>| `TLS_1_1</span> <span>| `TLS_1_2</span> <span>| `TLS_1_3</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
-  <span>?context_string:string <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="optlabel">?context_string</span>:string <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
   <span><span><span><a href="../Core/index.html#type-signature_algorithm">Core.signature_algorithm</a> list</span> option</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span><a href="../Core/index.html#type-signature_algorithm">Core.signature_algorithm</a> list</span> <span class="arrow">&#45;&gt;</span></span>
@@ -230,7 +230,7 @@
   <span><span><span class="xref-unresolved">X509</span>.Certificate.t option</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span>(<span class="xref-unresolved">X509</span>.Public_key.t, <span>[&gt; <span>`Fatal of <span>[&gt; `NoCertificateReceived ]</span></span> ]</span>)</span> <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-verify_digitally_signed"><a href="#val-verify_digitally_signed" class="anchor"></a><code><span><span class="keyword">val</span> verify_digitally_signed : 
   <span><span>[&lt; `TLS_1_0 <span>| `TLS_1_1</span> <span>| `TLS_1_2</span> <span>| `TLS_1_3</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
-  <span>?context_string:string <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="optlabel">?context_string</span>:string <span class="arrow">&#45;&gt;</span></span>
   <span><span><a href="../Core/index.html#type-signature_algorithm">Core.signature_algorithm</a> list</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Cstruct</span>.t <span class="arrow">&#45;&gt;</span></span>
@@ -243,8 +243,8 @@
       <span><span>| `ReaderError</span> of <a href="../Reader/index.html#type-error">Reader.error</a></span>
       <span><span>| `SignatureVerificationFailed</span> of string</span> ]</span></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-validate_chain"><a href="#val-validate_chain" class="anchor"></a><code><span><span class="keyword">val</span> validate_chain : 
-  <span><span><span>(<span>?ip:<span class="type-var">'a</span> <span class="arrow">&#45;&gt;</span></span>
-    <span>host:<span class="type-var">'b</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span><span>(<span><span class="optlabel">?ip</span>:<span class="type-var">'a</span> <span class="arrow">&#45;&gt;</span></span>
+    <span><span class="label">host</span>:<span class="type-var">'b</span> <span class="arrow">&#45;&gt;</span></span>
     <span><span><span class="xref-unresolved">X509</span>.Certificate.t list</span> <span class="arrow">&#45;&gt;</span></span>
     <span><span>(<span><span>(<span><span class="type-var">'c</span> list</span> * <span class="type-var">'d</span>)</span> option</span>, <span class="type-var">'e</span>)</span> <span class="xref-unresolved">Stdlib</span>.result</span>)</span>
     option</span> <span class="arrow">&#45;&gt;</span></span>
@@ -255,7 +255,7 @@
     <span>[&gt; <span>`Error of <span>[&gt; <span>`AuthenticationFailure of <span class="type-var">'e</span></span> ]</span></span>
     <span><span>| `Fatal</span> of <span>[&gt; `BadCertificateChain <span>| `KeyTooSmall</span> ]</span></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-output_key_update"><a href="#val-output_key_update" class="anchor"></a><code><span><span class="keyword">val</span> output_key_update : 
-  <span>request:bool <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="label">request</span>:bool <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../State/index.html#type-state">State.state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span>(<a href="../State/index.html#type-state">State.state</a> * <span>(<a href="../Packet/index.html#type-content_type">Packet.content_type</a> * <span class="xref-unresolved">Cstruct</span>.t)</span>,
     <span>[&gt; <span>`Fatal of <span>[&gt; `InvalidSession ]</span></span> ]</span>)</span>
