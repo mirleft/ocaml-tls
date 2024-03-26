@@ -82,8 +82,7 @@ module Make (F : Mirage_flow.S) = struct
     in
     match flow.state with
     | `Error _ as e -> Lwt.return e
-    | `Read_closed _ -> Lwt.return `Eof
-    | `Closed -> Lwt.return (`Error (`Write `Closed))
+    | `Read_closed _ | `Closed -> Lwt.return `Eof
     | `Active _ | `Write_closed _ ->
       F.read flow.flow >>= function
       | Error e ->
@@ -94,8 +93,7 @@ module Make (F : Mirage_flow.S) = struct
         Lwt.return `Eof
       | Ok `Data buf -> match flow.state with
         | `Active tls | `Write_closed tls -> handle tls buf
-        | `Read_closed _ -> Lwt.return `Eof
-        | `Closed -> Lwt.return (`Error (`Write `Closed))
+        | `Read_closed _ | `Closed -> Lwt.return `Eof
         | `Error _ as e -> Lwt.return e
 
   let rec read flow =
