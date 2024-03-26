@@ -122,16 +122,18 @@ type fatal = [
   | `MissingContentType
   | `Downgrade12
   | `Downgrade11
+  | `WriteHalfClosed
 ]
 
 (** type of failures *)
 type failure = [
   | `Error of error
   | `Fatal of fatal
+  | `Alert of Packet.alert_type
 ]
 
 (** [alert_of_failure failure] is [alert], the TLS alert type for this failure. *)
-val alert_of_failure : failure -> Packet.alert_type
+val alert_of_failure : failure -> Packet.alert_level * Packet.alert_type
 
 (** [string_of_failure failure] is [string], the string representation of the [failure]. *)
 val string_of_failure : failure -> string
@@ -148,7 +150,7 @@ val pp_failure : failure Fmt.t
     Possibly some [`Response] to the other endpoint is needed, and
     potentially some [`Data] for the application was received. *)
 type ret =
-  ([ `Ok of state | `Eof | `Alert of Packet.alert_type ]
+  (state * [ `Eof ] option
    * [ `Response of Cstruct.t option ]
    * [ `Data of Cstruct.t option ],
    failure * [ `Response of Cstruct.t ]) result
@@ -156,10 +158,6 @@ type ret =
 (** [handle_tls state buffer] is [ret], depending on incoming [state]
     and [buffer], the result is the appropriate {!ret} *)
 val handle_tls           : state -> Cstruct.t -> ret
-
-(** [can_handle_appdata state] is a predicate which indicates when the
-    connection has already completed a handshake. *)
-val can_handle_appdata    : state -> bool
 
 (** [handshake_in_progrss state] is a predicate which indicates whether there
     is a handshake in progress or scheduled. *)

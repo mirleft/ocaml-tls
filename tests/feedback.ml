@@ -6,7 +6,7 @@ module Flow = struct
   let unwrap_st = function `S st -> st | `C st -> st
 
   let can_handle_appdata st =
-    Tls.Engine.can_handle_appdata (unwrap_st st)
+    not (Tls.Engine.handshake_in_progress (unwrap_st st))
 
   let send_application_data state data =
     match Tls.Engine.send_application_data (unwrap_st state) data with
@@ -18,7 +18,9 @@ module Flow = struct
       | `S st -> (st, "server")
       | `C st -> (st, "client") in
     match Tls.Engine.handle_tls st msg with
-    | Ok (`Ok st', `Response (Some ans), `Data appdata) ->
+    | Ok (_, Some `Eof, _, _) ->
+        failwith "received eof"
+    | Ok (st', _eof, `Response (Some ans), `Data appdata) ->
         (rewrap_st (state, st'), ans, appdata)
     | Error (a, _) ->
         failwith @@ Printf.sprintf "[%s] %s error: %s"

@@ -2,8 +2,6 @@ open Lwt.Infix
 
 module Make (F : Mirage_flow.S) = struct
 
-  module FLOW = F
-
   type error  = [ `Tls_alert   of Tls.Packet.alert_type
                 | `Tls_failure of Tls.Engine.failure
                 | `Read of F.error
@@ -23,64 +21,80 @@ module Make (F : Mirage_flow.S) = struct
 
   type flow = {
     role           : [ `Server | `Client ] ;
-    flow           : FLOW.flow ;
+    flow           : F.flow ;
     mutable state  : [ `Active of Tls.Engine.state
-                     | `Eof
+                     | `Read_closed of Tls.Engine.state
+                     | `Write_closed of Tls.Engine.state
+                     | `Closed
                      | `Error of error ] ;
     mutable linger : Cstruct.t list ;
   }
 
+  let half_close state mode =
+    match state, mode with
+    | `Active tls, `read -> `Read_closed tls
+    | `Active tls, `write -> `Write_closed tls
+    | `Active _, `read_write -> `Closed
+    | `Read_closed tls, `read -> `Read_closed tls
+    | `Read_closed _, (`write | `read_write) -> `Closed
+    | `Write_closed tls, `write -> `Write_closed tls
+    | `Write_closed _, (`read | `read_write) -> `Closed
+    | (`Closed | `Error _) as e, (`read | `write | `read_write) -> e
+
+  let inject_state tls = function
+    | `Active _ -> `Active tls
+    | `Read_closed _ -> `Read_closed tls
+    | `Write_closed _ -> `Write_closed tls
+    | (`Closed | `Error _) as e -> e
+
   let tls_alert a = `Error (`Tls_alert a)
   let tls_fail f  = `Error (`Tls_failure f)
 
-  let lift_read_result = function
-    | Ok (`Data _ | `Eof as x) -> x
-    | Error e                  -> `Error (`Read e)
-
-  let lift_write_result = function
-    | Ok ()   -> `Ok ()
-    | Error e -> `Error (`Write e)
-
-  let check_write flow f_res =
-    let res = lift_write_result f_res in
-    ( match flow.state, res with
-      | `Active _, (`Eof | `Error _ as e) ->
-          flow.state <- e ; FLOW.close flow.flow
-      | _ -> Lwt.return_unit ) >|= fun () ->
-    match f_res with
-    | Ok ()   -> Ok ()
-    | Error e -> Error (`Write e :> write_error)
+  let write_flow flow buf =
+    F.write flow.flow buf >>= function
+    | Ok _ as o -> Lwt.return o
+    | Error `Closed ->
+      flow.state <- half_close flow.state `write;
+      Lwt.return (Error (`Write `Closed))
+    | Error e ->
+      flow.state <- `Error (`Write e);
+      Lwt.return (Error (`Write e))
 
   let read_react flow =
-
     let handle tls buf =
       match Tls.Engine.handle_tls tls buf with
-      | Ok (res, `Response resp, `Data data) ->
-          flow.state <- ( match res with
-            | `Ok tls      -> `Active tls
-            | `Eof         -> `Eof
-            | `Alert alert -> tls_alert alert );
-          ( match resp with
-            | None     -> Lwt.return @@ Ok ()
-            | Some buf -> FLOW.write flow.flow buf >>= check_write flow ) >>= fun _ ->
-          ( match res with
-            | `Ok _ -> Lwt.return_unit
-            | _     -> FLOW.close flow.flow ) >>= fun () ->
-          Lwt.return @@ `Ok data
+      | Ok (state, eof, `Response resp, `Data data) ->
+        let state = inject_state state flow.state in
+        let state = Option.(value ~default:state (map (fun `Eof -> half_close state `read) eof)) in
+        flow.state <- state;
+        ( match resp with
+          | None     -> Lwt.return @@ Ok ()
+          | Some buf -> write_flow flow buf) >>= fun _ ->
+        Lwt.return @@ `Ok data
       | Error (fail, `Response resp) ->
-          let reason = tls_fail fail in
-          flow.state <- reason ;
-          FLOW.(write flow.flow resp >>= fun _ -> close flow.flow) >>= fun () -> Lwt.return reason
+        let reason = match fail with
+          | `Alert a -> tls_alert a
+          | f -> tls_fail f
+        in
+        flow.state <- reason ;
+        F.write flow.flow resp >>= fun _ ->
+        Lwt.return reason
     in
     match flow.state with
-    | `Eof | `Error _ as e -> Lwt.return e
-    | `Active _            ->
-      FLOW.read flow.flow >|= lift_read_result >>=
-      function
-      | `Eof | `Error _ as e -> flow.state <- e ; Lwt.return e
-      | `Data buf            -> match flow.state with
-        | `Active tls          -> handle tls buf
-        | `Eof | `Error _ as e -> Lwt.return e
+    | `Error _ as e -> Lwt.return e
+    | `Read_closed _ | `Closed -> Lwt.return `Eof
+    | `Active _ | `Write_closed _ ->
+      F.read flow.flow >>= function
+      | Error e ->
+        flow.state <- `Error (`Read e);
+        Lwt.return (`Error (`Read e))
+      | Ok `Eof ->
+        flow.state <- half_close flow.state `read;
+        Lwt.return `Eof
+      | Ok `Data buf -> match flow.state with
+        | `Active tls | `Write_closed tls -> handle tls buf
+        | `Read_closed _ | `Closed -> Lwt.return `Eof
+        | `Error _ as e -> Lwt.return e
 
   let rec read flow =
     match flow.linger with
@@ -96,13 +110,13 @@ module Make (F : Mirage_flow.S) = struct
 
   let writev flow bufs =
     match flow.state with
-    | `Eof     -> Lwt.return @@ Error `Closed
+    | `Closed | `Write_closed _ -> Lwt.return @@ Error `Closed
     | `Error e -> Lwt.return @@ Error (e :> write_error)
-    | `Active tls ->
+    | `Active tls | `Read_closed tls ->
         match Tls.Engine.send_application_data tls bufs with
         | Some (tls, answer) ->
             flow.state <- `Active tls ;
-            FLOW.write flow.flow answer >>= check_write flow
+            write_flow flow answer
         | None ->
             (* "Impossible" due to handshake draining. *)
             assert false
@@ -135,7 +149,7 @@ module Make (F : Mirage_flow.S) = struct
 
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) flow =
     match flow.state with
-    | `Eof        -> Lwt.return @@ Error `Closed
+    | `Closed | `Write_closed _ | `Read_closed _ -> Lwt.return @@ Error `Closed
     | `Error e    -> Lwt.return @@ Error (e :> wr_or_msg)
     | `Active tls ->
         match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
@@ -143,31 +157,59 @@ module Make (F : Mirage_flow.S) = struct
         | Some (tls', buf) ->
             if drop then flow.linger <- [] ;
             flow.state <- `Active tls' ;
-            FLOW.write flow.flow buf >>= fun _ ->
+            write_flow flow buf >>= fun _ ->
             drain_handshake flow >|= function
             | Ok _    -> Ok ()
             | Error e -> Error (e :> wr_or_msg)
 
   let key_update ?request flow =
     match flow.state with
-    | `Eof        -> Lwt.return @@ Error `Closed
+    | `Closed | `Write_closed _ -> Lwt.return @@ Error `Closed
     | `Error e    -> Lwt.return @@ Error (e :> wr_or_msg)
-    | `Active tls ->
+    | `Active tls | `Read_closed tls ->
       match Tls.Engine.key_update ?request tls with
       | Error _ -> Lwt.return (Error (`Msg "Key update failed"))
       | Ok (tls', buf) ->
         flow.state <- `Active tls' ;
-        FLOW.write flow.flow buf >>= check_write flow >|= function
+        write_flow flow buf >|= function
         | Ok _ as o -> o
         | Error e   -> Error (e :> wr_or_msg)
 
   let close flow =
+    (match flow.state with
+     | `Active tls | `Read_closed tls ->
+       let tls, buf = Tls.Engine.send_close_notify tls in
+       flow.state <- inject_state tls flow.state;
+       flow.state <- `Closed;
+       write_flow flow buf >|= fun _ ->
+       ()
+     | `Write_closed _ ->
+       flow.state <- `Closed;
+       Lwt.return_unit
+     | _ -> Lwt.return_unit) >>= fun () ->
+    F.close flow.flow
+
+  let shutdown flow mode =
     match flow.state with
-    | `Active tls ->
-      flow.state <- `Eof ;
-      let (_, buf) = Tls.Engine.send_close_notify tls in
-      FLOW.(write flow.flow buf >>= fun _ -> close flow.flow)
-    | _           -> Lwt.return_unit
+    | `Active tls | `Read_closed tls | `Write_closed tls ->
+      let tls, buf =
+        match flow.state, mode with
+        | (`Active tls | `Read_closed tls), (`write | `read_write) ->
+          let tls, buf = Tls.Engine.send_close_notify tls in
+          tls, Some buf
+        | _, _ -> tls, None
+      in
+      flow.state <- inject_state tls (half_close flow.state mode);
+      (* as outlined above, this may fail since the TCP flow may already be (half-)closed *)
+      Option.fold
+        ~none:Lwt.return_unit
+        ~some:(fun b -> write_flow flow b >|= fun _ -> ())
+        buf >>= fun () ->
+      (match flow.state with
+       | `Closed -> F.close flow.flow
+       | _ -> Lwt.return_unit)
+    | `Error _ | `Closed ->
+      F.close flow.flow
 
   let client_of_flow conf ?host flow =
     let conf' = match host with
@@ -181,7 +223,8 @@ module Make (F : Mirage_flow.S) = struct
       state  = `Active tls ;
       linger = [] ;
     } in
-    FLOW.write flow init >>= fun _ -> drain_handshake tls_flow
+    write_flow tls_flow init >>= fun _ ->
+    drain_handshake tls_flow
 
   let server_of_flow conf flow =
     let tls_flow = {
@@ -194,8 +237,8 @@ module Make (F : Mirage_flow.S) = struct
 
   let epoch flow =
     match flow.state with
-    | `Eof | `Error _ -> Error ()
-    | `Active tls     -> Tls.Engine.epoch tls
+    | `Closed | `Error _ -> Error ()
+    | `Active tls | `Read_closed tls | `Write_closed tls -> Tls.Engine.epoch tls
 
 (*   let create_connection t tls_params host (addr, port) =
     |+ XXX addr -> (host : string) +|

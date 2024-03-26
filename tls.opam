@@ -30,7 +30,6 @@ depends: [
   "logs"
   "ipaddr"
   "alcotest" {with-test}
-  "randomconv" {with-test}
 ]
 conflicts: [ "result" {< "1.5"} ]
 tags: [ "org:mirage"]

@@ -61,8 +61,11 @@ module Unix : sig
       [bytes] starting at [offset] to the session. *)
   val write_bytes : t -> Lwt_bytes.t -> int -> int -> unit Lwt.t
 
-  (** [close t] closes the TLS session by sending a close notify to the peer. *)
-  val close_tls : t -> unit Lwt.t
+  (** [shutdown t direction] closes the [direction] of the TLS session [t].
+      If [`read_write] or [`write] is closed, a TLS close_notify is sent to the
+      other endpoint. If this results in a fully closed session (or an
+      errorneous session), the underlying file descriptor is closed. *)
+  val shutdown : t -> [ `read | `write | `read_write ] -> unit Lwt.t
 
   (** [close t] closes the TLS session and the underlying file descriptor. *)
   val close : t -> unit Lwt.t

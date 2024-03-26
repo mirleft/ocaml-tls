@@ -21,30 +21,37 @@ module Raw = struct
   type t = {
     flow           : Flow.two_way_ty r;
     mutable state  : [ `Active of Tls.Engine.state
-                     | `Eof
+                     | `Read_closed of Tls.Engine.state
+                     | `Write_closed of Tls.Engine.state
+                     | `Closed
                      | `Error of exn ] ;
     mutable linger : Cstruct.t option ;
     recv_buf       : Cstruct.t ;
   }
 
-  let read_t t cs =
-    try Flow.single_read t.flow cs
-    with
-    | End_of_file as ex ->
-      t.state <- `Eof;
-      raise ex
-    | exn ->
-      (match t.state with
-       | `Error _ | `Eof -> ()
-       | `Active _ -> t.state <- `Error exn) ;
-      raise exn
+  let half_close state mode =
+    match state, mode with
+    | `Active tls, `read -> `Read_closed tls
+    | `Active tls, `write -> `Write_closed tls
+    | `Active _, `read_write -> `Closed
+    | `Read_closed tls, `read -> `Read_closed tls
+    | `Read_closed _, (`write | `read_write) -> `Closed
+    | `Write_closed tls, `write -> `Write_closed tls
+    | `Write_closed _, (`read | `read_write) -> `Closed
+    | (`Closed | `Error _) as e, (`read | `write | `read_write) -> e
+
+  let inject_state tls = function
+    | `Active _ -> `Active tls
+    | `Read_closed _ -> `Read_closed tls
+    | `Write_closed _ -> `Write_closed tls
+    | (`Closed | `Error _) as e -> e
 
   let write_t t cs =
     try Flow.copy (Flow.cstruct_source [cs]) t.flow
     with exn ->
       (match t.state with
-       | `Error _ | `Eof -> ()
-       | `Active _ -> t.state <- `Error exn) ;
+       | `Error _ -> ()
+       | _ -> t.state <- `Error exn) ;
       raise exn
 
   let try_write_t t cs =
@@ -55,30 +62,38 @@ module Raw = struct
 
     let handle tls buf =
       match Tls.Engine.handle_tls tls buf with
-      | Ok (state', `Response resp, `Data data) ->
-          let state' = match state' with
-            | `Ok tls  -> `Active tls
-            | `Eof     -> `Eof
-            | `Alert a -> `Error (Tls_alert a)
-          in
+      | Ok (state', eof, `Response resp, `Data data) ->
+          let state' = inject_state state' t.state in
+          let state' = Option.(value ~default:state' (map (fun `Eof -> half_close state' `read) eof)) in
           t.state <- state' ;
           Option.iter (try_write_t t) resp;
           data
 
-      | Error (alert, `Response resp) ->
-          t.state <- `Error (Tls_failure alert) ;
+      | Error (fail, `Response resp) ->
+          t.state <- `Error (match fail with `Alert a -> Tls_alert a | f -> Tls_failure f) ;
           write_t t resp; read_react t
     in
 
     match t.state with
     | `Error e  -> raise e
-    | `Eof      -> raise End_of_file
-    | `Active _ ->
-        let n = read_t t t.recv_buf in
-        match (t.state, n) with
-        | (`Active tls, n) -> handle tls (Cstruct.sub t.recv_buf 0 n)
-        | (`Error e, _)    -> raise e
-        | (`Eof, _)        -> raise End_of_file
+    | `Closed
+    | `Read_closed _ -> raise End_of_file
+    | _ ->
+        match Flow.single_read t.flow t.recv_buf with
+          | exception End_of_file ->
+            t.state <- half_close t.state `read;
+            raise End_of_file
+          | exception exn ->
+            (match t.state with
+             | `Error _ -> ()
+             | _ -> t.state <- `Error exn) ;
+            raise exn
+          | n ->
+            match t.state with
+            | `Error e -> raise e
+            | `Active tls | `Read_closed tls | `Write_closed tls ->
+              handle tls (Cstruct.sub t.recv_buf 0 n)
+            | `Closed -> raise End_of_file
 
   let rec single_read t buf =
 
@@ -101,11 +116,11 @@ module Raw = struct
   let writev t css =
     match t.state with
     | `Error err  -> raise err
-    | `Eof        -> raise (Eio.Net.err (Connection_reset Tls_socket_closed))
-    | `Active tls ->
+    | `Write_closed _ | `Closed -> raise (Eio.Net.err (Connection_reset Tls_socket_closed))
+    | `Active tls | `Read_closed tls ->
         match Tls.Engine.send_application_data tls css with
         | Some (tls, tlsdata) ->
-            ( t.state <- `Active tls ; write_t t tlsdata )
+            ( t.state <- inject_state tls t.state ; write_t t tlsdata )
         | None -> invalid_arg "tls: write: socket not ready"
 
   let single_write t bufs =
@@ -136,41 +151,36 @@ module Raw = struct
   let reneg ?authenticator ?acceptable_cas ?cert ?(drop = true) t =
     match t.state with
     | `Error err  -> raise err
-    | `Eof        -> raise End_of_file
+    | `Closed | `Read_closed _ | `Write_closed _ -> invalid_arg "tls: closed socket"
     | `Active tls ->
         match Tls.Engine.reneg ?authenticator ?acceptable_cas ?cert tls with
         | None -> invalid_arg "tls: can't renegotiate"
         | Some (tls', buf) ->
            if drop then t.linger <- None ;
-           t.state <- `Active tls' ;
+           t.state <- inject_state tls' t.state ;
            write_t t buf;
            ignore (drain_handshake t : t)
 
   let key_update ?request t =
     match t.state with
     | `Error err  -> raise err
-    | `Eof        -> raise End_of_file
-    | `Active tls ->
+    | `Write_closed _ | `Closed -> invalid_arg "tls: closed socket"
+    | `Active tls | `Read_closed tls ->
       match Tls.Engine.key_update ?request tls with
-      | Error _ -> invalid_arg "tls: can't update key"
+      | Error f -> Fmt.invalid_arg "tls: can't update key: %a" Tls.Engine.pp_failure f
       | Ok (tls', buf) ->
-        t.state <- `Active tls' ;
+        t.state <- inject_state tls' t.state ;
         write_t t buf
 
-  let close_tls t =
-    match t.state with
-    | `Active tls ->
-        let (_, buf) = Tls.Engine.send_close_notify tls in
-        t.state <- `Eof ;       (* XXX: this looks wrong - we're only trying to close the sending side *)
-        write_t t buf
-    | _ -> ()
-
-  (* Not sure if we need to keep both directions open on the underlying flow when closing
-     one direction at the TLS level. *)
   let shutdown t = function
-    | `Send -> close_tls t
-    | `All -> close_tls t; Flow.shutdown t.flow `All
-    | `Receive -> ()  (* Not obvious how to do this with TLS, so ignore for now. *)
+    | `Receive -> ()
+    | `Send | `All ->
+      match t.state with
+      | `Active tls | `Read_closed tls ->
+        let tls', buf = Tls.Engine.send_close_notify tls in
+        t.state <- inject_state tls' (half_close t.state `write) ;
+        write_t t buf
+      | _ -> ()
 
   let server_of_flow config flow =
     drain_handshake {
@@ -185,22 +195,21 @@ module Raw = struct
       | None -> config
       | Some host -> Tls.Config.peer config host
     in
+    let (tls, init) = Tls.Engine.client config' in
     let t = {
-      state    = `Eof ;
+      state    = `Active tls ;
       flow     = (flow :> Flow.two_way_ty r);
       linger   = None ;
       recv_buf = Cstruct.create 4096
     } in
-    let (tls, init) = Tls.Engine.client config' in
-    let t = { t with state  = `Active tls } in
     write_t t init;
     drain_handshake t
 
 
   let epoch t =
     match t.state with
-    | `Active tls -> Tls.Engine.epoch tls
-    | `Eof | `Error _ -> Error ()
+    | `Active tls | `Read_closed tls | `Write_closed tls -> Tls.Engine.epoch tls
+    | `Closed | `Error _ -> Error ()
 
   let copy t ~src = Eio.Flow.Pi.simple_copy ~single_write t ~src
 
