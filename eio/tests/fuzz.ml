@@ -69,10 +69,7 @@ let dir =
    the network draining any queued traffic.
 
    Once all fibers have finished, we check that what was sent matches the data
-   that has been received.
-
-   However, due to #452, we currently skip the check on the receiving side if
-   the receiver has shut down its sending side by then. *)
+   that has been received. *)
    
 let action =
   Crowbar.option (Crowbar.pair dir op)  (* None means yield *)
@@ -85,8 +82,6 @@ module Path : sig
   val create :
     sender:(Tls_eio.t, exn) result Promise.t ->
     receiver:(Tls_eio.t, exn) result Promise.t ->
-    sender_closed:bool ref ->
-    receiver_closed:bool ref ->
     transmit:(transmit_amount -> unit) ->
     dir -> string -> t
   (** Create a test driver for one direction, from [sender] to [receiver].
@@ -113,20 +108,16 @@ end = struct
     send_commands : [`Send of int | `Exit] Eio.Stream.t;  (* Commands for the sending fiber *)
     recv_commands : [`Recv | `Drain] Eio.Stream.t;        (* Commands for the receiving fiber *)
     transmit : transmit_amount -> unit;
-    (* FIXME: We shouldn't need to care about these, but see issue #452: *)
-    sender_closed : bool ref;
-    receiver_closed : bool ref;
   }
 
   let pp_dir f t =
     pp_dir f t.dir
 
-  let create ~sender ~receiver ~sender_closed ~receiver_closed ~transmit dir message =
+  let create ~sender ~receiver ~transmit dir message =
     let send_commands = Eio.Stream.create max_int in
     let recv_commands = Eio.Stream.create max_int in
     { dir; message; sender; receiver; sent = 0; recv = 0;
-      send_commands; recv_commands;
-      transmit; sender_closed; receiver_closed }
+      send_commands; recv_commands; transmit }
 
   let shutdown t =
     Eio.Stream.add t.send_commands `Exit
@@ -143,7 +134,6 @@ end = struct
       match Eio.Stream.take t.send_commands with
       | `Exit ->
         Log.info (fun f -> f "%a: shutdown send (Tls level)" pp_dir t);
-        t.sender_closed := true;
         Eio.Flow.shutdown sender `Send
       | `Send len ->
         let available = String.length t.message - t.sent in
@@ -156,12 +146,7 @@ end = struct
         );
         aux ()
     in
-    try
-      aux()
-    with Eio.Io (Eio.Net.E Connection_reset _, _) ->
-      (* Due to #452, if we get told that the receiver will no longer send, then
-         we can't send either. *)
-      assert !(t.receiver_closed)
+    aux()
 
   let run_recv_thread t =
     let recv = Promise.await_exn t.receiver in
@@ -185,12 +170,11 @@ end = struct
         t.recv <- t.recv + got
       done
     with End_of_file ->
-      if not !(t.receiver_closed) then (
-        if t.recv <> t.sent then
-          Fmt.failwith "%a: Sender sent %d bytes, but receiver got EOF after reading only %d"
-            pp_dir t
-            t.sent
-            t.recv;
+      if t.recv <> t.sent then (
+        Fmt.failwith "%a: Sender sent %d bytes, but receiver got EOF after reading only %d"
+          pp_dir t
+          t.sent
+          t.recv
       );
       Log.info (fun f -> f "%a: recv thread done (got EOF)" pp_dir t)
 
@@ -288,22 +272,16 @@ let main client_message server_message quickstart actions =
   let client_socket, server_socket = Mock_socket.create_pair () in
   let server_flow = Fiber.fork_promise ~sw (fun () -> Tls_eio.server_of_flow Config.server server_socket) in
   let client_flow = Fiber.fork_promise ~sw (fun () -> Tls_eio.client_of_flow Config.client client_socket) in
-  let server_closed = ref false in
-  let client_closed = ref false in
   let to_server =
     Path.create
       ~sender:client_flow
       ~receiver:server_flow
-      ~sender_closed:client_closed
-      ~receiver_closed:server_closed
       ~transmit:(Mock_socket.transmit client_socket)
       To_server client_message in
   let to_client =
     Path.create
       ~sender:server_flow
       ~receiver:client_flow
-      ~sender_closed:server_closed
-      ~receiver_closed:client_closed
       ~transmit:(Mock_socket.transmit server_socket)
       To_client server_message
   in
