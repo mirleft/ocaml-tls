@@ -15,6 +15,7 @@
   fixes #425 @dinosaure)
 * tls-mirage: implement mirage-flow 4 API (`val shutdown`) (#488 @hannesm)
 * tls-eio: adapt to half-closed connections (#488 @talex5)
+* tls-eio: implement Eio.Resource.Close (#489 @paurkedal, reviewed by @talex5)
 
 ## v0.17.3 (2023-11-20)
 
