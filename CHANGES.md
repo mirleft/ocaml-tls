@@ -1,8 +1,20 @@
+## v0.17.4 (2024-03-26)
+
+* tls: handle half-closed connection properly: a received CLOSE_NOTIFY does not
+  lead to a CLOSE_NOTIFY to be sent (a `send_close_notify` sends it explicitly)
+  (#488 @hannesm)
+* tls: modify return type of `handle_tls` - the Alert is now in the right hand
+  side, and `` `Eof `` is explicit in the second part of the tuple
+  (#488 @hannesm)
+* tls: remove `can_handle_appdata`, the function `handshake_in_progress` is
+  available (#488 @hannesm)
 * tls-mirage: avoid exceptions in reneg and rekey (#487 @hannesm)
 * tls: remove HEARTBEAT decoding - HEARTBEAT was never supported in this
   library, the decoder was superfluous (#487 @hannesm)
 * tls-mirage: provide `underlying : flow -> FLOW.flow` (#487 @hannesm,
   fixes #425 @dinosaure)
+* tls-mirage: implement mirage-flow 4 API (`val shutdown`) (#488 @hannesm)
+* tls-eio: adapt to half-closed connections (#488 @talex5)
 
 ## v0.17.3 (2023-11-20)
 
