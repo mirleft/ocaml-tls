@@ -47,6 +47,7 @@ let test_client ~net (host, service) =
     let r = Eio.Buf_read.of_flow flow ~max_size:max_int in
     let line = Eio.Buf_read.take 3 r in
     traceln "client <- %s" line;
+    Eio.Resource.close flow;
     traceln "client done."
 ```
 

@@ -7,7 +7,7 @@ module Log = (val Logs.src_log src : Logs.LOG)
 
 type transmit_amount = [`Bytes of int | `Drain]
 
-type ty = [`Mock_tls | Eio.Flow.two_way_ty]
+type ty = [`Mock_tls | Eio.Flow.two_way_ty | Eio.Resource.close_ty]
 type t = ty r
 
 let rec takev len = function
@@ -62,6 +62,9 @@ module Impl = struct
       W.close t.to_peer
     | _ -> failwith "Not implemented"
 
+  let close t =
+    Log.info (fun f -> f "%s: close connection" t.label)
+
   let read_methods = []
 
   type (_, _, _) Eio.Resource.pi += Raw : ('t, 't -> t, ty) Eio.Resource.pi
@@ -71,6 +74,7 @@ end
 let handler =
   Eio.Resource.handler (
     H (Impl.Raw, Fun.id) ::
+    H (Eio.Resource.Close, Impl.close) ::
     Eio.Resource.bindings (Eio.Flow.Pi.two_way (module Impl))
   )
 
