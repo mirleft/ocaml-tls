@@ -1,29 +1,32 @@
 open Packet
 open Core
 
-let assemble_protocol_version_int buf version =
+let assemble_protocol_version_int buf off version =
   let major, minor = pair_of_tls_version version in
-  set_uint8 buf 0 major;
-  set_uint8 buf 1 minor
+  Bytes.set_uint8 buf off major;
+  Bytes.set_uint8 buf (off + 1) minor
 
 let assemble_protocol_version version =
-  let buf = create 2 in
-  assemble_protocol_version_int buf version;
-  buf
+  let buf = Bytes.create 2 in
+  assemble_protocol_version_int buf 0 version;
+  Bytes.unsafe_to_string buf
+
+let assemble_any_protocol_version_into buf off version =
+  let major, minor = pair_of_tls_any_version version in
+  Bytes.set_uint8 buf off major;
+  Bytes.set_uint8 buf (off + 1) minor
 
 let assemble_any_protocol_version version =
-  let buf = create 2 in
-  let major, minor = pair_of_tls_any_version version in
-  set_uint8 buf 0 major ;
-  set_uint8 buf 1 minor ;
-  buf
+  let buf = Bytes.create 2 in
+  assemble_any_protocol_version_into buf 0 version;
+  Bytes.unsafe_to_string buf
 
 let assemble_hdr version (content_type, payload) =
-  let buf = create 5 in
-  set_uint8 buf 0 (content_type_to_int content_type);
-  assemble_protocol_version_int (shift buf 1) version;
-  BE.set_uint16 buf 3 (length payload);
-  buf <+> payload
+  let buf = Bytes.create 5 in
+  Bytes.set_uint8 buf 0 (content_type_to_int content_type);
+  assemble_protocol_version_int buf 1 version;
+  Bytes.set_uint16_be buf 3 (String.length payload);
+  Bytes.unsafe_to_string buf ^ payload
 
 type len = One | Two | Three
 
@@ -31,50 +34,48 @@ let assemble_list ?none_if_empty lenb f elements =
   let length body =
     match lenb with
     | One   ->
-       let l = create 1 in
-       set_uint8 l 0 (length body) ;
-       l
+       let l = Bytes.create 1 in
+       Bytes.set_uint8 l 0 (String.length body) ;
+       Bytes.unsafe_to_string l
     | Two   ->
-       let l = create 2 in
-       BE.set_uint16 l 0 (length body) ;
-       l
+       let l = Bytes.create 2 in
+       Bytes.set_uint16_be l 0 (String.length body) ;
+       Bytes.unsafe_to_string l
     | Three ->
-       let l = create 3 in
-       set_uint24_len l (length body) ;
-       l
+       let l = Bytes.create 3 in
+       set_uint24_len ~off:0 l (String.length body) ;
+       Bytes.unsafe_to_string l
   in
-  let b es = Cstruct.concat (List.map f es) in
+  let b es = String.concat "" (List.map f es) in
   let full es =
     let body = b es in
-    length body <+> body
+    length body ^ body
   in
   match none_if_empty with
   | Some _ -> (match elements with
-               | []   -> create 0
+               | []   -> ""
                | eles -> full eles)
   | None   -> full elements
 
 let assemble_certificate c =
-  let length = length c in
-  let buf = create 3 in
-  set_uint24_len buf length;
-  buf <+> c
+  let length = String.length c in
+  let buf = Bytes.create 3 in
+  set_uint24_len ~off:0 buf length;
+  Bytes.unsafe_to_string buf ^ c
 
 let assemble_certificates cs =
   assemble_list Three assemble_certificate cs
 
 let assemble_compression_method m =
-  let buf = create 1 in
-  set_uint8 buf 0 (compression_method_to_int m);
-  buf
+  String.make 1 (Char.unsafe_chr (compression_method_to_int m))
 
 let assemble_compression_methods ms =
   assemble_list One assemble_compression_method ms
 
 let assemble_any_ciphersuite c =
-  let buf = create 2 in
-  BE.set_uint16 buf 0 (any_ciphersuite_to_int c);
-  buf
+  let buf = Bytes.create 2 in
+  Bytes.set_uint16_be buf 0 (any_ciphersuite_to_int c);
+  Bytes.unsafe_to_string buf
 
 let assemble_any_ciphersuites cs =
   assemble_list Two assemble_any_ciphersuite cs
@@ -87,50 +88,50 @@ let assemble_hostname host =
   let host = Domain_name.to_string host in
   (* 8 bit hostname type; 16 bit length; value *)
   let vallength = String.length host in
-  let buf = create 3 in
-  set_uint8 buf 0 0; (* type, only 0 registered *)
-  BE.set_uint16 buf 1 vallength;
-  buf <+> (of_string host)
+  let buf = Bytes.create 3 in
+  Bytes.set_uint8 buf 0 0; (* type, only 0 registered *)
+  Bytes.set_uint16_be buf 1 vallength;
+  Bytes.unsafe_to_string buf ^ host
 
 let assemble_hostnames hosts =
   assemble_list Two assemble_hostname hosts
 
 let assemble_hash_signature sigalg =
-  let buf = create 2 in
-  BE.set_uint16 buf 0 (signature_alg_to_int (to_signature_alg sigalg)) ;
-  buf
+  let buf = Bytes.create 2 in
+  Bytes.set_uint16_be buf 0 (signature_alg_to_int (to_signature_alg sigalg)) ;
+  Bytes.unsafe_to_string buf
 
 let assemble_signature_algorithms s =
   assemble_list Two assemble_hash_signature s
 
 let assemble_certificate_types ts =
   let ass x =
-    let buf = create 1 in
-    set_uint8 buf 0 (client_certificate_type_to_int x) ;
-    buf
+    String.make 1 (Char.unsafe_chr (client_certificate_type_to_int x))
   in
   assemble_list One ass ts
 
 let assemble_cas cas =
   let ass x =
-    let buf = create 2 in
-    BE.set_uint16 buf 0 (length x) ;
-    buf <+> x
+    let buf = Bytes.create 2 in
+    Bytes.set_uint16_be buf 0 (String.length x) ;
+    Bytes.unsafe_to_string buf ^ x
   in
   assemble_list Two ass cas
 
 let assemble_certificate_request ts cas =
-  assemble_certificate_types ts <+> assemble_cas cas
+  assemble_certificate_types ts ^ assemble_cas cas
 
 let assemble_certificate_request_1_2 ts sigalgs cas =
-  assemble_certificate_types ts <+>
-    assemble_signature_algorithms sigalgs <+>
+  String.concat "" [
+    assemble_certificate_types ts;
+    assemble_signature_algorithms sigalgs;
     assemble_cas cas
+  ]
 
 let assemble_named_group g =
-  let buf = create 2 in
-  BE.set_uint16 buf 0 (named_group_to_int g);
-  buf
+  let buf = Bytes.create 2 in
+  Bytes.set_uint16_be buf 0 (named_group_to_int g);
+  Bytes.unsafe_to_string buf
 
 let assemble_group g =
   assemble_named_group (group_to_named_group g)
@@ -140,32 +141,30 @@ let assemble_supported_groups groups =
 
 let assemble_keyshare_entry (ng, ks) =
   let g = assemble_named_group ng in
-  let l = create 2 in
-  BE.set_uint16 l 0 (length ks) ;
-  g <+> l <+> ks
+  let l = Bytes.create 2 in
+  Bytes.set_uint16_be l 0 (String.length ks) ;
+  String.concat "" [ g ; Bytes.unsafe_to_string l ; ks ]
 
 let assemble_psk_id (id, age) =
-  let id_len = create 2 in
-  BE.set_uint16 id_len 0 (length id) ;
-  let age_buf = create 4 in
-  BE.set_uint32 age_buf 0 age ;
-  id_len <+> id <+> age_buf
+  let id_len = Bytes.create 2 in
+  Bytes.set_uint16_be id_len 0 (String.length id) ;
+  let age_buf = Bytes.create 4 in
+  Bytes.set_int32_be age_buf 0 age ;
+  String.concat "" [ Bytes.unsafe_to_string id_len ; id ; Bytes.unsafe_to_string age_buf ]
 
 let assemble_binder b =
-  let b_len = create 1 in
-  set_uint8 b_len 0 (length b) ;
-  b_len <+> b
+  let b_len = String.make 1 (Char.unsafe_chr (String.length b)) in
+  b_len ^ b
 
 let assemble_client_psks psks =
   let ids, binders = List.split psks in
   let ids_buf = assemble_list Two assemble_psk_id ids in
   let binders_buf = assemble_list Two assemble_binder binders in
-  ids_buf <+> binders_buf
+  ids_buf ^ binders_buf
 
 let assemble_alpn_protocol p =
-  let buf = create 1 in
-  set_uint8 buf 0 (String.length p) ;
-  buf <+> Cstruct.of_string p
+  let buf = String.make 1 (Char.unsafe_chr (String.length p)) in
+  buf ^ p
 
 let assemble_alpn_protocols protocols =
   assemble_list Two assemble_alpn_protocol protocols
@@ -175,44 +174,41 @@ let assemble_supported_versions vs =
 
 let assemble_extension = function
   | `SecureRenegotiation x ->
-     let buf = create 1 in
-     set_uint8 buf 0 (length x);
-     (buf <+> x, RENEGOTIATION_INFO)
-  | `ExtendedMasterSecret -> (create 0, EXTENDED_MASTER_SECRET)
+     let buf = String.make 1 (Char.unsafe_chr (String.length x)) in
+     (buf ^ x, RENEGOTIATION_INFO)
+  | `ExtendedMasterSecret -> ("", EXTENDED_MASTER_SECRET)
   | `ECPointFormats ->
     (* a list of point formats, we support type 0 = uncompressed unconditionally *)
-    let data = Cstruct.create 2 in
-    Cstruct.set_uint8 data 0 1;
-    (data, EC_POINT_FORMATS)
+    let data = Bytes.make 2 '\x00' in
+    Bytes.set_uint8 data 0 1;
+    (Bytes.unsafe_to_string data, EC_POINT_FORMATS)
   | _ -> invalid_arg "unknown extension"
 
 let assemble_cookie c =
-  let l = create 2 in
-  BE.set_uint16 l 0 (length c) ;
-  l <+> c
+  let l = Bytes.create 2 in
+  Bytes.set_uint16_be l 0 (String.length c) ;
+  Bytes.unsafe_to_string l ^ c
 
 let assemble_psk_key_exchange_mode mode =
-  let c = create 1 in
-  set_uint8 c 0 (psk_key_exchange_mode_to_int mode) ;
-  c
+  String.make 1 (Char.unsafe_chr (psk_key_exchange_mode_to_int mode))
 
 let assemble_psk_key_exchange_modes modes =
   assemble_list One assemble_psk_key_exchange_mode modes
 
 let assemble_ext (pay, typ) =
-  let buf = Cstruct.create 4 in
-  BE.set_uint16 buf 0 (extension_type_to_int typ);
-  BE.set_uint16 buf 2 (length pay);
-  buf <+> pay
+  let buf = Bytes.create 4 in
+  Bytes.set_uint16_be buf 0 (extension_type_to_int typ);
+  Bytes.set_uint16_be buf 2 (String.length pay);
+  Bytes.unsafe_to_string buf ^ pay
 
 let assemble_extensions ?none_if_empty assemble_e es =
   assemble_list ?none_if_empty Two assemble_e es
 
 let assemble_ca ca =
-  let lenbuf = create 2 in
+  let lenbuf = Bytes.create 2 in
   let data = X509.Distinguished_name.encode_der ca in
-  BE.set_uint16 lenbuf 0 (length data) ;
-  lenbuf <+> data
+  Bytes.set_uint16_be lenbuf 0 (String.length data) ;
+  Bytes.unsafe_to_string lenbuf ^ data
 
 let assemble_certificate_authorities cas =
   assemble_list Two assemble_ca cas
@@ -225,18 +221,17 @@ let assemble_certificate_request_extension e =
     (assemble_certificate_authorities cas, CERTIFICATE_AUTHORITIES)
   | _ -> invalid_arg "unknown extension"
 
-let assemble_certificate_request_1_3 ?(context = Cstruct.empty) exts =
-  let clen = create 1 in
-  set_uint8 clen 0 (length context) ;
+let assemble_certificate_request_1_3 ?(context = "") exts =
+  let clen = String.make 1 (Char.unsafe_chr (String.length context)) in
   let exts = assemble_extensions assemble_certificate_request_extension exts in
-  clen <+> context <+> exts
+  String.concat "" [ clen ; context ; exts ]
 
 let assemble_client_extension e =
   assemble_ext @@ match e with
     | `SupportedGroups groups ->
       (assemble_supported_groups groups, SUPPORTED_GROUPS)
     | `Hostname name -> (assemble_hostnames [name], SERVER_NAME)
-    | `Padding x -> (create x, PADDING)
+    | `Padding x -> (String.make x '\x00', PADDING)
     | `SignatureAlgorithms s ->
       (assemble_signature_algorithms s, SIGNATURE_ALGORITHMS)
     | `ALPN protocols ->
@@ -246,11 +241,11 @@ let assemble_client_extension e =
     | `PreSharedKeys ids ->
       (assemble_client_psks ids, PRE_SHARED_KEY)
     | `EarlyDataIndication ->
-      (create 0, EARLY_DATA)
+      ("", EARLY_DATA)
     | `SupportedVersions vs ->
       (assemble_supported_versions vs, SUPPORTED_VERSIONS)
     | `PostHandshakeAuthentication ->
-      (Cstruct.empty, POST_HANDSHAKE_AUTH)
+      ("", POST_HANDSHAKE_AUTH)
     | `Cookie c ->
       (assemble_cookie c, COOKIE)
     | `PskKeyExchangeModes modes ->
@@ -259,27 +254,27 @@ let assemble_client_extension e =
 
 let assemble_server_extension e =
   assemble_ext @@ match e with
-    | `Hostname -> (create 0, SERVER_NAME)
+    | `Hostname -> ("", SERVER_NAME)
     | `ALPN protocol ->
       (assemble_alpn_protocols [protocol], APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
     | `KeyShare (g, ks) ->
       let ng = group_to_named_group g in
       (assemble_keyshare_entry (ng, ks), KEY_SHARE)
     | `PreSharedKey id ->
-      let data = create 2 in
-      BE.set_uint16 data 0 id ;
-      (data, PRE_SHARED_KEY)
+      let data = Bytes.create 2 in
+      Bytes.set_uint16_be data 0 id ;
+      (Bytes.unsafe_to_string data, PRE_SHARED_KEY)
     | `SelectedVersion v -> (assemble_protocol_version v, SUPPORTED_VERSIONS)
     | x -> assemble_extension x
 
 let assemble_encrypted_extension e =
   assemble_ext @@ match e with
-    | `Hostname -> (create 0, SERVER_NAME)
+    | `Hostname -> ("", SERVER_NAME)
     | `ALPN protocol ->
       (assemble_alpn_protocols [protocol], APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
     | `SupportedGroups groups ->
       (assemble_supported_groups (List.map group_to_named_group groups), SUPPORTED_GROUPS)
-    | `EarlyDataIndication -> (create 0, EARLY_DATA)
+    | `EarlyDataIndication -> ("", EARLY_DATA)
     | _ -> invalid_arg "unknown extension"
 
 let assemble_retry_extension e =
@@ -293,23 +288,21 @@ let assemble_cert_ext (certificate, extensions) =
   let cert = assemble_certificate certificate
   and exts = assemble_list Two assemble_server_extension extensions
   in
-  cert <+> exts
+  cert ^ exts
 
 let assemble_certs_exts cs =
   assemble_list Three assemble_cert_ext cs
 
 let assemble_certificates_1_3 context certs =
-  let l = create 1 in
-  set_uint8 l 0 (length context) ;
-  l <+> context <+> assemble_certs_exts (List.map (fun c -> c, []) certs)
+  let l = String.make 1 (Char.unsafe_chr (String.length context)) in
+  String.concat "" [ l ; context ; assemble_certs_exts (List.map (fun c -> c, []) certs) ]
 
 let assemble_sid sid =
-  let buf = create 1 in
   match sid with
-  | None   -> buf
-  | Some s -> set_uint8 buf 0 (length s); buf <+> s
+  | None   -> String.make 1 '\x00'
+  | Some s -> String.make 1 (Char.unsafe_chr (String.length s)) ^ s
 
-let assemble_client_hello (cl : client_hello) : Cstruct.t =
+let assemble_client_hello (cl : client_hello) : string =
   let version = match cl.client_version with
     | `TLS_1_3 -> `TLS_1_2 (* keep 0x03 0x03 on wire *)
     | x -> x
@@ -319,7 +312,7 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
   let css = assemble_any_ciphersuites cl.ciphersuites in
   (* compression methods, completely useless *)
   let cms = assemble_compression_methods [NULL] in
-  let bbuf = v <+> cl.client_random <+> sid <+> css <+> cms in
+  let bbuf = String.concat "" [ v ; cl.client_random ; sid ; css ; cms ] in
   let extensions = assemble_extensions ~none_if_empty:true assemble_client_extension cl.extensions in
   (* some widely deployed firewalls drop ClientHello messages which are
      > 256 and < 511 byte, insert PADDING extension for these *)
@@ -340,32 +333,32 @@ let assemble_client_hello (cl : client_hello) : Cstruct.t =
        when it is present. rationale from ietf-tls WG
        "Padding extension and 0-RTT" thread (2016-10-30) *)
     if List.exists (function `PreSharedKeys _ -> true | _ -> false) cl.extensions then
-      Cstruct.empty
+      ""
     else
-      let buflen = length bbuf + length extensions + 4 (* see above, header *) in
+      let buflen = String.length bbuf + String.length extensions + 4 (* see above, header *) in
       if buflen >= 256 && buflen <= 511 then
-        match length extensions with
+        match String.length extensions with
         | 0 -> (* need to construct a 2 byte extension length as well *)
           let l = 512 (* desired length *) - 2 (* extension length *) - 4 (* padding extension header *) - buflen in
           let l = max l 0 in (* negative size is not good *)
           let padding = assemble_client_extension (`Padding l) in
-          let extension_length = create 2 in
-          BE.set_uint16 extension_length 0 (length padding);
-          extension_length <+> padding
+          let extension_length = Bytes.create 2 in
+          Bytes.set_uint16_be extension_length 0 (String.length padding);
+          Bytes.unsafe_to_string extension_length ^ padding
         | _ ->
           let l = 512 - 4 (* padding extension header *) - buflen in
           let l = max l 0 in
           let padding = assemble_client_extension (`Padding l) in
           (* extensions include the 16 bit extension length field *)
-          let elen = length extensions + length padding - 2 (* the 16 bit length field *) in
-          BE.set_uint16 extensions 0 elen;
+          let elen = String.length extensions + String.length padding - 2 (* the 16 bit length field *) in
+          Bytes.set_uint16_be (Bytes.unsafe_of_string extensions) 0 elen;
           padding
       else
-        create 0
+        ""
   in
-  bbuf <+> extensions <+> extrapadding
+  String.concat "" [ bbuf ; extensions ; extrapadding ]
 
-let assemble_server_hello (sh : server_hello) : Cstruct.t =
+let assemble_server_hello (sh : server_hello) : string =
   let version, exts = match sh.server_version with
     | `TLS_1_3 -> `TLS_1_2, `SelectedVersion `TLS_1_3 :: sh.extensions
     | x -> x, sh.extensions
@@ -376,66 +369,65 @@ let assemble_server_hello (sh : server_hello) : Cstruct.t =
   (* useless compression method *)
   let cm = assemble_compression_method NULL in
   let extensions = assemble_extensions ~none_if_empty:true assemble_server_extension exts in
-  v <+> sh.server_random <+> sid <+> cs <+> cm <+> extensions
+  String.concat "" [ v ; sh.server_random ; sid ; cs ; cm ; extensions ]
 
 let assemble_dh_parameters p =
-  let plen, glen, yslen = (length p.dh_p, length p.dh_g, length p.dh_Ys) in
-  let buf = create (2 + 2 + 2 + plen + glen + yslen) in
-  BE.set_uint16  buf  0 plen;
-  blit p.dh_p  0 buf  2 plen;
-  BE.set_uint16  buf (2 + plen) glen;
-  blit p.dh_g  0 buf (4 + plen) glen;
-  BE.set_uint16  buf (4 + plen + glen) yslen;
-  blit p.dh_Ys 0 buf (6 + plen + glen) yslen;
-  buf
+  let plen, glen, yslen = (String.length p.dh_p, String.length p.dh_g, String.length p.dh_Ys) in
+  let buf = Bytes.create (2 + 2 + 2 + plen + glen + yslen) in
+  Bytes.set_uint16_be  buf  0 plen;
+  Bytes.blit_string p.dh_p  0 buf  2 plen;
+  Bytes.set_uint16_be  buf (2 + plen) glen;
+  Bytes.blit_string p.dh_g  0 buf (4 + plen) glen;
+  Bytes.set_uint16_be  buf (4 + plen + glen) yslen;
+  Bytes.blit_string p.dh_Ys 0 buf (6 + plen + glen) yslen;
+  Bytes.unsafe_to_string buf
 
 let assemble_ec_parameters named_curve point =
-  let hdr = create 4 in
-  set_uint8 hdr 0 (ec_curve_type_to_int NAMED_CURVE);
-  BE.set_uint16 hdr 1 (named_group_to_int (group_to_named_group named_curve));
-  set_uint8 hdr 3 (length point);
-  hdr <+> point
+  let hdr = Bytes.create 4 in
+  Bytes.set_uint8 hdr 0 (ec_curve_type_to_int NAMED_CURVE);
+  Bytes.set_uint16_be hdr 1 (named_group_to_int (group_to_named_group named_curve));
+  Bytes.set_uint8 hdr 3 (String.length point);
+  Bytes.unsafe_to_string hdr ^ point
 
 let assemble_digitally_signed signature =
-  let lenbuf = create 2 in
-  BE.set_uint16 lenbuf 0 (length signature);
-  lenbuf <+> signature
+  let lenbuf = Bytes.create 2 in
+  Bytes.set_uint16_be lenbuf 0 (String.length signature);
+  Bytes.unsafe_to_string lenbuf ^ signature
 
 let assemble_digitally_signed_1_2 sigalg signature =
-  (assemble_hash_signature sigalg) <+>
-    (assemble_digitally_signed signature)
+  (assemble_hash_signature sigalg) ^ (assemble_digitally_signed signature)
 
 let assemble_session_ticket_extension e =
   assemble_ext @@ match e with
   | `EarlyDataIndication max ->
-    let buf = create 4 in
-    BE.set_uint32 buf 0 max ;
-    (buf, EARLY_DATA)
+    let buf = Bytes.create 4 in
+    Bytes.set_int32_be buf 0 max ;
+    (Bytes.unsafe_to_string buf, EARLY_DATA)
   | _ -> invalid_arg "unknown extension"
 
 let assemble_session_ticket (se : session_ticket) =
-  let buf = create 9 in
-  BE.set_uint32 buf 0 se.lifetime ;
-  BE.set_uint32 buf 4 se.age_add ;
-  set_uint8 buf 8 (length se.nonce) ;
-  let ticketlen = create 2 in
-  BE.set_uint16 ticketlen 0 (length se.ticket) ;
+  let buf = Bytes.create 9 in
+  Bytes.set_int32_be buf 0 se.lifetime ;
+  Bytes.set_int32_be buf 4 se.age_add ;
+  Bytes.set_uint8 buf 8 (String.length se.nonce) ;
+  let ticketlen = Bytes.create 2 in
+  Bytes.set_uint16_be ticketlen 0 (String.length se.ticket) ;
   let exts = assemble_extensions assemble_session_ticket_extension se.extensions in
-  buf <+> se.nonce <+> ticketlen <+> se.ticket <+> exts
+  String.concat "" [ Bytes.unsafe_to_string buf ; se.nonce ; Bytes.unsafe_to_string ticketlen ; se.ticket ; exts ]
 
 let assemble_client_dh_key_exchange kex =
-  let len = length kex in
-  let buf = create (len + 2) in
-  BE.set_uint16 buf 0 len;
-  blit kex 0 buf 2 len;
-  buf
+  let len = String.length kex in
+  let buf = Bytes.create (len + 2) in
+  Bytes.set_uint16_be buf 0 len;
+  Bytes.blit_string kex 0 buf 2 len;
+  Bytes.unsafe_to_string buf
 
 let assemble_client_ec_key_exchange kex =
-  let len = length kex in
-  let buf = create (len + 1) in
-  set_uint8 buf 0 len;
-  blit kex 0 buf 1 len;
-  buf
+  let len = String.length kex in
+  let buf = Bytes.create (len + 1) in
+  Bytes.set_uint8 buf 0 len;
+  Bytes.blit_string kex 0 buf 1 len;
+  Bytes.unsafe_to_string buf
 
 let assemble_hello_retry_request hrr =
   let exts = `SelectedGroup hrr.selected_group :: hrr.extensions in
@@ -447,23 +439,21 @@ let assemble_hello_retry_request hrr =
   let sid = assemble_sid hrr.sessionid in
   let cs = assemble_ciphersuite (hrr.ciphersuite :> Ciphersuite.ciphersuite) in
   (* useless compression method *)
-  let cm = create 1 in
+  let cm = String.make 1 '\x00' in
   let extensions = assemble_extensions ~none_if_empty:true assemble_retry_extension exts in
-  v <+> helloretryrequest <+> sid <+> cs <+> cm <+> extensions
+  String.concat "" [ v ; helloretryrequest ; sid ; cs ; cm ; extensions ]
 
 let assemble_hs typ len =
-  let buf = create 4 in
-  set_uint8 buf 0 (handshake_type_to_int typ);
-  set_uint24_len (shift buf 1) len;
-  buf
+  let buf = Bytes.create 4 in
+  Bytes.set_uint8 buf 0 (handshake_type_to_int typ);
+  set_uint24_len ~off:1 buf len;
+  Bytes.unsafe_to_string buf
 
 let assemble_message_hash len =
   assemble_hs MESSAGE_HASH len
 
 let assemble_key_update req =
-  let cs = create 1 in
-  set_uint8 cs 0 (key_update_request_type_to_int req);
-  cs
+  String.make 1 (Char.unsafe_chr (key_update_request_type_to_int req))
 
 let assemble_handshake hs =
   let (payload, payload_type) =
@@ -476,8 +466,8 @@ let assemble_handshake hs =
     | CertificateVerify c -> (c, CERTIFICATE_VERIFY)
     | ServerKeyExchange kex -> (kex, SERVER_KEY_EXCHANGE)
     | ClientKeyExchange kex -> (kex, CLIENT_KEY_EXCHANGE)
-    | ServerHelloDone -> (create 0, SERVER_HELLO_DONE)
-    | HelloRequest -> (create 0, HELLO_REQUEST)
+    | ServerHelloDone -> ("", SERVER_HELLO_DONE)
+    | HelloRequest -> ("", HELLO_REQUEST)
     | Finished fs -> (fs, FINISHED)
     | SessionTicket st -> (assemble_session_ticket st, SESSION_TICKET)
     | EncryptedExtensions ee ->
@@ -486,19 +476,17 @@ let assemble_handshake hs =
     | KeyUpdate req ->
       let cs = assemble_key_update req in
       (cs, KEY_UPDATE)
-    | EndOfEarlyData -> (create 0, END_OF_EARLY_DATA)
+    | EndOfEarlyData -> ("", END_OF_EARLY_DATA)
   in
-  let pay_len = length payload in
+  let pay_len = String.length payload in
   let buf = assemble_hs payload_type pay_len in
-  buf <+> payload
+  buf ^ payload
 
 let assemble_alert ?(level = Packet.FATAL) typ =
-  let buf = create 2 in
-  set_uint8 buf 1 (alert_type_to_int typ);
-  set_uint8 buf 0 (alert_level_to_int level) ;
-  buf
+  let buf = Bytes.create 2 in
+  Bytes.set_uint8 buf 1 (alert_type_to_int typ);
+  Bytes.set_uint8 buf 0 (alert_level_to_int level) ;
+  Bytes.unsafe_to_string buf
 
 let assemble_change_cipher_spec =
-  let ccs = create 1 in
-  set_uint8 ccs 0 1;
-  ccs
+  String.make 1 '\x01'

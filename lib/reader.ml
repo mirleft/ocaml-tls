@@ -29,30 +29,32 @@ let raise_unknown msg        = raise (Reader_error (Unknown msg))
 and raise_wrong_length msg   = raise (Reader_error (WrongLength msg))
 and raise_trailing_bytes msg = raise (Reader_error (TrailingBytes msg))
 
+let shift str amount = String.sub str amount (String.length str - amount)
+
 let catch f x =
   try Ok (f x) with
   | Reader_error err   -> Error err
   | Invalid_argument _ -> Error Underflow
 
-let parse_version_int buf off =
-  let major = String.get_uint8 buf off in
-  let minor = String.get_uint8 buf (off + 1) in
+let parse_version_int buf =
+  let major = String.get_uint8 buf 0 in
+  let minor = String.get_uint8 buf 1 in
   (major, minor)
 
-let parse_version_exn buf off =
-  let version = parse_version_int buf off in
+let parse_version_exn buf =
+  let version = parse_version_int buf in
   match tls_version_of_pair version with
   | Some x -> x
   | None   ->
     let major, minor = version in
     raise (Reader_error (UnknownVersion (major, minor)))
 
-let parse_any_version_opt buf off =
-  let version = parse_version_int buf off in
-  tls_any_version_of_pair version, off + 2
+let parse_any_version_opt buf =
+  let version = parse_version_int buf in
+  tls_any_version_of_pair version, shift buf 2
 
-let parse_any_version_exn buf off =
-  match parse_any_version_opt buf off with
+let parse_any_version_exn buf =
+  match parse_any_version_opt buf with
   | Some x, _ -> x
   | None, _ ->
     let major, minor = (String.get_uint8 buf 0, String.get_uint8 buf 1) in
@@ -67,7 +69,7 @@ let parse_record buf =
     Ok (`Fragment buf)
   else
     let typ = String.get_uint8 buf 0
-    and version = parse_version_int buf 1
+    and version = parse_version_int (shift buf 1)
     in
     match String.get_uint16_be buf 3 with
     | x when x > (1 lsl 14 + 2048) ->
@@ -84,7 +86,7 @@ let parse_record buf =
       | None, _ -> Error (UnknownVersion version)
       | _, None -> Error (UnknownContent typ)
       | Some version, Some content_type ->
-        let payload, rest = Core.split_str ~start:5 buf x in
+        let payload, rest = split_str ~start:5 buf x in
         Ok (`Record (({ content_type ; version }, payload), rest))
 
 let validate_alert (lvl, typ) =
@@ -125,155 +127,155 @@ let parse_change_cipher_spec buf =
   | 1, 1 -> Ok ()
   | _    -> Error (Unknown "bad change cipher spec message")
 
-let rec parse_count_list parsef buf off acc = function
-  | 0 -> (List.rev acc, off)
+let rec parse_count_list parsef buf acc = function
+  | 0 -> (List.rev acc, buf)
   | n ->
-     match parsef buf off with
-     | Some elem, off' -> parse_count_list parsef buf off' (elem :: acc) (pred n)
-     | None     , off' -> parse_count_list parsef buf off'          acc  (pred n)
+     match parsef buf with
+     | Some elem, buf' -> parse_count_list parsef buf' (elem :: acc) (pred n)
+     | None     , buf' -> parse_count_list parsef buf'          acc  (pred n)
 
-let rec parse_list parsef buf ~off ~len acc =
-  match String.length buf - off with
-  | x when x = len -> List.rev acc
+let rec parse_list parsef buf acc =
+  match String.length buf with
+  | 0 -> List.rev acc
   | _ ->
-     match parsef buf off with
-     | Some elem, off -> parse_list parsef buf ~off ~len (elem :: acc)
-     | None     , off -> parse_list parsef buf ~off ~len         acc
+     match parsef buf with
+     | Some elem, buf' -> parse_list parsef buf' (elem :: acc)
+     | None     , buf' -> parse_list parsef buf'          acc
 
-let parse_compression_method buf off =
-  let cm = String.get_uint8 buf off in
-  (int_to_compression_method cm, off + 1)
+let parse_compression_method buf =
+  let cm = String.get_uint8 buf 0 in
+  (int_to_compression_method cm, shift buf 1)
 
-let parse_compression_methods buf off =
-  let count = String.get_uint8 buf off in
-  parse_count_list parse_compression_method buf (off + 1) [] count
+let parse_compression_methods buf =
+  let count = String.get_uint8 buf 0 in
+  parse_count_list parse_compression_method (shift buf 1) [] count
 
-let parse_any_ciphersuite buf off =
-  let typ = String.get_uint16_be buf off in
-  (int_to_any_ciphersuite typ, off + 2)
+let parse_any_ciphersuite buf =
+  let typ = String.get_uint16_be buf 0 in
+  (int_to_any_ciphersuite typ, shift buf 2)
 
-let parse_any_ciphersuites buf off =
-  let count = String.get_uint16_be buf off in
+let parse_any_ciphersuites buf =
+  let count = String.get_uint16_be buf 0 in
   if count mod 2 <> 0 then
     raise_wrong_length "ciphersuite list"
   else
-    parse_count_list parse_any_ciphersuite buf (off + 2) [] (count / 2)
+    parse_count_list parse_any_ciphersuite (shift buf 2) [] (count / 2)
 
-let parse_ciphersuite buf off =
-  match parse_any_ciphersuite buf off with
-  | None   , off' -> (None, off')
-  | Some cs, off' -> match Ciphersuite.any_ciphersuite_to_ciphersuite cs with
-                       | None     -> (None, off')
-                       | Some cs' -> (Some cs', off')
+let parse_ciphersuite buf =
+  match parse_any_ciphersuite buf with
+  | None   , buf' -> (None, buf')
+  | Some cs, buf' -> match Ciphersuite.any_ciphersuite_to_ciphersuite cs with
+                       | None     -> (None, buf')
+                       | Some cs' -> (Some cs', buf')
 
-let parse_hostnames buf ~off ~len =
-  match String.length buf - off with
-  | x when x = len -> []
+let parse_hostnames buf =
+  match String.length buf with
+  | 0 -> []
   | n ->
-     let parsef buf off =
-       let typ = String.get_uint8 buf off in
-       let entrylen = String.get_uint16_be buf (off + 1) in
+     let parsef buf =
+       let typ = String.get_uint8 buf 0 in
+       let entrylen = String.get_uint16_be buf 1 in
+       let rt = shift buf (3 + entrylen) in
        match typ with
-       | 0 ->
-         let hostname = String.sub buf (off + 3) entrylen in
-         (Some hostname, off + 3 + entrylen)
-       | _ -> (None, off + 3 + entrylen)
+       | 0 -> let hostname = String.sub buf 3 entrylen in
+              (Some hostname, rt)
+       | _ -> (None, rt)
      in
-     let list_length = String.get_uint16_be buf off in
-     if list_length + 2 <> len then
+     let list_length = String.get_uint16_be buf 0 in
+     if list_length + 2 <> n then
        raise_trailing_bytes "hostname"
      else
-       parse_list parsef buf ~off:(off + 2) ~len []
+       parse_list parsef (String.sub buf 2 list_length) []
 
-let parse_fragment_length buf off =
-  if String.length buf - off <> 1 then
+let parse_fragment_length buf =
+  if String.length buf <> 1 then
     raise_trailing_bytes "fragment length"
   else
-    int_to_max_fragment_length (String.get_uint8 buf off)
+    int_to_max_fragment_length (String.get_uint8 buf 0)
 
-let parse_supported_version buf off =
-  parse_any_version_opt buf off
+let parse_supported_version buf =
+  parse_any_version_opt buf
 
-let parse_supported_versions buf off =
-  let len = String.get_uint8 buf off in
+let parse_supported_versions buf =
+  let len = String.get_uint8 buf 0 in
   if len mod 2 <> 0 then
     raise_wrong_length "supported versions"
   else
-    parse_count_list parse_supported_version buf (off + 1) [] (len / 2)
+    parse_count_list parse_supported_version (shift buf 1) [] (len / 2)
 
-let parse_named_group buf off =
-  let typ = String.get_uint16_be buf off in
-  (int_to_named_group typ, off + 2)
+let parse_named_group buf =
+  let typ = String.get_uint16_be buf 0 in
+  (int_to_named_group typ, shift buf 2)
 
-let parse_group buf off =
-  match parse_named_group buf off with
-  | Some x, off' -> (named_group_to_group x, off')
-  | None, off' -> (None, off')
+let parse_group buf =
+  match parse_named_group buf with
+  | Some x, buf -> (named_group_to_group x, buf)
+  | None, buf -> (None, buf)
 
-let parse_supported_groups buf off =
-  let count = String.get_uint16_be buf off in
+let parse_supported_groups buf =
+  let count = String.get_uint16_be buf 0 in
   if count mod 2 <> 0 then
     raise_wrong_length "elliptic curve list"
   else
-    let cs, off' = parse_count_list parse_named_group buf (off + 2) [] (count / 2) in
-    if String.length buf + off <> off' then
+    let cs, rt = parse_count_list parse_named_group (shift buf 2) [] (count / 2) in
+    if String.length rt <> 0 then
       raise_trailing_bytes "elliptic curves"
     else
       cs
 
-let parse_signature_algorithm buf off =
-  match int_to_signature_alg (String.get_uint16_be buf off) with
+let parse_signature_algorithm buf =
+  match int_to_signature_alg (String.get_uint16_be buf 0) with
   | Some sig_alg -> of_signature_alg sig_alg
   | _            -> None
 
-let parse_signature_algorithms buf off =
-  let parsef buf off = parse_signature_algorithm buf off, off + 2 in
+let parse_signature_algorithms buf =
+  let parsef buf = parse_signature_algorithm buf, shift buf 2 in
   let count = String.get_uint16_be buf 0 in
   if count mod 2 <> 0 then
     raise_wrong_length "signature hash"
   else
-    parse_count_list parsef buf (off + 2) [] (count / 2)
+    parse_count_list parsef (shift buf 2) [] (count / 2)
 
-let parse_alpn_protocol raw off =
-  let length = String.get_uint8 raw off in
-  let protocol = String.sub raw (off + 1) length in
-  (Some protocol, off + 1 + length)
+let parse_alpn_protocol raw =
+  let length = String.get_uint8 raw 0 in
+  let protocol = String.sub raw 1 length in
+  (Some protocol, shift raw (1 + length))
 
-let parse_alpn_protocols buf off =
-  let len = String.get_uint16_be buf off in
-  if String.length buf - off < len + 2 then
+let parse_alpn_protocols buf =
+  let len = String.get_uint16_be buf 0 in
+  if String.length buf <> len + 2 then
     raise_trailing_bytes "alpn"
   else
-    parse_list parse_alpn_protocol buf ~off:(off + 2) ~len []
+    parse_list parse_alpn_protocol (String.sub buf 2 len) []
 
-let parse_ec_point_format buf off =
+let parse_ec_point_format buf =
   (* this is deprecated, we only check that uncompressed (typ 0) is present *)
-  let data = String.get_uint8 buf off in
-  Some (data = 0), off + 1
+  let data = String.get_uint8 buf 0 in
+  Some (data = 0), shift buf 1
 
-let parse_ec_point_formats buf off =
-  let count = String.get_uint8 buf off in
-  parse_count_list parse_ec_point_format buf (off + 1) [] count
+let parse_ec_point_formats buf =
+  let count = String.get_uint8 buf 0 in
+  parse_count_list parse_ec_point_format (shift buf 1) [] count
 
-let parse_extension buf off = function
+let parse_extension buf = function
   | MAX_FRAGMENT_LENGTH ->
-     (match parse_fragment_length buf off with
+     (match parse_fragment_length buf with
       | Some mfl -> `MaxFragmentLength mfl
       | None     -> raise_unknown "maximum fragment length")
   | RENEGOTIATION_INFO ->
-       let len' = String.get_uint8 buf off in
-       if String.length buf - off <> len' + 1 then
+       let len' = String.get_uint8 buf 0 in
+       if String.length buf <> len' + 1 then
          raise_trailing_bytes "renegotiation"
        else
-         `SecureRenegotiation (String.sub buf off len')
+         `SecureRenegotiation (String.sub buf 1 len')
   | EXTENDED_MASTER_SECRET ->
       if String.length buf > 0 then
          raise_trailing_bytes "extended master secret"
       else
         `ExtendedMasterSecret
   | EC_POINT_FORMATS ->
-    let formats, off' = parse_ec_point_formats buf off in
-    if String.length buf <> 0 then
+    let formats, rt = parse_ec_point_formats buf in
+    if String.length rt <> 0 then
       raise_trailing_bytes "ec point formats"
     else if List.mem true formats then
       `ECPointFormats
@@ -284,7 +286,7 @@ let parse_extension buf off = function
 let parse_keyshare_entry buf =
   let parse_share data =
     let size = String.get_uint16_be data 0 in
-    split (shift data 2) size
+    split_str ~start:2 data size
   in
   let g, rest = parse_named_group buf in
   let share, left = parse_share rest in
@@ -298,17 +300,17 @@ let parse_id buf =
     raise_wrong_length "PSK id is empty"
   else
     let age = String.get_int32_be buf (id_len + 2) in
-    (Some (sub buf 2 id_len, age), shift buf (id_len + 6))
+    (Some (String.sub buf 2 id_len, age), shift buf (id_len + 6))
 
 let parse_binder buf =
   let l = String.get_uint8 buf 0 in
-  Some (sub buf 1 l), shift buf (l + 1)
+  Some (String.sub buf 1 l), shift buf (l + 1)
 
 let parse_client_presharedkeys buf =
   let id_len = String.get_uint16_be buf 0 in
-  let identities = parse_list parse_id (sub buf 2 id_len) [] in
+  let identities = parse_list parse_id (String.sub buf 2 id_len) [] in
   let binders_len = String.get_uint16_be buf (id_len + 2) in
-  let binders = parse_list parse_binder (sub buf (4 + id_len) binders_len) [] in
+  let binders = parse_list parse_binder (String.sub buf (4 + id_len) binders_len) [] in
   let id_binder = List.combine identities binders in
   if String.length buf <> 4 + binders_len + id_len then
     raise_trailing_bytes "psk"
@@ -317,7 +319,7 @@ let parse_client_presharedkeys buf =
 
 let parse_cookie buf =
   let len = String.get_uint16_be buf 0 in
-  (sub buf 2 len, shift buf (2 + len))
+  (String.sub buf 2 len, shift buf (2 + len))
 
 let parse_psk_key_exchange_mode buf =
   let data = String.get_uint8 buf 0 in
@@ -331,7 +333,7 @@ let parse_ext raw =
   let etype = String.get_uint16_be raw 0
   and length = String.get_uint16_be raw 2
   in
-  (etype, length, sub raw 4 length)
+  (etype, length, String.sub raw 4 length)
 
 let parse_client_extension raw =
   let etype, len, buf = parse_ext raw in
@@ -376,7 +378,7 @@ let parse_client_extension raw =
        if ll + 2 <> String.length buf then
          raise_unknown "bad key share extension"
        else
-         let shares = parse_list parse_keyshare_entry (sub buf 2 ll) [] in
+         let shares = parse_list parse_keyshare_entry (String.sub buf 2 ll) [] in
          `KeyShare shares
     | Some PRE_SHARED_KEY ->
       let ids = parse_client_presharedkeys buf in
@@ -502,25 +504,22 @@ let parse_retry_extension raw =
   in
   (Some data, shift raw (4 + len))
 
-let parse_extensions parse_ext buf off =
-  let len = String.get_uint16_be buf off in
-  if String.length buf - off <> len + 2 then
+let parse_extensions parse_ext buf =
+  let len = String.get_uint16_be buf 0 in
+  if String.length buf <> len + 2 then
     raise_trailing_bytes "extensions"
   else
-    parse_list parse_ext buf ~off:(2 + off) ~len []
+    parse_list parse_ext (String.sub buf 2 len) []
 
 let parse_client_hello buf =
-  let client_version = parse_any_version_exn buf 0 in
+  let client_version = parse_any_version_exn buf in
   let client_random = String.sub buf 2 32 in
   let slen = String.get_uint8 buf 34 in
   let sessionid = if slen = 0 then None else Some (String.sub buf 35 slen) in
-  let ciphersuites, off = parse_any_ciphersuites buf (35 + slen) in
-  let _, off = parse_compression_methods buf off in
+  let ciphersuites, rt = parse_any_ciphersuites (shift buf (35 + slen)) in
+  let _, rt' = parse_compression_methods rt in
   let extensions =
-    if String.length buf - off = 0 then
-      []
-    else
-      parse_extensions parse_client_extension off
+    if String.length rt' = 0 then [] else parse_extensions parse_client_extension rt'
   in
   (* TLS 1.3 mandates PreSharedKeys to be the last extension *)
   (if List.exists (function `PreSharedKeys _ -> true | _ -> false) extensions then
@@ -531,9 +530,9 @@ let parse_client_hello buf =
 
 let parse_server_hello buf =
   let server_version = parse_version_exn buf in
-  let server_random = sub buf 2 32 in
+  let server_random = String.sub buf 2 32 in
   let slen = String.get_uint8 buf 34 in
-  let sessionid = if slen = 0 then None else Some (sub buf 35 slen) in
+  let sessionid = if slen = 0 then None else Some (String.sub buf 35 slen) in
   let ciphersuite, rt = match parse_ciphersuite (shift buf (35 + slen)) with
     | Some x, buf' -> (x, buf')
     | None  , _    -> raise_unknown "ciphersuite"
@@ -577,14 +576,14 @@ let parse_server_hello buf =
 
 let parse_certificates_exn buf =
   let parsef buf =
-    let len = get_uint24_len buf in
-    (Some (sub buf 3 len), shift buf (len + 3))
+    let len = get_uint24_len ~off:0 buf in
+    (Some (String.sub buf 3 len), shift buf (len + 3))
   in
-  let len = get_uint24_len buf in
+  let len = get_uint24_len ~off:0 buf in
   if String.length buf <> len + 3 then
     raise_trailing_bytes "certificates"
   else
-    parse_list parsef (sub buf 3 len) []
+    parse_list parsef (String.sub buf 3 len) []
 
 let parse_certificates = catch @@ parse_certificates_exn
 
@@ -592,18 +591,18 @@ let parse_certificates = catch @@ parse_certificates_exn
 let parse_certificate_ext _ = None, ""
 
 let parse_certificate_ext_1_3_exn buf =
-  let certlen = get_uint24_len buf in
+  let certlen = get_uint24_len ~off:0 buf in
   let cert, extbuf, rest =
-    let cert, rt = split (shift buf 3) certlen in
+    let cert, rt = split_str ~start:3 buf certlen in
     let ext_len = String.get_uint16_be rt 0 in
-    let extbuf, rt = split (shift rt 2) ext_len in
+    let extbuf, rt = split_str ~start:2 rt ext_len in
     cert, extbuf, rt
   in
   let exts = parse_list parse_certificate_ext extbuf [] in
   (Some (cert, exts), rest)
 
 let parse_certificate_ext_list_1_3_exn buf =
-  let len = get_uint24_len buf in
+  let len = get_uint24_len ~off:0 buf in
   if String.length buf <> len + 3 then
     raise_trailing_bytes "certificates"
   else
@@ -611,7 +610,7 @@ let parse_certificate_ext_list_1_3_exn buf =
 
 let parse_certificates_1_3_exn buf =
   let clen = String.get_uint8 buf 0 in
-  let context, rt = split (shift buf 1) clen in
+  let context, rt = split_str ~start:1 buf clen in
   let certs = parse_certificate_ext_list_1_3_exn rt in
   (context, certs)
 
@@ -628,11 +627,11 @@ let parse_certificate_types buf =
 let parse_cas buf =
   let parsef buf =
     let length = String.get_uint16_be buf 0 in
-    let name = sub buf 2 length in
+    let name = String.sub buf 2 length in
     (Some name, shift buf (2 + length))
   in
   let calength = String.get_uint16_be buf 0 in
-  let cas, rt = split (shift buf 2) calength in
+  let cas, rt = split_str ~start:2 buf calength in
   (parse_list parsef cas [], rt)
 
 let parse_certificate_request_exn buf =
@@ -689,7 +688,7 @@ let parse_certificate_request_1_3_exn buf =
     if contextlen = 0 then
       None, shift buf 1
     else
-      let ctx, rest = split (shift buf 1) contextlen in
+      let ctx, rest = split_str ~start:1 buf contextlen in
       Some ctx, rest
   in
   let exts = parse_extensions parse_certificate_request_extension rt in
@@ -700,15 +699,15 @@ let parse_certificate_request_1_3 =
 
 let parse_dh_parameters = catch @@ fun raw ->
   let plength = String.get_uint16_be raw 0 in
-  let dh_p = sub raw 2 plength in
+  let dh_p = String.sub raw 2 plength in
   let buf = shift raw (2 + plength) in
   let glength = String.get_uint16_be buf 0 in
-  let dh_g = sub buf 2 glength in
+  let dh_g = String.sub buf 2 glength in
   let buf = shift buf (2 + glength) in
   let yslength = String.get_uint16_be buf 0 in
-  let dh_Ys = sub buf 2 yslength in
+  let dh_Ys = String.sub buf 2 yslength in
   let buf = shift buf (2 + yslength) in
-  let rawparams = sub raw 0 (plength + glength + yslength + 6) in
+  let rawparams = String.sub raw 0 (plength + glength + yslength + 6) in
   ({ dh_p ; dh_g ; dh_Ys }, rawparams, buf)
 
 let parse_ec_parameters = catch @@ fun raw ->
@@ -720,8 +719,8 @@ let parse_ec_parameters = catch @@ fun raw ->
       begin match named_group_to_group g with
         | Some ((`X25519 | `P256 | `P384 | `P521) as g) ->
           let data_len = String.get_uint8 raw 3 in
-          let d, rest = split (shift raw 4) data_len in
-          g, d, sub raw 0 (data_len + 4), rest
+          let d, rest = split_str ~start:4 raw data_len in
+          g, d, String.sub raw 0 (data_len + 4), rest
         | _ -> raise_unknown "EC group"
       end
     | None -> raise_unknown "EC named group"
@@ -731,7 +730,7 @@ let parse_digitally_signed_exn buf =
   if String.length buf <> siglen + 2 then
     raise_trailing_bytes "digitally signed"
   else
-    sub buf 2 siglen
+    String.sub buf 2 siglen
 
 let parse_digitally_signed =
   catch parse_digitally_signed_exn
@@ -761,9 +760,9 @@ let parse_session_ticket buf =
   and age_add = String.get_int32_be buf 4
   and nonce_len = String.get_uint8 buf 8
   in
-  let nonce = sub buf 9 nonce_len in
+  let nonce = String.sub buf 9 nonce_len in
   let ticket_len = String.get_uint16_be buf (9 + nonce_len) in
-  let ticket, exts_buf = split (shift buf (11 + nonce_len)) ticket_len in
+  let ticket, exts_buf = split_str ~start:(11 + nonce_len) buf ticket_len in
   let extensions = parse_extensions parse_session_ticket_extension exts_buf in
   { lifetime ; age_add ; nonce ; ticket ; extensions }
 
@@ -772,7 +771,7 @@ let parse_client_dh_key_exchange_exn buf =
   if String.length buf <> len + 2 then
     raise_trailing_bytes "client key exchange"
   else
-    sub buf 2 len
+    String.sub buf 2 len
 
 let parse_client_dh_key_exchange = catch parse_client_dh_key_exchange_exn
 
@@ -781,7 +780,7 @@ let parse_client_ec_key_exchange_exn buf =
   if String.length buf <> len + 1 then
     raise_trailing_bytes "client key exchange"
   else
-    sub buf 1 len
+    String.sub buf 1 len
 
 let parse_client_ec_key_exchange = catch parse_client_ec_key_exchange_exn
 

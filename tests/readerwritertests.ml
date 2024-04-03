@@ -24,14 +24,14 @@ let readerwriter_header (v, ct, cs) _ =
   match Reader.parse_record buf with
   | Ok (`Record ((hdr, payload), f)) ->
     let open Core in
-    assert_equal 0 (Cstruct.length f) ;
+    assert_equal 0 (String.length f) ;
     assert_equal (v :> tls_any_version) hdr.version ;
     assert_equal ct hdr.content_type ;
     assert_cs_eq cs payload ;
     let buf' = Writer.assemble_hdr v (hdr.content_type, payload) in
     (match Reader.parse_record buf' with
      | Ok (`Record ((hdr, payload), f)) ->
-       assert_equal 0 (Cstruct.length f) ;
+       assert_equal 0 (String.length f) ;
        assert_equal (v :> tls_any_version) hdr.version ;
        assert_equal ct hdr.content_type ;
        assert_cs_eq cs payload ;
@@ -184,14 +184,14 @@ let readerwriter_dh_params params _ =
   let buf = Writer.assemble_dh_parameters params in
   match Reader.parse_dh_parameters buf with
   | Ok (p, raw, rst) ->
-      assert_equal (Cstruct.length rst) 0 ;
+      assert_equal (String.length rst) 0 ;
       assert_dh_eq p params ;
       assert_equal buf raw ;
       (* lets get crazy and do it one more time *)
       let buf' = Writer.assemble_dh_parameters p in
       (match Reader.parse_dh_parameters buf' with
       | Ok (p', raw', rst') ->
-          assert_equal (Cstruct.length rst') 0 ;
+          assert_equal (String.length rst') 0 ;
           assert_dh_eq p' params ;
           assert_equal buf raw' ;
       | Error _ -> assert_failure "inner read and write dh params broken")
@@ -205,7 +205,7 @@ let rw_dh_params =
          { dh_p = a ; dh_g = emp ; dh_Ys = emp } ;
          { dh_p = emp ; dh_g = a ; dh_Ys = emp } ;
          { dh_p = emp ; dh_g = emp ; dh_Ys = a } ;
-         { dh_p = a <+> a ; dh_g = a <+> a ; dh_Ys = a <+> a } ;
+         { dh_p = a ^ a ; dh_g = a ^ a ; dh_Ys = a ^ a } ;
        ])
 
 let rw_dh_tests =
@@ -228,7 +228,7 @@ let readerwriter_digitally_signed params _ =
 let rw_ds_params =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let emp = list_to_cstruct [] in
-  [ a ; a <+> a ; emp ; emp <+> a ]
+  [ a ; a ^ a ; emp ; emp ^ a ]
 
 let rw_ds_tests =
   List.mapi
@@ -258,7 +258,7 @@ let rec cartesian_product f a b =
 let rw_ds_1_2_params =
   let a = list_to_cstruct [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15 ] in
   let emp = list_to_cstruct [] in
-  let cs = [ a ; a <+> a ; emp ; emp <+> a ] in
+  let cs = [ a ; a ^ a ; emp ; emp ^ a ] in
   let sig_algs = [
     `RSA_PKCS1_MD5 ; `RSA_PKCS1_SHA1 ; `RSA_PKCS1_SHA224 ; `RSA_PKCS1_SHA256 ;
     `RSA_PKCS1_SHA384 ; `RSA_PKCS1_SHA512 ;
