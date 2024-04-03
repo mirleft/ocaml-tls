@@ -174,16 +174,16 @@ let dh_assembler_tests =
   let emp, empl = (list_to_cstruct [], list_to_cstruct [ 0; 0 ]) in
   Core.([
     ( { dh_p = a ; dh_g = a ; dh_Ys = a },
-      le <+> a <+> le <+> a <+> le <+> a ) ;
-    ( { dh_p = a <+> a ; dh_g = a ; dh_Ys = a <+> a },
-      le2 <+> a <+> a <+> le <+> a <+> le2 <+> a <+> a ) ;
-    ( { dh_p = emp ; dh_g = emp ; dh_Ys = emp }, empl <+> empl <+> empl ) ;
-    ( { dh_p = a ; dh_g = emp ; dh_Ys = emp }, le <+> a <+> empl <+> empl ) ;
-    ( { dh_p = emp ; dh_g = a ; dh_Ys = emp }, empl <+> le <+> a <+> empl ) ;
-    ( { dh_p = emp ; dh_g = emp ; dh_Ys = a }, empl <+> empl <+> le <+> a ) ;
-    ( { dh_p = emp ; dh_g = a ; dh_Ys = a }, empl <+> le <+> a <+> le <+> a ) ;
-    ( { dh_p = a ; dh_g = a ; dh_Ys = emp }, le <+> a <+> le <+> a <+> empl ) ;
-    ( { dh_p = a ; dh_g = emp ; dh_Ys = a }, le <+> a <+> empl <+> le <+> a ) ;
+      le ^ a ^ le ^ a ^ le ^ a ) ;
+    ( { dh_p = a ^ a ; dh_g = a ; dh_Ys = a ^ a },
+      le2 ^ a ^ a ^ le ^ a ^ le2 ^ a ^ a ) ;
+    ( { dh_p = emp ; dh_g = emp ; dh_Ys = emp }, empl ^ empl ^ empl ) ;
+    ( { dh_p = a ; dh_g = emp ; dh_Ys = emp }, le ^ a ^ empl ^ empl ) ;
+    ( { dh_p = emp ; dh_g = a ; dh_Ys = emp }, empl ^ le ^ a ^ empl ) ;
+    ( { dh_p = emp ; dh_g = emp ; dh_Ys = a }, empl ^ empl ^ le ^ a ) ;
+    ( { dh_p = emp ; dh_g = a ; dh_Ys = a }, empl ^ le ^ a ^ le ^ a ) ;
+    ( { dh_p = a ; dh_g = a ; dh_Ys = emp }, le ^ a ^ le ^ a ^ empl ) ;
+    ( { dh_p = a ; dh_g = emp ; dh_Ys = a }, le ^ a ^ empl ^ le ^ a ) ;
        ])
 
 let dh_tests =
@@ -202,8 +202,8 @@ let ds_assembler_tests =
   let le2 = list_to_cstruct [ 0; 32 ] in
   let emp, empl = (list_to_cstruct [], list_to_cstruct [ 0; 0 ]) in
   [
-    ( a , le <+> a ) ;
-    ( a <+> a , le2 <+> a <+> a ) ;
+    ( a , le ^ a ) ;
+    ( a ^ a , le2 ^ a ^ a ) ;
     ( emp , empl )
   ]
 
@@ -222,9 +222,9 @@ let ds_1_2_assembler_tests =
   let le2 = list_to_cstruct [ 0; 32 ] in
   let emp, empl = (list_to_cstruct [], list_to_cstruct [0; 0]) in
   [
-    ( `RSA_PKCS1_MD5, a , list_to_cstruct [1; 1] <+> le <+> a ) ;
-    ( `RSA_PKCS1_SHA1, a <+> a , list_to_cstruct [2; 1] <+> le2 <+> a <+> a ) ;
-    ( `RSA_PSS_RSAENC_SHA256, emp , list_to_cstruct [8; 4] <+> empl )
+    ( `RSA_PKCS1_MD5, a , list_to_cstruct [1; 1] ^ le ^ a ) ;
+    ( `RSA_PKCS1_SHA1, a ^ a , list_to_cstruct [2; 1] ^ le2 ^ a ^ a ) ;
+    ( `RSA_PSS_RSAENC_SHA256, emp , list_to_cstruct [8; 4] ^ empl )
   ]
 
 let ds_1_2_tests =
@@ -249,15 +249,15 @@ let handshake_assembler_tests =
 
    ( Finished a_cs , [ 20 ] @ le @ a_l ) ;
    ( Finished emp , [ 20 ] @ empl ) ;
-   ( Finished (a_cs <+> a_cs) , [ 20 ] @ le2 @ a_l @ a_l ) ;
+   ( Finished (a_cs ^ a_cs) , [ 20 ] @ le2 @ a_l @ a_l ) ;
 
    ( ClientKeyExchange emp , [ 16; 0; 0; 0 ] ) ;
    ( ClientKeyExchange a_cs , [ 16; 0; 0; 16 ] @ a_l ) ;
-   ( ClientKeyExchange (a_cs <+> a_cs) , [ 16; 0; 0; 32 ] @ a_l @ a_l ) ;
+   ( ClientKeyExchange (a_cs ^ a_cs) , [ 16; 0; 0; 32 ] @ a_l @ a_l ) ;
 
    ( ServerKeyExchange emp , [ 12 ] @ empl ) ;
    ( ServerKeyExchange a_cs , [ 12 ] @ le @ a_l ) ;
-   ( ServerKeyExchange (a_cs <+> a_cs) , [ 12 ] @ le2 @ a_l @ a_l ) ;
+   ( ServerKeyExchange (a_cs ^ a_cs) , [ 12 ] @ le2 @ a_l @ a_l ) ;
 
    ( Certificate (Writer.assemble_certificates []) , [ 11; 0; 0; 3; 0; 0; 0 ] ) ;
    ( Certificate (Writer.assemble_certificates[emp]) , [ 11; 0; 0; 6; 0; 0; 3; 0; 0; 0 ] ) ;
@@ -271,35 +271,35 @@ let handshake_assembler_tests =
    ( Certificate (Writer.assemble_certificates[a_cs ; emp ; a_cs ; emp]) , [ 11; 0; 0; 47; 0; 0; 44 ] @ le @ a_l @ [ 0; 0; 0 ] @ le @ a_l @ [ 0; 0; 0 ] ) ;
 
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
    ( ClientHello { client_version = `TLS_1_1 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 2 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
    ( ClientHello { client_version = `TLS_1_0 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [] ;
                    extensions = [] },
      [ 1; 0; 0; 39; 3; 1 ] @ a_l @ a_l @ [ 0; 0; 0; 1; 0 ] ) ;
 
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
                    extensions = [] },
      [ 1; 0; 0; 41; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0x0a; 1; 0 ] ) ;
 
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = Packet.([TLS_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_AES_128_CBC_SHA ; TLS_DHE_RSA_WITH_AES_128_CBC_SHA]);
                    extensions = [] },
@@ -307,7 +307,7 @@ let handshake_assembler_tests =
 
 
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = Packet.([TLS_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_AES_128_CBC_SHA ; TLS_DHE_RSA_WITH_AES_128_CBC_SHA]);
                    extensions = [
@@ -324,7 +324,7 @@ let handshake_assembler_tests =
 
 
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
                    extensions = [`ALPN ["h2"; "http/1.1"]] },
@@ -332,21 +332,21 @@ let handshake_assembler_tests =
 
 
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
                    extensions = [make_hostname_ext "foo"] },
      [ 1; 0; 0; 55; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0x0A; 1; 0; 0; 12; 0; 0; 0; 8; 0; 6; 0; 0; 3; 102; 111; 111 ] ) ;
 
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
                    extensions = [make_hostname_ext "foofoofoofoofoofoofoofoofoofoo"] },
      [ 1; 0; 0; 82; 3; 3 ] @ a_l @ a_l @ [ 0; 0; 2; 0; 0x0A; 1; 0; 0; 39; 0; 0; 0; 35; 0; 33; 0; 0; 30; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111; 102; 111; 111 ] ) ;
 
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
                    extensions = [make_hostname_ext "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo.foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo.foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoof"] },
@@ -355,7 +355,7 @@ let handshake_assembler_tests =
    (* this one is the smallest which needs extra padding
      (due to its size being > 256 and < 511) *)
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
                    extensions = [make_hostname_ext "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo.foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo.foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo.foofoofoofoofoofoofo"] },
@@ -363,7 +363,7 @@ let handshake_assembler_tests =
 
    (* this one is the biggest which needs no extra padding *)
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA] ;
                    extensions = [make_hostname_ext "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo.foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo.foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo.foofoofoofoofoof"] },
@@ -371,7 +371,7 @@ let handshake_assembler_tests =
 
    (* this one is the biggest which needs no extra padding, and no exts *)
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
 Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
@@ -384,7 +384,7 @@ Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet
 
    (* add one more, and we get into padding no exts *)
    ( ClientHello { client_version = `TLS_1_2 ;
-                   client_random = a_cs <+> a_cs ;
+                   client_random = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuites = [Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA; Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
 Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
@@ -400,7 +400,7 @@ Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet
  ] ) ;
 
    ( ServerHello { server_version = `TLS_1_2 ;
-                   server_random  = a_cs <+> a_cs ;
+                   server_random  = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuite = `RSA_WITH_AES_128_CCM ;
                    extensions = []
@@ -408,7 +408,7 @@ Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet
      [2; 0; 0; 38; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *)] ) ;
 
    ( ServerHello { server_version = `TLS_1_1 ;
-                   server_random  = a_cs <+> a_cs ;
+                   server_random  = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuite = `RSA_WITH_AES_128_CCM ;
                    extensions = []
@@ -416,7 +416,7 @@ Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet
      [2; 0; 0; 38; 3; 2] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *)] ) ;
 
    ( ServerHello { server_version = `TLS_1_0 ;
-                   server_random  = a_cs <+> a_cs ;
+                   server_random  = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuite = `RSA_WITH_AES_128_CCM ;
                    extensions = []
@@ -425,7 +425,7 @@ Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet
 
 
    ( ServerHello { server_version = `TLS_1_0 ;
-                   server_random  = a_cs <+> a_cs ;
+                   server_random  = a_cs ^ a_cs ;
                    sessionid = Some a_cs ;
                    ciphersuite = `RSA_WITH_AES_128_CCM ;
                    extensions = []
@@ -433,7 +433,7 @@ Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet
      [2; 0; 0; 54; 3; 1] @ a_l @ a_l @ (* session id *) [ 16 ] @ a_l @ [(* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *)] ) ;
 
    ( ServerHello { server_version = `TLS_1_2 ;
-                   server_random  = a_cs <+> a_cs ;
+                   server_random  = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuite = `RSA_WITH_AES_128_CCM ;
                    extensions = [`Hostname]
@@ -442,31 +442,31 @@ Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet.TLS_RSA_WITH_3DES_EDE_CBC_SHA;Packet
 
 
    ( ServerHello { server_version = `TLS_1_2 ;
-                   server_random  = a_cs <+> a_cs ;
+                   server_random  = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuite = `RSA_WITH_AES_128_CCM ;
-                   extensions = [`SecureRenegotiation (Cstruct.create 0)]
+                   extensions = [`SecureRenegotiation ("")]
                  } ,
      [2; 0; 0; 45; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *) 0; 5; 0xFF; 1; 0; 1; 0] ) ;
 
    ( ServerHello { server_version = `TLS_1_2 ;
-                   server_random  = a_cs <+> a_cs ;
+                   server_random  = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuite = `RSA_WITH_AES_128_CCM ;
-                   extensions = [`Hostname ; `SecureRenegotiation (Cstruct.create 0)]
+                   extensions = [`Hostname ; `SecureRenegotiation ("")]
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *) 0; 9; 0; 0; 0; 0; 0xFF; 1; 0; 1; 0] ) ;
 
    ( ServerHello { server_version = `TLS_1_2 ;
-                   server_random  = a_cs <+> a_cs ;
+                   server_random  = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuite = `RSA_WITH_AES_128_CCM ;
-                   extensions = [`SecureRenegotiation (Cstruct.create 0); `Hostname ]
+                   extensions = [`SecureRenegotiation (""); `Hostname ]
                  } ,
      [2; 0; 0; 49; 3; 3] @ a_l @ a_l @ [(* session id *) 0; (* cipher *) 0xc0; 0x9c; (* comp *) 0; (* exts *) 0; 9; 0xFF; 1; 0; 1; 0; 0; 0; 0; 0] ) ;
 
    ( ServerHello { server_version = `TLS_1_2 ;
-                   server_random  = a_cs <+> a_cs ;
+                   server_random  = a_cs ^ a_cs ;
                    sessionid = None ;
                    ciphersuite = `RSA_WITH_AES_128_CCM ;
                    extensions = [`ALPN "h2"]

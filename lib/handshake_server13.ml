@@ -493,8 +493,7 @@ let handle_key_update state req =
   | _ -> Error (`Fatal `InvalidSession)
 
 let handle_handshake cs hs buf =
-  let open Reader in
-  let* handshake = map_reader_error (parse_handshake buf) in
+  let* handshake = map_reader_error (Reader.parse_handshake buf) in
   Tracing.hs ~tag:"handshake-in" handshake;
   match cs, handshake with
   | AwaitClientHelloHRR13, ClientHello ch ->

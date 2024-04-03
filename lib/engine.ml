@@ -317,8 +317,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
 (* party time *)
 let rec separate_records : string -> ((tls_hdr * string) list * string, failure) result
 = fun buf ->
-  let open Reader in
-  match parse_record buf with
+  match Reader.parse_record buf with
   | Ok (`Fragment b) -> Ok ([], b)
   | Ok (`Record (packet, fragment)) ->
     let* tl, frag = separate_records fragment in

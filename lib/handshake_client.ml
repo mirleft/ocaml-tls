@@ -501,8 +501,7 @@ let handle_change_cipher_spec cs state packet =
   | _ -> Error (`Fatal `UnexpectedCCS)
 
 let handle_handshake cs hs buf =
-  let open Reader in
-  let* handshake = map_reader_error (parse_handshake buf) in
+  let* handshake = map_reader_error (Reader.parse_handshake buf) in
   Tracing.hs ~tag:"handshake-in" handshake ;
   match cs, handshake with
   | AwaitServerHello (ch, secrets, log), ServerHello sh ->
