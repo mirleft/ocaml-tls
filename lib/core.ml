@@ -7,6 +7,10 @@ let ( let* ) = Result.bind
 
 let guard p e = if p then Ok () else Error e
 
+let split_str ?(start = 0) str off =
+  String.sub str start (start + off),
+  String.sub str (start + off) (String.length str - off - start)
+
 let map_reader_error r = Result.map_error (fun re -> `Fatal (`ReaderError re)) r
 
 type tls13 = [ `TLS_1_3 ]

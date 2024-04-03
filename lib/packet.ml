@@ -1,12 +1,12 @@
 (** Magic numbers of the TLS protocol. *)
 
 (* HACK: 24 bits type not in cstruct *)
-let get_uint24_len buf =
-  (String.get_uint16_be buf 0) * 0x100 + (String.get_uint8 buf 2)
+let get_uint24_len ~off buf =
+  (String.get_uint16_be buf off) * 0x100 + (String.get_uint8 buf (off + 2))
 
-let set_uint24_len buf num =
-  Bytes.set_uint16_be buf 0 (num / 0x100);
-  Bytes.set_uint8 buf 2 (num mod 0x100)
+let set_uint24_len ~off buf num =
+  Bytes.set_uint16_be buf off (num / 0x100);
+  Bytes.set_uint8 buf (off + 2) (num mod 0x100)
 
 (* TLS record content type *)
 type content_type =

@@ -192,7 +192,7 @@ let verify_mac sequence mac mac_k ty ver decrypted =
     String.length decrypted - H.digest_size
   in
   let* () = guard (macstart >= 0) (`Fatal `MACUnderflow) in
-  let (body, mmac) = Cstruct.split decrypted macstart in
+  let (body, mmac) = split_str decrypted macstart in
   let cmac =
     let ver = pair_of_tls_version ver in
     let hdr = Crypto.pseudo_header sequence ty ver (String.length body) in
@@ -238,7 +238,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
             if String.length buf < Crypto.cbc_block c.cipher then
               Error (`Fatal `MACUnderflow)
             else
-              let iv, buf = Cstruct.split buf (Crypto.cbc_block c.cipher) in
+              let iv, buf = split_str buf (Crypto.cbc_block c.cipher) in
               let* msg, _ = dec iv buf in
               Ok (CBC c, msg) )
 
@@ -248,7 +248,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
         if String.length buf < explicit_nonce_len then
           Error (`Fatal `MACUnderflow)
         else
-          let explicit_nonce, buf = Cstruct.split buf explicit_nonce_len in
+          let explicit_nonce, buf = split_str buf explicit_nonce_len in
           let adata =
             let ver = pair_of_tls_version version in
             Crypto.pseudo_header seq ty ver (String.length buf - Crypto.tag_len c.cipher)
@@ -341,7 +341,7 @@ let encrypt_records encryptor version records =
   let rec split = function
     | [] -> []
     | (t1, a) :: xs when String.length a >= 1 lsl 14 ->
-      let fst, snd = Cstruct.split a (1 lsl 14) in
+      let fst, snd = split_str a (1 lsl 14) in
       (t1, fst) :: split ((t1, snd) :: xs)
     | x::xs -> x :: split xs
 
