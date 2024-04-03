@@ -44,7 +44,7 @@ type state
 
 (** [client client] is [tls * out] where [tls] is the initial state,
     and [out] the initial client hello *)
-val client : Config.client -> (state * Cstruct.t)
+val client : Config.client -> (state * string)
 
 (** [server server] is [tls] where [tls] is the initial server
     state *)
@@ -73,8 +73,8 @@ type client_hello_errors = [
   | `NoKeyShareExtension
   | `NoSupportedGroupExtension
   | `NotSetSupportedGroup of Packet.named_group list
-  | `NotSetKeyShare of (Packet.named_group * Cstruct.t) list
-  | `NotSubsetKeyShareSupportedGroup of (Packet.named_group list * (Packet.named_group * Cstruct.t) list)
+  | `NotSetKeyShare of (Packet.named_group * string) list
+  | `NotSubsetKeyShareSupportedGroup of (Packet.named_group list * (Packet.named_group * string) list)
   | `Has0rttAfterHRR
   | `NoCookie
 ]
@@ -151,13 +151,13 @@ val pp_failure : failure Fmt.t
     potentially some [`Data] for the application was received. *)
 type ret =
   (state * [ `Eof ] option
-   * [ `Response of Cstruct.t option ]
-   * [ `Data of Cstruct.t option ],
-   failure * [ `Response of Cstruct.t ]) result
+   * [ `Response of string option ]
+   * [ `Data of string option ],
+   failure * [ `Response of string ]) result
 
 (** [handle_tls state buffer] is [ret], depending on incoming [state]
     and [buffer], the result is the appropriate {!ret} *)
-val handle_tls           : state -> Cstruct.t -> ret
+val handle_tls           : state -> string -> ret
 
 (** [handshake_in_progrss state] is a predicate which indicates whether there
     is a handshake in progress or scheduled. *)
@@ -166,11 +166,11 @@ val handshake_in_progress : state -> bool
 (** [send_application_data tls outs] is [(tls' * out) option] where
     [tls'] is the new tls state, and [out] the cstruct to send over the
     wire (encrypted [outs]). *)
-val send_application_data : state -> Cstruct.t list -> (state * Cstruct.t) option
+val send_application_data : state -> string list -> (state * string) option
 
 (** [send_close_notify tls] is [tls' * out] where [tls'] is the new
     tls state, and out the (possible encrypted) close notify alert. *)
-val send_close_notify     : state -> state * Cstruct.t
+val send_close_notify     : state -> state * string
 
 (** [reneg ~authenticator ~acceptable_cas ~cert tls] initiates a renegotation on
     [tls], using the provided [authenticator]. It is [tls' * out] where [tls']
@@ -178,12 +178,12 @@ val send_close_notify     : state -> state * Cstruct.t
     (depending on which communication endpoint [tls] is). *)
 val reneg : ?authenticator:X509.Authenticator.t ->
   ?acceptable_cas:X509.Distinguished_name.t list -> ?cert:Config.own_cert ->
-  state -> (state * Cstruct.t) option
+  state -> (state * string) option
 
 (** [key_update ~request state] initiates a KeyUpdate (TLS 1.3 only). If
     [request] is provided and [true] (the default), the KeyUpdate message
     contains a request that the peer should update their traffic key as well. *)
-val key_update : ?request:bool -> state -> (state * Cstruct.t, failure) result
+val key_update : ?request:bool -> state -> (state * string, failure) result
 
 (** {1 Session information} *)
 
@@ -195,4 +195,4 @@ val epoch : state -> (Core.epoch_data, unit) result
     exported key material of [length] bytes using [label] and, if provided,
     [context]. *)
 val export_key_material : Core.epoch_data -> ?context:string -> string -> int ->
-  Cstruct.t
+  string

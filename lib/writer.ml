@@ -1,8 +1,5 @@
 open Packet
 open Core
-open Cstruct
-
-let (<+>) = Cstruct.append
 
 let assemble_protocol_version_int buf version =
   let major, minor = pair_of_tls_version version in

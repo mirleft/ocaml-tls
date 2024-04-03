@@ -2,11 +2,11 @@
 
 (* HACK: 24 bits type not in cstruct *)
 let get_uint24_len buf =
-  (Cstruct.BE.get_uint16 buf 0) * 0x100 + (Cstruct.get_uint8 buf 2)
+  (String.get_uint16_be buf 0) * 0x100 + (String.get_uint8 buf 2)
 
 let set_uint24_len buf num =
-  Cstruct.BE.set_uint16 buf 0 (num / 0x100);
-  Cstruct.set_uint8 buf 2 (num mod 0x100)
+  Bytes.set_uint16_be buf 0 (num / 0x100);
+  Bytes.set_uint8 buf 2 (num mod 0x100)
 
 (* TLS record content type *)
 type content_type =
@@ -789,6 +789,6 @@ and int_to_key_update_request_type = function
   | 1 -> Some UPDATE_REQUESTED
   | _ -> None
 
-let helloretryrequest = Mirage_crypto.Hash.digest `SHA256 (Cstruct.of_string "HelloRetryRequest")
-let downgrade12 = Cstruct.of_hex "44 4F 57 4E 47 52 44 01"
-let downgrade11 = Cstruct.of_hex "44 4F 57 4E 47 52 44 00"
+let helloretryrequest = Digestif.SHA256.(to_raw_string (digest_string "HelloRetryRequest"))
+let downgrade12 = "\x44\x4F\x57\x4E\x47\x52\x44\x01"
+let downgrade11 = "\x44\x4F\x57\x4E\x47\x52\x44\x00"
