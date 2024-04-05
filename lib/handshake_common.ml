@@ -1,8 +1,6 @@
 open Core
 open State
 
-open Mirage_crypto
-
 let src = Logs.Src.create "handshake" ~doc:"TLS handshake"
 module Log = (val Logs.src_log src : Logs.LOG)
 
