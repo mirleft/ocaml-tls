@@ -75,7 +75,7 @@ let aead_nonce nonce seq =
   let s =
     let l = String.length nonce in
     let buf = Bytes.make l '\x00' in
-    Bytes.set_int64_be buf 0 seq;
+    Bytes.set_int64_be buf (l - 8) seq;
     Bytes.unsafe_to_string buf
   in
   Uncommon.xor nonce s
