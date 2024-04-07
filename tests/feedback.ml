@@ -70,9 +70,16 @@ let loop_chatter ~certificate ~loops ~size =
     in
     let (srv, cli) = handshake (`S server) (`C client) (Some init) in
     let message' = chat srv cli message loops in
-    if Cstruct.equal message message' then Ok ()
+    if String.equal message message' then Ok ()
     else Error "the message got corrupted :("
 
+let string_of_file file =
+  try
+    let fh = open_in file in
+    let content = really_input_string fh (in_channel_length fh) in
+    close_in_noerr fh;
+    content
+  with _ -> invalid_arg "Error reading file"
 
 let load_priv () =
   let cert, key =
@@ -81,8 +88,8 @@ let load_priv () =
     else
       "server.pem", "server.key"
   in
-  let cs1 = Testlib.cs_mmap cert
-  and cs2 = Testlib.cs_mmap key in
+  let cs1 = string_of_file cert
+  and cs2 = string_of_file key in
   match
     X509.Certificate.decode_pem_multiple cs1, X509.Private_key.decode_pem cs2
   with

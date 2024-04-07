@@ -9,9 +9,9 @@ let add_to_cache, find_in_cache =
   let c = ref [] in
   (fun ticket session ->
      let id = ticket.Tls.Core.identifier in
-     Logs.info (fun m -> m "adding id %a to cache" Cstruct.hexdump_pp id) ;
+     Logs.info (fun m -> m "adding id %a to cache" Ohex.pp id) ;
      c := (id, (ticket, session)) :: !c),
-  (fun id -> match List.find_opt (fun (id', _) -> Cstruct.compare id id' = 0) !c with
+  (fun id -> match List.find_opt (fun (id', _) -> String.compare id id' = 0) !c with
      | None -> None
      | Some (_, ep) -> Some ep)
 
