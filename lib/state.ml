@@ -11,7 +11,7 @@ type iv_mode =
   | Iv of string  (* traditional CBC (reusing last cipherblock) *)
   | Random_iv        (* TLS 1.1 and higher explicit IV (we use random) *)
 
-type 'k cbc_cipher    = (module Cipher_block.S.CBC with type key = 'k)
+type 'k cbc_cipher    = (module Block.CBC with type key = 'k)
 type 'k cbc_state = {
   cipher         : 'k cbc_cipher ;
   cipher_secret  : 'k ;

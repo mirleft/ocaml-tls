@@ -21,30 +21,26 @@ module Ciphers = struct
 
   let get_block = function
     | TRIPLE_DES_EDE_CBC ->
-        let open Cipher_block.DES in
-        K_CBC ( (module CBC : Cipher_block.S.CBC with type key = CBC.key),
-                CBC.of_secret )
+        K_CBC ( (module DES.CBC : Block.CBC with type key = DES.CBC.key),
+                DES.CBC.of_secret )
 
     | AES_128_CBC ->
-        let open Cipher_block.AES in
-        K_CBC ( (module CBC : Cipher_block.S.CBC with type key = CBC.key),
-                CBC.of_secret )
+        K_CBC ( (module AES.CBC : Block.CBC with type key = AES.CBC.key),
+                AES.CBC.of_secret )
 
     | AES_256_CBC ->
-        let open Cipher_block.AES in
-        K_CBC ( (module CBC : Cipher_block.S.CBC with type key = CBC.key),
-                CBC.of_secret )
+        K_CBC ( (module AES.CBC : Block.CBC with type key = AES.CBC.key),
+                AES.CBC.of_secret )
 
   type aead_keyed = | K_AEAD : 'k State.aead_cipher * (string -> 'k) * bool -> aead_keyed
   let get_aead =
-    let open Cipher_block.AES in
     function
     | AES_128_CCM | AES_256_CCM ->
-       K_AEAD ((module CCM16 : AEAD with type key = CCM16.key),
-               CCM16.of_secret, true)
+       K_AEAD ((module AES.CCM16 : AEAD with type key = AES.CCM16.key),
+               AES.CCM16.of_secret, true)
     | AES_128_GCM | AES_256_GCM ->
-       K_AEAD ((module GCM : AEAD with type key = GCM.key),
-               GCM.of_secret, true)
+       K_AEAD ((module AES.GCM : AEAD with type key = AES.GCM.key),
+               AES.GCM.of_secret, true)
     | CHACHA20_POLY1305 ->
        K_AEAD ((module Chacha20 : AEAD with type key = Chacha20.key),
                Chacha20.of_secret, false)
@@ -108,7 +104,7 @@ let mac hash key pseudo_hdr data =
   H.(to_raw_string (hmac_string ~key (pseudo_hdr ^ data)))
 
 let cbc_block (type a) cipher =
-  let module C = (val cipher : Cipher_block.S.CBC with type key = a) in C.block_size
+  let module C = (val cipher : Block.CBC with type key = a) in C.block_size
 
 (* crazy CBC padding and unpadding for TLS *)
 let cbc_pad block data =
@@ -145,12 +141,12 @@ let decrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
   C.authenticate_decrypt ~key ~nonce ?adata data
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
-  let module C = (val cipher : Cipher_block.S.CBC with type key = a) in
+  let module C = (val cipher : Block.CBC with type key = a) in
   let message = C.encrypt ~key ~iv (data ^ cbc_pad C.block_size data) in
   (message, C.next_iv ~iv message)
 
 let decrypt_cbc (type a) ~cipher ~key ~iv data =
-  let module C = (val cipher : Cipher_block.S.CBC with type key = a) in
+  let module C = (val cipher : Block.CBC with type key = a) in
   try
     let message = C.decrypt ~key ~iv data in
     match cbc_unpad message with

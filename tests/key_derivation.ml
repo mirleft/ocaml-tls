@@ -429,11 +429,11 @@ let processed_payload () =
     server_payload ^ t
   in
   let nonce = Tls.Crypto.aead_nonce write_handshake_iv 0L in
-  let key = Mirage_crypto.Cipher_block.AES.GCM.of_secret write_handshake_key in
+  let key = Mirage_crypto.AES.GCM.of_secret write_handshake_key in
   let adata = Tls.Writer.assemble_hdr `TLS_1_2 (Tls.Packet.APPLICATION_DATA, "") in
   Bytes.set_uint16_be (Bytes.unsafe_of_string adata) 3 (17 + String.length server_payload) ;
   let res =
-    Mirage_crypto.Cipher_block.AES.GCM.authenticate_encrypt ~key ~adata ~nonce buf
+    Mirage_crypto.AES.GCM.authenticate_encrypt ~key ~adata ~nonce buf
   in
   let data = Tls.Writer.assemble_hdr `TLS_1_2 (Tls.Packet.APPLICATION_DATA, res) in
   Alcotest.check cs __LOC__ server_payload_processed data
