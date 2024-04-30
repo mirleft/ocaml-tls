@@ -1,0 +1,12 @@
+(test
+ (name fuzz)
+ (libraries
+   mirage-crypto-rng.unix
+   ohex
+   rresult
+   ptime
+   ptime.clock.os
+   crowbar
+   tls-miou)
+ (instrumentation
+  (backend bisect_ppx)))
