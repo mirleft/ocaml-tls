@@ -131,28 +131,28 @@ let run ~role:_ actions tls =
         Miou.yield ();
         go buf tls actions
     | Send str :: actions ->
-        Tls_miou.write tls str;
+        Tls_miou_unix.write tls str;
         go buf tls actions
     | Close :: actions ->
-        Tls_miou.close tls;
+        Tls_miou_unix.close tls;
         go buf tls actions
     | Shutdown cmd :: actions ->
-        Tls_miou.shutdown tls (cmd :> [ `read | `write | `read_write ]);
+        Tls_miou_unix.shutdown tls (cmd :> [ `read | `write | `read_write ]);
         go buf tls actions
     | Recv len :: actions ->
         let tmp = Bytes.make len '\000' in
-        Tls_miou.really_read tls tmp;
+        Tls_miou_unix.really_read tls tmp;
         Buffer.add_subbytes buf tmp 0 len;
         go buf tls actions
   in
   let buf = Buffer.create 0x100 in
   try go buf tls actions with
-  | End_of_file | Tls_miou.Closed_by_peer | Tls_miou.Tls_alert _
-  | Tls_miou.Tls_failure _ ->
-      inhibit (fun () -> Miou_unix.close (Tls_miou.file_descr tls));
+  | End_of_file | Tls_miou_unix.Closed_by_peer | Tls_miou_unix.Tls_alert _
+  | Tls_miou_unix.Tls_failure _ ->
+      inhibit (fun () -> Miou_unix.close (Tls_miou_unix.file_descr tls));
       Buffer.contents buf
   | exn ->
-      inhibit (fun () -> Miou_unix.close (Tls_miou.file_descr tls));
+      inhibit (fun () -> Miou_unix.close (Tls_miou_unix.file_descr tls));
       raise exn
 
 let run_client ~to_client:actions cfg addr =
@@ -160,9 +160,9 @@ let run_client ~to_client:actions cfg addr =
   let socket = Unix.socket ~cloexec:true domain Unix.SOCK_STREAM 0 in
   Unix.connect socket addr;
   let fd = Miou_unix.of_file_descr ~non_blocking:true socket in
-  let tls = Tls_miou.client_of_fd cfg fd in
+  let tls = Tls_miou_unix.client_of_fd cfg fd in
   let finally () =
-    inhibit (fun () -> Miou_unix.close (Tls_miou.file_descr tls))
+    inhibit (fun () -> Miou_unix.close (Tls_miou_unix.file_descr tls))
   in
   Fun.protect ~finally @@ fun () -> run ~role:"client" actions tls
 
@@ -201,7 +201,7 @@ let run_server ~to_server:actions ~stop fd cfg =
     | Ok (fd, _) ->
         ignore
           ( Miou.call_cc ~orphans @@ fun () ->
-            match Tls_miou.server_of_fd cfg fd with
+            match Tls_miou_unix.server_of_fd cfg fd with
             | tls -> run ~role:"server" actions tls
             | exception _ ->
                 Miou_unix.close fd;

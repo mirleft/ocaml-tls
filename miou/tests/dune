@@ -7,6 +7,6 @@
    ptime
    ptime.clock.os
    crowbar
-   tls-miou)
+   tls-miou-unix)
  (instrumentation
   (backend bisect_ppx)))
