@@ -1,7 +1,7 @@
 (test
  (name fuzz)
  (libraries
-   mirage-crypto-rng.unix
+   mirage-crypto-rng-miou-unix
    ohex
    rresult
    ptime

@@ -38,13 +38,13 @@ module Ca = struct
       @ [ Relative_distinguished_name.singleton (CN "Ephemeral CA for fuzzer") ])
 
   let cacert_lifetime = Ptime.Span.v (365, 0L)
-  let cacert_serial_number = Z.zero
+  let cacert_serial_number = Z.one
 
   let make domain_name seed =
     Domain_name.of_string domain_name >>= Domain_name.host
     >>= fun domain_name ->
     let private_key =
-      let seed = Cstruct.of_string (Base64.decode_exn ~pad:false seed) in
+      let seed = Base64.decode_exn ~pad:false seed in
       let g = Mirage_crypto_rng.(create ~seed (module Fortuna)) in
       Mirage_crypto_pk.Rsa.generate ~g ~bits:2048 ()
     in
@@ -255,6 +255,7 @@ let compile to_client to_server =
 
 let run seed operations =
   Miou_unix.run ~domains:1 @@ fun () ->
+  let rng = Mirage_crypto_rng_miou_unix.(initialize (module Pfortuna)) in
   let fd, addr, path = bind_and_listen () in
   let finally () = Unix.unlink path in
   Fun.protect ~finally @@ fun () ->
@@ -280,8 +281,10 @@ let run seed operations =
       Crowbar.check (String.equal send_to_server send_to_server');
       let n = String.length send_to_client in
       let m = String.length send_to_server in
+      Mirage_crypto_rng_miou_unix.kill rng;
       epr "[%a] %db %db transmitted\n%!" Fmt.(styled `Green string) "OK" n m
   | _ ->
+      Mirage_crypto_rng_miou_unix.kill rng;
       Crowbar.failf "[%a] Unexpected result\n%!" Fmt.(styled `Red string) "ERROR"
 
 let label name gen = Crowbar.with_printer Fmt.(const string name) gen
@@ -329,7 +332,6 @@ let seed = Crowbar.(map [ bytes ] Base64.encode_exn)
 
 let () =
   Sys.set_signal Sys.sigpipe Sys.Signal_ignore;
-  Mirage_crypto_rng_unix.initialize (module Mirage_crypto_rng.Fortuna);
   Crowbar.add_test ~name:"run" Crowbar.[ seed; operations ] @@ fun seed operations ->
   run seed operations;
   Atomic.set counter 0

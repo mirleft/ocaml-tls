@@ -28,7 +28,7 @@ type t = {
   role : [ `Server | `Client ];
   fd : Miou_unix.file_descr;
   mutable state : state;
-  mutable linger : Cstruct.t option;
+  mutable linger : string option;
   read_buffer_size : int;
   buf : bytes;
   mutable rd_closed : bool;
@@ -57,16 +57,9 @@ let tls_alert a = Tls_alert a
 let tls_fail f = Tls_failure f
 let inhibit fn v = try fn v with _ -> ()
 
-let full_write fd ({ Cstruct.len; _ } as cs) =
-  let str = Cstruct.to_string cs in
-  Miou_unix.write fd str ~off:0 ~len
-
-let writev fd css =
-  let cs = Cstruct.concat css in
-  full_write fd cs
-
-let write_flow flow buf =
-  try writev flow.fd [ buf ] with
+let write flow str =
+  Log.debug (fun m -> m "try to write %d byte(s)" (String.length str));
+  try Miou_unix.write flow.fd str with
   | Unix.Unix_error ((Unix.EPIPE | Unix.ECONNRESET), _, _) ->
       flow.state <- half_close flow.state `write;
       raise Closed_by_peer
@@ -74,32 +67,34 @@ let write_flow flow buf =
       flow.state <- `Error exn;
       reraise exn
 
-let handle flow tls buf =
-  match Tls.Engine.handle_tls tls buf with
+let handle flow tls str =
+  match Tls.Engine.handle_tls tls str with
   | Ok (state, eof, `Response resp, `Data data) ->
+      Log.debug (fun m -> m "We handled %d byte(s)" (String.length str));
       let state = inject_state state flow.state in
       let state = Option.(value ~default:state (map (fun `Eof -> half_close state `read) eof)) in
       flow.state <- state;
-      Option.iter (inhibit $ write_flow flow) resp;
+      Option.iter (inhibit $ write flow) resp;
       data
   | Error (fail, `Response resp) ->
       let exn = match fail with
         | `Alert a -> tls_alert a | f -> tls_fail f in
       flow.state <- `Error exn;
-      let _ = inhibit (writev flow.fd) [resp] in
+      let _ = inhibit (write flow) resp in
       raise exn
 
 let read flow =
   match Miou_unix.read flow.fd flow.buf ~off:0 ~len:(Bytes.length flow.buf) with
-  | 0 -> Ok 0
-  | len -> Ok len
-  | exception Unix.Unix_error (Unix.ECONNRESET, _, _) -> Ok 0
+  | 0 -> Ok String.empty
+  | len -> Ok (Bytes.sub_string flow.buf 0 len)
+  | exception Unix.Unix_error (Unix.ECONNRESET, _, _) -> Ok String.empty
   | exception exn -> Error exn
 
 let not_errored = function `Error _ -> false | _ -> true
 
-let garbage flow =
-  Option.fold ~none:false ~some:(Fun.negate Cstruct.is_empty) flow.linger
+let garbage flow = match flow.linger with
+  | Some "" | None -> false
+  | _ -> true
 
 let read_react flow =
   match flow.state with
@@ -130,30 +125,32 @@ let read_react flow =
          error. *)
     raise End_of_file
   | `Active _ | `Write_closed _ ->
+    Log.debug (fun m -> m "read something from the TLS session");
     match read flow with
     | Error exn ->
       if not_errored flow.state then flow.state <- `Error exn;
       raise exn
-    | Ok 0 ->
+    | Ok "" ->
       (* XXX(dinosaure): see [`Read_closed _ | `Closed] case. *)
       raise End_of_file 
-    | Ok len ->
+    | Ok str ->
+      Log.debug (fun m -> m "got %d byte(s)" (String.length str));
       match flow.state with
-      | `Active tls | `Read_closed tls | `Write_closed tls ->
-        let buf = Cstruct.of_bytes flow.buf ~off:0 ~len in
-        handle flow tls buf
+      | `Active tls | `Read_closed tls | `Write_closed tls -> handle flow tls str
       | `Closed -> raise End_of_file
       | `Error exn -> raise exn
 [@@ocamlformat "disable"]
 
-let rec read_in flow buf =
+let rec read_in flow ?(off= 0) ?len buf =
+  let len = Option.value ~default:(Bytes.length buf - off) len in
   let write_in res =
-    let rlen = Cstruct.length res in
-    let n = min (Cstruct.length buf) rlen in
-    Cstruct.blit res 0 buf 0 n;
-    let linger = if n < rlen
-      then Some (Cstruct.sub res n (rlen - n)) else None in
-    flow.linger <- linger; n
+    let rlen = String.length res in
+    let mlen = min len rlen in
+    Bytes.blit_string res 0 buf off mlen;
+    let linger = if mlen < rlen
+      then Some (String.sub res mlen (rlen - mlen))
+      else None in
+    flow.linger <- linger; mlen
   in
   match flow.linger with
   | Some res -> write_in res
@@ -170,29 +167,21 @@ let writev flow bufs =
       match Tls.Engine.send_application_data tls bufs with
       | Some (tls, answer) ->
           flow.state <- `Active tls;
-          write_flow flow answer
+          write flow answer
       | None -> assert false)
-
-let unsafe_write flow off len str =
-  writev flow [ Cstruct.of_string ~off ~len str ]
-
-let write flow ?(off = 0) ?len str =
-  let len = Option.value ~default:(String.length str - off) len in
-  if off < 0 || len < 0 || off > String.length str - len
-  then invalid_arg "Tls_miou.write";
-  if len > 0 then unsafe_write flow off len str
 
 let rec drain_handshake flow =
   let push_linger flow mcs =
     match (mcs, flow.linger) with
     | None, _ -> ()
     | scs, None -> flow.linger <- scs
-    | Some cs, Some l -> flow.linger <- Some (Cstruct.append l cs)
+    | Some cs, Some l -> flow.linger <- Some (l ^ cs)
   in
   match flow.state with
   | `Active tls when not (Tls.Engine.handshake_in_progress tls) -> flow
   | (`Read_closed _ | `Closed) when garbage flow -> flow
   | _ ->
+      Log.debug (fun m -> m "start to read something from the TLS session");
       let mcs = read_react flow in
       push_linger flow mcs;
       drain_handshake flow
@@ -200,11 +189,11 @@ let rec drain_handshake flow =
 let close flow =
   match flow.state with
   | `Active tls | `Read_closed tls ->
-      let tls, buf = Tls.Engine.send_close_notify tls in
+      let tls, str = Tls.Engine.send_close_notify tls in
       flow.rd_closed <- true;
       flow.state <- inject_state tls flow.state;
       flow.state <- `Closed;
-      inhibit (write_flow flow) buf;
+      inhibit (write flow) str;
       Miou_unix.close flow.fd
   | `Write_closed _ ->
       flow.rd_closed <- true;
@@ -225,10 +214,10 @@ let shutdown flow mode =
   | `Active tls, `read ->
       flow.state <- inject_state tls (half_close flow.state mode)
   | (`Active tls | `Read_closed tls), (`write | `read_write) ->
-      let tls, buf = Tls.Engine.send_close_notify tls in
+      let tls, str = Tls.Engine.send_close_notify tls in
       if mode = `read_write then flow.rd_closed <- true;
       flow.state <- inject_state tls (half_close flow.state mode);
-      inhibit (write_flow flow) buf;
+      inhibit (write flow) str;
       if flow.state = `Closed then Miou_unix.close flow.fd
   | `Write_closed tls, (`read | `read_write) ->
       flow.state <- inject_state tls (half_close flow.state mode);
@@ -250,11 +239,11 @@ let client_of_fd conf ?(read_buffer_size = 0x1000) ?host fd =
       state = `Active tls;
       linger = None;
       read_buffer_size;
-      buf = Bytes.create read_buffer_size;
+      buf = Bytes.make read_buffer_size '\000';
       rd_closed = false;
     }
   in
-  write_flow tls_flow init;
+  write tls_flow init;
   drain_handshake tls_flow
 
 let server_of_fd conf ?(read_buffer_size = 0x1000) fd =
@@ -266,31 +255,24 @@ let server_of_fd conf ?(read_buffer_size = 0x1000) fd =
       state = `Active tls;
       linger = None;
       read_buffer_size;
-      buf = Bytes.create read_buffer_size;
+      buf = Bytes.make read_buffer_size '\000';
       rd_closed = false;
     }
   in
   drain_handshake tls_flow
 
-let unsafe_read t off len buf =
-  let cs = Cstruct.create len in
-  try
-    let len = read_in t cs in
-    Cstruct.blit_to_bytes cs 0 buf off len;
-    len
-  with End_of_file -> 0
-  (* XXX(dinosaure): [End_of_file] means that the connection was closed by peer
-     and the actual state of [t] is [`Read_closed] or [`Closed] with an empty
-     [t.linger]. For [read_in]/[read_react], it's an error because we expect
-     encrypted bytes to decrypt them. However, for [read], it just means that
-     the connection was closed by peer and we should, as [Unix.read], just
-     returns [0]. *)
+let write flow ?(off = 0) ?len str =
+  let len = Option.value ~default:(String.length str - off) len in
+  if off < 0 || len < 0 || off > String.length str - len
+  then invalid_arg "Tls_miou.write";
+  if len > 0 then writev flow [ String.sub str off len ]
 
 let read t ?(off= 0) ?len buf =
   let len = Option.value ~default:(Bytes.length buf - off) len in
   if off < 0 || len < 0 || off > Bytes.length buf - len
   then invalid_arg "Tls_miou.read";
-  if t.rd_closed then 0 else unsafe_read t off len buf
+  if t.rd_closed then 0
+  else try read_in t ~off ~len buf with End_of_file -> 0
 
 let rec really_read_go t off len buf =
   let len' = read t buf ~off ~len in
