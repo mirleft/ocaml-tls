@@ -26,9 +26,9 @@ depends: [
   "ptime" {with-test}
 ]
 tags: [ "org:mirage"]
-synopsis: "Transport Layer Security purely in OCaml, Miou layer"
+synopsis: "Transport Layer Security purely in OCaml, Miou+Unix layer"
 description: """
-Tls-miou provides an effectful Tls_miou module to be used with Miou.
+Tls-miou provides an effectful Tls_miou module to be used with Miou and Unix.
 """
 
 pin-depends: [
