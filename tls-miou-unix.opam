@@ -32,5 +32,5 @@ Tls-miou provides an effectful Tls_miou module to be used with Miou and Unix.
 """
 
 pin-depends: [
-  [ "miou.dev" "git+https://github.com/robur-coop/miou.git#9e14c3996326c28c3611b06f3cd758477fba4a1b" ]
+  [ "miou.dev" "git+https://git.robur.coop/robur/miou.git#ed5087b832797616df073bd8ec9baed2ec4e474c" ]
 ]
