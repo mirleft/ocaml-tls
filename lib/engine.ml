@@ -768,3 +768,28 @@ let export_key_material (e : epoch_data) ?context label length =
     in
     Handshake_crypto.pseudo_random_function v e.ciphersuite
       length e.master_secret label seed
+
+let channel_binding e = function
+  | `Tls_exporter ->
+    Ok (export_key_material e "EXPORTER-Channel-Binding" 32)
+  | `Tls_server_endpoint ->
+    let ( let* ) = Result.bind in
+    let* cert =
+      match e.side, e.peer_certificate, e.own_certificate with
+      | `Client, Some cert, _ -> Ok cert
+      | `Server, _, cert :: _ -> Ok cert
+      | `Client, _, _ -> Error (`Msg "no certificate received from the server")
+      | `Server, _, _ -> Error (`Msg "certificate not available")
+    in
+    let* sigalg =
+      Option.to_result ~none:(`Msg "unknown signature algorithm in certificate")
+        (Option.map snd (X509.Certificate.signature_algorithm cert))
+    in
+    let hash = match sigalg with `MD5 | `SHA1 -> `SHA256 | x -> x in
+    Ok (X509.Certificate.fingerprint hash cert)
+  | `Tls_unique ->
+    match e.protocol_version, e.tls_unique with
+    | `TLS_1_3, _ ->
+      Error (`Msg "tls-unique not defined for TLS 1.3")
+    | _, None -> Error (`Msg "couldn't find a tls-unique in the session data")
+    | _, Some data -> Ok data

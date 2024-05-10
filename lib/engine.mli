@@ -197,3 +197,11 @@ val epoch : state -> (Core.epoch_data, unit) result
     [context]. *)
 val export_key_material : Core.epoch_data -> ?context:string -> string -> int ->
   Cstruct.t
+
+(** [channel_binding epoch_data mode] is the RFC 5929 and RFC 9266 specified
+    channel binding. Please note that [`Tls_unique] will error for TLS 1.3
+    sessions, and [`Tls_exporter] is not recommended for TLS < 1.3 sessions
+    (unless the uniqueness is ensured via another path). *)
+val channel_binding : Core.epoch_data ->
+  [ `Tls_exporter | `Tls_unique | `Tls_server_endpoint ] ->
+  (Cstruct.t, [ `Msg of string ]) result

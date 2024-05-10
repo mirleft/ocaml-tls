@@ -78,6 +78,7 @@ type session_data = {
   renegotiation          : reneg_params ; (* renegotiation data *)
   session_id             : Cstruct.t ;
   extended_ms            : bool ;
+  tls_unique             : Cstruct.t ;
 }
 
 (* state machine of the server *)
@@ -403,6 +404,7 @@ let common_data_to_epoch common is_server peer_name =
       alpn_protocol          = common.alpn_protocol ;
       session_id             = Cstruct.empty ;
       extended_ms            = false ;
+      tls_unique             = None ;
     } in
   epoch
 
@@ -415,6 +417,7 @@ let epoch_of_session server peer_name protocol_version = function
       ciphersuite            = session.ciphersuite ;
       session_id             = session.session_id ;
       extended_ms            = session.extended_ms ;
+      tls_unique             = Some session.tls_unique ;
     }
   | `TLS13 (session : session_data13) ->
     let epoch : epoch_data = common_data_to_epoch session.common_session_data13 server peer_name in

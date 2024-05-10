@@ -25,6 +25,7 @@ let answer_client_finished state (session : session_data) client_fin raw log =
     (checksum "client finished" log, checksum "server finished" (log @ [raw]))
   in
   let* () = guard (Cstruct.equal client client_fin) (`Fatal `BadFinished) in
+  let session = { session with tls_unique = client } in
   let fin = Finished server in
   let fin_raw = Writer.assemble_handshake fin in
   (* we really do not want to have any leftover handshake fragments *)
@@ -525,6 +526,7 @@ let answer_client_hello state (ch : client_hello) raw =
       Handshake_crypto.finished
         version session.ciphersuite session.common_session_data.master_secret "server finished" log
     in
+    let session = { session with tls_unique = server } in
     let fin = Finished server in
     let fin_raw = Writer.assemble_handshake fin in
     Tracing.cs ~tag:"change-cipher-spec-out" (snd ccs) ;

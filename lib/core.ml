@@ -484,6 +484,7 @@ type epoch_data = {
   session_id             : SessionID.t ;
   extended_ms            : bool ;
   alpn_protocol          : string option ;
+  tls_unique             : Cstruct.t option ;
 }
 
 let supports_key_usage ?(not_present = false) usage cert =
