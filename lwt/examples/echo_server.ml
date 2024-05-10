@@ -68,7 +68,7 @@ let port =
 
 let cmd =
   let term = Term.(ret (const echo_server $ setup_log $ port))
-  and info = Cmd.info "server" ~version:"%%VERSION_NUM%%"
+  and info = Cmd.info "echo_server" ~version:"%%VERSION_NUM%%"
   in
   Cmd.v info term
 

@@ -94,7 +94,7 @@ let port =
 
 let cmd =
   let term = Term.(ret (const jump $ setup_log $ port))
-  and info = Cmd.info "server" ~version:"%%VERSION_NUM%%"
+  and info = Cmd.info "fuzz_server" ~version:"%%VERSION_NUM%%"
   in
   Cmd.v info term
 
