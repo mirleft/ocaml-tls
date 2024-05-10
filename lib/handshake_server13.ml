@@ -311,7 +311,8 @@ let answer_client_hello ~hrr state ch raw =
       let server_app_secret, server_app_ctx, client_app_secret, client_app_ctx =
         app_ctx master_secret log
       in
-      let session' = { session' with server_app_secret ; client_app_secret } in
+      let exporter_master_secret = Handshake_crypto13.exporter master_secret log in
+      let session' = { session' with server_app_secret ; client_app_secret ; exporter_master_secret } in
 
       let* () =
         guard (Cstruct.length state.hs_fragment = 0)
@@ -342,8 +343,7 @@ let answer_client_hello ~hrr state ch raw =
 
       let session =
         let common_session_data13 = { session'.common_session_data13 with master_secret = master_secret.secret } in
-        let exporter_master_secret = Handshake_crypto13.exporter session.master_secret log in
-        { session' with common_session_data13 ; master_secret ; exporter_master_secret }
+        { session' with common_session_data13 ; master_secret }
       in
       let st, session =
         if can_use_early_data then
