@@ -399,6 +399,7 @@ let answer_server_hello_done state (session : session_data) sigalgs kex premaste
   let checksum = Handshake_crypto.finished (state_version state) session.ciphersuite master_secret "client finished" to_fin in
   let fin = Finished checksum in
   let raw_fin = Writer.assemble_handshake fin in
+  let session = { session with tls_unique = checksum } in
   let ps = to_fin @ [raw_fin] in
 
   let session =
@@ -438,6 +439,7 @@ let answer_server_finished_resume state (session : session_data) fin raw log =
     (checksum "client finished" (log @ [raw]), checksum "server finished" log)
   in
   let* () = guard (Cstruct.equal server fin) (`Fatal `BadFinished) in
+  let session = { session with tls_unique = server } in
   let* () =
     guard (Cstruct.length state.hs_fragment = 0)
       (`Fatal `HandshakeFragmentsNotEmpty)

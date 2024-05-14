@@ -24,6 +24,7 @@ let cached_session : Tls.Core.epoch_data =
     extended_ms = true ;
     alpn_protocol = None ;
     state = `Established ;
+    tls_unique = None ;
   }
 
 let echo_client ?ca hostname port =
