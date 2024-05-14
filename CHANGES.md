@@ -1,3 +1,12 @@
+## v0.17.5 (2024-05-14)
+
+* tls: documentation: clarify send_application_data (#492 @reynir)
+* BUGFIX: tls: export_key_material was wrong for the server side on TLS 1.3,
+  reported in robur-coop/miragevpn#181 by @reynir, fix in #495 @hannesm
+* FEATURE: tls: add channel_binding (RFC 5929, RFC 9266) support (tls_unique,
+  tls_exporter, tls_server_endpoint), requested by @Neustradamus in #484, added
+  in #496 by @hannesm
+
 ## v0.17.4 (2024-03-26)
 
 * tls: handle half-closed connection properly: a received CLOSE_NOTIFY does not
