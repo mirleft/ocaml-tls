@@ -188,9 +188,9 @@ exception Stop
 let run_server ~to_server:actions ~stop fd cfg =
   let rec go orphans clients =
     let clients = cleanup orphans clients in
-    let accept = Miou.call_cc @@ fun () -> Miou_unix.accept ~cloexec:true fd in
+    let accept = Miou.async @@ fun () -> Miou_unix.accept ~cloexec:true fd in
     let stop =
-      Miou.call_cc @@ fun () ->
+      Miou.async @@ fun () ->
       Stop.wait stop;
       raise Stop
     in
@@ -200,7 +200,7 @@ let run_server ~to_server:actions ~stop fd cfg =
         terminate orphans clients
     | Ok (fd, _) ->
         ignore
-          ( Miou.call_cc ~orphans @@ fun () ->
+          ( Miou.async ~orphans @@ fun () ->
             match Tls_miou_unix.server_of_fd cfg fd with
             | tls -> run ~role:"server" actions tls
             | exception _ ->
@@ -268,9 +268,9 @@ let run seed operations =
   let cfg_client = Tls.Config.client ~authenticator () in
   let to_client, to_server = List.split operations in
   let stop = Stop.create () in
-  let prm0 = Miou.call_cc @@ fun () -> run_server ~to_server ~stop fd cfg_server in
+  let prm0 = Miou.async @@ fun () -> run_server ~to_server ~stop fd cfg_server in
   let prm1 =
-    Miou.call_cc @@ fun () ->
+    Miou.async @@ fun () ->
     let finally () = Stop.stop stop in
     Fun.protect ~finally @@ fun () -> run_client ~to_client cfg_client addr
   in
