@@ -27,7 +27,7 @@ module Make (F : Mirage_flow.S) = struct
                      | `Write_closed of Tls.Engine.state
                      | `Closed
                      | `Error of error ] ;
-    mutable linger : Cstruct.t list ;
+    mutable linger : string list ;
   }
 
   let half_close state mode =
@@ -51,7 +51,7 @@ module Make (F : Mirage_flow.S) = struct
   let tls_fail f  = `Error (`Tls_failure f)
 
   let write_flow flow buf =
-    F.write flow.flow buf >>= function
+    F.write flow.flow (Cstruct.of_string buf) >>= function
     | Ok _ as o -> Lwt.return o
     | Error `Closed ->
       flow.state <- half_close flow.state `write;
@@ -70,14 +70,14 @@ module Make (F : Mirage_flow.S) = struct
         ( match resp with
           | None     -> Lwt.return @@ Ok ()
           | Some buf -> write_flow flow buf) >>= fun _ ->
-        Lwt.return @@ `Ok data
+        Lwt.return @@ `Ok (Option.map Cstruct.of_string data)
       | Error (fail, `Response resp) ->
         let reason = match fail with
           | `Alert a -> tls_alert a
           | f -> tls_fail f
         in
         flow.state <- reason ;
-        F.write flow.flow resp >>= fun _ ->
+        F.write flow.flow (Cstruct.of_string resp) >>= fun _ ->
         Lwt.return reason
     in
     match flow.state with
@@ -92,7 +92,7 @@ module Make (F : Mirage_flow.S) = struct
         flow.state <- half_close flow.state `read;
         Lwt.return `Eof
       | Ok `Data buf -> match flow.state with
-        | `Active tls | `Write_closed tls -> handle tls buf
+        | `Active tls | `Write_closed tls -> handle tls (Cstruct.to_string buf)
         | `Read_closed _ | `Closed -> Lwt.return `Eof
         | `Error _ as e -> Lwt.return e
 
@@ -106,13 +106,15 @@ module Make (F : Mirage_flow.S) = struct
           | `Error e       -> Lwt.return @@ Error e )
     | bufs ->
       flow.linger <- [] ;
-      Lwt.return @@ Ok (`Data (Cstruct.concat @@ List.rev bufs))
+      let str = String.concat "" (List.rev bufs) in
+      Lwt.return @@ Ok (`Data (Cstruct.of_string str))
 
   let writev flow bufs =
     match flow.state with
     | `Closed | `Write_closed _ -> Lwt.return @@ Error `Closed
     | `Error e -> Lwt.return @@ Error (e :> write_error)
     | `Active tls | `Read_closed tls ->
+        let bufs = List.map Cstruct.to_string bufs in
         match Tls.Engine.send_application_data tls bufs with
         | Some (tls, answer) ->
             flow.state <- `Active tls ;
@@ -138,7 +140,7 @@ module Make (F : Mirage_flow.S) = struct
       (* read_react re-throws *)
         read_react flow >>= function
         | `Ok mbuf ->
-            flow.linger <- Option.to_list mbuf @ flow.linger ;
+            flow.linger <- Option.(to_list (map Cstruct.to_string mbuf)) @ flow.linger ;
             drain_handshake flow
         | `Error e -> Lwt.return @@ Error (e :> write_error)
         | `Eof     -> Lwt.return @@ Error `Closed
@@ -273,13 +275,13 @@ module X509 (KV : Mirage_kv.RO) (C: Mirage_clock.PCLOCK) = struct
     | None -> Lwt.return None
     | Some filename ->
       read kv (Mirage_kv.Key.v filename) >>= fun data ->
-      err_fail pp_msg (X509.CRL.decode_der data) >|= fun crl ->
+      err_fail pp_msg (X509.CRL.decode_der (Cstruct.to_string data)) >|= fun crl ->
       Some [ crl ]
 
   let authenticator ?allowed_hashes ?crl kv =
     let time () = Some (Ptime.v (C.now_d_ps ())) in
     let now = Ptime.v (C.now_d_ps ()) in
-    read kv ca_roots_file >>=
+    read kv ca_roots_file >|= Cstruct.to_string >>=
     decode_or_fail X509.Certificate.decode_pem_multiple >>= fun cas ->
     let ta = X509.Validation.valid_cas ~time:now cas in
     read_crl kv crl >|= fun crls ->
@@ -287,9 +289,9 @@ module X509 (KV : Mirage_kv.RO) (C: Mirage_clock.PCLOCK) = struct
 
   let certificate kv =
     let read name =
-      read kv (Mirage_kv.Key.v (name ^ ".pem")) >>=
+      read kv (Mirage_kv.Key.v (name ^ ".pem")) >|= Cstruct.to_string >>=
       decode_or_fail X509.Certificate.decode_pem_multiple >>= fun certs ->
-      read kv (Mirage_kv.Key.v (name ^ ".key")) >>=
+      read kv (Mirage_kv.Key.v (name ^ ".key")) >|= Cstruct.to_string >>=
       decode_or_fail X509.Private_key.decode_pem >|= fun pk ->
       (certs, pk)
     in function | `Default   -> read default_cert

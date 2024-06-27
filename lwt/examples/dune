@@ -1,6 +1,6 @@
 (library
  (name ex_common)
- (libraries lwt lwt.unix sexplib tls tls-lwt cmdliner fmt.cli logs.fmt fmt.tty logs.cli)
+ (libraries lwt lwt.unix tls tls-lwt cmdliner fmt.cli logs.fmt fmt.tty logs.cli)
  (modules ex_common))
 
 (executable

@@ -48,7 +48,7 @@ let pp_payload_protection13 ppf = function
 
 type payload_protection =  [
   payload_protection13
-  | `Block of block_cipher * Mirage_crypto.Hash.hash
+  | `Block of block_cipher * Digestif.hash'
   ]
 
 let pp_hash ppf = function
@@ -74,7 +74,10 @@ let kn_13 = function
 (** [key_length iv payload_protection] is [(key size, IV size, mac size)] where key IV, and mac sizes are the required bytes for the given [payload_protection] *)
 (* NB only used for <= TLS 1.2, IV length for AEAD defined in RFC 5288 Section 3 (for GCM), salt[4] for CCM in RFC 6655 Section 3 *)
 let key_length iv pp =
-  let mac_size = Mirage_crypto.Hash.digest_size in
+  let mac_size m =
+    let module H = (val Digestif.module_of_hash' m) in
+    H.digest_size
+  in
   match pp with
   | `AEAD AES_128_CCM                -> (16, 4 , 0)
   | `AEAD AES_256_CCM                -> (32, 4 , 0)

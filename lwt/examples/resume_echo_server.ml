@@ -27,7 +27,7 @@ let serve_ssl port callback =
     ~cert:server_cert
     ~priv_key:server_key >>= fun cert ->
 
-  let hex = Cstruct.of_hex in
+  let hex = Ohex.decode in
   let epoch =
     {
       Tls.Core.side = `Client ;
@@ -45,8 +45,8 @@ let serve_ssl port callback =
       own_private_key = Some (snd cert) ;
       own_name = Some Domain_name.(host_exn (of_string_exn "tls13test.nqsb.io")) ;
       master_secret = hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" ;
-      exporter_master_secret = Cstruct.empty ;
-      session_id = Cstruct.empty ;
+      exporter_master_secret = "" ;
+      session_id = "" ;
       extended_ms = true ;
       alpn_protocol = None ;
       tls_unique = None ;

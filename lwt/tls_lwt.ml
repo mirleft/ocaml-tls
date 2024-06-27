@@ -3,8 +3,6 @@ open Lwt.Infix
 exception Tls_alert   of Tls.Packet.alert_type
 exception Tls_failure of Tls.Engine.failure
 
-let o f g x = f (g x)
-
 (* This really belongs just about anywhere else: generic unix name resolution. *)
 let resolve host service =
   let open Lwt_unix in
@@ -17,18 +15,24 @@ let resolve host service =
 
 module Lwt_cs = struct
 
-  let naked ~name f fd cs =
-    Cstruct.(f fd cs.buffer cs.off cs.len) >>= fun res ->
+  let naked ~name f fd cs off len =
+    f fd cs off len >>= fun res ->
     match Lwt_unix.getsockopt_error fd with
     | None     -> Lwt.return res
     | Some err -> Lwt.reraise @@ Unix.Unix_error (err, name, "")
 
-  let write = naked ~name:"Tls_lwt.write" Lwt_bytes.write
-  and read  = naked ~name:"Tls_lwt.read"  Lwt_bytes.read
+  let write = naked ~name:"Tls_lwt.write" Lwt_unix.write
+  and read  = naked ~name:"Tls_lwt.read"  Lwt_unix.read
 
-  let rec write_full fd = function
-    | cs when Cstruct.length cs = 0 -> Lwt.return_unit
-    | cs -> write fd cs >>= o (write_full fd) (Cstruct.shift cs)
+  let rec write_full ?(off = 0) ?len fd buf =
+    let len = Option.value ~default:(String.length buf - off) len in
+    if len = 0 then
+      Lwt.return_unit
+    else
+      write fd (Bytes.unsafe_of_string buf) off len >>= fun written ->
+      write_full ~off:(off + written) ~len:(len - written) fd buf
+
+  let read fd buf = read fd buf 0 (Bytes.length buf)
 end
 
 module Unix = struct
@@ -40,8 +44,8 @@ module Unix = struct
                      | `Write_closed of Tls.Engine.state
                      | `Closed
                      | `Error of exn ] ;
-    mutable linger : Cstruct.t option ;
-    recv_buf       : Cstruct.t ;
+    mutable linger : string option ;
+    recv_buf       : bytes ;
   }
 
   let half_close state mode =
@@ -114,18 +118,17 @@ module Unix = struct
           match t.state with
           | `Error e -> Lwt.reraise e
           | `Active tls | `Read_closed tls | `Write_closed tls ->
-            handle tls (Cstruct.sub t.recv_buf 0 n)
+            handle tls (String.sub (Bytes.unsafe_to_string t.recv_buf) 0 n)
           | `Closed -> Lwt.return `Eof
 
   let rec read t buf =
 
     let writeout res =
-      let open Cstruct in
-      let rlen = length res in
-      let n    = min (length buf) rlen in
-      blit res 0 buf 0 n ;
+      let rlen = String.length res in
+      let n    = min (Bytes.length buf) rlen in
+      Bytes.blit_string res 0 buf 0 n ;
       t.linger <-
-        (if n < rlen then Some (sub res n (rlen - n)) else None) ;
+        (if n < rlen then Some (String.sub res n (rlen - n)) else None) ;
       Lwt.return n in
 
     match t.linger with
@@ -160,7 +163,7 @@ module Unix = struct
       match (mcs, t.linger) with
       | (None, _)         -> ()
       | (scs, None)       -> t.linger <- scs
-      | (Some cs, Some l) -> t.linger <- Some (Cstruct.append l cs)
+      | (Some cs, Some l) -> t.linger <- Some (l ^ cs)
     in
     match t.state with
     | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
@@ -218,7 +221,7 @@ module Unix = struct
       state    = `Active (Tls.Engine.server config) ;
       fd       = fd ;
       linger   = None ;
-      recv_buf = Cstruct.create 4096
+      recv_buf = Bytes.create 4096
     }
 
   let client_of_fd config ?host fd =
@@ -231,7 +234,7 @@ module Unix = struct
       state    = `Active tls ;
       fd       = fd ;
       linger   = None ;
-      recv_buf = Cstruct.create 4096
+      recv_buf = Bytes.create 4096
     }
     in
     write_t t init >>= fun () ->
@@ -258,10 +261,16 @@ module Unix = struct
         | exn -> safely (Lwt_unix.close fd) >>= fun () -> Lwt.reraise exn)
 
   let read_bytes t bs off len =
-    read t (Cstruct.of_bigarray ~off ~len bs)
+    let buf = Bytes.create len in
+    read t buf >|= fun n ->
+    let to_copy = min n len in
+    Lwt_bytes.blit_from_bytes buf 0 bs off to_copy;
+    to_copy
 
   let write_bytes t bs off len =
-    write t (Cstruct.of_bigarray ~off ~len bs)
+    let buf = Bytes.create len in
+    Lwt_bytes.blit_to_bytes bs off buf 0 len;
+    write t (Bytes.unsafe_to_string buf)
 
   let epoch t =
     match t.state with
