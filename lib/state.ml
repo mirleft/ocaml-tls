@@ -78,7 +78,7 @@ type session_data = {
   renegotiation          : reneg_params ; (* renegotiation data *)
   session_id             : string ;
   extended_ms            : bool ;
-  tls_unique             : Cstruct.t ;
+  tls_unique             : string ;
 }
 
 (* state machine of the server *)

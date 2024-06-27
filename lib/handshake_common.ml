@@ -124,7 +124,7 @@ let empty_session = {
   renegotiation       = "", "" ;
   session_id          = "" ;
   extended_ms         = false ;
-  tls_unique          = Cstruct.empty ;
+  tls_unique          = "" ;
 }
 
 let empty_session13 cipher = {
