@@ -33,6 +33,10 @@ module Unix : sig
       TLS handshake of [fd] using [client] configuration and [host]. *)
   val client_of_fd : Tls.Config.client -> ?host:[ `host ] Domain_name.t -> Lwt_unix.file_descr -> t Lwt.t
 
+  (** [client_of_channels client ~host ic oc] is [t], after client-side
+      TLS handshake over the channels [ic],[oc] using [client] configuration and [host]. *)
+  val client_of_channels : Tls.Config.client -> ?host:[ `host ] Domain_name.t -> Lwt_io.input_channel * Lwt_io.output_channel -> t Lwt.t
+
   (** [accept server fd] is [t, sockaddr], after accepting a
       client on [fd] and upgrading to a TLS connection. *)
   val accept  : Tls.Config.server -> Lwt_unix.file_descr -> (t * Lwt_unix.sockaddr) Lwt.t

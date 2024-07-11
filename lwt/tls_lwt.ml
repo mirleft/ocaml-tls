@@ -31,10 +31,43 @@ module Lwt_cs = struct
     | cs -> write fd cs >>= o (write_full fd) (Cstruct.shift cs)
 end
 
+module Lwt_fd = struct
+  type t = {
+    read  : Cstruct.t -> int Lwt.t ;
+    write : Cstruct.t -> unit Lwt.t ;
+    close : unit -> unit Lwt.t ;
+  }
+
+  let read t cs = t.read cs
+  let write t cs = t.write cs
+  let close t = t.close ()
+
+  let of_fd fd =
+    let close () =
+      (* (partially) avoid double-closes by checking if the fd has already been closed *)
+      match Lwt_unix.state fd with
+      | Lwt_unix.Closed -> Lwt.return_unit
+      | Lwt_unix.Opened | Lwt_unix.Aborted _ -> Lwt_unix.close fd
+    in
+    {
+      read  = Lwt_cs.read fd ;
+      write = Lwt_cs.write_full fd ;
+      close = close ;
+    }
+
+  let of_channels ic oc =
+    let wrap f cs = f (Cstruct.to_bigarray cs) 0 (Cstruct.length cs) in
+    {
+      read  = wrap (Lwt_io.read_into_bigstring ic) ;
+      write = wrap (Lwt_io.write_from_exactly_bigstring oc) ;
+      close = (fun () -> Lwt_io.close oc <&> Lwt_io.close ic) ;
+    }
+end
+
 module Unix = struct
 
   type t = {
-    fd             : Lwt_unix.file_descr ;
+    fd             : Lwt_fd.t ;
     mutable state  : [ `Active of Tls.Engine.state
                      | `Read_closed of Tls.Engine.state
                      | `Write_closed of Tls.Engine.state
@@ -79,7 +112,7 @@ module Unix = struct
               | _ -> t.state <- `Error exn) ;
             Lwt.reraise exn)
     in
-    (recording_errors Lwt_cs.read, recording_errors Lwt_cs.write_full)
+    (recording_errors Lwt_fd.read, recording_errors Lwt_fd.write)
 
   let when_some f = function None -> Lwt.return_unit | Some x -> f x
 
@@ -208,7 +241,7 @@ module Unix = struct
        | _ -> Lwt.return_unit) >>= fun () ->
     t.state <- half_close t.state mode;
     match t.state with
-    | `Closed | `Error _ -> safely (Lwt_unix.close t.fd)
+    | `Closed | `Error _ -> safely (Lwt_fd.close t.fd)
     | _ -> Lwt.return_unit
 
   let close t = shutdown t `read_write
@@ -216,7 +249,7 @@ module Unix = struct
   let server_of_fd config fd =
     drain_handshake {
       state    = `Active (Tls.Engine.server config) ;
-      fd       = fd ;
+      fd       = Lwt_fd.of_fd fd ;
       linger   = None ;
       recv_buf = Cstruct.create 4096
     }
@@ -236,6 +269,13 @@ module Unix = struct
     in
     write_t t init >>= fun () ->
     drain_handshake t
+
+  let client_of_channels config ?host (ic, oc) =
+    client_of_fd config ?host (Lwt_fd.of_channels ic oc)
+
+  let client_of_fd config ?host fd =
+    client_of_fd config ?host (Lwt_fd.of_fd fd)
+
 
   let accept conf fd =
     Lwt_unix.accept fd >>= fun (fd', addr) ->
@@ -276,11 +316,7 @@ type oc = Lwt_io.output_channel
 let of_t ?close t =
   let close = match close with
     | Some f -> (fun () -> Unix.safely (f ()))
-    | None   -> (fun () ->
-        (* (partially) avoid double-closes by checking if the fd has already been closed *)
-        match Lwt_unix.state t.Unix.fd with
-        | Lwt_unix.Closed -> Lwt.return_unit
-        | Lwt_unix.Opened | Lwt_unix.Aborted _ -> Unix.(safely (close t)))
+    | None   -> (fun () -> Unix.(safely (close t)))
   in
   (Lwt_io.make ~close ~mode:Lwt_io.Input (Unix.read_bytes t)),
   (Lwt_io.make ~close ~mode:Lwt_io.Output @@
