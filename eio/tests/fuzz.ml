@@ -216,7 +216,7 @@ end = struct
     let len = in_channel_length ch in
     let data = really_input_string ch len in
     close_in ch;
-    Cstruct.of_string data
+    data
 
   let server =
     let certs = Result.get_ok (X509.Certificate.decode_pem_multiple (read_file "server.pem")) in
