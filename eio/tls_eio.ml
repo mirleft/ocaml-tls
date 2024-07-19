@@ -46,8 +46,8 @@ module Raw = struct
     | `Write_closed _ -> `Write_closed tls
     | (`Closed | `Error _) as e -> e
 
-  let write_t t cs =
-    try Flow.copy (Flow.cstruct_source [cs]) t.flow
+  let write_t t s =
+    try Flow.copy_string s t.flow
     with exn ->
       (match t.state with
        | `Error _ -> ()
@@ -67,7 +67,7 @@ module Raw = struct
           let state' = Option.(value ~default:state' (map (fun `Eof -> half_close state' `read) eof)) in
           t.state <- state' ;
           Option.iter (try_write_t t) resp;
-          data
+          Option.map Cstruct.of_string data
 
       | Error (fail, `Response resp) ->
           t.state <- `Error (match fail with `Alert a -> Tls_alert a | f -> Tls_failure f) ;
@@ -92,7 +92,7 @@ module Raw = struct
             match t.state with
             | `Error e -> raise e
             | `Active tls | `Read_closed tls | `Write_closed tls ->
-              handle tls (Cstruct.sub t.recv_buf 0 n)
+              handle tls (Cstruct.to_string t.recv_buf ~off:0 ~len:n)
             | `Closed -> raise End_of_file
 
   let rec single_read t buf =
@@ -118,6 +118,7 @@ module Raw = struct
     | `Error err  -> raise err
     | `Write_closed _ | `Closed -> raise (Eio.Net.err (Connection_reset Tls_socket_closed))
     | `Active tls | `Read_closed tls ->
+        let css = List.map Cstruct.to_string css in
         match Tls.Engine.send_application_data tls css with
         | Some (tls, tlsdata) ->
             ( t.state <- inject_state tls t.state ; write_t t tlsdata )
