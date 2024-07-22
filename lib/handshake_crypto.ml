@@ -1,11 +1,7 @@
-open Mirage_crypto.Hash
-
 open State
 
-let (<+>) = Cstruct.append
-
 let halve secret =
-  let size = Cstruct.length secret in
+  let size = String.length secret in
   let half = size - size / 2 in
   Cstruct.(sub secret 0 half, sub secret (size - half) half)
 

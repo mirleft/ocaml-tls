@@ -9,7 +9,7 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
   | None -> Error (`Fatal `InvalidServerHello)
   | Some cipher ->
     let* () = guard (List.mem cipher (ciphers13 state.config)) (`Fatal `InvalidServerHello) in
-    let* () = guard (Cstruct.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) in
+    let* () = guard (String.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) in
 
     (* TODO: PSK *)
     (* TODO: early_secret elsewhere *)
@@ -20,24 +20,27 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
       | None -> Error (`Fatal `InvalidServerHello)
       | Some (_, secret) ->
         let* shared = Handshake_crypto13.dh_shared secret share in
-        let hlen = Mirage_crypto.Hash.digest_size (Ciphersuite.hash13 cipher) in
+        let hlen =
+          let module H = (val Digestif.module_of_hash' (Ciphersuite.hash13 cipher)) in
+          H.digest_size
+        in
         let* psk, resumed =
           match
             Utils.map_find ~f:(function `PreSharedKey idx -> Some idx | _ -> None) sh.extensions,
             state.config.Config.cached_ticket
           with
-          | None, _ | _, None -> Ok (Cstruct.create hlen, false)
+          | None, _ | _, None -> Ok (String.make hlen '\x00', false)
           | Some idx, Some (psk, _epoch) ->
             let* () = guard (idx = 0) (`Fatal `InvalidServerHello) in
             Ok (psk.secret, true)
         in
         let early_secret = Handshake_crypto13.(derive (empty cipher) psk) in
         let hs_secret = Handshake_crypto13.derive early_secret shared in
-        let log = log <+> raw in
+        let log = log ^ raw in
         let server_hs_secret, server_ctx, client_hs_secret, client_ctx =
           Handshake_crypto13.hs_ctx hs_secret log in
         let master_secret =
-          Handshake_crypto13.derive hs_secret (Cstruct.create hlen)
+          Handshake_crypto13.derive hs_secret (String.make hlen '\x00')
         in
         let session =
           let base = empty_session13 cipher in
@@ -77,9 +80,12 @@ let answer_hello_retry_request state (ch : client_hello) hrr _secrets raw log =
   let other_exts = List.filter (function `KeyShare _ -> false | _ -> true) ch.extensions in
   let new_ch = { ch with extensions = `KeyShare [keyshare] :: other_exts @ cookie} in
   let new_ch_raw = Writer.assemble_handshake (ClientHello new_ch) in
-  let ch0_data = Mirage_crypto.Hash.digest (Ciphersuite.hash13 hrr.ciphersuite) log in
-  let ch0_hdr = Writer.assemble_message_hash (Cstruct.length ch0_data) in
-  let st = AwaitServerHello13 (new_ch, [secret], Cstruct.concat [ ch0_hdr ; ch0_data ; raw ; new_ch_raw ]) in
+  let ch0_data =
+    let module H = (val Digestif.module_of_hash' (Ciphersuite.hash13 hrr.ciphersuite)) in
+    H.(to_raw_string (digest_string log))
+  in
+  let ch0_hdr = Writer.assemble_message_hash (String.length ch0_data) in
+  let st = AwaitServerHello13 (new_ch, [secret], String.concat "" [ ch0_hdr ; ch0_data ; raw ; new_ch_raw ]) in
 
   Tracing.hs ~tag:"handshake-out" (ClientHello new_ch);
   Ok ({ state with machina = Client13 st ; protocol_version = `TLS_1_3 }, [`Record (Packet.HANDSHAKE, new_ch_raw)])
@@ -94,9 +100,9 @@ let answer_encrypted_extensions state (session : session_data13) server_hs_secre
   in
   let st =
     if session.resumed then
-      AwaitServerFinished13 (session, server_hs_secret, client_hs_secret, None, log <+> raw)
+      AwaitServerFinished13 (session, server_hs_secret, client_hs_secret, None, log ^ raw)
     else
-      AwaitServerCertificateRequestOrCertificate13 (session, server_hs_secret, client_hs_secret, log <+> raw)
+      AwaitServerCertificateRequestOrCertificate13 (session, server_hs_secret, client_hs_secret, log ^ raw)
   in
   Ok ({ state with machina = Client13 st }, [])
 
@@ -113,18 +119,21 @@ let answer_certificate state (session : session_data13) server_hs_secret client_
     } in
     { session with common_session_data13 }
   in
-  let st = AwaitServerCertificateVerify13 (session, server_hs_secret, client_hs_secret, sigalgs, log <+> raw) in
+  let st = AwaitServerCertificateVerify13 (session, server_hs_secret, client_hs_secret, sigalgs, log ^ raw) in
   Ok ({ state with machina = Client13 st }, [])
 
 let answer_certificate_verify (state : handshake_state) (session : session_data13) server_hs_secret client_hs_secret sigalgs cv raw log =
-  let tbs = Mirage_crypto.Hash.digest (Ciphersuite.hash13 session.ciphersuite13) log in
+  let tbs =
+    let module H = (val Digestif.module_of_hash' (Ciphersuite.hash13 session.ciphersuite13)) in
+    H.(to_raw_string (digest_string log))
+  in
   let* () =
     verify_digitally_signed state.protocol_version
       ~context_string:"TLS 1.3, server CertificateVerify"
       state.config.signature_algorithms cv tbs
       session.common_session_data13.peer_certificate
   in
-  let st = AwaitServerFinished13 (session, server_hs_secret, client_hs_secret, sigalgs, log <+> raw) in
+  let st = AwaitServerFinished13 (session, server_hs_secret, client_hs_secret, sigalgs, log ^ raw) in
   Ok ({ state with machina = Client13 st }, [])
 
 let answer_certificate_request (state : handshake_state) (session : session_data13) server_hs_secret client_hs_secret extensions raw log =
@@ -134,15 +143,15 @@ let answer_certificate_request (state : handshake_state) (session : session_data
     { session with common_session_data13 }
   in
   let sigalgs = Utils.map_find ~f:(function `SignatureAlgorithms s -> Some s | _ -> None) extensions in
-  let st = AwaitServerCertificate13 (session, server_hs_secret, client_hs_secret, sigalgs, log <+> raw) in
+  let st = AwaitServerCertificate13 (session, server_hs_secret, client_hs_secret, sigalgs, log ^ raw) in
   Ok ({ state with machina = Client13 st }, [])
 
 let answer_finished state (session : session_data13) server_hs_secret client_hs_secret sigalgs fin raw log =
   let hash = Ciphersuite.hash13 session.ciphersuite13 in
   let f_data = Handshake_crypto13.finished hash server_hs_secret log in
-  let* () = guard (Cstruct.equal fin f_data) (`Fatal `BadFinished) in
-  let* () = guard (Cstruct.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) in
-  let log = log <+> raw in
+  let* () = guard (String.equal fin f_data) (`Fatal `BadFinished) in
+  let* () = guard (String.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) in
+  let log = log ^ raw in
   let server_app_secret, server_app_ctx, client_app_secret, client_app_ctx =
     Handshake_crypto13.app_ctx session.master_secret log
   in
@@ -157,16 +166,19 @@ let answer_finished state (session : session_data13) server_hs_secret client_hs_
       in
       let certificate =
         let cs = List.map X509.Certificate.encode_der own_certificate in
-        Certificate (Writer.assemble_certificates_1_3 Cstruct.empty cs)
+        Certificate (Writer.assemble_certificates_1_3 "" cs)
       in
       let cert_raw = Writer.assemble_handshake certificate in
       Tracing.hs ~tag:"handshake-out" certificate ;
-      let log = log <+> cert_raw in
+      let log = log ^ cert_raw in
       match own_private_key with
       | None ->
         Ok ([cert_raw], log)
       | Some priv ->
-        let tbs = Mirage_crypto.Hash.digest hash log in
+        let tbs =
+          let module H = (val Digestif.module_of_hash' hash) in
+          H.(to_raw_string (digest_string log))
+        in
         let* signed =
           signature `TLS_1_3 ~context_string:"TLS 1.3, client CertificateVerify"
             tbs sigalgs state.config.Config.signature_algorithms priv
@@ -174,7 +186,7 @@ let answer_finished state (session : session_data13) server_hs_secret client_hs_
         let cv = CertificateVerify signed in
         Tracing.hs ~tag:"handshake-out" cv ;
         let cv_raw = Writer.assemble_handshake cv in
-        Ok ([ cert_raw ; cv_raw ], log <+> cv_raw)
+        Ok ([ cert_raw ; cv_raw ], log ^ cv_raw)
     else
       Ok ([], log)
   in
@@ -182,7 +194,8 @@ let answer_finished state (session : session_data13) server_hs_secret client_hs_
   let myfin = Handshake_crypto13.finished hash client_hs_secret log in
   let mfin = Writer.assemble_handshake (Finished myfin) in
 
-  let resumption_secret = Handshake_crypto13.resumption session.master_secret (log <+> mfin) in
+  let exporter_master_secret = Handshake_crypto13.exporter session.master_secret log in
+  let resumption_secret = Handshake_crypto13.resumption session.master_secret (log ^ mfin) in
   let session = { session with resumption_secret ; exporter_master_secret ; client_app_secret ; server_app_secret } in
   let machina = Client13 Established13 in
 
@@ -218,7 +231,7 @@ let answer_session_ticket state st =
 let handle_key_update state req =
   match state.session with
   | `TLS13 session :: _ ->
-    let* () = guard (Cstruct.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) in
+    let* () = guard (String.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) in
     let server_app_secret, server_ctx =
       Handshake_crypto13.app_secret_n_1 session.master_secret session.server_app_secret
     in
@@ -257,12 +270,12 @@ let handle_handshake cs hs buf =
   | AwaitServerCertificateRequestOrCertificate13 (sd, es, ss, log), Certificate cs ->
     let* con, cs = map_reader_error (parse_certificates_1_3 cs) in
     (* during handshake, context must be empty! and we'll not get any new certificate from server *)
-    let* () = guard (Cstruct.length con = 0) (`Fatal `InvalidMessage) in
+    let* () = guard (String.length con = 0) (`Fatal `InvalidMessage) in
     answer_certificate hs sd es ss None cs buf log
   | AwaitServerCertificate13 (sd, es, ss, sigalgs, log), Certificate cs ->
     let* con, cs = map_reader_error (parse_certificates_1_3 cs) in
     (* during handshake, context must be empty! and we'll not get any new certificate from server *)
-    let* () = guard (Cstruct.length con = 0) (`Fatal `InvalidMessage) in
+    let* () = guard (String.length con = 0) (`Fatal `InvalidMessage) in
     answer_certificate hs sd es ss sigalgs cs buf log
   | AwaitServerCertificateVerify13 (sd, es, ss, sigalgs, log), CertificateVerify cv ->
     answer_certificate_verify hs sd es ss sigalgs cv buf log

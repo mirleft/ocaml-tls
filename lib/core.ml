@@ -3,8 +3,6 @@
 open Packet
 open Ciphersuite
 
-let (<+>) = Cstruct.append
-
 let ( let* ) = Result.bind
 
 let guard p e = if p then Ok () else Error e
@@ -121,24 +119,24 @@ let pp_tls_hdr ppf { content_type ; version } =
     pp_tls_any_version version
 
 module SessionID = struct
-  type t = Cstruct.t
-  let compare = Cstruct.compare
-  let hash t = Hashtbl.hash (Cstruct.to_bigarray t)
-  let equal = Cstruct.equal
+  type t = string
+  let compare = String.compare
+  let hash t = Hashtbl.hash t
+  let equal = String.equal
 end
 
 module PreSharedKeyID = struct
-  type t = Cstruct.t
-  let compare = Cstruct.compare
-  let hash t = Hashtbl.hash (Cstruct.to_bigarray t)
-  let equal = Cstruct.equal
+  type t = string
+  let compare = String.compare
+  let hash t = Hashtbl.hash t
+  let equal = String.equal
 end
 
-type psk_identity = (Cstruct.t * int32) * Cstruct.t
+type psk_identity = (string * int32) * string
 
 let binders_len psks =
   let binder_len (_, binder) =
-    Cstruct.length binder + 1 (* binder len *)
+    String.length binder + 1 (* binder len *)
   in
   2 (* binder len *) + List.fold_left (+) 0 (List.map binder_len psks)
 
@@ -303,24 +301,24 @@ type client_extension = [
   | `Hostname of [`host] Domain_name.t
   | `MaxFragmentLength of max_fragment_length
   | `SupportedGroups of Packet.named_group list
-  | `SecureRenegotiation of Cstruct.t
+  | `SecureRenegotiation of string
   | `Padding of int
   | `SignatureAlgorithms of signature_algorithm list
   | `ExtendedMasterSecret
   | `ALPN of string list
-  | `KeyShare of (Packet.named_group * Cstruct.t) list
+  | `KeyShare of (Packet.named_group * string) list
   | `EarlyDataIndication
   | `PreSharedKeys of psk_identity list
   | `SupportedVersions of tls_any_version list
   | `PostHandshakeAuthentication
-  | `Cookie of Cstruct.t
+  | `Cookie of string
   | `PskKeyExchangeModes of psk_key_exchange_mode list
   | `ECPointFormats
-  | `UnknownExtension of (int * Cstruct.t)
+  | `UnknownExtension of (int * string)
 ]
 
 type server13_extension = [
-  | `KeyShare of (group * Cstruct.t)
+  | `KeyShare of (group * string)
   | `PreSharedKey of int
   | `SelectedVersion of tls_version (* only used internally in writer!! *)
 ]
@@ -329,11 +327,11 @@ type server_extension = [
   server13_extension
   | `Hostname
   | `MaxFragmentLength of max_fragment_length
-  | `SecureRenegotiation of Cstruct.t
+  | `SecureRenegotiation of string
   | `ExtendedMasterSecret
   | `ALPN of string
   | `ECPointFormats
-  | `UnknownExtension of (int * Cstruct.t)
+  | `UnknownExtension of (int * string)
 ]
 
 type encrypted_extension = [
@@ -342,19 +340,19 @@ type encrypted_extension = [
   | `SupportedGroups of group list
   | `ALPN of string
   | `EarlyDataIndication
-  | `UnknownExtension of (int * Cstruct.t)
+  | `UnknownExtension of (int * string)
 ]
 
 type hello_retry_extension = [
   | `SelectedGroup of group (* only used internally in writer!! *)
-  | `Cookie of Cstruct.t
+  | `Cookie of string
   | `SelectedVersion of tls_version (* only used internally in writer!! *)
-  | `UnknownExtension of (int * Cstruct.t)
+  | `UnknownExtension of (int * string)
 ]
 
 type client_hello = {
   client_version : tls_any_version;
-  client_random  : Cstruct.t;
+  client_random  : string;
   sessionid      : SessionID.t option;
   ciphersuites   : any_ciphersuite list;
   extensions     : client_extension list
@@ -362,16 +360,16 @@ type client_hello = {
 
 type server_hello = {
   server_version : tls_version;
-  server_random  : Cstruct.t;
+  server_random  : string;
   sessionid      : SessionID.t option;
   ciphersuite    : ciphersuite;
   extensions     : server_extension list
 }
 
 type dh_parameters = {
-  dh_p  : Cstruct.t;
-  dh_g  : Cstruct.t;
-  dh_Ys : Cstruct.t;
+  dh_p  : string;
+  dh_g  : string;
+  dh_Ys : string;
 }
 
 type hello_retry = {
@@ -384,14 +382,14 @@ type hello_retry = {
 
 type session_ticket_extension = [
   | `EarlyDataIndication of int32
-  | `UnknownExtension of int * Cstruct.t
+  | `UnknownExtension of int * string
 ]
 
 type session_ticket = {
   lifetime : int32 ;
   age_add : int32 ;
-  nonce : Cstruct.t ;
-  ticket : Cstruct.t ;
+  nonce : string ;
+  ticket : string ;
   extensions : session_ticket_extension list
 }
 
@@ -402,7 +400,7 @@ type certificate_request_extension = [
   | `CertificateAuthorities of X509.Distinguished_name.t list
   (* | `OidFilters *)
   (* | `SignatureAlgorithmsCert *)
-  | `UnknownExtension of (int * Cstruct.t)
+  | `UnknownExtension of (int * string)
 ]
 
 type tls_handshake =
@@ -412,12 +410,12 @@ type tls_handshake =
   | ServerHelloDone
   | ClientHello of client_hello
   | ServerHello of server_hello
-  | Certificate of Cstruct.t
-  | ServerKeyExchange of Cstruct.t
-  | CertificateRequest of Cstruct.t
-  | ClientKeyExchange of Cstruct.t
-  | CertificateVerify of Cstruct.t
-  | Finished of Cstruct.t
+  | Certificate of string
+  | ServerKeyExchange of string
+  | CertificateRequest of string
+  | ClientKeyExchange of string
+  | CertificateVerify of string
+  | Finished of string
   | SessionTicket of session_ticket
   | KeyUpdate of key_update_request_type
   | EndOfEarlyData
@@ -442,19 +440,19 @@ let pp_handshake ppf = function
 let src = Logs.Src.create "tls.tracing" ~doc:"TLS tracing"
 module Tracing = struct
   include (val Logs.src_log src : Logs.LOG)
-  let cs ~tag buf = debug (fun m -> m "%s@.%a" tag Cstruct.hexdump_pp buf)
+  let cs ~tag buf = debug (fun m -> m "%s@.%a" tag (Ohex.pp_hexdump ()) buf)
   let hs ~tag hs = debug (fun m -> m "%s %a" tag pp_handshake hs)
 end
 
 type tls_alert = alert_level * alert_type
 
 (** the master secret of a TLS connection *)
-type master_secret = Cstruct.t
+type master_secret = string
 
 type psk13 = {
-  identifier : Cstruct.t ;
+  identifier : string ;
   obfuscation : int32 ;
-  secret : Cstruct.t ;
+  secret : string ;
   lifetime : int32 ;
   early_data : int32 ;
   issued_at : Ptime.t ;
@@ -469,13 +467,13 @@ type epoch_data = {
   state                  : epoch_state ;
   protocol_version       : tls_version ;
   ciphersuite            : Ciphersuite.ciphersuite ;
-  peer_random            : Cstruct.t ;
+  peer_random            : string ;
   peer_certificate_chain : X509.Certificate.t list ;
   peer_certificate       : X509.Certificate.t option ;
   peer_name              : [`host] Domain_name.t option ;
   trust_anchor           : X509.Certificate.t option ;
   received_certificates  : X509.Certificate.t list ;
-  own_random             : Cstruct.t ;
+  own_random             : string ;
   own_certificate        : X509.Certificate.t list ;
   own_private_key        : X509.Private_key.t option ;
   own_name               : [`host] Domain_name.t option ;

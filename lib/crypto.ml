@@ -2,15 +2,13 @@ open Mirage_crypto
 
 open Ciphersuite
 
-let (<+>) = Cstruct.append
-
 (* on-the-wire dh_params <-> (group, pub_message) *)
 let dh_params_pack { Mirage_crypto_pk.Dh.p; gg ; _ } message =
-  let cs_of_z = Mirage_crypto_pk.Z_extra.to_cstruct_be ?size:None in
+  let cs_of_z = Mirage_crypto_pk.Z_extra.to_octets_be ?size:None in
   { Core.dh_p = cs_of_z p ; dh_g = cs_of_z gg ; dh_Ys = message }
 
 and dh_params_unpack { Core.dh_p ; dh_g ; dh_Ys } =
-  let z_of_cs = Mirage_crypto_pk.Z_extra.of_cstruct_be ?bits:None in
+  let z_of_cs = Mirage_crypto_pk.Z_extra.of_octets_be ?bits:None in
   match Mirage_crypto_pk.Dh.group ~p:(z_of_cs dh_p) ~gg:(z_of_cs dh_g) () with
   | Ok dh -> Ok (dh, dh_Ys)
   | Error _ as e -> e
@@ -19,7 +17,7 @@ module Ciphers = struct
 
   (* I'm not sure how to get rid of this type, but would welcome a solution *)
   (* only used as result of get_block, which is called by get_cipher below *)
-  type keyed = | K_CBC : 'k State.cbc_cipher * (Cstruct.t -> 'k) -> keyed
+  type keyed = | K_CBC : 'k State.cbc_cipher * (string -> 'k) -> keyed
 
   let get_block = function
     | TRIPLE_DES_EDE_CBC ->
@@ -37,7 +35,7 @@ module Ciphers = struct
         K_CBC ( (module CBC : Cipher_block.S.CBC with type key = CBC.key),
                 CBC.of_secret )
 
-  type aead_keyed = | K_AEAD : 'k State.aead_cipher * (Cstruct.t -> 'k) * bool -> aead_keyed
+  type aead_keyed = | K_AEAD : 'k State.aead_cipher * (string -> 'k) * bool -> aead_keyed
   let get_aead =
     let open Cipher_block.AES in
     function
@@ -69,19 +67,18 @@ module Ciphers = struct
 end
 
 let sequence_buf seq =
-  let open Cstruct in
-  let buf = create 8 in
-  BE.set_uint64 buf 0 seq ;
-  buf
+  let buf = Bytes.create 8 in
+  Bytes.set_int64_be buf 0 seq ;
+  Bytes.unsafe_to_string buf
 
 let aead_nonce nonce seq =
   let s =
-    let l = Cstruct.length nonce in
-    let s = sequence_buf seq in
-    let pad = Cstruct.create (l - 8) in
-    pad <+> s
+    let l = String.length nonce in
+    let buf = Bytes.make l '\x00' in
+    Bytes.set_int64_be buf 0 seq;
+    Bytes.unsafe_to_string buf
   in
-  Uncommon.Cs.xor nonce s
+  Uncommon.xor nonce s
 
 let adata_1_3 len =
   (* additional data in TLS 1.3 is using the header (RFC 8446 Section 5.2):
@@ -89,56 +86,50 @@ let adata_1_3 len =
      - 0x03 0x03 (for TLS version 1.2 -- binary representation is 0x03 0x03)
      - <length in 16 bit>
   *)
-  let buf = Cstruct.create 5 in
-  Cstruct.set_uint8 buf 0 (Packet.content_type_to_int Packet.APPLICATION_DATA) ;
-  Cstruct.set_uint8 buf 1 3;
-  Cstruct.set_uint8 buf 2 3;
-  Cstruct.BE.set_uint16 buf 3 len ;
-  buf
+  let buf = Bytes.create 5 in
+  Bytes.set_uint8 buf 0 (Packet.content_type_to_int Packet.APPLICATION_DATA) ;
+  Bytes.set_uint8 buf 1 3;
+  Bytes.set_uint8 buf 2 3;
+  Bytes.set_uint16_be buf 3 len ;
+  Bytes.unsafe_to_string buf
 
 let pseudo_header seq ty (v_major, v_minor) v_length =
-  let open Cstruct in
-  let prefix = create 5 in
-  set_uint8 prefix 0 (Packet.content_type_to_int ty);
-  set_uint8 prefix 1 v_major;
-  set_uint8 prefix 2 v_minor;
-  BE.set_uint16 prefix 3 v_length;
-  sequence_buf seq <+> prefix
+  let buf = Bytes.create 13 in
+  Bytes.set_int64_be buf 0 seq;
+  Bytes.set_uint8 buf 8 (Packet.content_type_to_int ty);
+  Bytes.set_uint8 buf 9 v_major;
+  Bytes.set_uint8 buf 10 v_minor;
+  Bytes.set_uint16_be buf 11 v_length;
+  Bytes.unsafe_to_string buf
 
 (* MAC used in TLS *)
 let mac hash key pseudo_hdr data =
-  Hash.mac hash ~key (pseudo_hdr <+> data)
+  let module H = (val Digestif.module_of_hash' hash) in
+  H.(to_raw_string (hmac_string ~key (pseudo_hdr ^ data)))
 
 let cbc_block (type a) cipher =
   let module C = (val cipher : Cipher_block.S.CBC with type key = a) in C.block_size
 
 (* crazy CBC padding and unpadding for TLS *)
 let cbc_pad block data =
-  let open Cstruct in
-
   (* 1 is the padding length, encoded as 8 bit at the end of the fragment *)
-  let len = 1 + length data in
+  let len = 1 + String.length data in
   (* we might want to add additional blocks of padding *)
   let padding_length = block - (len mod block) in
   (* 1 is again padding length field *)
   let cstruct_len = padding_length + 1 in
-  let pad = create_unsafe cstruct_len in
-  memset pad padding_length;
-  pad
+  String.make cstruct_len (Char.unsafe_chr padding_length)
 
 let cbc_unpad data =
-  let open Cstruct in
-
-  let len = length data in
-  let padlen = get_uint8 data (pred len) in
-  let (res, pad) = split data (len - padlen - 1) in
+  let len = String.length data in
+  let padlen = String.get_uint8 data (pred len) in
 
   let rec check = function
     | i when i > padlen -> true
-    | i -> (get_uint8 pad i = padlen) && check (succ i) in
+    | i -> (String.get_uint8 data (len - padlen - 1 + i) = padlen) && check (succ i) in
 
   try
-    if check 0 then Some res else None
+    if check 0 then Some (String.sub data 0 (len - padlen - 1)) else None
   with Invalid_argument _ -> None
 
 let tag_len (type a) cipher =
@@ -155,7 +146,7 @@ let decrypt_aead (type a) ~cipher ~key ~nonce ?adata data =
 
 let encrypt_cbc (type a) ~cipher ~key ~iv data =
   let module C = (val cipher : Cipher_block.S.CBC with type key = a) in
-  let message = C.encrypt ~key ~iv (data <+> cbc_pad C.block_size data) in
+  let message = C.encrypt ~key ~iv (data ^ cbc_pad C.block_size data) in
   (message, C.next_iv ~iv message)
 
 let decrypt_cbc (type a) ~cipher ~key ~iv data =

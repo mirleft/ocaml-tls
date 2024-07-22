@@ -36,7 +36,7 @@ let pp_own_cert ppf = function
 type session_cache = SessionID.t -> epoch_data option
 
 type ticket_cache = {
-  lookup : Cstruct.t -> (psk13 * epoch_data) option ;
+  lookup : string -> (psk13 * epoch_data) option ;
   ticket_granted : psk13 -> epoch_data -> unit ;
   lifetime : int32 ;
   timestamp : unit -> Ptime.t
@@ -398,7 +398,7 @@ let validate_certificate_chain = function
           invalid "RSA key too short!"
       | _ -> () );
     ( let eq_pub a b =
-        Cstruct.equal
+        String.equal
           (X509.Public_key.fingerprint a)
           (X509.Public_key.fingerprint b)
       in
@@ -509,8 +509,7 @@ let validate_server config =
             | `ED25519 _ -> add `ED25519 cs acc
             | `P256 _ -> add `P256 cs acc
             | `P384 _ -> add `P384 cs acc
-            | `P521 _ -> add `P521 cs acc
-            | _ -> invalid "unknown key type")
+            | `P521 _ -> add `P521 cs acc)
           PK.empty cs
       in
       PK.iter (fun _ chains -> non_overlapping chains) pk

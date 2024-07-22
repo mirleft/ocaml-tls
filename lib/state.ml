@@ -4,11 +4,11 @@
 open Core
 open Mirage_crypto
 
-type hmac_key = Cstruct.t
+type hmac_key = string
 
 (* initialisation vector style, depending on TLS version *)
 type iv_mode =
-  | Iv of Cstruct.t  (* traditional CBC (reusing last cipherblock) *)
+  | Iv of string  (* traditional CBC (reusing last cipherblock) *)
   | Random_iv        (* TLS 1.1 and higher explicit IV (we use random) *)
 
 type 'k cbc_cipher    = (module Cipher_block.S.CBC with type key = 'k)
@@ -16,11 +16,11 @@ type 'k cbc_state = {
   cipher         : 'k cbc_cipher ;
   cipher_secret  : 'k ;
   iv_mode        : iv_mode ;
-  hmac           : Hash.hash ;
+  hmac           : Digestif.hash' ;
   hmac_secret    : hmac_key
 }
 
-type nonce = Cstruct.t
+type nonce = string
 
 type 'k aead_cipher = (module AEAD with type key = 'k)
 type 'k aead_state = {
@@ -42,7 +42,7 @@ type crypto_context = {
   cipher_st : cipher_st ; (* cipher state *)
 }
 (* the raw handshake log we need to carry around *)
-type hs_log = Cstruct.t list
+type hs_log = string list
 
 type dh_secret = [
   | `Finite_field of Mirage_crypto_pk.Dh.secret
@@ -53,11 +53,11 @@ type dh_secret = [
 ]
 
 (* a collection of client and server verify bytes for renegotiation *)
-type reneg_params = Cstruct.t * Cstruct.t
+type reneg_params = string * string
 
 type common_session_data = {
-  server_random          : Cstruct.t ; (* 32 bytes random from the server hello *)
-  client_random          : Cstruct.t ; (* 32 bytes random from the client hello *)
+  server_random          : string ; (* 32 bytes random from the server hello *)
+  client_random          : string ; (* 32 bytes random from the client hello *)
   peer_certificate_chain : X509.Certificate.t list ;
   peer_certificate       : X509.Certificate.t option ;
   trust_anchor           : X509.Certificate.t option ;
@@ -76,7 +76,7 @@ type session_data = {
   ciphersuite            : Ciphersuite.ciphersuite ;
   group                  : group option ;
   renegotiation          : reneg_params ; (* renegotiation data *)
-  session_id             : Cstruct.t ;
+  session_id             : string ;
   extended_ms            : bool ;
   tls_unique             : Cstruct.t ;
 }
@@ -91,9 +91,9 @@ type server_handshake_state =
   | AwaitClientKeyExchange_DHE of session_data * dh_secret * hs_log (* server hello done is sent, and DHE_RSA key exchange used, waiting for client key exchange *)
   | AwaitClientCertificateVerify of session_data * crypto_context * crypto_context * hs_log
   | AwaitClientChangeCipherSpec of session_data * crypto_context * crypto_context * hs_log (* client key exchange received, next should be change cipher spec *)
-  | AwaitClientChangeCipherSpecResume of session_data * crypto_context * Cstruct.t * hs_log (* resumption: next should be change cipher spec *)
+  | AwaitClientChangeCipherSpecResume of session_data * crypto_context * string * hs_log (* resumption: next should be change cipher spec *)
   | AwaitClientFinished of session_data * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
-  | AwaitClientFinishedResume of session_data * Cstruct.t * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
+  | AwaitClientFinishedResume of session_data * string * hs_log (* change cipher spec received, next should be the finished including a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
 
 (* state machine of the client *)
@@ -104,18 +104,18 @@ type client_handshake_state =
   | AwaitCertificate_RSA of session_data * hs_log (* certificate expected with RSA key exchange *)
   | AwaitCertificate_DHE of session_data * hs_log (* certificate expected with DHE key exchange *)
   | AwaitServerKeyExchange_DHE of session_data * hs_log (* server key exchange expected with DHE *)
-  | AwaitCertificateRequestOrServerHelloDone of session_data * Cstruct.t * Cstruct.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
-  | AwaitServerHelloDone of session_data * signature_algorithm list option * Cstruct.t * Cstruct.t * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
-  | AwaitServerChangeCipherSpec of session_data * crypto_context * Cstruct.t * hs_log (* change cipher spec expected *)
+  | AwaitCertificateRequestOrServerHelloDone of session_data * string * string * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
+  | AwaitServerHelloDone of session_data * signature_algorithm list option * string * string * hs_log (* server hello done expected, client key exchange and premastersecret are ready *)
+  | AwaitServerChangeCipherSpec of session_data * crypto_context * string * hs_log (* change cipher spec expected *)
   | AwaitServerChangeCipherSpecResume of session_data * crypto_context * crypto_context * hs_log (* change cipher spec expected *)
-  | AwaitServerFinished of session_data * Cstruct.t * hs_log (* finished expected with a hmac over all handshake packets *)
+  | AwaitServerFinished of session_data * string * hs_log (* finished expected with a hmac over all handshake packets *)
   | AwaitServerFinishedResume of session_data * hs_log (* finished expected with a hmac over all handshake packets *)
   | Established (* handshake successfully completed *)
 
 type kdf = {
-  secret : Cstruct.t ;
+  secret : string ;
   cipher : Ciphersuite.ciphersuite13 ;
-  hash : Mirage_crypto.Hash.hash ;
+  hash : Digestif.hash' ;
 }
 
 (* TODO needs log of CH..CF for post-handshake auth *)
@@ -124,29 +124,29 @@ type session_data13 = {
   common_session_data13  : common_session_data ;
   ciphersuite13          : Ciphersuite.ciphersuite13 ;
   master_secret          : kdf ;
-  exporter_master_secret : Cstruct.t ;
-  resumption_secret      : Cstruct.t ;
+  exporter_master_secret : string ;
+  resumption_secret      : string ;
   state                  : epoch_state ;
   resumed                : bool ;
-  client_app_secret      : Cstruct.t ;
-  server_app_secret      : Cstruct.t ;
+  client_app_secret      : string ;
+  server_app_secret      : string ;
 }
 
 type client13_handshake_state =
-  | AwaitServerHello13 of client_hello * (group * dh_secret) list * Cstruct.t (* this is for CH1 ~> HRR ~> CH2 <~ WAIT SH *)
-  | AwaitServerEncryptedExtensions13 of session_data13 * Cstruct.t * Cstruct.t * Cstruct.t
-  | AwaitServerCertificateRequestOrCertificate13 of session_data13 * Cstruct.t * Cstruct.t * Cstruct.t
-  | AwaitServerCertificate13 of session_data13 * Cstruct.t * Cstruct.t * signature_algorithm list option * Cstruct.t
-  | AwaitServerCertificateVerify13 of session_data13 * Cstruct.t * Cstruct.t * signature_algorithm list option * Cstruct.t
-  | AwaitServerFinished13 of session_data13 * Cstruct.t * Cstruct.t * signature_algorithm list option * Cstruct.t
+  | AwaitServerHello13 of client_hello * (group * dh_secret) list * string (* this is for CH1 ~> HRR ~> CH2 <~ WAIT SH *)
+  | AwaitServerEncryptedExtensions13 of session_data13 * string * string * string
+  | AwaitServerCertificateRequestOrCertificate13 of session_data13 * string * string * string
+  | AwaitServerCertificate13 of session_data13 * string * string * signature_algorithm list option * string
+  | AwaitServerCertificateVerify13 of session_data13 * string * string * signature_algorithm list option * string
+  | AwaitServerFinished13 of session_data13 * string * string * signature_algorithm list option * string
   | Established13
 
 type server13_handshake_state =
   | AwaitClientHelloHRR13 (* if we sent out HRR (also to-be-used for tls13-only) *)
-  | AwaitClientCertificate13 of session_data13 * Cstruct.t * crypto_context * session_ticket option * Cstruct.t
-  | AwaitClientCertificateVerify13 of session_data13 * Cstruct.t * crypto_context * session_ticket option * Cstruct.t
-  | AwaitClientFinished13 of Cstruct.t * crypto_context * session_ticket option * Cstruct.t
-  | AwaitEndOfEarlyData13 of Cstruct.t * crypto_context * crypto_context * session_ticket option * Cstruct.t
+  | AwaitClientCertificate13 of session_data13 * string * crypto_context * session_ticket option * string
+  | AwaitClientCertificateVerify13 of session_data13 * string * crypto_context * session_ticket option * string
+  | AwaitClientFinished13 of string * crypto_context * session_ticket option * string
+  | AwaitEndOfEarlyData13 of string * crypto_context * crypto_context * session_ticket option * string
   | Established13
 
 type handshake_machina_state =
@@ -162,14 +162,14 @@ type handshake_state = {
   early_data_left  : int32 ;
   machina          : handshake_machina_state ; (* state machine state *)
   config           : Config.config ; (* given config *)
-  hs_fragment      : Cstruct.t ; (* handshake messages can be fragmented, leftover from before *)
+  hs_fragment      : string ; (* handshake messages can be fragmented, leftover from before *)
 }
 
 (* connection state: initially None, after handshake a crypto context *)
 type crypto_state = crypto_context option
 
 (* record consisting of a content type and a byte vector *)
-type record = Packet.content_type * Cstruct.t
+type record = Packet.content_type * string
 
 (* response returned by a handler *)
 type rec_resp = [
@@ -186,7 +186,7 @@ type state = {
   handshake : handshake_state ; (* the current handshake state *)
   decryptor : crypto_state ; (* the current decryption state *)
   encryptor : crypto_state ; (* the current encryption state *)
-  fragment  : Cstruct.t ; (* the leftover fragment from TCP fragmentation *)
+  fragment  : string ; (* the leftover fragment from TCP fragmentation *)
   read_closed : bool ;
   write_closed : bool ;
 }
@@ -228,8 +228,8 @@ type client_hello_errors = [
   | `NoKeyShareExtension
   | `NoSupportedGroupExtension
   | `NotSetSupportedGroup of Packet.named_group list
-  | `NotSetKeyShare of (Packet.named_group * Cstruct.t) list
-  | `NotSubsetKeyShareSupportedGroup of Packet.named_group list * (Packet.named_group * Cstruct.t) list
+  | `NotSetKeyShare of (Packet.named_group * string) list
+  | `NotSubsetKeyShareSupportedGroup of Packet.named_group list * (Packet.named_group * string) list
   | `Has0rttAfterHRR
   | `NoCookie
 ]
@@ -400,9 +400,9 @@ let common_data_to_epoch common is_server peer_name =
       own_name               = common.own_name ;
       received_certificates  = common.received_certificates ;
       master_secret          = common.master_secret ;
-      exporter_master_secret = Cstruct.empty ;
+      exporter_master_secret = "" ;
       alpn_protocol          = common.alpn_protocol ;
-      session_id             = Cstruct.empty ;
+      session_id             = "" ;
       extended_ms            = false ;
       tls_unique             = None ;
     } in
