@@ -92,9 +92,9 @@ let authenticator ?allowed_hashes ?crls param =
   and dotted_hex_to_cs hex =
     Ohex.decode (String.map (function ':' -> ' ' | x -> x) hex)
   and fingerp hash fingerprint =
-    X509.Authenticator.server_key_fingerprint ~time ~hash ~fingerprint
+    X509.Authenticator.key_fingerprint ~time ~hash ~fingerprint
   and cert_fingerp hash fingerprint =
-    X509.Authenticator.server_cert_fingerprint ~time ~hash ~fingerprint
+    X509.Authenticator.cert_fingerprint ~time ~hash ~fingerprint
   in
   match param with
   | `Ca_file path -> certs_of_pem path >>= of_cas

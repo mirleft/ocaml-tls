@@ -17,7 +17,6 @@ depends: [
   "ocaml" {>= "4.14.0"}
   "dune" {>= "3.0"}
   "tls" {= version}
-  "x509" {>= "0.14.0"}
   "ptime" {>= "0.8.1"}
   "async" {>= "v0.16"}
   "async_unix" {>= "v0.16"}
