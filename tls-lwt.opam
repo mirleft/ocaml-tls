@@ -18,7 +18,6 @@ depends: [
   "dune" {>= "3.0"}
   "tls" {= version}
   "mirage-crypto-rng-lwt" {>= "0.11.0" & < "1.0.0"}
-  "x509" {>= "0.15.0"}
   "lwt" {>= "5.7.0"}
   "cmdliner" {>= "1.1.0"}
   "ptime" {>= "0.8.1"}

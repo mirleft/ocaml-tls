@@ -132,12 +132,12 @@ module Authenticator = struct
 
     let of_cert_fingerprint ~time hash fingerprint =
       let fingerprint = cleanup_fingerprint fingerprint in
-      X509.Authenticator.server_cert_fingerprint ~time ~hash ~fingerprint
+      X509.Authenticator.cert_fingerprint ~time ~hash ~fingerprint
     ;;
 
     let of_key_fingerprint ~time hash fingerprint =
       let fingerprint = cleanup_fingerprint fingerprint in
-      X509.Authenticator.server_key_fingerprint ~time ~hash ~fingerprint
+      X509.Authenticator.key_fingerprint ~time ~hash ~fingerprint
     ;;
 
     let time = Fn.compose Ptime.of_float_s Unix.gettimeofday
