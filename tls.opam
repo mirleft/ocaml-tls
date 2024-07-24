@@ -18,7 +18,7 @@ depends: [
   "dune" {>= "3.0"}
   "mirage-crypto" {>= "1.0.0"}
   "mirage-crypto-ec" {>= "1.0.0"}
-  "mirage-crypto-pk"
+  "mirage-crypto-pk" {>= "1.0.0"}
   "mirage-crypto-rng" {>= "1.0.0"}
   "x509" {>= "1.0.0"}
   "domain-name" {>= "0.3.0"}
