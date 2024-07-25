@@ -56,3 +56,19 @@ val connect
       -> host:[ `host ] Domain_name.t option
       -> (Session.t * Reader.t * Writer.t) Deferred.Or_error.t)
        Tcp.Aliases.with_connect_options
+
+(** [upgrade_client_to_tls] upgrades an existing reader/writer to TLS,
+    returning a cleartext reader and writer.
+    Callers should ensure they close the [Writer.t] and wait for the [unit Deferred.t]
+    returned by [`Closed_and_flushed_downstream] to completely shut down the TLS connection
+
+    [host] is used for peer name verification and should generally be provided. Passing
+    [None] will disable peer name verification unless [peer_name] was provided in the
+    [Tls.Config.client]. If both are present [host] overwrites [peer_name].
+*)
+val upgrade_client_to_tls
+  :  Tls.Config.client
+  -> host:[ `host ] Domain_name.t option
+  -> Reader.t
+  -> Writer.t
+  -> (Session.t * Reader.t * Writer.t) Deferred.Or_error.t
