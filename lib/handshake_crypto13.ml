@@ -11,12 +11,12 @@ let left_pad_dh group msg =
   padding ^ msg
 
 let not_all_zero r =
-  let* cs = r in
-  let all_zero = String.make (String.length cs) '\x00' in
-  if String.equal all_zero cs then
-    Error (`Fatal `InvalidDH)
-  else
-    Ok cs
+  let* str = r in
+  try
+    for i = 0 to String.length str - 1 do
+      if String.unsafe_get str i != '\x00' then raise_notrace Not_found;
+    done; Error (`Fatal `InvalidDH)
+  with Not_found -> Ok str
 
 let dh_shared secret share =
   (* RFC 8556, Section 7.4.1 - we need zero-padding on the left *)

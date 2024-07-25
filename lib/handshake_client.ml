@@ -224,8 +224,10 @@ let answer_certificate_RSA state (session : session_data) cs raw log =
     | #tls_before_13 as v -> Ok v
     | x -> Error (`Fatal (`NoVersions [ x ])) (* TODO: get rid of this... *)
   in
-  let ver = Writer.assemble_protocol_version version in
-  let premaster = ver ^ Mirage_crypto_rng.generate 46 in
+  let buf = Bytes.create (2 + 46) in
+  let _ver = Writer.assemble_protocol_version ~buf version in
+  Mirage_crypto_rng.generate_into buf ~off:2 46;
+  let premaster = Bytes.unsafe_to_string buf in
   let* k = peer_key peer_certificate in
   match k with
   | `RSA key ->
