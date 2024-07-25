@@ -6,8 +6,7 @@ let assemble_protocol_version_int buf off version =
   Bytes.set_uint8 buf off major;
   Bytes.set_uint8 buf (off + 1) minor
 
-let assemble_protocol_version version =
-  let buf = Bytes.create 2 in
+let assemble_protocol_version ?(buf= Bytes.create 2) version =
   assemble_protocol_version_int buf 0 version;
   Bytes.unsafe_to_string buf
 

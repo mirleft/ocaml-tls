@@ -1,5 +1,5 @@
 
-val assemble_protocol_version : Core.tls_version -> string
+val assemble_protocol_version : ?buf:bytes -> Core.tls_version -> string
 
 val assemble_handshake : Core.tls_handshake -> string
 

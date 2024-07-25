@@ -330,14 +330,16 @@ let server_hello_valid (sh : server_hello) =
 let to_sign_1_3 context_string =
   (* input is prepended by 64 * 0x20 (to avoid cross-version attacks) *)
   (* input for signature now contains also a context string *)
-  let prefix = String.make 64 '\x20' in
-  let ctx =
-    let stop = String.make 1 '\x00' (* trailing 0 byte *) in
-    match context_string with
-    | None -> stop
-    | Some x -> x ^ stop
-  in
-  prefix ^ ctx
+  let len = match context_string with
+    | None -> 64 + 1
+    | Some v -> 64 + String.length v + 1 in
+  let buf = Bytes.create len in
+  Bytes.fill buf 0 64 '\x20';
+  begin match context_string with
+  | None -> ()
+  | Some v -> Bytes.blit_string v 0 buf 64 (String.length v) end;
+  Bytes.set buf (Bytes.length buf - 1) '\x00';
+  Bytes.unsafe_to_string buf
 
 let signature version ?context_string data client_sig_algs signature_algorithms (private_key : X509.Private_key.t) =
   match version with
