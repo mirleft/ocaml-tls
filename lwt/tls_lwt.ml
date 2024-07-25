@@ -251,10 +251,16 @@ module Unix = struct
   let server_of_fd config fd =
     drain_handshake {
       state    = `Active (Tls.Engine.server config) ;
-      fd       = Lwt_fd.of_fd fd ;
+      fd       = fd ;
       linger   = None ;
       recv_buf = Bytes.create 4096
     }
+
+  let server_of_channels config (ic, oc) =
+    server_of_fd config (Lwt_fd.of_channels ic oc)
+
+  let server_of_fd config fd =
+    server_of_fd config (Lwt_fd.of_fd fd)
 
   let client_of_fd config ?host fd =
     let config' = match host with
