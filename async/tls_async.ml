@@ -107,6 +107,21 @@ let listen
       upgrade_server_handler ~config (handle_client sock))
 ;;
 
+let upgrade_client_to_tls config ~host outer_reader outer_writer =
+  let open Deferred.Or_error.Let_syntax in
+  let%bind ( tls_session
+           , inner_reader
+           , inner_writer
+           , `Tls_closed_and_flushed_downstream inner_cafd )
+    =
+    upgrade_client_reader_writer_to_tls ?host config (outer_reader, outer_writer)
+  in
+  don't_wait_for
+    (let%bind.Deferred () = inner_cafd in
+     Deferred.all_unit [ Writer.close outer_writer; Reader.close outer_reader ]);
+  return (tls_session, inner_reader, inner_writer)
+;;
+
 let connect
       ?socket
       ?buffer_age_limit
@@ -132,17 +147,7 @@ let connect
       where_to_connect
     |> Deferred.ok
   in
-  let%bind ( tls_session
-           , inner_reader
-           , inner_writer
-           , `Tls_closed_and_flushed_downstream inner_cafd )
-    =
-    upgrade_client_reader_writer_to_tls ?host config (outer_reader, outer_writer)
-  in
-  don't_wait_for
-    (let%bind.Deferred () = inner_cafd in
-     Deferred.all_unit [ Writer.close outer_writer; Reader.close outer_reader ]);
-  return (tls_session, inner_reader, inner_writer)
+  upgrade_client_to_tls ~host config outer_reader outer_writer
 ;;
 
 (* initialized RNG early to maximise available entropy. *)
