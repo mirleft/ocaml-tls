@@ -3,6 +3,8 @@ open Ex_common
 
 let hostname = "mirage.io"
 
+let proxy = "127.0.0.1", 3129
+
 (* To test TLS-over-TLS, the `squid` proxy can be installed locally and configured to support HTTPS:
 
 - Generate a certificate for localhost: https://gist.github.com/cecilemuller/9492b848eb8fe46d462abeb26656c4f8
@@ -26,26 +28,7 @@ https_port 3129 tls-cert=/path/to/localhost.crt tls-key=/path/to/localhost.key
 
 *)
 
-let proxy = "127.0.0.1", 3129
-
-let mypsk = ref None
-
-let ticket_cache = {
-  Tls.Config.lookup = (fun _ -> None) ;
-  ticket_granted = (fun psk epoch -> mypsk := Some (psk, epoch)) ;
-  lifetime = 0l ;
-  timestamp = Ptime_clock.now
-}
-
-let authenticator = null_auth
-let client =
-  Tls.Config.client
-    ~version:(`TLS_1_0, `TLS_1_3)
-    ?cached_ticket:!mypsk
-    ~ticket_cache
-    ~authenticator
-    ~ciphers:Tls.Config.Ciphers.supported
-    ()
+let client = Tls.Config.client ~authenticator:null_auth ()
 
 let string_prefix ~prefix msg =
   let len = String.length prefix in
@@ -84,21 +67,4 @@ let test_client _ =
           close oc >>= fun () ->
           printf "++ done.\n%!")
 
-let jump _ =
-  try
-    Lwt_main.run (test_client ()) ; `Ok ()
-  with
-  | Tls_lwt.Tls_alert alert as exn ->
-      print_alert "remote end" alert ; raise exn
-  | Tls_lwt.Tls_failure alert as exn ->
-      print_fail "our end" alert ; raise exn
-
-open Cmdliner
-
-let cmd =
-  let term = Term.(ret (const jump $ setup_log))
-  and info = Cmd.info "tls_over_tls" ~version:"%%VERSION_NUM%%"
-  in
-  Cmd.v info term
-
-let () = exit (Cmd.eval cmd)
+let () = Lwt_main.run (test_client ())
