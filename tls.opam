@@ -28,7 +28,7 @@ depends: [
   "logs"
   "ipaddr"
   "ohex" {>= "0.2.0"}
-  "digestif"
+  "digestif" {>= "1.2.0"}
   "alcotest" {with-test}
 ]
 conflicts: [ "result" {< "1.5"} ]
