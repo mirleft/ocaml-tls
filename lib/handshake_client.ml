@@ -98,7 +98,7 @@ let common_server_hello_validation config reneg (sh : server_hello) (ch : client
 
 let common_server_hello_machina state (sh : server_hello) (ch : client_hello) raw log =
   let cipher = sh.ciphersuite in
-  let session_id = match sh.sessionid with None -> "" | Some x -> x in
+  let session_id = Option.value ~default:"" sh.sessionid in
   let extended_ms =
     List.mem `ExtendedMasterSecret ch.extensions &&
     List.mem `ExtendedMasterSecret sh.extensions
