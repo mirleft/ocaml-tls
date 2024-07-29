@@ -1,4 +1,5 @@
 ```ocaml
+# #require "digestif.c";;
 # #require "eio_main";;
 # #require "tls-eio";;
 # #require "mirage-crypto-rng-eio";;
