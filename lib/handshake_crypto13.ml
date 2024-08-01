@@ -7,16 +7,16 @@ let cdiv (x : int) (y : int) =
 
 let left_pad_dh group msg =
   let bytes = cdiv (Mirage_crypto_pk.Dh.modulus_size group) 8 in
-  let padding = Cstruct.create (bytes - Cstruct.length msg) in
-  padding <+> msg
+  let padding = String.make (bytes - String.length msg) '\x00' in
+  padding ^ msg
 
 let not_all_zero r =
-  let* cs = r in
-  let all_zero = Cstruct.create (Cstruct.length cs) in
-  if Cstruct.equal all_zero cs then
-    Error (`Fatal `InvalidDH)
-  else
-    Ok cs
+  let* str = r in
+  try
+    for i = 0 to String.length str - 1 do
+      if String.unsafe_get str i != '\x00' then raise_notrace Not_found;
+    done; Error (`Fatal `InvalidDH)
+  with Not_found -> Ok str
 
 let dh_shared secret share =
   (* RFC 8556, Section 7.4.1 - we need zero-padding on the left *)
@@ -29,7 +29,7 @@ let dh_shared secret share =
        let bits = Mirage_crypto_pk.Dh.modulus_size group in
        let* () =
          (* truncated share, better reject this *)
-         guard (Cstruct.length share = cdiv bits 8) (`Fatal `InvalidDH)
+         guard (String.length share = cdiv bits 8) (`Fatal `InvalidDH)
        in
        let* shared =
          Option.to_result
@@ -72,27 +72,25 @@ let pp_hash_k_n ciphersuite =
   (pp, hash, k, n)
 
 let hkdflabel label context length =
-  let len =
-    let b = Cstruct.create 2 in
-    Cstruct.BE.set_uint16 b 0 length ;
-    b
-  and label =
-    let lbl = Cstruct.of_string ("tls13 " ^ label) in
-    let l = Cstruct.create 1 in
-    Cstruct.set_uint8 l 0 (Cstruct.length lbl) ;
-    l <+> lbl
-  and context =
-    let l = Cstruct.create 1 in
-    Cstruct.set_uint8 l 0 (Cstruct.length context) ;
-    l <+> context
+  let lbl = "tls13 " ^ label in
+  let len_llen = Bytes.create 3 in
+  Bytes.set_uint16_be len_llen 0 length;
+  Bytes.set_uint8 len_llen 2 (String.length lbl);
+  let clen = String.make 1 (Char.unsafe_chr (String.length context)) in
+  let lbl = String.concat ""
+      [ Bytes.unsafe_to_string len_llen ;
+        lbl ;
+        clen ;
+        context ]
   in
-  let lbl = len <+> label <+> context in
   trace "hkdflabel" lbl ;
   lbl
 
-let derive_secret_no_hash hash prk ?length ?(ctx = Cstruct.empty) label =
+let derive_secret_no_hash hash prk ?length ?(ctx = "") label =
   let length = match length with
-    | None -> Mirage_crypto.Hash.digest_size hash
+    | None ->
+      let module H = (val Digestif.module_of_hash' hash) in
+      H.digest_size
     | Some x -> x
   in
   let info = hkdflabel label ctx length in
@@ -102,22 +100,23 @@ let derive_secret_no_hash hash prk ?length ?(ctx = Cstruct.empty) label =
   key
 
 let derive_secret t label log =
-  let ctx = Mirage_crypto.Hash.digest t.State.hash log in
+  let module H = (val Digestif.module_of_hash' t.State.hash) in
+  let ctx = H.(to_raw_string (digest_string log)) in
   trace "derive secret ctx" ctx ;
   derive_secret_no_hash t.State.hash t.State.secret ~ctx label
 
 let empty cipher = {
-  State.secret = Cstruct.empty ;
+  State.secret = "" ;
   cipher ;
   hash = Ciphersuite.hash13 cipher
 }
 
 let derive t secret_ikm =
   let salt =
-    if Cstruct.equal t.State.secret Cstruct.empty then
-      Cstruct.empty
+    if String.equal t.State.secret "" then
+      ""
     else
-      derive_secret t "derived" Cstruct.empty
+      derive_secret t "derived" ""
   in
   trace "derive: secret_ikm" secret_ikm ;
   trace "derive: salt" salt ;
@@ -127,9 +126,9 @@ let derive t secret_ikm =
 
 let traffic_key cipher prk =
   let _, hash, key_len, iv_len = pp_hash_k_n cipher in
-  let key_info = hkdflabel "key" Cstruct.empty key_len in
+  let key_info = hkdflabel "key" "" key_len in
   let key = Hkdf.expand ~hash ~prk ~info:key_info key_len in
-  let iv_info = hkdflabel "iv" Cstruct.empty iv_len in
+  let iv_info = hkdflabel "iv" "" iv_len in
   let iv = Hkdf.expand ~hash ~prk ~info:iv_info iv_len in
   (key, iv)
 
@@ -175,5 +174,6 @@ let res_secret hash secret nonce =
   derive_secret_no_hash hash secret ~ctx:nonce "resumption"
 
 let finished hash secret data =
+  let module H = (val Digestif.module_of_hash' hash) in
   let key = derive_secret_no_hash hash secret "finished" in
-  Mirage_crypto.Hash.mac hash ~key (Mirage_crypto.Hash.digest hash data)
+  H.(to_raw_string (hmac_string ~key (to_raw_string (digest_string data))))

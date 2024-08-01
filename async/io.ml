@@ -39,8 +39,8 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
   type t =
     { fd : Fd.t
     ; mutable state : State.t
-    ; mutable linger : Cstruct.t option
-    ; recv_buf : Cstruct.t
+    ; mutable linger : string option
+    ; recv_buf : bytes
     }
 
   let tls_error = Fn.compose Deferred.Or_error.error_s Tls_error.sexp_of_t
@@ -73,18 +73,17 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
        | Active _, `Eof ->
          t.state <- Eof;
          return `Eof
-       | Active tls, `Ok n -> handle tls (Cstruct.sub t.recv_buf 0 n)
+       | Active tls, `Ok n -> handle tls (Stdlib.Bytes.sub_string t.recv_buf 0 n)
        | Error e, _ -> tls_error e
        | Eof, _ -> return `Eof)
   ;;
 
   let rec read t buf =
     let writeout res =
-      let open Cstruct in
-      let rlen = length res in
-      let n = min (length buf) rlen in
-      blit res 0 buf 0 n;
-      t.linger <- (if n < rlen then Some (sub res n (rlen - n)) else None);
+      let rlen = String.length res in
+      let n = min (Bytes.length buf) rlen in
+      Stdlib.Bytes.blit_string res 0 buf 0 n;
+      t.linger <- (if n < rlen then Some (Stdlib.String.sub res n (rlen - n)) else None);
       return n
     in
     match t.linger with
@@ -120,7 +119,7 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
       match mcs, t.linger with
       | None, _ -> ()
       | scs, None -> t.linger <- scs
-      | Some cs, Some l -> t.linger <- Some (Cstruct.append l cs)
+      | Some cs, Some l -> t.linger <- Some (l ^ cs)
     in
     match t.state with
     | Active tls when not (Tls.Engine.handshake_in_progress tls) -> return t
@@ -173,7 +172,7 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
       { state = Active (Tls.Engine.server config)
       ; fd
       ; linger = None
-      ; recv_buf = Cstruct.create 4096
+      ; recv_buf = Bytes.create 4096
       }
   ;;
 
@@ -183,7 +182,7 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
       | None -> config
       | Some host -> Tls.Config.peer config host
     in
-    let t = { state = Eof; fd; linger = None; recv_buf = Cstruct.create 4096 } in
+    let t = { state = Eof; fd; linger = None; recv_buf = Bytes.create 4096 } in
     let tls, init = Tls.Engine.client config' in
     let t = { t with state = Active tls } in
     let%bind () = Fd.write_full t.fd init in

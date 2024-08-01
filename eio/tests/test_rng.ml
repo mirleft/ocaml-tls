@@ -6,13 +6,11 @@ let block = 1
 
 let create ?time:_ () = ref 1234
 
-let generate ~g n =
-  let cs = Cstruct.create n in
-  for i = 0 to n - 1 do
-    Cstruct.set_uint8 cs i !g;
+let generate_into ~g buf ~off n =
+  for i = off to off + n - 1 do
+    Bytes.set_uint8 buf i !g;
     g := !g + 1
-  done;
-  cs
+  done
 
 let reseed ~g:_ _ = ()
 

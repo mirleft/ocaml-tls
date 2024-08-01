@@ -14,14 +14,14 @@ module Authenticator : sig
     type t
 
     val ca_file
-      :  ?allowed_hashes:Mirage_crypto.Hash.hash list
+      :  ?allowed_hashes:Digestif.hash' list
       -> ?crls:Filename.t
       -> Filename.t
       -> unit
       -> t
 
     val ca_dir
-      :  ?allowed_hashes:Mirage_crypto.Hash.hash list
+      :  ?allowed_hashes:Digestif.hash' list
       -> ?crls:Filename.t
       -> Filename.t
       -> unit
@@ -30,14 +30,14 @@ module Authenticator : sig
     (** The fingerprint can be collected from a browser or by invoking an openssl command
         like 'openssl x509 -in <pem_file> -noout -fingerprint -sha256' *)
     val cert_fingerprint
-      :  Mirage_crypto.Hash.hash
+      :  Digestif.hash'
       -> string
       -> t
 
     (** The fingerprint can be collected from a browser or by invoking an openssl command
         like 'openssl x509 -in <pem_file> -noout -pubkey | openssl pkey -pubin -outform DER | openssl dgst -sha256' *)
     val key_fingerprint
-      :  Mirage_crypto.Hash.hash
+      :  Digestif.hash'
       -> string
       -> t
 
@@ -58,10 +58,10 @@ module Private_key : sig
   end
 
   val sign
-    :  Mirage_crypto.Hash.hash
+    :  Digestif.hash'
     -> ?scheme:Key_type.signature_scheme
     -> t
-    -> [ `Digest of Cstruct.t | `Message of Cstruct.t ]
+    -> [ `Digest of string | `Message of string ]
     -> string Or_error.t
 
   val decode_der : contents:string -> t Or_error.t
@@ -75,7 +75,7 @@ module Public_key : sig
   end
 
   val verify
-    :  Mirage_crypto.Hash.hash
+    :  Digestif.hash'
     -> ?scheme:Key_type.signature_scheme
     -> signature:string
     -> t
@@ -114,7 +114,7 @@ module CRL : sig
   val decode_der : contents:string -> t Or_error.t
 
   val revoke
-    :  ?digest:Mirage_crypto.Hash.hash
+    :  ?digest:Digestif.hash'
     -> issuer:Distinguished_name.t
     -> this_update:Ptime.t
     -> ?next_update:Ptime.t
@@ -154,7 +154,7 @@ module OCSP : sig
 
     val create
       :  ?certs:Certificate.t list
-      -> ?digest:Mirage_crypto.Hash.hash
+      -> ?digest:Digestif.hash'
       -> ?requestor_name:General_name.b
       -> ?key:Private_key.t
       -> cert_id list
@@ -169,7 +169,7 @@ module OCSP : sig
     end
 
     val create_success
-      :  ?digest:Mirage_crypto.Hash.hash
+      :  ?digest:Digestif.hash'
       -> ?certs:Certificate.t list
       -> ?response_extensions:Extension.t
       -> Private_key.t
@@ -207,20 +207,20 @@ module Signing_request : sig
     include Signing_request
   end
 
-  val decode_der : ?allowed_hashes:Mirage_crypto.Hash.hash list -> string -> t Or_error.t
+  val decode_der : ?allowed_hashes:Digestif.hash' list -> string -> t Or_error.t
   val decode_pem : string -> t Or_error.t
 
   val create
     :  Distinguished_name.t
-    -> ?digest:Mirage_crypto.Hash.hash
+    -> ?digest:Digestif.hash'
     -> ?extensions:Ext.t
     -> Private_key.t
     -> t Or_error.t
 
   val sign
-    :  ?allowed_hashes:Mirage_crypto.Hash.hash list
-    -> ?digest:Mirage_crypto.Hash.hash
-    -> ?serial:Z.t
+    :  ?allowed_hashes:Digestif.hash' list
+    -> ?digest:Digestif.hash'
+    -> ?serial:string
     -> ?extensions:Extension.t
     -> t
     -> Private_key.t

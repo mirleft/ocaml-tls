@@ -45,13 +45,13 @@ module Unix : sig
 
   (** [read t buffer] is [length], the number of bytes read into
       [buffer]. *)
-  val read   : t -> Cstruct.t      -> int  Lwt.t
+  val read   : t -> bytes       -> int  Lwt.t
 
   (** [write t buffer] writes the [buffer] to the session. *)
-  val write  : t -> Cstruct.t      -> unit Lwt.t
+  val write  : t -> string      -> unit Lwt.t
 
   (** [writev t buffers] writes the [buffers] to the session. *)
-  val writev : t -> Cstruct.t list -> unit Lwt.t
+  val writev : t -> string list -> unit Lwt.t
 
   (** [read_bytes t bytes offset len] is [read_bytes], the amount of
       bytes read. *)

@@ -15,12 +15,12 @@ val certs_of_pem_dir : _ Eio.Path.t -> X509.Certificate.t list
 
 (** [authenticator methods] constructs an [authenticator] using the
     specified method and data. *)
-val authenticator : ?allowed_hashes:Mirage_crypto.Hash.hash list -> ?crls:_ Eio.Path.t ->
+val authenticator : ?allowed_hashes:Digestif.hash' list -> ?crls:_ Eio.Path.t ->
   [ `Ca_file of _ Eio.Path.t
   | `Ca_dir  of _ Eio.Path.t
-  | `Key_fingerprint of Mirage_crypto.Hash.hash * Cstruct.t
-  | `Hex_key_fingerprint of Mirage_crypto.Hash.hash * string
-  | `Cert_fingerprint of Mirage_crypto.Hash.hash * Cstruct.t
-  | `Hex_cert_fingerprint of Mirage_crypto.Hash.hash * string
+  | `Key_fingerprint of Digestif.hash' * string
+  | `Hex_key_fingerprint of Digestif.hash' * string
+  | `Cert_fingerprint of Digestif.hash' * string
+  | `Hex_cert_fingerprint of Digestif.hash' * string
   ]
   -> X509.Authenticator.t

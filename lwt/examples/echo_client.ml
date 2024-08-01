@@ -3,7 +3,7 @@ open Ex_common
 open Lwt
 
 let cached_session : Tls.Core.epoch_data =
-  let hex = Cstruct.of_hex in
+  let hex = Ohex.decode in
   {
     Tls.Core.side = `Client ;
     protocol_version = `TLS_1_3 ;
@@ -19,8 +19,8 @@ let cached_session : Tls.Core.epoch_data =
     own_private_key = None ;
     own_name = None ;
     master_secret = hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" ;
-    exporter_master_secret = Cstruct.empty ;
-    session_id = Cstruct.empty ;
+    exporter_master_secret = "" ;
+    session_id = "" ;
     extended_ms = true ;
     alpn_protocol = None ;
     state = `Established ;
