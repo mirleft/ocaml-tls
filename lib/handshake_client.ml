@@ -141,9 +141,8 @@ let answer_server_hello state (ch : client_hello) sh secrets raw log =
 
   let* () =
     if max_protocol_version state.config.protocol_versions = `TLS_1_3 then
-      let piece = String.sub sh.server_random 24 8 in
-      let* () = guard (not (String.equal Packet.downgrade12 piece)) (`Fatal `Downgrade12) in
-      guard (not (String.equal Packet.downgrade11 piece)) (`Fatal `Downgrade11)
+      let* () = guard (not (Utils.sub_equal ~off:24 ~len:8 Packet.downgrade12 sh.server_random)) (`Fatal `Downgrade12) in
+      guard (not (Utils.sub_equal ~off:24 ~len:8 Packet.downgrade11 sh.server_random)) (`Fatal `Downgrade11)
     else
       Ok ()
   in
