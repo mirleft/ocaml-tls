@@ -30,6 +30,9 @@ depends: [
   "logs"
   "ipaddr"
   "alcotest" {with-test}
+  "notty" {with-test}
+  "bechamel" {with-test}
+  "bechamel-notty" {with-test}
 ]
 conflicts: [ "result" {< "1.5"} ]
 tags: [ "org:mirage"]
