@@ -50,10 +50,10 @@ let _ca, cert =
   in
   (cert, cert)
 
-let established version cipher =
+let established ?groups version cipher =
   let client_config =
     let authenticator ?ip:_ ~host:_ _certs = Ok None in
-    Config.client ~version:(version, version) ~ciphers:[cipher] ~authenticator ()
+    Config.client ?groups ~version:(version, version) ~ciphers:[cipher] ~authenticator ()
   and server_config =
     let certificates = `Single ([ cert ], key) in
     Config.server ~certificates ()
@@ -129,12 +129,22 @@ let version_ciphers =
 
 let test_client =
   Test.make_grouped ~name:""
-    (List.map
-       (fun (version, cipher) ->
-          Test.make_grouped
-            ~name:(Fmt.str "%a %a" Core.pp_tls_version version Ciphersuite.pp_ciphersuite cipher)
-            [ test_send_data version cipher; test_receive_data version cipher ])
-       version_ciphers)
+    ((List.map
+        (fun (version, cipher) ->
+           Test.make_grouped
+             ~name:(Fmt.str "BW %a %a" Core.pp_tls_version version Ciphersuite.pp_ciphersuite cipher)
+             [ test_send_data version cipher; test_receive_data version cipher ])
+        version_ciphers) @
+     [ Test.make_grouped ~name:"HS"
+        (List.map
+           (fun group ->
+              let staged =
+                Staged.stage (fun () ->
+                    let _, _ = established ~groups:[group] `TLS_1_3 `CHACHA20_POLY1305_SHA256 in
+                    ())
+              in
+              Test.make ~name:(Fmt.to_to_string Core.pp_group group) staged)
+           [ `X25519 ; `P384 ; `P256 ; `P521 ; `FFDHE2048 ; `FFDHE3072 ]) ])
 
 let benchmark () =
   let ols =
