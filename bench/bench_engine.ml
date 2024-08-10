@@ -90,6 +90,7 @@ let established ?groups version cipher =
   client, server
 
 open Bechamel
+open Toolkit
 
 let test_send_data version cipher =
   let staged =
@@ -128,57 +129,49 @@ let version_ciphers =
     [ `AES_128_GCM_SHA256 ; `CHACHA20_POLY1305_SHA256 ; `AES_128_CCM_SHA256 ]
 
 let test_client =
-  Test.make_grouped ~name:""
-    ((List.map
-        (fun (version, cipher) ->
-           Test.make_grouped
-             ~name:(Fmt.str "BW %a %a" Core.pp_tls_version version Ciphersuite.pp_ciphersuite cipher)
-             [ test_send_data version cipher; test_receive_data version cipher ])
-        version_ciphers) @
-     [ Test.make_grouped ~name:"HS"
-        (List.map
-           (fun group ->
-              let staged =
-                Staged.stage (fun () ->
-                    let _, _ = established ~groups:[group] `TLS_1_3 `CHACHA20_POLY1305_SHA256 in
-                    ())
-              in
-              Test.make ~name:(Fmt.to_to_string Core.pp_group group) staged)
-           [ `X25519 ; `P384 ; `P256 ; `P521 ; `FFDHE2048 ; `FFDHE3072 ]) ])
+  let bw = List.map
+    begin fun (version, cipher) ->
+      Test.make_grouped
+        ~name:(Fmt.str "BW %a %a" Core.pp_tls_version version Ciphersuite.pp_ciphersuite cipher)
+        [ test_send_data version cipher; test_receive_data version cipher ]
+    end version_ciphers in
+  let hs = List.map
+    begin fun group ->
+      let staged =
+        Staged.stage @@ fun () ->
+        ignore (established ~groups:[group] `TLS_1_3 `CHACHA20_POLY1305_SHA256) in
+      Test.make ~name:(Fmt.to_to_string Core.pp_group group) staged
+    end
+    [ `X25519 ; `P384 ; `P256 ; `P521 ; `FFDHE2048 ; `FFDHE3072 ] in
+  function
+  | `Send_recv -> Test.make_grouped ~name:"" bw
+  | `Handshake -> Test.make_grouped ~name:"" hs
 
-let benchmark () =
-  let ols =
-    Analyze.ols ~bootstrap:0 ~r_square:true ~predictors:Measure.[| run |]
-  in
-  let instances =
-    Toolkit.Instance.[ minor_allocated; major_allocated; monotonic_clock ]
-  in
-  let cfg =
-    Benchmark.cfg ~limit:2000 ~quota:(Time.second 0.5) ~kde:(Some 1000) ()
-  in
-  let raw_results = Benchmark.all cfg instances test_client in
-  let results =
-    List.map (fun instance -> Analyze.all ols instance raw_results) instances
-  in
+let benchmark which =
+  let ols = Analyze.ols ~bootstrap:100 ~r_square:true ~predictors:Measure.[| run |] in
+  let instances = Instance.[ monotonic_clock ] in
+  let cfg = Benchmark.cfg ~limit:2000 ~quota:(Time.second 0.5) ~kde:(Some 1000) () in
+  let raw_results = Benchmark.all cfg instances (test_client which) in
+  let results = List.map (fun instance -> Analyze.all ols instance raw_results) instances in
   let results = Analyze.merge ols instances results in
   (results, raw_results)
 
 let () =
-  List.iter
-    (fun v -> Bechamel_notty.Unit.add v (Measure.unit v))
-    Toolkit.Instance.[ minor_allocated; major_allocated; monotonic_clock ]
+  List.iter begin fun v -> Bechamel_notty.Unit.add v (Measure.unit v) end
+    Toolkit.Instance.[ monotonic_clock ]
 
 let img (window, results) =
   Bechamel_notty.Multiple.image_of_ols_results ~rect:window
     ~predictor:Measure.run results
 
-open Notty_unix
-
 let () =
-  let window =
-    match winsize Unix.stdout with
-    | Some (w, h) -> { Bechamel_notty.w; h }
-    | None -> { Bechamel_notty.w = 80; h = 1 }
-  in
-  let results, _ = benchmark () in
+  let which = match Sys.argv with
+    | [| _; "io" |] -> `Send_recv
+    | [| _; "handshake" |] -> `Handshake
+    | _ -> `Send_recv in
+  let open Notty_unix in
+  let results, _ = benchmark which in
+  let window = match winsize Unix.stdout with
+   | Some (w, h) -> { Bechamel_notty.w; h }
+   | None -> { Bechamel_notty.w= 80; h= 1 } in
   img (window, results) |> eol |> output_image
