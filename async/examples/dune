@@ -1,11 +1,15 @@
 (executable
   (name    test_client)
   (modules test_client)
+  (public_name tls-test-client)
+  (package tls-async)
   (preprocess (pps ppx_jane))
   (libraries async core core_unix.command_unix tls-async))
 
 (executable
   (name    test_server)
   (modules test_server)
+  (public_name tls-test-server)
+  (package tls-async)
   (preprocess (pps ppx_jane))
   (libraries async core core_unix.command_unix tls-async))

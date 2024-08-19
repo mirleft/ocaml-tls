@@ -16,16 +16,21 @@ module Flow = struct
   let handle_tls ~tag state msg =
     let (st, descr) = match state with
       | `S st -> (st, "server")
-      | `C st -> (st, "client") in
+      | `C st -> (st, "client")
+    in
+    match msg with
+    | None -> state, None, None
+    | Some msg ->
     match Tls.Engine.handle_tls st msg with
     | Ok (_, Some `Eof, _, _) ->
         failwith "received eof"
     | Ok (st', _eof, `Response (Some ans), `Data appdata) ->
-        (rewrap_st (state, st'), ans, appdata)
+        (rewrap_st (state, st'), Some ans, appdata)
+    | Ok (st', _eof, `Response None, `Data appdata) ->
+        (rewrap_st (state, st'), None, appdata)
     | Error (a, _) ->
         failwith @@ Printf.sprintf "[%s] %s error: %s"
           tag descr (Tls.Engine.string_of_failure a)
-    | Ok _ -> failwith "decoded alert"
 end
 
 let loop_chatter ~certificate ~loops ~size =
@@ -44,8 +49,8 @@ let loop_chatter ~certificate ~loops ~size =
       let tag = "handshake" in
       let (srv, ans, _) = Flow.handle_tls ~tag srv cli_msg in
       let (cli, ans, _) = Flow.handle_tls ~tag cli ans in
-      if Flow.can_handle_appdata cli then (srv, cli)
-      else handshake srv cli ans
+      if Flow.can_handle_appdata cli && Flow.can_handle_appdata srv then (srv, cli) else
+          handshake srv cli ans
 
     and chat srv cli data = function
       | 0 -> data
@@ -55,7 +60,7 @@ let loop_chatter ~certificate ~loops ~size =
             match Flow.send_application_data sender [data] with
             | None                -> failwith @@ "can't send"
             | Some (sender', msg) ->
-                match Flow.handle_tls ~tag recv msg with
+                match Flow.handle_tls ~tag recv (Some msg) with
                 | (recv', _, Some data') -> (sender', recv', data')
                 | (_, _, None)           -> failwith "expected data"
           in
@@ -63,15 +68,21 @@ let loop_chatter ~certificate ~loops ~size =
           let (srv, cli, data2) = simplex srv cli data1 in
           chat srv cli data2 (pred n)
     in
-    let (srv, cli) = handshake (`S server) (`C client) init in
+    let (srv, cli) = handshake (`S server) (`C client) (Some init) in
     let message' = chat srv cli message loops in
-    if Cstruct.equal message message' then ()
-    else failwith @@ "the message got corrupted :("
+    if Cstruct.equal message message' then Ok ()
+    else Error "the message got corrupted :("
 
 
 let load_priv () =
-  let cs1 = Testlib.cs_mmap "./certificates/server.pem"
-  and cs2 = Testlib.cs_mmap "./certificates/server.key" in
+  let cert, key =
+    if Sys.file_exists "./certificates/server.pem" then
+      "./certificates/server.pem", "./certificates/server.key"
+    else
+      "server.pem", "server.key"
+  in
+  let cs1 = Testlib.cs_mmap cert
+  and cs2 = Testlib.cs_mmap key in
   match
     X509.Certificate.decode_pem_multiple cs1, X509.Private_key.decode_pem cs2
   with
@@ -79,12 +90,34 @@ let load_priv () =
   | Error (`Msg m), _ -> failwith ("can't parse certificates " ^ m)
   | _, Error (`Msg m) -> failwith ("can't parse private key " ^ m)
 
-let _ =
-  let loops =
-    try int_of_string Sys.argv.(1) with _ -> 10
-  and size  =
-    try int_of_string Sys.argv.(2) with _ -> 1024
-  and certificate = load_priv ()
-  in
+let jump () loops size =
+  let certificate = load_priv () in
   loop_chatter ~certificate ~loops ~size
 
+let setup_log style_renderer level =
+  Fmt_tty.setup_std_outputs ?style_renderer ();
+  Logs.set_level level;
+  Logs.set_reporter (Logs_fmt.reporter ~dst:Format.std_formatter ())
+
+open Cmdliner
+
+let setup_log =
+  Term.(const setup_log
+        $ Fmt_cli.style_renderer ()
+        $ Logs_cli.level ())
+
+let loops =
+  let doc = "Number of loops to take" in
+  Arg.(value & opt int 10 & info ~docv:"LOOPS" ~doc ["loops"])
+
+let size =
+  let doc = "Bytes to exchange" in
+  Arg.(value & opt int 1024 & info ~docv:"SIZE" ~doc ["size"])
+
+let cmd =
+  let term = Term.(const jump $ setup_log $ loops $ size)
+  and info = Cmd.info "feedback" ~version:"%%VERSION_NUM%%"
+  in
+  Cmd.v info term
+
+let () = exit (Cmd.eval_result cmd)

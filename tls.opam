@@ -33,6 +33,7 @@ depends: [
   "notty" {with-test}
   "bechamel" {with-test}
   "bechamel-notty" {with-test}
+  "cmdliner" {with-test & >= "1.3.0"}
 ]
 conflicts: [ "result" {< "1.5"} ]
 tags: [ "org:mirage"]

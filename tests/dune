@@ -16,7 +16,9 @@
  (modules key_derivation)
  (libraries tls mirage-crypto-rng.unix alcotest logs.fmt))
 
-(executable
+(test
  (name feedback)
+ (package tls)
  (modules feedback)
- (libraries tls x509 testlib))
+ (deps server.key server.pem)
+ (libraries tls x509 testlib cmdliner fmt.cli logs.fmt fmt.tty logs.cli))
