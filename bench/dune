@@ -17,3 +17,7 @@
   tls
   x509
   domain-name))
+
+(executable
+ (name throughput)
+ (libraries fmt.tty logs.fmt mirage-crypto-rng.unix tls ptime.clock.os))
