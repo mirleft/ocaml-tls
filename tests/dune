@@ -18,6 +18,7 @@
 
 (test
  (name feedback)
+ (package tls)
  (modules feedback)
  (deps server.key server.pem)
  (libraries tls x509 testlib cmdliner fmt.cli logs.fmt fmt.tty logs.cli))
