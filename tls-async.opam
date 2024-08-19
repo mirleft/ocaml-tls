@@ -14,7 +14,7 @@ build: [
 ]
 
 depends: [
-  "ocaml" {>= "4.08.0"}
+  "ocaml" {>= "4.14.0"}
   "dune" {>= "3.0"}
   "tls" {= version}
   "x509" {>= "0.14.0"}
@@ -22,6 +22,7 @@ depends: [
   "async" {>= "v0.16"}
   "async_unix" {>= "v0.16"}
   "core" {>= "v0.16"}
+  "core_unix" {>= "v0.16"}
   "cstruct-async"
   "ppx_jane" {>= "v0.16"}
   "mirage-crypto-rng-async" {< "1.0.0"}
