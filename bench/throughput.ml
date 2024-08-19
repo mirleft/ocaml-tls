@@ -107,12 +107,9 @@ let to_consumer state =
   fun buf -> state := once !state (Some buf)
 
 module Time = struct
-  let time ~n fn size =
-    let bufs = Array.init n begin fun _ ->
-      Mirage_crypto_rng.generate size
-    end in
+  let time ~n fn a =
     let t1 = Sys.time () in
-    for i = 0 to n - 1 do ignore (fn bufs.(i)) done;
+    for _i = 0 to n - 1 do ignore (fn a) done;
     let t2 = Sys.time () in
     (t2 -. t1)
 end
@@ -121,45 +118,124 @@ let burn_period = 2.0
 let sizes = [ 16; 64; 256; 1024; 4096; 8192 ]
 
 let burn fn size =
+  let cs = Mirage_crypto_rng.generate size in
   let (t1, i1) =
     let rec go it =
-      let t = Time.time ~n:it fn size in
+      let t = Time.time ~n:it fn cs in
       if t > 0.2 then (t, it) else go (it * 10) in
     go 10 in
   let iters = int_of_float (float i1 *. burn_period /. t1) in
-  let time = Time.time ~n:iters fn size in
+  let time = Time.time ~n:iters fn cs in
   (iters, time, float (size * iters) /. time)
 
 let mb = 1024. *. 1024.
 
 let throughput title fn =
-  Fmt.pr "\n* [%s]\n%!" title ;
+  Fmt.pr "\n## %s\n\n%!" title ;
+  Fmt.pr "| block |    MB/s |\n%!" ;
+  Fmt.pr "| ----- | ------- |\n%!" ;
   List.iter begin fun size ->
     Gc.full_major ();
-    let (iters, time, bw) = burn fn size in
-    Fmt.pr "   % 5d:  %04.04f MB/s (%d iters in %.03fs)\n%!"
-      size (bw /. mb) iters time
+    let (_iters, _time, bw) = burn fn size in
+    Fmt.pr "| %5d | %7.2f |\n%!" size (bw /. mb)
   end sizes
 
 let bm name fn = (name, fun () -> fn name)
 
-let benchmarks =
-  [ bm "tls-1.3, rsa/2048, x25519, aes-128-gcm-sha256" begin fun name ->
-      let key = X509.Private_key.generate ~bits:2048 `RSA in
-      let state = make ~groups:[ `X25519 ] ~cipher:`AES_128_GCM_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
-      throughput name (to_consumer state)
-    end
-  ; bm "tls-1.3, rsa/2048, p256, aes-128-gcm-sha256" begin fun name ->
-      let key = X509.Private_key.generate ~bits:2048 `RSA in
-      let state = make ~groups:[ `P256 ] ~cipher:`AES_128_GCM_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
-      throughput name (to_consumer state)
-    end
-  ; bm "tls-1.3, rsa/2048, x25519, chacha20-poly1305-sha256" begin fun name ->
-      let key = X509.Private_key.generate ~bits:2048 `RSA in
-      let state = make ~groups:[ `X25519 ] ~cipher:`CHACHA20_POLY1305_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
-      throughput name (to_consumer state)
-    end
+let count_period = 10.
 
+let count f n =
+  ignore (f n);
+  let i1 = 5 in
+  let t1 = Time.time ~n:i1 f n in
+  let iters = int_of_float (float i1 *. count_period /. t1) in
+  let time  = Time.time ~n:iters f n in
+  (iters, time)
+
+let count title f to_str args =
+  Printf.printf "\n## %s\n\n%!" title ;
+  Printf.printf "| group     |    hs/s |\n%!" ;
+  Printf.printf "| --------- | ------- |\n%!" ;
+  args |> List.iter @@ fun arg ->
+  Gc.full_major () ;
+  let iters, time = count f arg in
+  Printf.printf "| %s | %7.2f |\n%!"
+    (to_str arg) (float iters /. time)
+
+let print_group group =
+  let str = Fmt.to_to_string Tls.Core.pp_group group in
+  let pad = 9 - String.length str in
+  str ^ String.make pad ' '
+
+let benchmarks =
+  [ bm "tls-1.3, rsa/2048, x25519, aes-128-ccm-sha256" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        let state = make ~groups:[ `X25519 ] ~cipher:`AES_128_CCM_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
+        throughput name (to_consumer state)
+      end
+  ; bm "tls-1.3, rsa/2048, x25519, aes-128-gcm-sha256" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        let state = make ~groups:[ `X25519 ] ~cipher:`AES_128_GCM_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
+        throughput name (to_consumer state)
+      end
+  ; bm "tls-1.3, rsa/2048, x25519, aes-256-gcm-sha384" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        let state = make ~groups:[ `X25519 ] ~cipher:`AES_256_GCM_SHA384 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
+        throughput name (to_consumer state)
+      end
+  ; bm "tls-1.3, rsa/2048, x25519, chacha20-poly1305-sha256" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        let state = make ~groups:[ `X25519 ] ~cipher:`CHACHA20_POLY1305_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
+        throughput name (to_consumer state)
+      end
+  ; bm "tls-1.2, rsa/2048, ffdhe2048, aes-128-ccm" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        let state = make ~groups:[ `FFDHE2048 ] ~cipher:`DHE_RSA_WITH_AES_128_CCM ~digest:`SHA256 ~key `TLS_1_2 `To_server in
+        throughput name (to_consumer state)
+      end
+  ; bm "tls-1.2, rsa/2048, ffdhe2048, aes-256-ccm" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        let state = make ~groups:[ `FFDHE2048 ] ~cipher:`DHE_RSA_WITH_AES_256_CCM ~digest:`SHA256 ~key `TLS_1_2 `To_server in
+        throughput name (to_consumer state)
+      end
+  ; bm "tls-1.2, rsa/2048, ffdhe2048, aes-128-gcm-sha256" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        let state = make ~groups:[ `FFDHE2048 ] ~cipher:`DHE_RSA_WITH_AES_128_GCM_SHA256 ~digest:`SHA256 ~key `TLS_1_2 `To_server in
+        throughput name (to_consumer state)
+      end
+  ; bm "tls-1.2, rsa/2048, ffdhe2048, aes-256-gcm-sha384" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        let state = make ~groups:[ `FFDHE2048 ] ~cipher:`DHE_RSA_WITH_AES_256_GCM_SHA384 ~digest:`SHA256 ~key `TLS_1_2 `To_server in
+        throughput name (to_consumer state)
+      end
+  ; bm "tls-1.2, rsa/2048, ffdhe2048, chacha20_poly1305_sha256" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        let state = make ~groups:[ `FFDHE2048 ] ~cipher:`DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 ~digest:`SHA256 ~key `TLS_1_2 `To_server in
+        throughput name (to_consumer state)
+      end
+
+  ; bm "tls-1.3 handshake per second" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        count name begin fun group ->
+          let state = make ~groups:[ group ] ~cipher:`CHACHA20_POLY1305_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
+          ignore (once state None)
+        end
+          print_group
+          ([ `X25519 ; `P256 ; `P384 ; `P521 ; `FFDHE2048 ; `FFDHE3072 ])
+      end
+  ; bm "tls-1.2 handshake per second" begin fun name ->
+        let key = X509.Private_key.generate ~bits:2048 `RSA in
+        count name begin fun group ->
+          let cipher = match group with
+            | `FFDHE4096 | `FFDHE6144 | `FFDHE8192 | `FFDHE2048 | `FFDHE3072 -> `DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+            | `X25519 | `P256 | `P384 | `P521 -> `ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+          in
+          let state = make ~groups:[ group ] ~cipher ~digest:`SHA256 ~key `TLS_1_2 `To_server in
+          ignore (once state None)
+        end
+          print_group
+          ([ `X25519 ; `P256; `P384 ; `P521 ; `FFDHE2048 ; `FFDHE3072 ])
+      end
   ]
 
 let run fns =

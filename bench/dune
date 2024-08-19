@@ -1,5 +1,6 @@
 (executable
  (name bench_engine)
+ (modules bench_engine)
  (libraries
   bechamel
   bechamel-notty
@@ -20,4 +21,5 @@
 
 (executable
  (name throughput)
+ (modules throughput)
  (libraries fmt.tty logs.fmt mirage-crypto-rng.unix tls ptime.clock.os))
