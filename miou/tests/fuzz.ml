@@ -38,7 +38,6 @@ module Ca = struct
       @ [ Relative_distinguished_name.singleton (CN "Ephemeral CA for fuzzer") ])
 
   let cacert_lifetime = Ptime.Span.v (365, 0L)
-  let cacert_serial_number = Z.one
 
   let make domain_name seed =
     Domain_name.of_string domain_name >>= Domain_name.host
@@ -58,11 +57,6 @@ module Ca = struct
       let key_id =
         X509.Public_key.id X509.Signing_request.((info ca_csr).public_key)
       in
-      let authority_key_id =
-        ( Some key_id,
-          X509.General_name.(singleton Directory [ cacert_dn ]),
-          Some cacert_serial_number )
-      in
       empty
       |> add Subject_alt_name
            ( true,
@@ -72,16 +66,15 @@ module Ca = struct
       |> add Key_usage
            (true, [ `Digital_signature; `Content_commitment; `Key_encipherment ])
       |> add Subject_key_id (false, key_id)
-      |> add Authority_key_id (false, authority_key_id)
     in
     X509.Signing_request.sign ~valid_from ~valid_until ~extensions
-      ~serial:cacert_serial_number ca_csr (`RSA private_key) cacert_dn
+      ca_csr (`RSA private_key) cacert_dn
     |> R.reword_error (R.msgf "%a" X509.Validation.pp_signature_error)
     >>= fun certificate ->
     let fingerprint = X509.Certificate.fingerprint `SHA256 certificate in
     let time () = Some (Ptime_clock.now ()) in
     let authenticator =
-      X509.Authenticator.server_cert_fingerprint ~time ~hash:`SHA256
+      X509.Authenticator.cert_fingerprint ~time ~hash:`SHA256
         ~fingerprint
     in
     Ok (certificate, `RSA private_key, authenticator)
