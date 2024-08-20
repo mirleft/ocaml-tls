@@ -38,10 +38,10 @@ let authenticator ?ip:_ ~host:_ _certs = Ok None
 let consume state input =
   match Tls.Engine.handle_tls state input with
   | Ok (state, Some `Eof, `Response out, `Data v) ->
-      let data = Option.fold ~none:0 ~some:Cstruct.length v in
+      let data = Option.fold ~none:0 ~some:String.length v in
       `Eof state, out, data
   | Ok (state, None, `Response out, `Data v) ->
-      let data = Option.fold ~none:0 ~some:Cstruct.length v in
+      let data = Option.fold ~none:0 ~some:String.length v in
       `Continue state, out, data
   | Error (err, `Response out) ->
       `Error err, Some out, 0
@@ -53,8 +53,8 @@ let to_state state input =
   | `Continue state, out, data -> state, out, data
 
 type flow =
-  | To_client of Tls.Engine.state * Tls.Engine.state * Cstruct.t option
-  | To_server of Tls.Engine.state * Tls.Engine.state * Cstruct.t option
+  | To_client of Tls.Engine.state * Tls.Engine.state * string option
+  | To_server of Tls.Engine.state * Tls.Engine.state * string option
 
 type state =
   { flow : flow
@@ -264,7 +264,7 @@ let run fns =
 let () = Mirage_crypto_rng_unix.initialize (module Mirage_crypto_rng.Fortuna)
 
 let () =
-  let seed = Cstruct.of_string "0xdeadbeef" in
+  let seed = "0xdeadbeef" in
   let g = Mirage_crypto_rng.(create ~seed (module Fortuna)) in
   Mirage_crypto_rng.set_default_generator g;
   let bench =
