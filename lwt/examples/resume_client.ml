@@ -5,7 +5,7 @@ open Ex_common
 let http_client ?ca ?fp hostname port =
   let port          = int_of_string port in
   auth ?ca ?fp () >>= fun authenticator ->
-  let config = Tls.Config.client ~authenticator () in
+  let config = get_ok (Tls.Config.client ~authenticator ()) in
   Tls_lwt.Unix.connect config (hostname, port) >>= fun t ->
   Tls_lwt.Unix.write t "foo\n" >>= fun () ->
   let cs = Bytes.create 4 in
@@ -16,7 +16,7 @@ let http_client ?ca ?fp hostname port =
   in
   Tls_lwt.Unix.close t >>= fun () ->
   Printf.printf "closed session\n" ;
-  let config = Tls.Config.client ~authenticator ~cached_session () in
+  let config = get_ok (Tls.Config.client ~authenticator ~cached_session ()) in
   Tls_lwt.connect_ext config (hostname, port) >>= fun (ic, oc) ->
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ hostname ; "Connection: close" ; "" ; ""

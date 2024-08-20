@@ -12,12 +12,15 @@ let serve_tls ~low_level port handler =
     Tls_async.X509_async.Private_key.of_pem_file server_key |> Deferred.Or_error.ok_exn
   in
   let config =
-    Tls.Config.(
-      server
-        ~version:(`TLS_1_0, `TLS_1_2)
-        ~certificates:(`Single (certificate, priv_key))
-        ~ciphers:Ciphers.supported
-        ())
+    match Tls.Config.(
+        server
+          ~version:(`TLS_1_0, `TLS_1_2)
+          ~certificates:(`Single (certificate, priv_key))
+          ~ciphers:Ciphers.supported
+          ())
+    with
+    | Ok cfg -> cfg
+    | Error `Msg msg -> invalid_arg msg
   in
   let where_to_listen = Tcp.Where_to_listen.of_port port in
   let on_handler_error = `Ignore in

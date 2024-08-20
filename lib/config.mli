@@ -56,8 +56,7 @@ type server
 (** {1 Constructors} *)
 
 (** [client authenticator ?peer_name ?ciphers ?version ?hashes ?reneg ?certificates ?alpn_protocols] is
-    [client] configuration with the given parameters.
-    @raise Invalid_argument if the configuration is invalid *)
+    [client] configuration with the given parameters. Returns an error if the configuration is invalid. *)
 val client :
   authenticator : X509.Authenticator.t ->
   ?peer_name : [ `host ] Domain_name.t ->
@@ -72,11 +71,10 @@ val client :
   ?alpn_protocols : string list ->
   ?groups : group list ->
   ?ip : Ipaddr.t ->
-  unit -> client
+  unit -> (client, [> `Msg of string ]) result
 
 (** [server ?ciphers ?version ?hashes ?reneg ?certificates ?acceptable_cas ?authenticator ?alpn_protocols]
-    is [server] configuration with the given parameters.
-    @raise Invalid_argument if the configuration is invalid *)
+    is [server] configuration with the given parameters. Returns an error if the configuration is invalid. *)
 val server :
   ?ciphers : Ciphersuite.ciphersuite list ->
   ?version : tls_version * tls_version ->
@@ -91,7 +89,7 @@ val server :
   ?groups : group list ->
   ?zero_rtt : int32 ->
   ?ip : Ipaddr.t ->
-  unit -> server
+  unit -> (server, [> `Msg of string ]) result
 
 (** [peer client name] is [client] with [name] as [peer_name] *)
 val peer : client -> [ `host ] Domain_name.t -> client

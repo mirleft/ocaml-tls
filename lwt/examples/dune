@@ -6,7 +6,7 @@
 (executable
  (name starttls_server)
  (modules starttls_server)
- (libraries tls-lwt lwt.unix))
+ (libraries tls-lwt lwt.unix ex_common))
 
 (executable
  (name echo_server)

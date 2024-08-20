@@ -2,7 +2,9 @@ open! Core
 open! Async
 open Deferred.Or_error.Let_syntax
 
-let config = Tls.Config.client ~authenticator:(fun ?ip:_ ~host:_ _ -> Ok None) ()
+let config = match Tls.Config.client ~authenticator:(fun ?ip:_ ~host:_ _ -> Ok None) () with
+  | Ok cfg -> cfg
+  | Error `Msg msg -> invalid_arg msg
 
 let test_client () =
   let host = "127.0.0.1" in

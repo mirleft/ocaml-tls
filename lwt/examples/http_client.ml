@@ -6,7 +6,7 @@ let http_client ?ca ?fp hostname port =
   let port          = int_of_string port in
   auth ?ca ?fp () >>= fun authenticator ->
   Tls_lwt.connect_ext
-    (Tls.Config.client ~authenticator ())
+    (get_ok (Tls.Config.client ~authenticator ()))
     (hostname, port) >>= fun (ic, oc) ->
   let req = String.concat "\r\n" [
     "GET / HTTP/1.1" ; "Host: " ^ hostname ; "Connection: close" ; "" ; ""

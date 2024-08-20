@@ -62,11 +62,18 @@ type state =
   ; client_out : int
   ; direction : [ `To_server | `To_client ] }
 
+let get_ok = function
+  | Ok cfg -> cfg
+  | Error `Msg msg -> invalid_arg msg
+
 let make ?groups ~cipher ~digest ~key version direction =
   let cert = cert ~digest ~key in
-  let client_cfg = Tls.Config.client ?groups ~version:(version, version)
-    ~ciphers:[ cipher ] ~authenticator ()
-  and server_cfg = Tls.Config.server ~certificates:(`Single ([ cert ], key)) () in
+  let client_cfg =
+    get_ok (Tls.Config.client ?groups ~version:(version, version)
+                 ~ciphers:[ cipher ] ~authenticator ())
+  and server_cfg =
+    get_ok (Tls.Config.server ~certificates:(`Single ([ cert ], key)) ())
+  in
   let client_state, client_out = Tls.Engine.client client_cfg
   and server_state = Tls.Engine.server server_cfg in
   { flow= To_server (client_state, server_state, Some client_out)

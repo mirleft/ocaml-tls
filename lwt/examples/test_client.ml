@@ -18,7 +18,7 @@ let test_client _ =
   let host = "127.0.0.1" in
   let authenticator = null_auth in
   Tls_lwt.Unix.connect
-    Tls.Config.(client ~version:(`TLS_1_0, `TLS_1_3) (* ~certificates:(`Single cert) *) ?cached_ticket:!mypsk ~ticket_cache ~authenticator ~ciphers:Ciphers.supported ())
+    (get_ok Tls.Config.(client ~version:(`TLS_1_0, `TLS_1_3) (* ~certificates:(`Single cert) *) ?cached_ticket:!mypsk ~ticket_cache ~authenticator ~ciphers:Ciphers.supported ()))
     (host, port) >>= fun t ->
   let (ic, oc) = Tls_lwt.of_t t in
   let req = String.concat "\r\n" [
