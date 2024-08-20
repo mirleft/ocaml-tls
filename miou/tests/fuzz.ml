@@ -195,7 +195,9 @@ let run_server ~to_server:actions ~stop fd cfg =
         ignore
           ( Miou.async ~orphans @@ fun () ->
             match Tls_miou_unix.server_of_fd cfg fd with
-            | tls -> run ~role:"server" actions tls
+            | tls ->
+                let str = run ~role:"server" actions tls in
+                inhibit (fun () -> Miou_unix.close fd); str
             | exception _ ->
                 Miou_unix.close fd;
                 String.empty );
