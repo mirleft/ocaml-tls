@@ -97,7 +97,7 @@ let good_record_parser (bytes, result) _ =
 let good_records =
   let open Core in
   let open Packet in
-  let empty = Cstruct.create 0 in
+  let empty = "" in
   [
     ([ 20 ; 3 ; 1 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = `TLS_1_0 }, empty), empty) ) ;
     ([ 21 ; 3 ; 2 ; 0 ; 0 ], `Record (({ content_type = ALERT ; version = `TLS_1_1 }, empty), empty) ) ;
@@ -426,7 +426,7 @@ let good_dh_param_parser xs _ =
   let buf = list_to_cstruct xs in
   match Reader.parse_dh_parameters buf with
   | Error _        -> assert_failure "dh params parser broken"
-  | Ok (_, _, rst) -> assert_equal 0 (Cstruct.length rst)
+  | Ok (_, _, rst) -> assert_equal 0 (String.length rst)
 
 let good_dh_params_tests =
   List.mapi
@@ -437,33 +437,33 @@ let bad_dh_param_parser buf _ =
   match Reader.parse_dh_parameters buf with
   | Error _ -> ()
   | Ok (_, _, rst) ->
-      if Cstruct.length rst = 0 then
+      if String.length rst = 0 then
         assert_failure "dh params parser broken"
 
 let bad_dh_params_tests =
   let param = list_to_cstruct (List.hd good_dhparams) in
-  let l = Cstruct.length param in
+  let l = String.length param in
   let bad_params =
     [
-      param <+> Cstruct.create 1 ;
-      Cstruct.sub param 2 20 ;
-      Cstruct.sub param 0 20 ;
-      list_to_cstruct [2] <+> param ;
-      list_to_cstruct [0] <+> param ;
-      list_to_cstruct [0; 1] <+> param ;
-      list_to_cstruct [0; 0] <+> param ;
-      list_to_cstruct [0xff; 0xff] <+> param ;
-      list_to_cstruct [0; 0xff] <+> param ;
-      Cstruct.shift param 1 ;
-      Cstruct.sub param 0 (pred l)
+      param ^ String.make 1 '\x00' ;
+      String.sub param 2 20 ;
+      String.sub param 0 20 ;
+      list_to_cstruct [2] ^ param ;
+      list_to_cstruct [0] ^ param ;
+      list_to_cstruct [0; 1] ^ param ;
+      list_to_cstruct [0; 0] ^ param ;
+      list_to_cstruct [0xff; 0xff] ^ param ;
+      list_to_cstruct [0; 0xff] ^ param ;
+      String.sub param 1 (String.length param - 1);
+      String.sub param 0 (pred l)
     ]
   in
   let lastparam = list_to_cstruct (List.nth good_dhparams 5) in
-  let l = Cstruct.length lastparam in
+  let l = String.length lastparam in
   let more_bad =
     [
-      Cstruct.sub lastparam 0 130 <+> list_to_cstruct [0 ; 5 ; 1] <+> Cstruct.sub lastparam 130 (l - 130) ;
-      Cstruct.sub lastparam 0 133 <+> list_to_cstruct [0 ; 5 ; 1] <+> Cstruct.sub lastparam 133 (l - 133)
+      String.sub lastparam 0 130 ^ list_to_cstruct [0 ; 5 ; 1] ^ String.sub lastparam 130 (l - 130) ;
+      String.sub lastparam 0 133 ^ list_to_cstruct [0 ; 5 ; 1] ^ String.sub lastparam 133 (l - 133)
     ]
   in
   List.mapi
@@ -587,25 +587,25 @@ let good_digitally_signed_1_2_tests =
 
 let bad_dss_1_2 =
   let ds = list_to_cstruct (List.hd good_digitally_signed_1_2) in
-  let l = Cstruct.length ds in
+  let l = String.length ds in
   [
-    Cstruct.sub ds 2 20 ;
-    Cstruct.sub ds 0 20 ;
-    list_to_cstruct [2] <+> ds ;
-    list_to_cstruct [0] <+> ds ;
-    list_to_cstruct [0; 1] <+> ds ;
-    list_to_cstruct [0; 0] <+> ds ;
-    list_to_cstruct [0xff; 0xff] <+> ds ;
-    list_to_cstruct [0; 0xff] <+> ds ;
-    Cstruct.shift ds 2 ;
-    Cstruct.sub ds 0 (pred l) ;
-    list_to_cstruct [7] <+> Cstruct.shift ds 1 ;
-    list_to_cstruct [8] <+> Cstruct.shift ds 1 ;
-    list_to_cstruct [1 ; 7] <+> Cstruct.shift ds 2 ;
-    list_to_cstruct [7 ; 2] <+> Cstruct.shift ds 2 ;
-    list_to_cstruct [1 ; 1 ; 1; 0xff] <+> Cstruct.shift ds 4 ;
-    list_to_cstruct [1 ; 1 ; 0xff ; 0] <+> Cstruct.shift ds 4 ;
-    ds <+> Cstruct.create 1
+    String.sub ds 2 20 ;
+    String.sub ds 0 20 ;
+    list_to_cstruct [2] ^ ds ;
+    list_to_cstruct [0] ^ ds ;
+    list_to_cstruct [0; 1] ^ ds ;
+    list_to_cstruct [0; 0] ^ ds ;
+    list_to_cstruct [0xff; 0xff] ^ ds ;
+    list_to_cstruct [0; 0xff] ^ ds ;
+    String.sub ds 2 (String.length ds - 2) ;
+    String.sub ds 0 (pred l) ;
+    list_to_cstruct [7] ^ String.sub ds 1 (String.length ds - 1) ;
+    list_to_cstruct [8] ^ String.sub ds 1 (String.length ds - 1) ;
+    list_to_cstruct [1 ; 7] ^ String.sub ds 2 (String.length ds - 2) ;
+    list_to_cstruct [7 ; 2] ^ String.sub ds 2 (String.length ds - 2) ;
+    list_to_cstruct [1 ; 1 ; 1; 0xff] ^ String.sub ds 4 (String.length ds - 4) ;
+    list_to_cstruct [1 ; 1 ; 0xff ; 0] ^ String.sub ds 4 (String.length ds - 4) ;
+    ds ^ String.make 1 '\x00'
   ]
 
 let bad_digitally_signed_1_2_parser buf _ =
@@ -619,7 +619,10 @@ let bad_digitally_signed_1_2_tests =
     bad_dss_1_2
 
 let good_digitally_signed_parser xs _ =
-  let buf = Cstruct.shift (list_to_cstruct xs) 2 in
+  let buf =
+    let b = list_to_cstruct xs in
+    String.sub b 2 (String.length b - 2)
+  in
   match Reader.parse_digitally_signed buf with
   | Error _ -> assert_failure "digitally signed parser broken"
   | Ok _    -> ()
@@ -630,15 +633,17 @@ let good_digitally_signed_tests =
     good_digitally_signed_1_2
 
 let bad_dss =
-  let ds = Cstruct.shift (list_to_cstruct (List.hd good_digitally_signed_1_2)) 2 in
-  let l = Cstruct.length ds in
+  let ds =
+    let buf = list_to_cstruct (List.hd good_digitally_signed_1_2) in
+    String.sub buf 2 (String.length buf - 2) in
+  let l = String.length ds in
   [
-    list_to_cstruct [0xff ; 0xff] <+> ds ;
-    list_to_cstruct [0xff ; 0xff] <+> Cstruct.shift ds 2 ;
-    Cstruct.shift ds 2 ;
-    Cstruct.sub ds 0 (pred l) ;
-    list_to_cstruct [1; 1] <+> Cstruct.shift ds 2 ;
-    ds <+> Cstruct.create 1
+    list_to_cstruct [0xff ; 0xff] ^ ds ;
+    list_to_cstruct [0xff ; 0xff] ^ String.sub ds 2 (String.length ds - 2);
+    String.sub ds 2 (String.length ds - 2) ;
+    String.sub ds 0 (pred l) ;
+    list_to_cstruct [1; 1] ^ String.sub ds 2 (String.length ds - 2);
+    ds ^ String.make 1 '\x00'
   ]
 
 let bad_digitally_signed_parser buf _ =
@@ -653,7 +658,7 @@ let bad_digitally_signed_tests =
 
 let good_handshake_hdrs =
   let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
-  let empty = Cstruct.create 0 in
+  let empty = "" in
   [
   ([0; 0; 0], (None, list_to_cstruct [0;0;0])) ;
   ([0; 0; 0; 0], (Some (list_to_cstruct [0;0;0;0]), empty)) ;
@@ -1334,7 +1339,7 @@ let good_client_hellos =
             { ch with client_version = `TLS_1_3 ;
                       client_random = list_to_cstruct [ 0xf1; 0xb2; 0x50; 0x16; 0x4b; 0x77; 0x50; 0xb3; 0xdc; 0xcb; 0x1c; 0x6a; 0xae; 0x1a; 0x94; 0x87; 0xc4; 0x17; 0xbb; 0xa4; 0xf7; 0x92; 0xf8; 0x16; 0x56; 0x12; 0x03; 0x38; 0x1e; 0xe5; 0xc1; 0xae ] ;
                       ciphersuites = Packet.([TLS_RSA_WITH_AES_256_CBC_SHA ; TLS_DHE_RSA_WITH_AES_256_CBC_SHA ; TLS_RSA_WITH_AES_128_CBC_SHA ; TLS_DHE_RSA_WITH_AES_128_CBC_SHA ; TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA ; TLS_RSA_WITH_3DES_EDE_CBC_SHA]) ;
-                      extensions = [ `SecureRenegotiation (Cstruct.create 0) ;
+                      extensions = [ `SecureRenegotiation "" ;
                                      make_hostname_ext "example.com" ;
                                      `SignatureAlgorithms
                                        [`RSA_PKCS1_SHA512 ;
@@ -1505,7 +1510,7 @@ let good_server_hellos =
                server_random = list_to_cstruct [ 0x53; 0x66; 0x2d; 0xf0; 0x1b; 0x61; 0x55; 0x8f; 0x74; 0x2a; 0xbf; 0xf4; 0x99; 0x86; 0x30; 0x99; 0x32; 0xe4; 0xd0; 0x1e; 0x2b; 0xa9; 0x2e; 0x86; 0x7b; 0xeb; 0x03; 0x00; 0xf9; 0x11; 0x3e; 0xc5 ] ;
                sessionid = Some (list_to_cstruct [ 0xd1; 0x54; 0xd9; 0x05; 0x61; 0x41; 0x53; 0x33; 0xb2; 0xf0; 0x13; 0x78; 0x1a; 0x17; 0xb3; 0x1d; 0x09; 0xf6; 0x59; 0x70; 0xfe; 0x5d; 0x58; 0x22; 0xfa; 0x8c; 0x5c; 0x89; 0xe9; 0xa2; 0xb4; 0x70 ]) ;
                extensions = [`Hostname;
-                             `SecureRenegotiation (Cstruct.create 0);
+                             `SecureRenegotiation "";
                              `ALPN "h2"] }) ;
 
           ( [
@@ -1525,7 +1530,7 @@ let good_server_hellos =
               server_random = list_to_cstruct [ 0x53; 0x66; 0x2f; 0xb7; 0x35; 0x3a; 0x42; 0xee; 0x1c; 0xe6; 0xed; 0x63; 0x8a; 0x1d; 0x3d; 0xb3; 0x71; 0x9c; 0xf5; 0x64; 0x45; 0xc5; 0xe9; 0xf4; 0x11; 0x8b; 0x9f; 0x41; 0x5a; 0x5f; 0xf1; 0xf6 ] ;
               sessionid = Some (list_to_cstruct [ 0xdf; 0xe1; 0x09; 0x8a; 0x42; 0xf0; 0x25; 0xc7; 0xbd; 0xe5; 0xe9; 0x02; 0x6a; 0x03; 0xaf; 0xb4; 0x70; 0x80; 0xe9; 0x2f; 0x07; 0x3f; 0x53; 0xd3; 0xc8; 0x97; 0x3f; 0xc4; 0x44; 0x23; 0xf5; 0x94 ] ) ;
               extensions = [`Hostname;
-                            `SecureRenegotiation (Cstruct.create 0)] }) ;
+                            `SecureRenegotiation ""] }) ;
 
        ])
 

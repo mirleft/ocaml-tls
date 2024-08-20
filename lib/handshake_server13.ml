@@ -82,7 +82,10 @@ let answer_client_hello ~hrr state ch raw =
       begin match Utils.first_match groups config.Config.groups with
         | None -> Error (`Fatal `NoSupportedGroup)
         | Some group ->
-          let cookie = Mirage_crypto.Hash.digest (Ciphersuite.hash13 cipher) raw in
+          let cookie =
+            let module H = (val Digestif.module_of_hash' (Ciphersuite.hash13 cipher)) in
+            H.(to_raw_string (digest_string raw))
+          in
           let hrr = { retry_version = `TLS_1_3 ; ciphersuite = cipher ; sessionid = ch.sessionid ; selected_group = group ; extensions = [ `Cookie cookie ] } in
           let hrr_raw = Writer.assemble_handshake (HelloRetryRequest hrr) in
           Tracing.hs ~tag:"handshake-out" (HelloRetryRequest hrr) ;
@@ -113,19 +116,22 @@ let answer_client_hello ~hrr state ch raw =
               (Utils.map_find ~f:(function `Cookie c -> Some c | _ -> None) ch.extensions)
           in
           (* log is: 254 00 00 length c :: HRR *)
-          let hash_hdr = Writer.assemble_message_hash (Cstruct.length c) in
+          let hash_hdr = Writer.assemble_message_hash (String.length c) in
           let hrr = { retry_version = `TLS_1_3 ; ciphersuite = cipher ; sessionid = ch.sessionid ; selected_group = group ; extensions = [ `Cookie c ]} in
           let hs_buf = Writer.assemble_handshake (HelloRetryRequest hrr) in
-          Ok (Cstruct.concat [ hash_hdr ; c ; hs_buf ])
+          Ok (String.concat "" [ hash_hdr ; c ; hs_buf ])
         else
-          Ok Cstruct.empty
+          Ok ""
       in
 
       let hostname = hostname ch in
-      let hlen = Mirage_crypto.Hash.digest_size (Ciphersuite.hash13 cipher) in
+      let hlen =
+        let module H = (val Digestif.module_of_hash' (Ciphersuite.hash13 cipher)) in
+        H.digest_size
+      in
 
       let early_secret, epoch, exts, can_use_early_data =
-        let secret ?(psk = Cstruct.create hlen) () = Handshake_crypto13.(derive (empty cipher) psk) in
+        let secret ?(psk = String.make hlen '\x00') () = Handshake_crypto13.(derive (empty cipher) psk) in
         let no_resume = secret (), None, [], false in
         match
           config.Config.ticket_cache,
@@ -191,12 +197,12 @@ let answer_client_hello ~hrr state ch raw =
                       in
                       if Ptime.is_earlier now ~than:until then
                         let early_secret = secret ~psk:psk.secret () in
-                        let binder_key = Handshake_crypto13.derive_secret early_secret "res binder" Cstruct.empty in
+                        let binder_key = Handshake_crypto13.derive_secret early_secret "res binder" "" in
                         let binders_len = binders_len ids in
-                        let ch_part = Cstruct.(sub raw 0 (length raw - binders_len)) in
-                        let log = Cstruct.append log ch_part in
+                        let ch_part = String.(sub raw 0 (length raw - binders_len)) in
+                        let log = log ^ ch_part in
                         let binder' = Handshake_crypto13.finished early_secret.hash binder_key log in
-                        if Cstruct.equal binder binder' then begin
+                        if String.equal binder binder' then begin
                           (* from 4.1.2 - earlydata is not allowed after hrr *)
                           let zero = idx = 0 && not hrr && List.mem `EarlyDataIndication ch.extensions in
                           early_secret, Some old_epoch, [ `PreSharedKey idx ], zero
@@ -219,7 +225,7 @@ let answer_client_hello ~hrr state ch raw =
       let sh_raw = Writer.assemble_handshake (ServerHello sh) in
       Tracing.hs ~tag:"handshake-out" (ServerHello sh) ;
 
-      let log = log <+> raw <+> sh_raw in
+      let log = log ^ raw ^ sh_raw in
       let server_hs_secret, server_ctx, client_hs_secret, client_ctx = hs_ctx hs_secret log in
 
       let* sigalgs =
@@ -255,7 +261,7 @@ let answer_client_hello ~hrr state ch raw =
       (* TODO also max_fragment_length ; client_certificate_url ; trusted_ca_keys ; user_mapping ; client_authz ; server_authz ; cert_type ; use_srtp ; heartbeat ; alpn ; status_request_v2 ; signed_cert_timestamp ; client_cert_type ; server_cert_type *)
       let ee_raw = Writer.assemble_handshake ee in
       Tracing.hs ~tag:"handshake-out" ee ;
-      let log = Cstruct.append log ee_raw in
+      let log = log ^ ee_raw in
 
       let* c_out, log, session' =
         if session.resumed then
@@ -276,16 +282,19 @@ let answer_client_hello ~hrr state ch raw =
               Tracing.hs ~tag:"handshake-out" certreq ;
               let raw_cert_req = Writer.assemble_handshake certreq in
               let common_session_data13 = { session.common_session_data13 with client_auth = true } in
-              [raw_cert_req], log <+> raw_cert_req, { session with common_session_data13 }
+              [raw_cert_req], log ^ raw_cert_req, { session with common_session_data13 }
           in
 
           let certs = List.map X509.Certificate.encode_der chain in
-          let cert = Certificate (Writer.assemble_certificates_1_3 Cstruct.empty certs) in
+          let cert = Certificate (Writer.assemble_certificates_1_3 "" certs) in
           let cert_raw = Writer.assemble_handshake cert in
           Tracing.hs ~tag:"handshake-out" cert ;
-          let log = log <+> cert_raw in
+          let log = log ^ cert_raw in
 
-          let tbs = Mirage_crypto.Hash.digest (Ciphersuite.hash13 cipher) log in
+          let tbs =
+            let module H = (val Digestif.module_of_hash' (Ciphersuite.hash13 cipher)) in
+            H.(to_raw_string (digest_string log))
+          in
           let* signed =
             signature `TLS_1_3
               ~context_string:"TLS 1.3, server CertificateVerify"
@@ -294,11 +303,11 @@ let answer_client_hello ~hrr state ch raw =
           let cv = CertificateVerify signed in
           let cv_raw = Writer.assemble_handshake cv in
           Tracing.hs ~tag:"handshake-out" cv ;
-          let log = log <+> cv_raw in
+          let log = log ^ cv_raw in
           Ok (out @ [cert_raw; cv_raw], log, session)
       in
 
-      let master_secret = Handshake_crypto13.derive hs_secret (Cstruct.create hlen) in
+      let master_secret = Handshake_crypto13.derive hs_secret (String.make hlen '\x00') in
       Tracing.cs ~tag:"master-secret" master_secret.secret ;
 
       let f_data = finished hs_secret.hash server_hs_secret log in
@@ -307,7 +316,7 @@ let answer_client_hello ~hrr state ch raw =
 
       Tracing.hs ~tag:"handshake-out" fin ;
 
-      let log = log <+> fin_raw in
+      let log = log ^ fin_raw in
       let server_app_secret, server_app_ctx, client_app_secret, client_app_ctx =
         app_ctx master_secret log
       in
@@ -315,7 +324,7 @@ let answer_client_hello ~hrr state ch raw =
       let session' = { session' with server_app_secret ; client_app_secret ; exporter_master_secret } in
 
       let* () =
-        guard (Cstruct.length state.hs_fragment = 0)
+        guard (String.length state.hs_fragment = 0)
           (`Fatal `HandshakeFragmentsNotEmpty)
       in
 
@@ -327,7 +336,7 @@ let answer_client_hello ~hrr state ch raw =
         | false, Some cache ->
           let age_add =
             let cs = Mirage_crypto_rng.generate 4 in
-            Cstruct.BE.get_uint32 cs 0
+            String.get_int32_be cs 0
           in
           let psk_id = Mirage_crypto_rng.generate 32 in
           let nonce = Mirage_crypto_rng.generate 4 in
@@ -383,7 +392,7 @@ let answer_client_certificate state cert (sd : session_data13) client_fini dec_c
         in
         let common_session_data13 = { sd.common_session_data13 with trust_anchor } in
         let sd = { sd with common_session_data13 } in
-        let st = AwaitClientFinished13 (client_fini, dec_ctx, st, log <+> raw) in
+        let st = AwaitClientFinished13 (client_fini, dec_ctx, st, log ^ raw) in
         Ok ({ state with machina = Server13 st ; session = `TLS13 sd :: state.session }, [])
       | Error e -> Error (`Error (`AuthenticationFailure e))
     end
@@ -403,18 +412,21 @@ let answer_client_certificate state cert (sd : session_data13) client_fini dec_c
       } in
       { sd with common_session_data13 }
     in
-    let st = AwaitClientCertificateVerify13 (sd', client_fini, dec_ctx, st, log <+> raw) in
+    let st = AwaitClientCertificateVerify13 (sd', client_fini, dec_ctx, st, log ^ raw) in
     Ok ({ state with machina = Server13 st }, [])
 
 let answer_client_certificate_verify state cv (sd : session_data13) client_fini dec_ctx st raw log =
-  let tbs = Mirage_crypto.Hash.digest (Ciphersuite.hash13 sd.ciphersuite13) log in
+  let tbs =
+    let module H = (val Digestif.module_of_hash' (Ciphersuite.hash13 sd.ciphersuite13)) in
+    H.(to_raw_string (digest_string log))
+  in
   let* () =
     verify_digitally_signed `TLS_1_3
       ~context_string:"TLS 1.3, client CertificateVerify"
       state.config.Config.signature_algorithms cv tbs
       sd.common_session_data13.peer_certificate
   in
-  let st = AwaitClientFinished13 (client_fini, dec_ctx, st, log <+> raw) in
+  let st = AwaitClientFinished13 (client_fini, dec_ctx, st, log ^ raw) in
   Ok ({ state with machina = Server13 st ; session = `TLS13 sd :: state.session }, [])
 
 let answer_client_finished state fin client_fini dec_ctx st raw log =
@@ -422,15 +434,15 @@ let answer_client_finished state fin client_fini dec_ctx st raw log =
   | `TLS13 session :: rest ->
     let hash = Ciphersuite.hash13 session.ciphersuite13 in
     let data = finished hash client_fini log in
-    let* () = guard (Cstruct.equal data fin) (`Fatal `BadFinished) in
+    let* () = guard (String.equal data fin) (`Fatal `BadFinished) in
     let* () =
-      guard (Cstruct.length state.hs_fragment = 0)
+      guard (String.length state.hs_fragment = 0)
         (`Fatal `HandshakeFragmentsNotEmpty)
     in
     let session' = match st, state.config.Config.ticket_cache with
       | None, _ | _, None -> session
       | Some st, Some cache ->
-        let resumption_secret = Handshake_crypto13.resumption session.master_secret (log <+> raw) in
+        let resumption_secret = Handshake_crypto13.resumption session.master_secret (log ^ raw) in
         let session = { session with resumption_secret } in
         let secret = Handshake_crypto13.res_secret hash resumption_secret st.nonce in
         let issued_at = cache.Config.timestamp () in
@@ -444,7 +456,7 @@ let answer_client_finished state fin client_fini dec_ctx st raw log =
   | _ -> Error (`Fatal `InvalidSession)
 
 let handle_end_of_early_data state cf hs_ctx cc st buf log =
-  let machina = AwaitClientFinished13 (cf, cc, st, log <+> buf) in
+  let machina = AwaitClientFinished13 (cf, cc, st, log ^ buf) in
   match state.session with
   | `TLS13 s1 :: _ ->
     let session = `TLS13 { s1 with state = `Established } :: state.session in
@@ -456,7 +468,7 @@ let handle_key_update state req =
   match state.session with
   | `TLS13 session :: _ ->
     let* () =
-      guard (Cstruct.length state.hs_fragment = 0)
+      guard (String.length state.hs_fragment = 0)
         (`Fatal `HandshakeFragmentsNotEmpty)
     in
     let client_app_secret, client_ctx =
@@ -481,8 +493,7 @@ let handle_key_update state req =
   | _ -> Error (`Fatal `InvalidSession)
 
 let handle_handshake cs hs buf =
-  let open Reader in
-  let* handshake = map_reader_error (parse_handshake buf) in
+  let* handshake = map_reader_error (Reader.parse_handshake buf) in
   Tracing.hs ~tag:"handshake-in" handshake;
   match cs, handshake with
   | AwaitClientHelloHRR13, ClientHello ch ->

@@ -4,9 +4,6 @@ module Path = Eio.Path
 
 let (</>) = Path.( / )
 
-let read_file path =
-  Path.load path |> Cstruct.of_string
-
 let extension str =
   let n = String.length str in
   let rec scan = function
@@ -20,7 +17,7 @@ let extension str =
 let private_of_pems ~cert ~priv_key =
   let certs =
     try
-      let pem = read_file cert in
+      let pem = Path.load cert in
       match X509.Certificate.decode_pem_multiple pem with
       | Ok cs -> cs
       | Error (`Msg m) -> invalid_arg ("failed to parse certificates " ^ m)
@@ -29,7 +26,7 @@ let private_of_pems ~cert ~priv_key =
   in
   let pk =
     try
-      let pem = read_file priv_key in
+      let pem = Path.load priv_key in
       match X509.Private_key.decode_pem pem with
       | Ok key -> key
       | Error (`Msg m) -> invalid_arg ("failed to parse private key " ^ m)
@@ -40,7 +37,7 @@ let private_of_pems ~cert ~priv_key =
 
 let certs_of_pem path =
   try
-    let pem = read_file path in
+    let pem = Path.load path in
     match X509.Certificate.decode_pem_multiple pem with
     | Ok cs -> cs
     | Error (`Msg m) -> invalid_arg ("failed to parse certificates " ^ m)
@@ -55,7 +52,7 @@ let certs_of_pem_dir path =
 
 let crl_of_pem path =
   try
-    let data = read_file path in
+    let data = Path.load path in
     match X509.CRL.decode_der data with
     | Ok cs -> cs
     | Error (`Msg m) -> invalid_arg ("failed to parse CRL " ^ m)
@@ -73,11 +70,11 @@ let authenticator ?allowed_hashes ?crls param =
     let crls = Option.map crls_of_pem_dir crls in
     X509.Authenticator.chain_of_trust ?allowed_hashes ?crls ~time cas
   and dotted_hex_to_cs hex =
-    Cstruct.of_hex (String.map (function ':' -> ' ' | x -> x) hex)
+    Cstruct.to_string (Cstruct.of_hex (String.map (function ':' -> ' ' | x -> x) hex))
   and fingerp hash fingerprint =
-    X509.Authenticator.server_key_fingerprint ~time ~hash ~fingerprint
+    X509.Authenticator.key_fingerprint ~time ~hash ~fingerprint
   and cert_fingerp hash fingerprint =
-    X509.Authenticator.server_cert_fingerprint ~time ~hash ~fingerprint
+    X509.Authenticator.cert_fingerprint ~time ~hash ~fingerprint
   in
   match param with
   | `Ca_file path -> certs_of_pem path |> of_cas

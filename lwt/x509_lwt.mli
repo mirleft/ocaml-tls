@@ -15,12 +15,12 @@ val certs_of_pem_dir : Lwt_io.file_name -> X509.Certificate.t list Lwt.t
 
 (** [authenticator methods] constructs an [authenticator] using the
     specified method and data. *)
-val authenticator : ?allowed_hashes:Mirage_crypto.Hash.hash list -> ?crls:Lwt_io.file_name ->
+val authenticator : ?allowed_hashes:Digestif.hash' list -> ?crls:Lwt_io.file_name ->
   [ `Ca_file of Lwt_io.file_name
   | `Ca_dir  of Lwt_io.file_name
-  | `Key_fingerprint of Mirage_crypto.Hash.hash * Cstruct.t
-  | `Hex_key_fingerprint of Mirage_crypto.Hash.hash * string
-  | `Cert_fingerprint of Mirage_crypto.Hash.hash * Cstruct.t
-  | `Hex_cert_fingerprint of Mirage_crypto.Hash.hash * string
+  | `Key_fingerprint of Digestif.hash' * string
+  | `Hex_key_fingerprint of Digestif.hash' * string
+  | `Cert_fingerprint of Digestif.hash' * string
+  | `Hex_cert_fingerprint of Digestif.hash' * string
   ]
   -> X509.Authenticator.t Lwt.t

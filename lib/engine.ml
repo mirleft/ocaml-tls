@@ -84,9 +84,9 @@ let string_of_failure = Fmt.to_to_string pp_failure
 
 type ret =
   (state * [ `Eof ] option
-   * [ `Response of Cstruct.t option ]
-   * [ `Data of Cstruct.t option ],
-   failure * [ `Response of Cstruct.t ]) result
+   * [ `Response of string option ]
+   * [ `Data of string option ],
+   failure * [ `Response of string ]) result
 
 let new_state config role =
   let handshake_state = match role with
@@ -100,26 +100,26 @@ let new_state config role =
     early_data_left  = 0l ;
     machina          = handshake_state ;
     config           = config ;
-    hs_fragment      = Cstruct.create 0 ;
+    hs_fragment      = "" ;
   }
   in
   {
     handshake = handshake ;
     decryptor = None ;
     encryptor = None ;
-    fragment  = Cstruct.empty ;
+    fragment  = "" ;
     read_closed = false ;
     write_closed = false ;
   }
 
-type raw_record = tls_hdr * Cstruct.t
+type raw_record = tls_hdr * string
 
 let pp_raw_record ppf (hdr, data) =
-  Fmt.pf ppf "%a (%u bytes data)" pp_tls_hdr hdr (Cstruct.length data)
+  Fmt.pf ppf "%a (%u bytes data)" pp_tls_hdr hdr (String.length data)
 
 let pp_frame ppf (ty, data) =
   Fmt.pf ppf "%a (%u bytes data)" Packet.pp_content_type ty
-    (Cstruct.length data)
+    (String.length data)
 
 (* well-behaved pure encryptor *)
 let encrypt (version : tls_version) (st : crypto_state) ty buf =
@@ -131,12 +131,11 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
         (match ctx.cipher_st with
          | AEAD c ->
             let buf =
-              let t = Cstruct.create 1 in
-              Cstruct.set_uint8 t 0 (Packet.content_type_to_int ty) ;
-              buf <+> t
+              let t = String.make 1 (Char.unsafe_chr (Packet.content_type_to_int ty)) in
+              buf ^ t
             in
             let nonce = Crypto.aead_nonce c.nonce ctx.sequence in
-            let adata = Crypto.adata_1_3 (Cstruct.length buf + Crypto.tag_len c.cipher) in
+            let adata = Crypto.adata_1_3 (String.length buf + Crypto.tag_len c.cipher) in
             let buf = Crypto.encrypt_aead ~cipher:c.cipher ~adata ~key:c.cipher_secret ~nonce buf in
             (Some { ctx with sequence = Int64.succ ctx.sequence }, Packet.APPLICATION_DATA, buf)
          | _ -> assert false)
@@ -144,12 +143,12 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
         let pseudo_hdr =
           let seq = ctx.sequence
           and ver = pair_of_tls_version version
-        in
-        Crypto.pseudo_header seq ty ver (Cstruct.length buf)
+          in
+          Crypto.pseudo_header seq ty ver (String.length buf)
         in
         let to_encrypt mac mac_k =
           let signature = Crypto.mac mac mac_k pseudo_hdr buf in
-          buf <+> signature
+          buf ^ signature
         in
         let c_st, enc =
           match ctx.cipher_st with
@@ -162,7 +161,7 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
                | Random_iv ->
                   let iv = Mirage_crypto_rng.generate (Crypto.cbc_block c.cipher) in
                   let m, _ = enc iv in
-                  (CBC c, iv <+> m)
+                  (CBC c, iv ^ m)
                | Iv iv ->
                   let m, iv' = enc iv in
                   (CBC { c with iv_mode = Iv iv' }, m) )
@@ -170,12 +169,12 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
           | AEAD c ->
             if c.explicit_nonce then
               let explicit_nonce = Crypto.sequence_buf ctx.sequence in
-              let nonce = c.nonce <+> explicit_nonce
+              let nonce = c.nonce ^ explicit_nonce
               in
               let msg =
                 Crypto.encrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata:pseudo_hdr buf
               in
-              (AEAD c, explicit_nonce <+> msg)
+              (AEAD c, explicit_nonce ^ msg)
             else
               (* RFC 7905: no explicit nonce, instead TLS 1.3 construction is adapted *)
               let nonce = Crypto.aead_nonce c.nonce ctx.sequence in
@@ -188,14 +187,17 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
 
 (* well-behaved pure decryptor *)
 let verify_mac sequence mac mac_k ty ver decrypted =
-  let macstart = Cstruct.length decrypted - Mirage_crypto.Hash.digest_size mac in
+  let macstart =
+    let module H = (val Digestif.module_of_hash' mac) in
+    String.length decrypted - H.digest_size
+  in
   let* () = guard (macstart >= 0) (`Fatal `MACUnderflow) in
-  let (body, mmac) = Cstruct.split decrypted macstart in
+  let (body, mmac) = split_str decrypted macstart in
   let cmac =
     let ver = pair_of_tls_version ver in
-    let hdr = Crypto.pseudo_header sequence ty ver (Cstruct.length body) in
+    let hdr = Crypto.pseudo_header sequence ty ver (String.length body) in
     Crypto.mac mac mac_k hdr body in
-  let* () = guard (Cstruct.equal cmac mmac) (`Fatal `MACMismatch) in
+  let* () = guard (String.equal cmac mmac) (`Fatal `MACMismatch) in
   Ok body
 
 
@@ -233,24 +235,24 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
             let* msg, iv' = dec iv buf in
             Ok (CBC { c with iv_mode = Iv iv' }, msg)
          | Random_iv ->
-            if Cstruct.length buf < Crypto.cbc_block c.cipher then
+            if String.length buf < Crypto.cbc_block c.cipher then
               Error (`Fatal `MACUnderflow)
             else
-              let iv, buf = Cstruct.split buf (Crypto.cbc_block c.cipher) in
+              let iv, buf = split_str buf (Crypto.cbc_block c.cipher) in
               let* msg, _ = dec iv buf in
               Ok (CBC c, msg) )
 
     | AEAD c ->
       if c.explicit_nonce then
         let explicit_nonce_len = 8 in
-        if Cstruct.length buf < explicit_nonce_len then
+        if String.length buf < explicit_nonce_len then
           Error (`Fatal `MACUnderflow)
         else
-          let explicit_nonce, buf = Cstruct.split buf explicit_nonce_len in
+          let explicit_nonce, buf = split_str buf explicit_nonce_len in
           let adata =
             let ver = pair_of_tls_version version in
-            Crypto.pseudo_header seq ty ver (Cstruct.length buf - Crypto.tag_len c.cipher)
-          and nonce = c.nonce <+> explicit_nonce
+            Crypto.pseudo_header seq ty ver (String.length buf - Crypto.tag_len c.cipher)
+          and nonce = c.nonce ^ explicit_nonce
           in
           match Crypto.decrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
           | None -> Error (`Fatal `MACMismatch)
@@ -259,7 +261,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
         (* RFC 7905: no explicit nonce, instead TLS 1.3 construction is adapted *)
         let adata =
           let ver = pair_of_tls_version version in
-          Crypto.pseudo_header seq ty ver (Cstruct.length buf - Crypto.tag_len c.cipher)
+          Crypto.pseudo_header seq ty ver (String.length buf - Crypto.tag_len c.cipher)
         and nonce = Crypto.aead_nonce c.nonce seq
         in
         (match Crypto.decrypt_aead ~adata ~cipher:c.cipher ~key:c.cipher_secret ~nonce buf with
@@ -275,7 +277,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
        CH [+key_share] ----->
        the APP_DATA above cannot be decrypted or used, so we drop it.
     *)
-    Ok (None, Cstruct.empty, Packet.APPLICATION_DATA)
+    Ok (None, "", Packet.APPLICATION_DATA)
   | None, _ -> Ok (st, buf, ty)
   | Some ctx, `TLS_1_3 ->
     (match ty with
@@ -287,19 +289,19 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
           let unpad x =
             let rec eat = function
               | -1 -> Error (`Fatal `MissingContentType)
-              | idx -> match Cstruct.get_uint8 x idx with
+              | idx -> match String.get_uint8 x idx with
                 | 0 -> eat (pred idx)
                 | n -> match Packet.int_to_content_type n with
-                  | Some ct -> Ok (Cstruct.sub x 0 idx, ct)
+                  | Some ct -> Ok (String.sub x 0 idx, ct)
                   | None -> Error (`Fatal `MACUnderflow) (* TODO better error? *)
             in
-            eat (pred (Cstruct.length x))
+            eat (pred (String.length x))
           in
-          let adata = Crypto.adata_1_3 (Cstruct.length buf) in
+          let adata = Crypto.adata_1_3 (String.length buf) in
           (match Crypto.decrypt_aead ~adata ~cipher:c.cipher ~key:c.cipher_secret ~nonce buf with
            | None ->
              if trial then
-               Ok (Some ctx, Cstruct.empty, Packet.APPLICATION_DATA)
+               Ok (Some ctx, "", Packet.APPLICATION_DATA)
              else
                Error (`Fatal `MACMismatch)
            | Some x ->
@@ -313,10 +315,9 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
     Ok (Some ctx', msg, ty)
 
 (* party time *)
-let rec separate_records : Cstruct.t -> ((tls_hdr * Cstruct.t) list * Cstruct.t, failure) result
+let rec separate_records : string -> ((tls_hdr * string) list * string, failure) result
 = fun buf ->
-  let open Reader in
-  match parse_record buf with
+  match Reader.parse_record buf with
   | Ok (`Fragment b) -> Ok ([], b)
   | Ok (`Record (packet, fragment)) ->
     let* tl, frag = separate_records fragment in
@@ -338,8 +339,8 @@ let rec separate_records : Cstruct.t -> ((tls_hdr * Cstruct.t) list * Cstruct.t,
 let encrypt_records encryptor version records =
   let rec split = function
     | [] -> []
-    | (t1, a) :: xs when Cstruct.length a >= 1 lsl 14 ->
-      let fst, snd = Cstruct.split a (1 lsl 14) in
+    | (t1, a) :: xs when String.length a >= 1 lsl 14 ->
+      let fst, snd = split_str a (1 lsl 14) in
       (t1, fst) :: split ((t1, snd) :: xs)
     | x::xs -> x :: split xs
 
@@ -423,7 +424,7 @@ and handle_handshake = function
   | Server13 ss -> Handshake_server13.handle_handshake ss
 
 let non_empty cs =
-  if Cstruct.length cs = 0 then None else Some cs
+  if String.length cs = 0 then None else Some cs
 
 let handle_packet hs buf = function
 (* RFC 5246 -- 6.2.1.:
@@ -438,7 +439,7 @@ let handle_packet hs buf = function
     Ok (hs, [], None, eof)
 
   | Packet.APPLICATION_DATA ->
-    if hs_can_handle_appdata hs || (early_data hs && Cstruct.length hs.hs_fragment = 0) then
+    if hs_can_handle_appdata hs || (early_data hs && String.length hs.hs_fragment = 0) then
       (Tracing.cs ~tag:"application-data-in" buf;
        Ok (hs, [], non_empty buf, false))
     else
@@ -449,7 +450,7 @@ let handle_packet hs buf = function
      Ok (hs, items, None, false)
 
   | Packet.HANDSHAKE ->
-     let hss, hs_fragment = separate_handshakes (hs.hs_fragment <+> buf) in
+     let hss, hs_fragment = separate_handshakes (hs.hs_fragment ^ buf) in
      let hs = { hs with hs_fragment } in
      let* hs, items =
        List.fold_left (fun acc raw ->
@@ -462,7 +463,7 @@ let handle_packet hs buf = function
 
 let decrement_early_data hs ty buf =
   let bytes left cipher =
-    let count = Cstruct.length buf - fst (Ciphersuite.kn_13 (Ciphersuite.privprot13 cipher)) in
+    let count = String.length buf - fst (Ciphersuite.kn_13 (Ciphersuite.privprot13 cipher)) in
     let left' = Int32.sub left (Int32.of_int count) in
     if left' < 0l then Error (`Fatal `Toomany0rttbytes) else Ok left'
   in
@@ -493,7 +494,7 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   in
   let trial = match hs.machina with
     | Server13 (AwaitEndOfEarlyData13 _) | Server13 Established13 -> false
-    | Server13 _ -> hs.early_data_left > 0l && Cstruct.length hs.hs_fragment = 0
+    | Server13 _ -> hs.early_data_left > 0l && String.length hs.hs_fragment = 0
     | _ -> false
   in
   let* dec_st, dec, ty = decrypt ~trial version state.decryptor hdr.content_type buf in
@@ -517,14 +518,14 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
   Ok (state', encs, data)
 
 let maybe_app a b = match a, b with
-  | Some x, Some y -> Some (x <+> y)
+  | Some x, Some y -> Some (x ^ y)
   | Some x, None   -> Some x
   | None  , Some y -> Some y
   | None  , None   -> None
 
 let assemble_records (version : tls_version) rs =
   let version = match version with `TLS_1_3 -> `TLS_1_2 | x -> x in
-  Cstruct.concat (List.map (Writer.assemble_hdr version) rs)
+  String.concat "" (List.map (Writer.assemble_hdr version) rs)
 
 (* main entry point *)
 let handle_tls state buf =
@@ -538,7 +539,7 @@ let handle_tls state buf =
       Ok (st', raw_rs @ raw_rs', maybe_app data data')
   in
   match
-    let* in_records, fragment = separate_records (state.fragment <+> buf) in
+    let* in_records, fragment = separate_records (state.fragment ^ buf) in
     let* state', out_records, data = handle_records state in_records in
     let version = state'.handshake.protocol_version in
     let resp = match out_records with
@@ -593,7 +594,7 @@ let send_application_data st css =
     List.iter (fun cs -> Tracing.cs ~tag:"application-data-out" cs) css ;
     let datas = match st.encryptor with
       (* Mitigate implicit IV in CBC mode: prepend empty fragment *)
-      | Some { cipher_st = CBC { iv_mode = Iv _ ; _ } ; _ } -> Cstruct.create 0 :: css
+      | Some { cipher_st = CBC { iv_mode = Iv _ ; _ } ; _ } -> "" :: css
       | _                                                   -> css
     in
     let ty = Packet.APPLICATION_DATA in
@@ -658,7 +659,7 @@ let client config =
    be safely sent to any server. *)
     | (_, `TLS_1_0) -> ([Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV], [])
     | (`TLS_1_3, _) -> ([], [])
-    | _ -> ([], [`SecureRenegotiation (Cstruct.create 0)])
+    | _ -> ([], [`SecureRenegotiation ""])
   in
 
   let client_hello =
@@ -689,21 +690,24 @@ let client config =
       in
       (* if all goes well, we can compute the binder key and embed into ch! *)
       let early_secret = Handshake_crypto13.(derive (empty cipher) psk.secret) in
-      let binder_key = Handshake_crypto13.derive_secret early_secret "res binder" Cstruct.empty in
+      let binder_key = Handshake_crypto13.derive_secret early_secret "res binder" "" in
 
-      let hash = Cstruct.create (Mirage_crypto.Hash.digest_size (Ciphersuite.hash13 cipher)) in
+      let hash =
+        let module H = (val Digestif.module_of_hash' (Ciphersuite.hash13 cipher)) in
+        String.make H.digest_size '\x00'
+      in
       let incomplete_psks = [ (psk.identifier, obf_age), hash ] in
       let ch' = { client_hello with extensions = client_hello.extensions @ [ kex ; `PreSharedKeys incomplete_psks ] } in
       let ch'_raw = Writer.assemble_handshake (ClientHello ch') in
 
       let binders_len = binders_len incomplete_psks in
-      let ch_part = Cstruct.(sub ch'_raw 0 (length ch'_raw - binders_len)) in
+      let ch_part = String.(sub ch'_raw 0 (length ch'_raw - binders_len)) in
       let binder = Handshake_crypto13.finished early_secret.hash binder_key ch_part in
-      let blen = Cstruct.length binder in
-      let prefix = Cstruct.create 3 in
-      Cstruct.BE.set_uint16 prefix 0 (blen + 1) ;
-      Cstruct.set_uint8 prefix 2 blen ;
-      let raw = Cstruct.concat [ ch_part ; prefix ; binder ] in
+      let blen = String.length binder in
+      let prefix = Bytes.create 3 in
+      Bytes.set_uint16_be prefix 0 (blen + 1) ;
+      Bytes.set_uint8 prefix 2 blen ;
+      let raw = String.concat "" [ ch_part ; Bytes.unsafe_to_string prefix ; binder ] in
 
       let psks = [(psk.identifier, obf_age), binder] in
       let client_hello' = { client_hello with extensions = client_hello.extensions @ [ kex ; `PreSharedKeys psks ] } in
@@ -743,28 +747,29 @@ let export_key_material (e : epoch_data) ?context label length =
       let cipher = Option.get (Ciphersuite.ciphersuite_to_ciphersuite13 e.ciphersuite) in
       Ciphersuite.hash13 cipher
     in
+    let module H = (val Digestif.module_of_hash' hash) in
     let ems = e.exporter_master_secret in
     let prk =
-      let ctx = Mirage_crypto.Hash.digest hash Cstruct.empty in
+      let ctx = H.(to_raw_string (digest_string "")) in
       Handshake_crypto13.derive_secret_no_hash hash ems ~ctx label
     in
-    let ctx = Option.(value ~default:Cstruct.empty (map Cstruct.of_string context)) in
+    let ctx = Option.value ~default:"" context in
     Handshake_crypto13.derive_secret_no_hash
-      hash prk ~ctx:(Mirage_crypto.Hash.digest hash ctx)
+      hash prk ~ctx:H.(to_raw_string (digest_string ctx))
       ~length "exporter"
   | #tls_before_13 as v ->
     let seed =
       let base =
         match e.side with
-        | `Server -> Cstruct.append e.peer_random e.own_random
-        | `Client -> Cstruct.append e.own_random e.peer_random
+        | `Server -> e.peer_random ^ e.own_random
+        | `Client -> e.own_random ^ e.peer_random
       in
       match context with
       | None -> base
       | Some data ->
-        let len = Cstruct.create 2 in
-        Cstruct.BE.set_uint16 len 0 (String.length data);
-        Cstruct.concat [ base ; len ; Cstruct.of_string data ]
+        let len = Bytes.create 2 in
+        Bytes.set_uint16_be len 0 (String.length data);
+        String.concat "" [ base ; Bytes.unsafe_to_string len ; data ]
     in
     Handshake_crypto.pseudo_random_function v e.ciphersuite
       length e.master_secret label seed

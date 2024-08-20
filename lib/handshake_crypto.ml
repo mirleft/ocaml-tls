@@ -1,20 +1,16 @@
-open Mirage_crypto.Hash
-
 open State
 
-let (<+>) = Cstruct.append
-
 let halve secret =
-  let size = Cstruct.length secret in
+  let size = String.length secret in
   let half = size - size / 2 in
-  Cstruct.(sub secret 0 half, sub secret (size - half) half)
+  String.(sub secret 0 half, sub secret (size - half) half)
 
 let p_hash (hmac, hmac_n) key seed len =
   let rec expand a to_go =
-    let res = hmac ~key (a <+> seed) in
+    let res = hmac ~key (a ^ seed) in
     if to_go > hmac_n then
-      res <+> expand (hmac ~key a) (to_go - hmac_n)
-    else Cstruct.sub res 0 to_go
+      res ^ expand (hmac ~key a) (to_go - hmac_n)
+    else String.sub res 0 to_go
   in
   expand (hmac ~key seed) len
 
@@ -24,43 +20,42 @@ let prf_mac = function
   | `ECDHE_RSA_WITH_AES_256_GCM_SHA384
   | `ECDHE_RSA_WITH_AES_256_CBC_SHA384
   | `ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
-  | `ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 -> (module SHA384 : S)
-  | _ -> (module SHA256 : S)
+  | `ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 -> (module Digestif.SHA384 : Digestif.S)
+  | _ -> (module Digestif.SHA256 : Digestif.S)
 
 let pseudo_random_function version cipher len secret label seed =
-  let labelled = Cstruct.of_string label <+> seed in
+  let labelled = label ^ seed in
   match version with
   | `TLS_1_1 | `TLS_1_0 ->
      let (s1, s2) = halve secret in
-     let md5 = p_hash (MD5.hmac, MD5.digest_size) s1 labelled len
-     and sha = p_hash (SHA1.hmac, SHA1.digest_size) s2 labelled len in
-     Mirage_crypto.Uncommon.Cs.xor md5 sha
+     let md5 = p_hash ((fun ~key s -> Digestif.MD5.(to_raw_string (hmac_string ~key s))), Digestif.MD5.digest_size) s1 labelled len
+     and sha = p_hash ((fun ~key s -> Digestif.SHA1.(to_raw_string (hmac_string ~key s))), Digestif.SHA1.digest_size) s2 labelled len in
+     Mirage_crypto.Uncommon.xor md5 sha
   | `TLS_1_2 ->
      let module D = (val (prf_mac cipher)) in
-     p_hash (D.hmac, D.digest_size) secret labelled len
+     p_hash ((fun ~key s -> D.(to_raw_string (hmac_string ~key s))), D.digest_size) secret labelled len
 
 let key_block version cipher len master_secret seed =
   pseudo_random_function version cipher len master_secret "key expansion" seed
 
 let hash version cipher data =
   match version with
-  | `TLS_1_0 | `TLS_1_1 -> MD5.digest data <+> SHA1.digest data
+  | `TLS_1_0 | `TLS_1_1 -> Digestif.(MD5.(to_raw_string (digest_string data)) ^ SHA1.(to_raw_string (digest_string data)))
   | `TLS_1_2 ->
-    let module H = (val (prf_mac cipher)) in
-    H.digest data
+    let module H = (val prf_mac cipher) in
+    H.(to_raw_string (digest_string data))
 
 let finished version cipher master_secret label ps =
-  let data = Cstruct.concat ps in
+  let data = String.concat "" ps in
   let seed = hash version cipher data in
   pseudo_random_function version cipher 12 master_secret label seed
 
 let divide_keyblock key mac iv buf =
-  let open Cstruct in
-  let c_mac, rt0 = split buf mac in
-  let s_mac, rt1 = split rt0 mac in
-  let c_key, rt2 = split rt1 key in
-  let s_key, rt3 = split rt2 key in
-  let c_iv , s_iv = split rt3 iv
+  let c_mac, rt0 = Core.split_str buf mac in
+  let s_mac, rt1 = Core.split_str rt0 mac in
+  let c_key, rt2 = Core.split_str rt1 key in
+  let s_key, rt3 = Core.split_str rt2 key in
+  let c_iv , s_iv = Core.split_str rt3 iv
   in
   (c_mac, s_mac, c_key, s_key, c_iv, s_iv)
 
@@ -68,12 +63,12 @@ let derive_master_secret version (session : session_data) premaster log =
   let prf = pseudo_random_function version session.ciphersuite 48 premaster in
   if session.extended_ms then
     let session_hash =
-      let data = Cstruct.concat log in
+      let data = String.concat "" log in
       hash version session.ciphersuite data
     in
     prf "extended master secret" session_hash
   else
-    prf "master secret" (session.common_session_data.client_random <+> session.common_session_data.server_random)
+    prf "master secret" (session.common_session_data.client_random ^ session.common_session_data.server_random)
 
 let initialise_crypto_ctx version (session : session_data) =
   let open Ciphersuite in
@@ -92,7 +87,7 @@ let initialise_crypto_ctx version (session : session_data) =
     in
     let key_len, iv_len, mac_len = Ciphersuite.key_length iv_l pp in
     let kblen = 2 * key_len + 2 * mac_len + 2 * iv_len
-    and rand = server_random <+> client_random
+    and rand = server_random ^ client_random
     in
     let keyblock = key_block version cipher kblen master rand in
     divide_keyblock key_len mac_len iv_len keyblock

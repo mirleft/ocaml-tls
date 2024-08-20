@@ -35,3 +35,6 @@ let rec first_match l1 = function
   | []                      -> None
   | x::_ when List.mem x l1 -> Some x
   | _::xs                   -> first_match l1 xs
+
+let sub_equal ~off ~len v x =
+  v = String.sub x off len

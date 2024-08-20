@@ -1,8 +1,6 @@
 open Core
 open State
 
-open Mirage_crypto
-
 let src = Logs.Src.create "handshake" ~doc:"TLS handshake"
 module Log = (val Logs.src_log src : Logs.LOG)
 
@@ -104,8 +102,8 @@ let get_alpn_protocol (sh : server_hello) =
   Utils.map_find ~f:(function `ALPN protocol -> Some protocol | _ -> None) sh.extensions
 
 let empty_common_session_data = {
-  server_random          = Cstruct.create 0 ;
-  client_random          = Cstruct.create 0 ;
+  server_random          = "" ;
+  client_random          = "" ;
   peer_certificate_chain = [] ;
   peer_certificate       = None ;
   trust_anchor           = None ;
@@ -114,7 +112,7 @@ let empty_common_session_data = {
   own_private_key        = None ;
   own_name               = None ;
   client_auth            = false ;
-  master_secret          = Cstruct.empty ;
+  master_secret          = "" ;
   alpn_protocol          = None ;
 }
 
@@ -123,22 +121,22 @@ let empty_session = {
   client_version      = `TLS_1_2 ;
   ciphersuite         = `DHE_RSA_WITH_AES_256_CBC_SHA ;
   group               = Some `FFDHE2048 ;
-  renegotiation       = Cstruct.(empty, empty) ;
-  session_id          = Cstruct.empty ;
+  renegotiation       = "", "" ;
+  session_id          = "" ;
   extended_ms         = false ;
-  tls_unique          = Cstruct.empty ;
+  tls_unique          = "" ;
 }
 
 let empty_session13 cipher = {
   common_session_data13  = empty_common_session_data ;
   ciphersuite13          = cipher ;
   master_secret          = Handshake_crypto13.empty cipher ;
-  exporter_master_secret = Cstruct.empty ;
-  resumption_secret      = Cstruct.empty ;
+  exporter_master_secret = "" ;
+  resumption_secret      = "" ;
   state                  = `Established ;
   resumed                = false ;
-  client_app_secret      = Cstruct.empty ;
-  server_app_secret      = Cstruct.empty ;
+  client_app_secret      = "" ;
+  server_app_secret      = "" ;
 }
 
 let common_session_data_of_epoch (epoch : epoch_data) common_session_data =
@@ -332,15 +330,16 @@ let server_hello_valid (sh : server_hello) =
 let to_sign_1_3 context_string =
   (* input is prepended by 64 * 0x20 (to avoid cross-version attacks) *)
   (* input for signature now contains also a context string *)
-  let prefix = Cstruct.create 64 in
-  Cstruct.memset prefix 0x20 ;
-  let ctx =
-    let stop = Cstruct.create 1 (* trailing 0 byte *) in
-    match context_string with
-    | None -> stop
-    | Some x -> Cstruct.of_string x <+> stop
-  in
-  prefix <+> ctx
+  let len = match context_string with
+    | None -> 64 + 1
+    | Some v -> 64 + String.length v + 1 in
+  let buf = Bytes.create len in
+  Bytes.fill buf 0 64 '\x20';
+  begin match context_string with
+  | None -> ()
+  | Some v -> Bytes.blit_string v 0 buf 64 (String.length v) end;
+  Bytes.set buf (Bytes.length buf - 1) '\x00';
+  Bytes.unsafe_to_string buf
 
 let signature version ?context_string data client_sig_algs signature_algorithms (private_key : X509.Private_key.t) =
   match version with
@@ -349,7 +348,10 @@ let signature version ?context_string data client_sig_algs signature_algorithms 
       match private_key with
       | `RSA key ->
         begin try
-            let data = Hash.MD5.digest data <+> Hash.SHA1.digest data in
+            let data =
+              Digestif.(MD5.(to_raw_string (digest_string data)) ^
+                        SHA1.(to_raw_string (digest_string data)))
+            in
             Ok (Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key data)
           with Mirage_crypto_pk.Rsa.Insufficient_key ->
             Error (`Fatal `KeyTooSmall)
@@ -385,7 +387,7 @@ let signature version ?context_string data client_sig_algs signature_algorithms 
   | `TLS_1_3 ->
     let to_sign =
       let prefix = to_sign_1_3 context_string in
-      prefix <+> data
+      prefix ^ data
     in
     let* sig_alg =
       let* client_algos =
@@ -426,9 +428,10 @@ let verify_digitally_signed version ?context_string sig_algs data signature_data
             (Mirage_crypto_pk.Rsa.PKCS1.sig_decode ~key signature)
         in
         let computed =
-          Hash.(MD5.digest signature_data <+> SHA1.digest signature_data)
+          Digestif.(MD5.(to_raw_string (digest_string signature_data)) ^
+                    SHA1.(to_raw_string (digest_string signature_data)))
         in
-        guard (Cstruct.equal raw computed)
+        guard (String.equal raw computed)
           (`Fatal (`SignatureVerificationFailed "RSA PKCS1 raw <> computed"))
       | key ->
         Result.map_error
@@ -461,7 +464,7 @@ let verify_digitally_signed version ?context_string sig_algs data signature_data
     and scheme = signature_scheme_of_signature_algorithm sig_alg
     and data =
       let prefix = to_sign_1_3 context_string in
-      prefix <+> signature_data
+      prefix ^ signature_data
     in
     Result.map_error
       (function `Msg m -> `Fatal (`SignatureVerificationFailed m))
@@ -488,7 +491,7 @@ let validate_chain authenticator certificates ip hostname =
         | Ok c -> Some c
         | Error `Msg msg ->
           Log.warn (fun m -> m "cannot decode certificate %s:@.%a" msg
-                       Cstruct.hexdump_pp cs);
+                       (Ohex.pp_hexdump ()) cs);
           None
       in
       List.filter_map f certs

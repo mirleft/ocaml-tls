@@ -20,19 +20,19 @@ module Or_error = struct
   let of_result ~to_string = Result.map_error ~f:(Fn.compose Error.of_string to_string)
   let of_result_msg x = of_result x ~to_string:(fun (`Msg msg) -> msg)
 
-  let lift_result_msg_of_cstruct f ~contents =
-    f (Cstruct.of_string contents) |> of_result_msg
+  let lift_result_msg_of_string f ~contents =
+    f contents |> of_result_msg
   ;;
 
-  let lift_asn_error_of_cstruct f ~contents =
-    f (Cstruct.of_string contents) |> of_result ~to_string:(fun (`Parse msg) -> msg)
+  let lift_asn_error_of_string f ~contents =
+    f contents |> of_result ~to_string:(fun (`Parse msg) -> msg)
   ;;
 end
 
 module CRL = struct
   include X509.CRL
 
-  let decode_der = Or_error.lift_result_msg_of_cstruct decode_der
+  let decode_der = Or_error.lift_result_msg_of_string decode_der
 
   let revoke ?digest ~issuer ~this_update ?next_update ?extensions revoked_certs key =
     revoke ?digest ~issuer ~this_update ?next_update ?extensions revoked_certs key
@@ -58,9 +58,9 @@ module Certificate = struct
   include X509.Certificate
   open Deferred.Or_error.Let_syntax
 
-  let decode_pem_multiple = Or_error.lift_result_msg_of_cstruct decode_pem_multiple
-  let decode_pem = Or_error.lift_result_msg_of_cstruct decode_pem
-  let decode_der = Or_error.lift_result_msg_of_cstruct decode_der
+  let decode_pem_multiple = Or_error.lift_result_msg_of_string decode_pem_multiple
+  let decode_pem = Or_error.lift_result_msg_of_string decode_pem
+  let decode_der = Or_error.lift_result_msg_of_string decode_der
 
   let of_pem_file ca_file =
     let%bind contents = file_contents ca_file in
@@ -81,7 +81,7 @@ module Authenticator = struct
     module Chain_of_trust = struct
       type t =
         { trust_anchors : [ `File of Filename.t | `Directory of Filename.t ]
-        ; allowed_hashes : Mirage_crypto.Hash.hash list option
+        ; allowed_hashes : Digestif.hash' list option
         ; crls : Filename.t option
         }
 
@@ -93,8 +93,8 @@ module Authenticator = struct
 
     type t =
       | Chain_of_trust of Chain_of_trust.t
-      | Cert_fingerprint of Mirage_crypto.Hash.hash * string
-      | Key_fingerprint of Mirage_crypto.Hash.hash * string
+      | Cert_fingerprint of Digestif.hash' * string
+      | Key_fingerprint of Digestif.hash' * string
 
     let ca_file ?allowed_hashes ?crls filename () =
       let trust_anchors = `File filename in
@@ -114,7 +114,7 @@ module Authenticator = struct
       let known_delimiters = [ ':'; ' ' ] in
       String.filter fingerprint ~f:(fun c ->
         not (List.exists known_delimiters ~f:(Char.equal c)))
-      |> Cstruct.of_hex
+      |> Ohex.decode
     ;;
 
     let of_cas ~time ({ trust_anchors; allowed_hashes; crls } : Chain_of_trust.t) =
@@ -132,12 +132,12 @@ module Authenticator = struct
 
     let of_cert_fingerprint ~time hash fingerprint =
       let fingerprint = cleanup_fingerprint fingerprint in
-      X509.Authenticator.server_cert_fingerprint ~time ~hash ~fingerprint
+      X509.Authenticator.cert_fingerprint ~time ~hash ~fingerprint
     ;;
 
     let of_key_fingerprint ~time hash fingerprint =
       let fingerprint = cleanup_fingerprint fingerprint in
-      X509.Authenticator.server_key_fingerprint ~time ~hash ~fingerprint
+      X509.Authenticator.key_fingerprint ~time ~hash ~fingerprint
     ;;
 
     let time = Fn.compose Ptime.of_float_s Unix.gettimeofday
@@ -156,7 +156,7 @@ end
 module Distinguished_name = struct
   include X509.Distinguished_name
 
-  let decode_der = Or_error.lift_result_msg_of_cstruct decode_der
+  let decode_der = Or_error.lift_result_msg_of_string decode_der
 end
 
 module OCSP = struct
@@ -169,7 +169,7 @@ module OCSP = struct
       create ?certs ?digest ?requestor_name ?key cert_ids |> Or_error.of_result_msg
     ;;
 
-    let decode_der = Or_error.lift_asn_error_of_cstruct decode_der
+    let decode_der = Or_error.lift_asn_error_of_string decode_der
   end
 
   module Response = struct
@@ -196,14 +196,14 @@ module OCSP = struct
     ;;
 
     let responses t = responses t |> Or_error.of_result_msg
-    let decode_der = Or_error.lift_asn_error_of_cstruct decode_der
+    let decode_der = Or_error.lift_asn_error_of_string decode_der
   end
 end
 
 module PKCS12 = struct
   include X509.PKCS12
 
-  let decode_der = Or_error.lift_result_msg_of_cstruct decode_der
+  let decode_der = Or_error.lift_result_msg_of_string decode_der
   let verify password t = verify password t |> Or_error.of_result_msg
 end
 
@@ -213,11 +213,10 @@ module Private_key = struct
   let sign hash ?scheme key data =
     sign hash ?scheme key data
     |> Or_error.of_result_msg
-    |> Or_error.map ~f:Cstruct.to_string
   ;;
 
-  let decode_der = Or_error.lift_result_msg_of_cstruct decode_der
-  let decode_pem = Or_error.lift_result_msg_of_cstruct decode_pem
+  let decode_der = Or_error.lift_result_msg_of_string decode_der
+  let decode_pem = Or_error.lift_result_msg_of_string decode_pem
 
   let of_pem_file file =
     let%map contents = Reader.file_contents file in
@@ -229,27 +228,21 @@ module Public_key = struct
   include X509.Public_key
 
   let verify hash ?scheme ~signature key data =
-    let signature = Cstruct.of_string signature in
-    let data =
-      match data with
-      | `Digest data -> `Digest (Cstruct.of_string data)
-      | `Message data -> `Message (Cstruct.of_string data)
-    in
     verify hash ?scheme ~signature key data |> Or_error.of_result_msg
   ;;
 
-  let decode_der = Or_error.lift_result_msg_of_cstruct decode_der
-  let decode_pem = Or_error.lift_result_msg_of_cstruct decode_pem
+  let decode_der = Or_error.lift_result_msg_of_string decode_der
+  let decode_pem = Or_error.lift_result_msg_of_string decode_pem
 end
 
 module Signing_request = struct
   include X509.Signing_request
 
   let decode_der ?allowed_hashes der =
-    Cstruct.of_string der |> decode_der ?allowed_hashes |> Or_error.of_result_msg
+    decode_der ?allowed_hashes der |> Or_error.of_result_msg
   ;;
 
-  let decode_pem pem = Cstruct.of_string pem |> decode_pem |> Or_error.of_result_msg
+  let decode_pem pem = decode_pem pem |> Or_error.of_result_msg
 
   let create subject ?digest ?extensions key =
     create subject ?digest ?extensions key |> Or_error.of_result_msg

@@ -15,7 +15,7 @@ let o f g x = f (g x)
 let read_file path =
   let open Lwt_io in
   open_file ~mode:Input path >>= fun file ->
-  read file >|= Cstruct.of_string >>= fun cs ->
+  read file >>= fun cs ->
   close file >|= fun () ->
   cs
 
@@ -90,11 +90,11 @@ let authenticator ?allowed_hashes ?crls param =
     crls_of_pem_dir crls >|= fun crls ->
     X509.Authenticator.chain_of_trust ?allowed_hashes ?crls ~time cas
   and dotted_hex_to_cs hex =
-    Cstruct.of_hex (String.map (function ':' -> ' ' | x -> x) hex)
+    Ohex.decode (String.map (function ':' -> ' ' | x -> x) hex)
   and fingerp hash fingerprint =
-    X509.Authenticator.server_key_fingerprint ~time ~hash ~fingerprint
+    X509.Authenticator.key_fingerprint ~time ~hash ~fingerprint
   and cert_fingerp hash fingerprint =
-    X509.Authenticator.server_cert_fingerprint ~time ~hash ~fingerprint
+    X509.Authenticator.cert_fingerprint ~time ~hash ~fingerprint
   in
   match param with
   | `Ca_file path -> certs_of_pem path >>= of_cas
