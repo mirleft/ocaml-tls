@@ -1,0 +1,3 @@
+(executable
+ (name speed)
+ (libraries fmt.tty logs.fmt mirage-crypto-rng.unix tls ptime.clock.os))
