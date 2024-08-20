@@ -167,7 +167,7 @@ let print_group group =
   let pad = 9 - String.length str in
   str ^ String.make pad ' '
 
-let benchmarks =
+let throughput =
   [ bm "tls-1.3, rsa/2048, x25519, aes-128-ccm-sha256" begin fun name ->
         let key = X509.Private_key.generate ~bits:2048 `RSA in
         let state = make ~groups:[ `X25519 ] ~cipher:`AES_128_CCM_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
@@ -213,8 +213,10 @@ let benchmarks =
         let state = make ~groups:[ `FFDHE2048 ] ~cipher:`DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 ~digest:`SHA256 ~key `TLS_1_2 `To_server in
         throughput name (to_consumer state)
       end
+  ]
 
-  ; bm "tls-1.3 handshake per second" begin fun name ->
+and handshake =
+  [ bm "tls-1.3 handshake, rsa2048" begin fun name ->
         let key = X509.Private_key.generate ~bits:2048 `RSA in
         count name begin fun group ->
           let state = make ~groups:[ group ] ~cipher:`CHACHA20_POLY1305_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
@@ -223,7 +225,25 @@ let benchmarks =
           print_group
           ([ `X25519 ; `P256 ; `P384 ; `P521 ; `FFDHE2048 ; `FFDHE3072 ])
       end
-  ; bm "tls-1.2 handshake per second" begin fun name ->
+  ; bm "tls-1.3 handshake, ed25519" begin fun name ->
+        let key = X509.Private_key.generate `ED25519 in
+        count name begin fun group ->
+          let state = make ~groups:[ group ] ~cipher:`CHACHA20_POLY1305_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
+          ignore (once state None)
+        end
+          print_group
+          ([ `X25519 ; `P256 ; `P384 ; `P521 ; `FFDHE2048 ; `FFDHE3072 ])
+      end
+  ; bm "tls-1.3 handshake, p256" begin fun name ->
+        let key = X509.Private_key.generate `P256 in
+        count name begin fun group ->
+          let state = make ~groups:[ group ] ~cipher:`CHACHA20_POLY1305_SHA256 ~digest:`SHA256 ~key `TLS_1_3 `To_server in
+          ignore (once state None)
+        end
+          print_group
+          ([ `X25519 ; `P256 ; `P384 ; `P521 ; `FFDHE2048 ; `FFDHE3072 ])
+      end
+  ; bm "tls-1.2 handshake, rsa2048" begin fun name ->
         let key = X509.Private_key.generate ~bits:2048 `RSA in
         count name begin fun group ->
           let cipher = match group with
@@ -247,4 +267,11 @@ let () =
   let seed = Cstruct.of_string "0xdeadbeef" in
   let g = Mirage_crypto_rng.(create ~seed (module Fortuna)) in
   Mirage_crypto_rng.set_default_generator g;
-  run benchmarks
+  let bench =
+    match Sys.argv.(1) with
+    | exception Invalid_argument _ -> throughput @ handshake
+    | "hs" -> handshake
+    | "bw" -> throughput
+    | _ -> invalid_arg "supported is: 'hs' (for handshake) or 'bw' (for bandwidth)"
+  in
+  run bench
