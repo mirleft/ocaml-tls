@@ -1,5 +1,6 @@
 (test
  (name fuzz)
+ (package tls-miou-unix)
  (libraries
    mirage-crypto-rng-miou-unix
    ohex
