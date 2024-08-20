@@ -1,25 +1,3 @@
 (executable
- (name bench_engine)
- (modules bench_engine)
- (libraries
-  bechamel
-  bechamel-notty
-  notty.unix
-  ptime.clock.os
-  mtime.clock.os
-  mirage-crypto-rng.unix
-  logs.fmt
-  fmt.tty
-  fmt
-  logs
-  cstruct
-  ptime
-  mirage-crypto
-  tls
-  x509
-  domain-name))
-
-(executable
- (name throughput)
- (modules throughput)
+ (name speed)
  (libraries fmt.tty logs.fmt mirage-crypto-rng.unix tls ptime.clock.os))
