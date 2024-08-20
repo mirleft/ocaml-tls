@@ -248,4 +248,3 @@ let () =
   let g = Mirage_crypto_rng.(create ~seed (module Fortuna)) in
   Mirage_crypto_rng.set_default_generator g;
   run benchmarks
-
