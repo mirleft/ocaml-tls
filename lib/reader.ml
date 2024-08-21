@@ -95,9 +95,8 @@ let parse_alert = catch @@ fun buf ->
     let level = String.get_uint8 buf 0 in
     let typ = String.get_uint8 buf 1 in
     match int_to_alert_level level, int_to_alert_type typ with
-      | (Some lvl, Some msg) -> validate_alert (lvl, msg)
-      | (Some _  , None)     -> raise_unknown @@ "alert type " ^ string_of_int typ
-      | _                    -> raise_unknown @@ "alert level " ^ string_of_int level
+      | (Some lvl, msg) -> validate_alert (lvl, msg)
+      | _ -> raise_unknown @@ "alert level " ^ string_of_int level
 
 let parse_change_cipher_spec buf =
   match String.length buf, String.get_uint8 buf 0 with

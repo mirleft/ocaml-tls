@@ -68,6 +68,7 @@ type alert_type =
   | UNSUPPORTED_EXTENSION           [@id 110] (*RFC5246*)
   | UNRECOGNIZED_NAME               [@id 112] (*RFC6066*)
   | NO_APPLICATION_PROTOCOL         [@id 120] (*RFC7301*)
+  | UNKNOWN of int
 
 let alert_type_to_string = function
   | CLOSE_NOTIFY -> "close notify"
@@ -86,6 +87,7 @@ let alert_type_to_string = function
   | UNSUPPORTED_EXTENSION -> "unsupported extension"
   | UNRECOGNIZED_NAME -> "unrecognized name"
   | NO_APPLICATION_PROTOCOL -> "no application protocol"
+  | UNKNOWN x -> "unknown " ^ string_of_int x
 
 let alert_type_to_int = function
   | CLOSE_NOTIFY                    -> 0   (*RFC5246*)
@@ -104,24 +106,25 @@ let alert_type_to_int = function
   | UNSUPPORTED_EXTENSION           -> 110 (*RFC5246*)
   | UNRECOGNIZED_NAME               -> 112 (*RFC6066*)
   | NO_APPLICATION_PROTOCOL         -> 120 (*RFC7301*)
+  | UNKNOWN x -> x
 and int_to_alert_type = function
-  | 0 -> Some CLOSE_NOTIFY
-  | 10 -> Some UNEXPECTED_MESSAGE
-  | 20 -> Some BAD_RECORD_MAC
-  | 22 -> Some RECORD_OVERFLOW
-  | 40 -> Some HANDSHAKE_FAILURE
-  | 42 -> Some BAD_CERTIFICATE
-  | 45 -> Some CERTIFICATE_EXPIRED
-  | 50 -> Some DECODE_ERROR
-  | 70 -> Some PROTOCOL_VERSION
-  | 86 -> Some INAPPROPRIATE_FALLBACK
-  | 90 -> Some USER_CANCELED
-  | 100 -> Some NO_RENEGOTIATION
-  | 109 -> Some MISSING_EXTENSION
-  | 110 -> Some UNSUPPORTED_EXTENSION
-  | 112 -> Some UNRECOGNIZED_NAME
-  | 120 -> Some NO_APPLICATION_PROTOCOL
-  | _ -> None
+  | 0 -> CLOSE_NOTIFY
+  | 10 -> UNEXPECTED_MESSAGE
+  | 20 -> BAD_RECORD_MAC
+  | 22 -> RECORD_OVERFLOW
+  | 40 -> HANDSHAKE_FAILURE
+  | 42 -> BAD_CERTIFICATE
+  | 45 -> CERTIFICATE_EXPIRED
+  | 50 -> DECODE_ERROR
+  | 70 -> PROTOCOL_VERSION
+  | 86 -> INAPPROPRIATE_FALLBACK
+  | 90 -> USER_CANCELED
+  | 100 -> NO_RENEGOTIATION
+  | 109 -> MISSING_EXTENSION
+  | 110 -> UNSUPPORTED_EXTENSION
+  | 112 -> UNRECOGNIZED_NAME
+  | 120 -> NO_APPLICATION_PROTOCOL
+  | x -> UNKNOWN x
 
 let pp_alert ppf (lvl, typ) =
   Fmt.pf ppf "ALERT %a %s" pp_alert_level lvl (alert_type_to_string typ)

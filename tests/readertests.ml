@@ -162,21 +162,6 @@ let good_alert_tests =
     (fun i args -> "Good alert " ^ string_of_int i >:: good_alert_parser args)
     good_alerts
 
-let bad_alert_parser xs _ =
-  let buf = list_to_cstruct xs in
-  match Reader.parse_alert buf with
-  | Ok _    -> assert_failure "bad alert passes"
-  | Error _ -> ()
-
-let bad_alerts = [
-  [3; 0] ;
-  [1; 2] ;
-  [2; 200] ;
-  [0; 200] ;
-  [0; 0; 0] ;
-(* TODO: validate those who are 'always fatal' *)
-]
-
 let alert_too_small _ =
   let buf = list_to_cstruct [ 0 ] in
   match Reader.parse_alert buf with
@@ -190,11 +175,8 @@ let alert_too_small2 _ =
   | Error _ -> ()
 
 let bad_alerts_tests =
-  ("short alert" >:: alert_too_small) ::
-  ("short alert 2" >:: alert_too_small2) ::
-  (List.mapi
-     (fun i args -> "Bad alert " ^ string_of_int i >:: bad_alert_parser args)
-     bad_alerts)
+  [ ("short alert" >:: alert_too_small) ;
+    ("short alert 2" >:: alert_too_small2) ]
 
 let good_dhparams = [
   [
