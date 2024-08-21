@@ -284,7 +284,6 @@ module Unix = struct
   let client_of_fd config ?host fd =
     client_of_fd config ?host (Lwt_fd.of_fd fd)
 
-
   let accept conf fd =
     Lwt_unix.accept fd >>= fun (fd', addr) ->
     Lwt.catch (fun () -> server_of_fd conf fd' >|= fun t -> (t, addr))
@@ -322,7 +321,6 @@ module Unix = struct
     | `Active tls | `Read_closed tls | `Write_closed tls -> Tls.Engine.epoch tls
     | `Closed | `Error _ -> Error ()
 end
-
 
 type ic = Lwt_io.input_channel
 type oc = Lwt_io.output_channel

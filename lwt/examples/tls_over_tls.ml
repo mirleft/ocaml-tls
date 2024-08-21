@@ -28,7 +28,7 @@ https_port 3129 tls-cert=/path/to/localhost.crt tls-key=/path/to/localhost.key
 
 *)
 
-let client = Tls.Config.client ~authenticator:null_auth ()
+let client = get_ok (Tls.Config.client ~authenticator:null_auth ())
 
 let string_prefix ~prefix msg =
   let len = String.length prefix in
