@@ -3,10 +3,6 @@ type error =
   | TrailingBytes  of string
   | WrongLength    of string
   | Unknown        of string
-  | Underflow
-  | Overflow       of int
-  | UnknownVersion of (int * int)
-  | UnknownContent of int
 
 val pp_error : error Fmt.t
 
@@ -15,7 +11,9 @@ val parse_any_version : string -> (Core.tls_any_version, error) result
 val parse_record      : string ->
   ([ `Record of (Core.tls_hdr * string) * string
    | `Fragment of string
-   ], error) result
+   ], [> `UnknownContentType of int
+      | `UnknownRecordVersion of int * int
+      | `RecordOverflow of int ]) result
 
 val parse_handshake_frame : string -> (string option * string)
 val parse_handshake : string -> (Core.tls_handshake, error) result

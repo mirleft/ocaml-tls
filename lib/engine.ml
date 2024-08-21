@@ -28,10 +28,8 @@ let alert_of_fatal = function
   | `RecordOverflow _ -> Packet.RECORD_OVERFLOW
   | `UnknownRecordVersion _ -> Packet.PROTOCOL_VERSION
   | `UnknownContentType _ -> Packet.UNEXPECTED_MESSAGE
-  | `ReaderError (Reader.UnknownVersion _) -> Packet.PROTOCOL_VERSION
-  | `ReaderError (Reader.TrailingBytes _) -> Packet.UNEXPECTED_MESSAGE
-  | `ReaderError Reader.Underflow -> Packet.DECODE_ERROR
-  | `ReaderError _ -> Packet.ILLEGAL_PARAMETER
+  | `ReaderError (Reader.TrailingBytes _ | Reader.WrongLength _) -> Packet.UNEXPECTED_MESSAGE
+  | `ReaderError (Reader.Unknown _) -> Packet.DECODE_ERROR
   | `CannotHandleApplicationDataYet -> Packet.UNEXPECTED_MESSAGE
   | `BadRecordVersion _ -> Packet.PROTOCOL_VERSION
   | `InvalidRenegotiation -> Packet.HANDSHAKE_FAILURE
@@ -311,19 +309,9 @@ let rec separate_records : string -> ((tls_hdr * string) list * string, failure)
   | Ok (`Record (packet, fragment)) ->
     let* tl, frag = separate_records fragment in
     Ok (packet :: tl, frag)
-  | Error (Overflow x) ->
-    Tracing.cs ~tag:"buf-in" buf ;
-    Error (`Fatal (`RecordOverflow x))
-  | Error (UnknownVersion v) ->
-    Tracing.cs ~tag:"buf-in" buf ;
-    Error (`Fatal (`UnknownRecordVersion v))
-  | Error (UnknownContent c) ->
-    Tracing.cs ~tag:"buf-in" buf ;
-    Error (`Fatal (`UnknownContentType c))
   | Error e ->
     Tracing.cs ~tag:"buf-in" buf ;
-    Error (`Fatal (`ReaderError e))
-
+    Error (`Fatal e)
 
 let encrypt_records encryptor version records =
   let rec split = function

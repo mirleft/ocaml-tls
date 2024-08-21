@@ -89,9 +89,9 @@ let good_record_parser (bytes, result) _ =
     assert_cs_eq y x ;
     assert_cs_eq g f
   | Ok (`Fragment x), `Fragment y -> assert_cs_eq y x
-  | Error (Overflow x), `Overflow y -> assert_equal y x
-  | Error (UnknownVersion x), `UnknownVersion y -> assert_equal y x
-  | Error (UnknownContent x), `UnknownContent y -> assert_equal y x
+  | Error (`RecordOverflow x), `Overflow y -> assert_equal y x
+  | Error (`UnknownRecordVersion x), `UnknownVersion y -> assert_equal y x
+  | Error (`UnknownContentType x), `UnknownContent y -> assert_equal y x
   | _ -> assert_failure "record parser broken"
 
 let good_records =

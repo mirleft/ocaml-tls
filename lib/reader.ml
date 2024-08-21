@@ -5,10 +5,6 @@ type error =
   | TrailingBytes  of string
   | WrongLength    of string
   | Unknown        of string
-  | Underflow
-  | Overflow       of int
-  | UnknownVersion of (int * int)
-  | UnknownContent of int
 
 let pp_error ppf =
   let re = "reader error:"
@@ -18,10 +14,6 @@ let pp_error ppf =
   | TrailingBytes msg -> Fmt.pf ppf "%s trailing bytes: %s" re msg
   | WrongLength msg -> Fmt.pf ppf "%s wrong length: %s" re msg
   | Unknown msg -> Fmt.pf ppf "%s %s %s" unk re msg
-  | Underflow -> Fmt.pf ppf "%s underflow" re
-  | Overflow n -> Fmt.pf ppf "%s overflow %u" re n
-  | UnknownVersion (m, n) -> Fmt.pf ppf "%s %s version %u.%u" re unk m n
-  | UnknownContent c -> Fmt.pf ppf "%s %s content %u" re unk c
 
 exception Reader_error of error
 
@@ -34,7 +26,7 @@ let shift str amount = String.sub str amount (String.length str - amount)
 let catch f x =
   try Ok (f x) with
   | Reader_error err   -> Error err
-  | Invalid_argument _ -> Error Underflow
+  | Invalid_argument msg -> Error (Unknown msg)
 
 let parse_version_int buf =
   let major = String.get_uint8 buf 0 in
@@ -45,9 +37,7 @@ let parse_version_exn buf =
   let version = parse_version_int buf in
   match tls_version_of_pair version with
   | Some x -> x
-  | None   ->
-    let major, minor = version in
-    raise (Reader_error (UnknownVersion (major, minor)))
+  | None   -> raise_unknown "version"
 
 let parse_any_version_opt buf =
   let version = parse_version_int buf in
@@ -56,9 +46,7 @@ let parse_any_version_opt buf =
 let parse_any_version_exn buf =
   match parse_any_version_opt buf with
   | Some x, _ -> x
-  | None, _ ->
-    let major, minor = (String.get_uint8 buf 0, String.get_uint8 buf 1) in
-    raise (Reader_error (UnknownVersion (major, minor)))
+  | None, _ -> raise_unknown "version"
 
 let parse_version = catch parse_version_exn
 
@@ -76,15 +64,15 @@ let parse_record buf =
       (* 2 ^ 14 + 2048 for TLSCiphertext
          2 ^ 14 + 1024 for TLSCompressed
          2 ^ 14 for TLSPlaintext *)
-      Error (Overflow x)
+      Error (`RecordOverflow x)
     | x when 5 + x > String.length buf -> Ok (`Fragment buf)
     | x ->
       match
         tls_any_version_of_pair version,
         int_to_content_type typ
       with
-      | None, _ -> Error (UnknownVersion version)
-      | _, None -> Error (UnknownContent typ)
+      | None, _ -> Error (`UnknownRecordVersion version)
+      | _, None -> Error (`UnknownContentType typ)
       | Some version, Some content_type ->
         let payload, rest = split_str ~start:5 buf x in
         Ok (`Record (({ content_type ; version }, payload), rest))
