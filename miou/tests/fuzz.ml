@@ -155,7 +155,7 @@ let run_client ~to_client:actions cfg addr =
   let fd = Miou_unix.of_file_descr ~non_blocking:true socket in
   let tls = Tls_miou_unix.client_of_fd cfg fd in
   let finally () =
-    inhibit (fun () -> Miou_unix.close (Tls_miou_unix.file_descr tls))
+    inhibit (fun () -> Unix.close socket)
   in
   Fun.protect ~finally @@ fun () -> run ~role:"client" actions tls
 
