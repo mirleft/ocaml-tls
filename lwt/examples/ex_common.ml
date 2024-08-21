@@ -49,3 +49,7 @@ let setup_log =
   Term.(const setup_log
         $ Fmt_cli.style_renderer ()
         $ Logs_cli.level ())
+
+let get_ok = function
+  | Ok cfg -> cfg
+  | Error `Msg msg -> invalid_arg msg

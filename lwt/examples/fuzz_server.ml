@@ -53,7 +53,7 @@ let serve_ssl port callback =
 
   yap ~tag ("-> start @ " ^ string_of_int port) >>= fun () ->
   let rec loop s =
-    let config = Tls.Config.server ~ticket_cache ~reneg:true ~certificates:(`Single cert) ~version:(`TLS_1_2, `TLS_1_3) ~zero_rtt:32768l () in
+    let config = get_ok (Tls.Config.server ~ticket_cache ~reneg:true ~certificates:(`Single cert) ~version:(`TLS_1_2, `TLS_1_3) ~zero_rtt:32768l ()) in
     (Lwt.catch
        (fun () -> Tls_lwt.Unix.accept config s >|= fun r -> `R r)
        (function

@@ -301,13 +301,15 @@ let accept_ext conf fd =
 and connect_ext conf addr =
   Unix.connect conf addr >|= of_t
 
-let accept certificate =
-  let config = Tls.Config.server ~certificates:certificate () in
-  accept_ext config
+let accept certificate fd =
+  match Tls.Config.server ~certificates:certificate () with
+  | Ok config -> accept_ext config fd >|= fun w -> Ok w
+  | Error _ as e -> Lwt.return e
 
 and connect authenticator addr =
-  let config = Tls.Config.client ~authenticator () in
-  connect_ext config addr
+  match Tls.Config.client ~authenticator () with
+  | Ok config -> connect_ext config addr >|= fun w -> Ok w
+  | Error _ as e -> Lwt.return e
 
 (* Boot the entropy loop at module init time. *)
 let () = Mirage_crypto_rng_lwt.initialize (module Mirage_crypto_rng.Fortuna)

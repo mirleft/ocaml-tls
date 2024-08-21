@@ -33,15 +33,19 @@ module Flow = struct
           tag descr (Tls.Engine.string_of_failure a)
 end
 
+let get_ok = function
+  | Ok cfg -> cfg
+  | Error `Msg msg -> invalid_arg msg
+
 let loop_chatter ~certificate ~loops ~size =
 
   Printf.eprintf "Looping %d times, %d bytes.\n%!" loops size;
 
   let message  = Mirage_crypto_rng.generate size
-  and server   = Tls.(Engine.server (Config.server ~certificates:(`Single certificate) ()))
+  and server   = Tls.(Engine.server (get_ok (Config.server ~certificates:(`Single certificate) ())))
   and (client, init) =
     let authenticator ?ip:_ ~host:_ _ = Ok None in
-    Tls.(Engine.client @@ Config.client ~authenticator ())
+    Tls.(Engine.client @@ get_ok (Config.client ~authenticator ()))
   in
   Testlib.time @@ fun () ->
 

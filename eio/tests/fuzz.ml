@@ -209,7 +209,7 @@ end = struct
   let null_auth ?ip:_ ~host:_ _ = Ok None
 
   let client =
-    Tls.Config.client ~authenticator:null_auth ()
+    Result.get_ok (Tls.Config.client ~authenticator:null_auth ())
 
   let read_file path =
     let ch = open_in_bin path in
@@ -222,7 +222,7 @@ end = struct
     let certs = Result.get_ok (X509.Certificate.decode_pem_multiple (read_file "server.pem")) in
     let pk = Result.get_ok (X509.Private_key.decode_pem (read_file "server.key")) in
     let certificates = `Single (certs, pk) in
-    Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates ~ciphers:Ciphers.supported ())
+    Result.get_ok Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates ~ciphers:Ciphers.supported ())
 end
 
 let dispatch_commands ~to_server ~to_client actions =

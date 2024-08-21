@@ -104,7 +104,7 @@ val accept_ext : Tls.Config.server -> Lwt_unix.file_descr ->
     output channel from the accepted connection on [fd], using the
     default configuration with the given [own_cert]. *)
 val accept : Tls.Config.own_cert -> Lwt_unix.file_descr ->
-  ((ic * oc) * Lwt_unix.sockaddr) Lwt.t
+  ((ic * oc) * Lwt_unix.sockaddr, [> `Msg of string]) result Lwt.t
 
 (** [connect_ext client (host, port)] is [ic, oc], the input
     and output channel of a TLS connection to [host] on [port] using
@@ -114,7 +114,7 @@ val connect_ext : Tls.Config.client -> string * int -> (ic * oc) Lwt.t
 (** [connect authenticator (host, port)] is [ic, oc], the input
     and output channel of a TLS connection to [host] on [port] using the
     default configuration and the [authenticator]. *)
-val connect : X509.Authenticator.t -> string * int -> (ic * oc) Lwt.t
+val connect : X509.Authenticator.t -> string * int -> (ic * oc, [> `Msg of string ]) result Lwt.t
 
 (** [of_t t] is [ic, oc], the input and output channel.  [close]
     defaults to [!Unix.close]. *)

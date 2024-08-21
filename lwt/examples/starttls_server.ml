@@ -1,4 +1,5 @@
 open Lwt.Infix
+open Ex_common
 
 let capability = "[CAPABILITY IMAP4rev1 LITERAL+ SASL-IR LOGIN-REFERRALS ID ENABLE IDLE STARTTLS AUTH=PLAIN] server ready.\r\n"
 
@@ -56,7 +57,7 @@ let start_server () =
       Lwt_io.close oc >>= fun () ->
       cert () >>= fun cert ->
       Tls_lwt.Unix.server_of_fd
-        (Tls.Config.server ~certificates:(`Single cert) ()) sock_cl >>= fun s ->
+        (get_ok (Tls.Config.server ~certificates:(`Single cert) ())) sock_cl >>= fun s ->
       let ic,oc = Tls_lwt.of_t s in
       write oc ("* OK " ^ capability) >>= fun () ->
       wait_cmd sock_cl ic oc

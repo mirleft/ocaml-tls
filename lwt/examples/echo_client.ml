@@ -34,7 +34,7 @@ let echo_client ?ca hostname port =
     ~cert:server_cert
     ~priv_key:server_key >>= fun certificate ->
   Tls_lwt.connect_ext
-    Tls.Config.(client ~authenticator ~cached_session ~certificates:(`Single certificate) ~ciphers:Ciphers.supported ())
+    (get_ok Tls.Config.(client ~authenticator ~cached_session ~certificates:(`Single certificate) ~ciphers:Ciphers.supported ()))
     (hostname, port) >>= fun (ic, oc) ->
   Lwt.join [
     lines ic    |> Lwt_stream.iter_s (printf "+ %s\n%!") ;

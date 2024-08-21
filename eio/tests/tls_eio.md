@@ -38,7 +38,7 @@ let test_client ~net (host, service) =
           (Result.bind (Domain_name.of_string host) Domain_name.host)
       in
       Tls_eio.client_of_flow
-        Tls.Config.(client ~version:(`TLS_1_0, `TLS_1_3) ?cached_ticket:!mypsk ~ticket_cache ~authenticator ~ciphers:Ciphers.supported ())
+        (Result.get_ok Tls.Config.(client ~version:(`TLS_1_0, `TLS_1_3) ?cached_ticket:!mypsk ~ticket_cache ~authenticator ~ciphers:Ciphers.supported ()))
         ?host socket
     in
     let req = String.concat "\r\n" [
@@ -68,7 +68,7 @@ let server_config dir =
       ~priv_key:(dir / "server-ec.key")
   in
   let certificates = `Multiple [ certificate ; ec_certificate ] in
-  Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates ~ciphers:Ciphers.supported ())
+  Result.get_ok Tls.Config.(server ~version:(`TLS_1_0, `TLS_1_3) ~certificates ~ciphers:Ciphers.supported ())
 
 let serve_ssl ~config server_s callback =
   Switch.run @@ fun sw ->
