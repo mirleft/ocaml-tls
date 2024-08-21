@@ -250,36 +250,12 @@ and int_to_compression_method = function
 type extension_type =
   | SERVER_NAME                            [@id 0]
   | MAX_FRAGMENT_LENGTH                    [@id 1]
-  | CLIENT_CERTIFICATE_URL                 [@id 2]
-  | TRUSTED_CA_KEYS                        [@id 3]
-  | TRUNCATED_HMAC                         [@id 4]
-  | STATUS_REQUEST                         [@id 5]
-  | USER_MAPPING                           [@id 6]  (*RFC4681*)
-  | CLIENT_AUTHZ                           [@id 7]  (*RFC5878*)
-  | SERVER_AUTHZ                           [@id 8]  (*RFC5878*)
-  | CERT_TYPE                              [@id 9]  (*RFC6091*)
   | SUPPORTED_GROUPS                       [@id 10] (*RFC4492, RFC8446*)
   | EC_POINT_FORMATS                       [@id 11] (*RFC4492*)
-  | SRP                                    [@id 12] (*RFC5054*)
   | SIGNATURE_ALGORITHMS                   [@id 13] (*RFC5246*)
-  | USE_SRTP                               [@id 14] (*RFC5764*)
-  | HEARTBEAT                              [@id 15] (*RFC6520*)
   | APPLICATION_LAYER_PROTOCOL_NEGOTIATION [@id 16] (*RFC7301*)
-  | STATUS_REQUEST_V2                      [@id 17] (*RFC6961*)
-  | SIGNED_CERTIFICATE_TIMESTAMP           [@id 18] (*RFC6962*)
-  | CLIENT_CERTIFICATE_TYPE                [@id 19] (*RFC7250*)
-  | SERVER_CERTIFICATE_TYPE                [@id 20] (*RFC7250*)
   | PADDING                                [@id 21] (*RFC7685*)
-  | ENCRYPT_THEN_MAC                       [@id 22] (*RFC7366*)
   | EXTENDED_MASTER_SECRET                 [@id 23] (*RFC7627*)
-  | TOKEN_BINDING                          [@id 24] (*RFC8472*)
-  | CACHED_INFO                            [@id 25] (*RFC7924*)
-  | TLS_LTS                                [@id 26] (*draft-gutmann-tls-lts*)
-  | COMPRESSED_CERTIFICATE                 [@id 27] (*draft-ietf-tls-certificate-compression*)
-  | RECORD_SIZE_LIMIT                      [@id 28] (*RFC8449*)
-  | PWD_PROTECT                            [@id 29] (*RFC-harkins-tls-dragonfly-03*)
-  | PWD_CLEAR                              [@id 30] (*RFC-harkins-tls-dragonfly-03*)
-  | PASSWORD_SALT                          [@id 31] (*RFC-harkins-tls-dragonfly-03*)
   | SESSION_TICKET                         [@id 35] (*RFC4507*)
   | PRE_SHARED_KEY                         [@id 41] (*RFC8446*)
   | EARLY_DATA                             [@id 42] (*RFC8446*)
@@ -287,46 +263,19 @@ type extension_type =
   | COOKIE                                 [@id 44] (*RFC8446*)
   | PSK_KEY_EXCHANGE_MODES                 [@id 45] (*RFC8446*)
   | CERTIFICATE_AUTHORITIES                [@id 47] (*RFC8446*)
-  | OID_FILTERS                            [@id 48] (*RFC8446*)
   | POST_HANDSHAKE_AUTH                    [@id 49] (*RFC8446*)
-  | SIGNATURE_ALGORITHMS_CERT              [@id 50] (*RFC8446*)
   | KEY_SHARE                              [@id 51] (*RFC8446*)
   | RENEGOTIATION_INFO                     [@id 0xFF01] (*RFC5746*)
-  | DRAFT_SUPPORT                          [@id 0xFF02] (*draft*)
 
 let extension_type_to_int = function
   | SERVER_NAME                            -> 0
   | MAX_FRAGMENT_LENGTH                    -> 1
-  | CLIENT_CERTIFICATE_URL                 -> 2
-  | TRUSTED_CA_KEYS                        -> 3
-  | TRUNCATED_HMAC                         -> 4
-  | STATUS_REQUEST                         -> 5
-  | USER_MAPPING                           -> 6  (*RFC4681*)
-  | CLIENT_AUTHZ                           -> 7  (*RFC5878*)
-  | SERVER_AUTHZ                           -> 8  (*RFC5878*)
-  | CERT_TYPE                              -> 9  (*RFC6091*)
   | SUPPORTED_GROUPS                       -> 10 (*RFC4492, RFC8446*)
   | EC_POINT_FORMATS                       -> 11 (*RFC4492*)
-  | SRP                                    -> 12 (*RFC5054*)
   | SIGNATURE_ALGORITHMS                   -> 13 (*RFC5246*)
-  | USE_SRTP                               -> 14 (*RFC5764*)
-  | HEARTBEAT                              -> 15 (*RFC6520*)
   | APPLICATION_LAYER_PROTOCOL_NEGOTIATION -> 16 (*RFC7301*)
-  | STATUS_REQUEST_V2                      -> 17 (*RFC6961*)
-  | SIGNED_CERTIFICATE_TIMESTAMP           -> 18 (*RFC6962*)
-  | CLIENT_CERTIFICATE_TYPE                -> 19 (*RFC7250*)
-  | SERVER_CERTIFICATE_TYPE                -> 20 (*RFC7250*)
   | PADDING                                -> 21 (*RFC7685*)
-  | ENCRYPT_THEN_MAC                       -> 22 (*RFC7366*)
   | EXTENDED_MASTER_SECRET                 -> 23 (*RFC7627*)
-  | TOKEN_BINDING                          -> 24 (*RFC8472*)
-  | CACHED_INFO                            -> 25 (*RFC7924*)
-  | TLS_LTS                                -> 26 (*draft-gutmann-tls-lts*)
-  | COMPRESSED_CERTIFICATE                 -> 27 (*draft-ietf-tls-certificate-compression*)
-  | RECORD_SIZE_LIMIT                      -> 28 (*RFC8449*)
-  | PWD_PROTECT                            -> 29 (*RFC-harkins-tls-dragonfly-03*)
-  | PWD_CLEAR                              -> 30 (*RFC-harkins-tls-dragonfly-03*)
-  | PASSWORD_SALT                          -> 31 (*RFC-harkins-tls-dragonfly-03*)
   | SESSION_TICKET                         -> 35 (*RFC4507*)
   | PRE_SHARED_KEY                         -> 41 (*RFC8446*)
   | EARLY_DATA                             -> 42 (*RFC8446*)
@@ -334,45 +283,18 @@ let extension_type_to_int = function
   | COOKIE                                 -> 44 (*RFC8446*)
   | PSK_KEY_EXCHANGE_MODES                 -> 45 (*RFC8446*)
   | CERTIFICATE_AUTHORITIES                -> 47 (*RFC8446*)
-  | OID_FILTERS                            -> 48 (*RFC8446*)
   | POST_HANDSHAKE_AUTH                    -> 49 (*RFC8446*)
-  | SIGNATURE_ALGORITHMS_CERT              -> 50 (*RFC8446*)
   | KEY_SHARE                              -> 51 (*RFC8446*)
   | RENEGOTIATION_INFO                     -> 0xFF01 (*RFC5746*)
-  | DRAFT_SUPPORT                          -> 0xFF02 (*draft*)
 and int_to_extension_type = function
   | 0 -> Some SERVER_NAME
   | 1 -> Some MAX_FRAGMENT_LENGTH
-  | 2 -> Some CLIENT_CERTIFICATE_URL
-  | 3 -> Some TRUSTED_CA_KEYS
-  | 4 -> Some TRUNCATED_HMAC
-  | 5 -> Some STATUS_REQUEST
-  | 6 -> Some USER_MAPPING
-  | 7 -> Some CLIENT_AUTHZ
-  | 8 -> Some SERVER_AUTHZ
-  | 9 -> Some CERT_TYPE
   | 10 -> Some SUPPORTED_GROUPS
   | 11 -> Some EC_POINT_FORMATS
-  | 12 -> Some SRP
   | 13 -> Some SIGNATURE_ALGORITHMS
-  | 14 -> Some USE_SRTP
-  | 15 -> Some HEARTBEAT
   | 16 -> Some APPLICATION_LAYER_PROTOCOL_NEGOTIATION
-  | 17 -> Some STATUS_REQUEST_V2
-  | 18 -> Some SIGNED_CERTIFICATE_TIMESTAMP
-  | 19 -> Some CLIENT_CERTIFICATE_TYPE
-  | 20 -> Some SERVER_CERTIFICATE_TYPE
   | 21 -> Some PADDING
-  | 22 -> Some ENCRYPT_THEN_MAC
   | 23 -> Some EXTENDED_MASTER_SECRET
-  | 24 -> Some TOKEN_BINDING
-  | 25 -> Some CACHED_INFO
-  | 26 -> Some TLS_LTS
-  | 27 -> Some COMPRESSED_CERTIFICATE
-  | 28 -> Some RECORD_SIZE_LIMIT
-  | 29 -> Some PWD_PROTECT
-  | 30 -> Some PWD_CLEAR
-  | 31 -> Some PASSWORD_SALT
   | 35 -> Some SESSION_TICKET
   | 41 -> Some PRE_SHARED_KEY
   | 42 -> Some EARLY_DATA
@@ -380,12 +302,9 @@ and int_to_extension_type = function
   | 44 -> Some COOKIE
   | 45 -> Some PSK_KEY_EXCHANGE_MODES
   | 47 -> Some CERTIFICATE_AUTHORITIES
-  | 48 -> Some OID_FILTERS
   | 49 -> Some POST_HANDSHAKE_AUTH
-  | 50 -> Some SIGNATURE_ALGORITHMS_CERT
   | 51 -> Some KEY_SHARE
   | 0xFF01 -> Some RENEGOTIATION_INFO
-  | 0xFF02 -> Some DRAFT_SUPPORT
   | _ -> None
 
 let extension_type_to_string et = string_of_int (extension_type_to_int et)
