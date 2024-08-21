@@ -1,3 +1,31 @@
+## v1.0.0 (2024-08-21)
+
+* API breaking change: remove usage of Cstruct.t inside of TLS, use bytes
+  and string instead (#497 by @art-w, @hannesm, @dinosaure, @reynir)
+  Performance is up to 3x improved (bandwidth), 2x improvement for handshake/s
+  on an Intel Core(TM) i7-5600U CPU @ 2.60GHz
+* FEATURE: add tls-miou-unix package, which adds miou support for TLS
+  (#494 #503 @dinosaure)
+* FEATURE: tls-lwt and tls-async: allow TLS over an existing connection
+  `Tls_lwt.client_of_channels : Tls.Config.client -> ?host:[`host] Domain_name.t -> Lwt_io.input_channel * Lwt_io.output_channel -> t Lwt.t`
+  and
+  `Tls_lwt.server_of_channels : Tls.Config.server -> Lwt_io.input_channel * Lwt_io.output_channel -> t Lwt.t`
+  (#499 @art-w @MisterDA)
+* API breaking changes: revise errors - reduce the polymorphic variant
+  in size, align it with RFC specified errors, be in parts more precise
+  about errors, in other parts skip data (#505, @hannesm - fixes #491)
+  NB: if you relied on a specific error constructor, please open an issue
+* Remove unused constructors from Packet.{alert_type, compression_methods,
+  client_certificate_type, extension_type} (#505, @hannesm)
+  NB: if you relied on specific constructors, please open an issue
+* API breaking change: Tls.Config.{server,client} now return a result
+  type instead of raising an exception (#502, @hannesm, fixes #411)
+* FEATURE: add bench/speed.exe, a benchmark for bandwidth (for different
+  ciphersuites) and handshakes (different key exchanges and private keys)
+  (#500 @hannesm @dinosaure @reynir)
+* BUGFIX: tests/feedback.exe update with TLS 1.3 semantics, run as test
+  (#501, @hannesm - reported by @dinosaure)
+
 ## v0.17.5 (2024-05-14)
 
 * tls: documentation: clarify send_application_data (#492 @reynir)
