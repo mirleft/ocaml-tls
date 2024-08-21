@@ -8,6 +8,8 @@
    ptime
    ptime.clock.os
    crowbar
+   hxd.core
+   hxd.string
    tls-miou-unix)
  (instrumentation
   (backend bisect_ppx)))
