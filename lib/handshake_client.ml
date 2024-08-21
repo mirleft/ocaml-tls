@@ -196,16 +196,16 @@ let answer_server_hello_renegotiate state session (ch : client_hello) sh raw log
 let validate_keyusage certificate kex =
   let usage = Ciphersuite.required_usage kex in
   let* cert =
-    Option.to_result ~none:(`Fatal `NoCertificateReceived) certificate
+    Option.to_result ~none:(`Fatal (`BadCertificate "none received")) certificate
   in
   let* () =
     guard (supports_key_usage ~not_present:true usage cert)
-      (`Fatal `InvalidCertificateUsage)
+      (`Fatal (`BadCertificate "key usage"))
   in
   guard
     (supports_extended_key_usage `Server_auth cert ||
      supports_extended_key_usage ~not_present:true `Any cert)
-    (`Fatal `InvalidCertificateExtendedUsage)
+    (`Fatal (`BadCertificate "extended key usage"))
 
 let answer_certificate_RSA state (session : session_data) cs raw log =
   let cfg = state.config in
@@ -237,7 +237,7 @@ let answer_certificate_RSA state (session : session_data) cs raw log =
         (session, kex, premaster, log @ [raw])
     in
     Ok ({ state with machina = Client machina }, [])
-  | _ -> Error (`Fatal `NotRSACertificate)
+  | _ -> Error (`Fatal (`BadCertificate "not an RSA certificate"))
 
 let answer_certificate_DHE state (session : session_data) cs raw log =
   let cfg = state.config in

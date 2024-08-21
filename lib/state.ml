@@ -220,7 +220,6 @@ let pp_error ppf = function
 
 type client_hello_errors = [
   | `EmptyCiphersuites
-  | `NotSetCiphersuites of Packet.any_ciphersuite list
   | `NoSupportedCiphersuite of Packet.any_ciphersuite list
   | `NotSetExtension of client_extension list
   | `NoSignatureAlgorithmsExtension
@@ -236,9 +235,6 @@ type client_hello_errors = [
 
 let pp_client_hello_error ppf = function
   | `EmptyCiphersuites -> Fmt.string ppf "empty ciphersuites"
-  | `NotSetCiphersuites cs ->
-    Fmt.pf ppf "ciphersuites not a set: %a"
-      Fmt.(list ~sep:(any ", ") Ciphersuite.pp_any_ciphersuite) cs
   | `NoSupportedCiphersuite cs ->
     Fmt.pf ppf "no supported ciphersuite %a"
       Fmt.(list ~sep:(any ", ") Ciphersuite.pp_any_ciphersuite) cs
@@ -271,20 +267,15 @@ type fatal = [
   | `NoSupportedGroup
   | `NoVersions of tls_any_version list
   | `ReaderError of Reader.error
-  | `NoCertificateReceived
-  | `NoCertificateVerifyReceived
-  | `NotRSACertificate
-  | `KeyTooSmall
+  | `BadCertificate of string
   | `SignatureVerificationFailed of string
   | `SigningFailed of string
-  | `BadCertificateChain
   | `MACMismatch
   | `MACUnderflow
   | `RecordOverflow of int
   | `UnknownRecordVersion of int * int
   | `UnknownContentType of int
   | `CannotHandleApplicationDataYet
-  | `NoHeartbeat
   | `BadRecordVersion of tls_any_version
   | `BadFinished
   | `HandshakeFragmentsNotEmpty
@@ -298,11 +289,8 @@ type fatal = [
   | `InappropriateFallback
   | `UnexpectedCCS
   | `UnexpectedHandshake of tls_handshake
-  | `InvalidCertificateUsage
-  | `InvalidCertificateExtendedUsage
   | `InvalidSession
   | `NoApplicationProtocol
-  | `HelloRetryRequest
   | `InvalidMessage
   | `Toomany0rttbytes
   | `MissingContentType
@@ -317,15 +305,10 @@ let pp_fatal ppf = function
   | `NoVersions vs ->
     Fmt.pf ppf "no versions %a" Fmt.(list ~sep:(any ", ") pp_tls_any_version) vs
   | `ReaderError re -> Fmt.pf ppf "reader error: %a" Reader.pp_error re
-  | `NoCertificateReceived -> Fmt.string ppf "no certificate received"
-  | `NoCertificateVerifyReceived ->
-    Fmt.string ppf "no certificate verify received"
-  | `NotRSACertificate -> Fmt.string ppf "not a RSA certificate"
-  | `KeyTooSmall -> Fmt.string ppf "key too small"
+  | `BadCertificate msg -> Fmt.pf ppf "bad certificate: %s" msg
   | `SignatureVerificationFailed msg ->
     Fmt.pf ppf "signature verification failed: %s" msg
   | `SigningFailed msg -> Fmt.pf ppf "signing failed: %s" msg
-  | `BadCertificateChain -> Fmt.string ppf "bad certificate chain"
   | `MACMismatch -> Fmt.string ppf "MAC mismatch"
   | `MACUnderflow -> Fmt.string ppf "MAC underflow"
   | `RecordOverflow n -> Fmt.pf ppf "record overflow %u" n
@@ -334,7 +317,6 @@ let pp_fatal ppf = function
   | `UnknownContentType c -> Fmt.pf ppf "unknown content type %u" c
   | `CannotHandleApplicationDataYet ->
     Fmt.string ppf "cannot handle application data yet"
-  | `NoHeartbeat -> Fmt.string ppf "no heartbeat"
   | `BadRecordVersion v ->
     Fmt.pf ppf "bad record version %a" pp_tls_any_version v
   | `BadFinished -> Fmt.string ppf "bad finished"
@@ -353,12 +335,8 @@ let pp_fatal ppf = function
   | `UnexpectedCCS -> Fmt.string ppf "unexpected change cipher spec"
   | `UnexpectedHandshake hs ->
     Fmt.pf ppf "unexpected handshake %a" pp_handshake hs
-  | `InvalidCertificateUsage -> Fmt.string ppf "invalid certificate usage"
-  | `InvalidCertificateExtendedUsage ->
-    Fmt.string ppf "invalid certificate extended usage"
   | `InvalidSession -> Fmt.string ppf "invalid session"
   | `NoApplicationProtocol -> Fmt.string ppf "no application protocol"
-  | `HelloRetryRequest -> Fmt.string ppf "hello retry request"
   | `InvalidMessage -> Fmt.string ppf "invalid message"
   | `Toomany0rttbytes -> Fmt.string ppf "too many 0RTT bytes"
   | `MissingContentType -> Fmt.string ppf "missing content type"

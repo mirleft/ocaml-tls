@@ -143,7 +143,7 @@ let answer_client_key_exchange_RSA state (session : session_data) kex raw log =
       | Some k -> validate_premastersecret k
     in
     Ok (establish_master_secret state session pms raw log)
-  | _ -> Error (`Fatal `NotRSACertificate)
+  | _ -> Error (`Fatal (`BadCertificate "expected RSA certificate"))
 
 let answer_client_key_exchange_DHE state session secret kex raw log =
   let* pms =

@@ -84,12 +84,9 @@ type fatal = [
   | `NoSupportedGroup
   | `NoVersions of Core.tls_any_version list
   | `ReaderError of Reader.error
-  | `NoCertificateReceived
-  | `NotRSACertificate
-  | `KeyTooSmall
+  | `BadCertificate of string
   | `SignatureVerificationFailed of string
   | `SigningFailed of string
-  | `BadCertificateChain
   | `MACMismatch
   | `MACUnderflow
   | `RecordOverflow of int
@@ -109,8 +106,6 @@ type fatal = [
   | `InappropriateFallback
   | `UnexpectedCCS
   | `UnexpectedHandshake of Core.tls_handshake
-  | `InvalidCertificateUsage
-  | `InvalidCertificateExtendedUsage
   | `InvalidSession
   | `NoApplicationProtocol
   | `InvalidMessage

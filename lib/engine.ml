@@ -38,10 +38,7 @@ let alert_of_fatal = function
   | `InvalidRenegotiation -> Packet.HANDSHAKE_FAILURE
   | `InvalidServerHello -> Packet.UNSUPPORTED_EXTENSION
   | `InvalidRenegotiationVersion _ -> Packet.HANDSHAKE_FAILURE
-  | `NoCertificateReceived -> Packet.HANDSHAKE_FAILURE
-  | `NotRSACertificate -> Packet.BAD_CERTIFICATE
-  | `InvalidCertificateUsage -> Packet.BAD_CERTIFICATE
-  | `InvalidCertificateExtendedUsage -> Packet.BAD_CERTIFICATE
+  | `BadCertificate _ -> Packet.BAD_CERTIFICATE
   | `NoVersions _ -> Packet.PROTOCOL_VERSION
   | `InsufficientDH -> Packet.INSUFFICIENT_SECURITY
   | `InvalidDH -> Packet.ILLEGAL_PARAMETER
@@ -53,8 +50,6 @@ let alert_of_fatal = function
   | `UnexpectedHandshake _ -> Packet.UNEXPECTED_MESSAGE
   | `SignatureVerificationFailed _ -> Packet.HANDSHAKE_FAILURE
   | `SigningFailed _ -> Packet.HANDSHAKE_FAILURE
-  | `KeyTooSmall -> Packet.INSUFFICIENT_SECURITY
-  | `BadCertificateChain -> Packet.BAD_CERTIFICATE
   | `InvalidClientHello `NoSignatureAlgorithmsExtension
   | `InvalidClientHello `NoKeyShareExtension
   | `InvalidClientHello `NoSupportedGroupExtension -> Packet.MISSING_EXTENSION

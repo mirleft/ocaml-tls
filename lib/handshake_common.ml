@@ -352,7 +352,7 @@ let signature version ?context_string data client_sig_algs signature_algorithms 
             in
             Ok (Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key data)
           with Mirage_crypto_pk.Rsa.Insufficient_key ->
-            Error (`Fatal `KeyTooSmall)
+            Error (`Fatal (`BadCertificate "RSA key too small"))
         end
       | k ->
         (* not passing ~scheme: only non-RSA keys sig scheme is trivial *)
@@ -410,7 +410,7 @@ let signature version ?context_string data client_sig_algs signature_algorithms 
     Ok (Writer.assemble_digitally_signed_1_2 sig_alg signature)
 
 let peer_key = function
-  | None -> Error (`Fatal `NoCertificateReceived)
+  | None -> Error (`Fatal (`BadCertificate "none received"))
   | Some cert -> Ok (X509.Certificate.public_key cert)
 
 let verify_digitally_signed version ?context_string sig_algs data signature_data certificate =
@@ -480,7 +480,7 @@ let validate_chain authenticator certificates ip hostname =
       | `RSA key -> Mirage_crypto_pk.Rsa.pub_bits key >= min
       | _ -> true
     in
-    guard (List.for_all check cs) (`Fatal `KeyTooSmall)
+    guard (List.for_all check cs) (`Fatal (`BadCertificate "key too small"))
 
   and parse_certificates certs =
     let certificates =
@@ -496,7 +496,7 @@ let validate_chain authenticator certificates ip hostname =
     in
     let* () =
       guard (List.length certs = List.length certificates)
-        (`Fatal `BadCertificateChain)
+        (`Fatal (`BadCertificate "couldn't decode some certificates"))
     in
     Ok certificates
   in
