@@ -284,7 +284,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
                 | 0 -> eat (pred idx)
                 | n -> match Packet.int_to_content_type n with
                   | Some ct -> Ok (String.sub x 0 idx, ct)
-                  | None -> Error (`Fatal `MACUnderflow) (* TODO better error? *)
+                  | None -> Error (`Fatal (`UnknownContentType n))
             in
             eat (pred (String.length x))
           in
