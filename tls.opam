@@ -16,7 +16,7 @@ build: [
 depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "3.0"}
-  "mirage-crypto" {>= "1.0.0"}
+  "mirage-crypto" {>= "1.1.0"}
   "mirage-crypto-ec" {>= "1.0.0"}
   "mirage-crypto-pk" {>= "1.0.0"}
   "mirage-crypto-rng" {>= "1.0.0"}
