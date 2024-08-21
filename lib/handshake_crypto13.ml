@@ -22,8 +22,7 @@ let not_all_zero r =
 let dh_shared secret share =
   (* RFC 8556, Section 7.4.1 - we need zero-padding on the left *)
   let map_ecdh_error =
-    Result.map_error
-      (fun e -> `Fatal (`Handshake (`BadDH (Fmt.to_to_string Mirage_crypto_ec.pp_error e))))
+    Result.map_error (fun e -> `Fatal (`Handshake (`BadECDH e)))
   in
   let open Mirage_crypto_ec in
   not_all_zero
@@ -33,7 +32,8 @@ let dh_shared secret share =
        let bits = Mirage_crypto_pk.Dh.modulus_size group in
        let* () =
          (* truncated share, better reject this *)
-         guard (String.length share = cdiv bits 8) (`Fatal (`Handshake (`BadDH "truncated")))
+         guard (String.length share = cdiv bits 8)
+           (`Fatal (`Handshake (`BadDH "truncated")))
        in
        let* shared =
          Option.to_result

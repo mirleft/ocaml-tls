@@ -155,8 +155,7 @@ let answer_client_key_exchange_DHE state session secret kex raw log =
   let* pms =
     let open Mirage_crypto_ec in
     let map_ecdh_error =
-      Result.map_error
-        (fun e -> `Fatal (`Handshake (`BadDH (Fmt.to_to_string Mirage_crypto_ec.pp_error e))))
+      Result.map_error (fun e -> `Fatal (`Handshake (`BadECDH e)))
     in
     match secret with
     | `P256 priv ->

@@ -232,6 +232,7 @@ type fatal = [
       | `Message of string
       | `Fragments
       | `BadDH of string
+      | `BadECDH of Mirage_crypto_ec.error
     ]
   | `Bad_certificate of string
   | `Missing_extension of string
@@ -260,6 +261,7 @@ let pp_handshake_error ppf = function
   | `Message msg -> Fmt.string ppf msg
   | `Fragments -> Fmt.string ppf "fragments are not empty"
   | `BadDH msg -> Fmt.pf ppf "bad DH %s" msg
+  | `BadECDH e -> Fmt.pf ppf "bad ECDH %a" Mirage_crypto_ec.pp_error e
 
 let pp_fatal ppf = function
   | `Protocol_version e -> Fmt.pf ppf "version error: %a" pp_protocol_version e

@@ -79,6 +79,7 @@ type fatal = [
       | `Message of string
       | `Fragments
       | `BadDH of string
+      | `BadECDH of Mirage_crypto_ec.error
     ]
   | `Bad_certificate of string
   | `Missing_extension of string
