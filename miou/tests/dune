@@ -1,0 +1,15 @@
+(test
+ (name fuzz)
+ (package tls-miou-unix)
+ (libraries
+   mirage-crypto-rng-miou-unix
+   ohex
+   rresult
+   ptime
+   ptime.clock.os
+   crowbar
+   hxd.core
+   hxd.string
+   tls-miou-unix)
+ (instrumentation
+  (backend bisect_ppx)))
