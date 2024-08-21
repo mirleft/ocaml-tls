@@ -196,54 +196,24 @@ and int_to_handshake_type = function
 (* TLS certificate types *)
 type client_certificate_type =
   | RSA_SIGN                  [@id 1]  (*RFC5246*)
-  | DSS_SIGN                  [@id 2]  (*RFC5246*)
-  | RSA_FIXED_DH              [@id 3]  (*RFC5246*)
-  | DSS_FIXED_DH              [@id 4]  (*RFC5246*)
-  | RSA_EPHEMERAL_DH_RESERVED [@id 5]  (*RFC5246*)
-  | DSS_EPHEMERAL_DH_RESERVED [@id 6]  (*RFC5246*)
-  | FORTEZZA_DMS_RESERVED     [@id 20] (*RFC5246*)
   | ECDSA_SIGN                [@id 64] (*RFC4492*)
-  | RSA_FIXED_ECDH            [@id 65] (*RFC4492*)
-  | ECDSA_FIXED_ECDH          [@id 66] (*RFC4492*)
 
 let client_certificate_type_to_int = function
   | RSA_SIGN                  -> 1  (*RFC5246*)
-  | DSS_SIGN                  -> 2  (*RFC5246*)
-  | RSA_FIXED_DH              -> 3  (*RFC5246*)
-  | DSS_FIXED_DH              -> 4  (*RFC5246*)
-  | RSA_EPHEMERAL_DH_RESERVED -> 5  (*RFC5246*)
-  | DSS_EPHEMERAL_DH_RESERVED -> 6  (*RFC5246*)
-  | FORTEZZA_DMS_RESERVED     -> 20 (*RFC5246*)
   | ECDSA_SIGN                -> 64 (*RFC4492*)
-  | RSA_FIXED_ECDH            -> 65 (*RFC4492*)
-  | ECDSA_FIXED_ECDH          -> 66 (*RFC4492*)
 and int_to_client_certificate_type = function
   | 1 -> Some RSA_SIGN
-  | 2 -> Some DSS_SIGN
-  | 3 -> Some RSA_FIXED_DH
-  | 4 -> Some DSS_FIXED_DH
-  | 5 -> Some RSA_EPHEMERAL_DH_RESERVED
-  | 6 -> Some DSS_EPHEMERAL_DH_RESERVED
-  | 20 -> Some FORTEZZA_DMS_RESERVED
   | 64 -> Some ECDSA_SIGN
-  | 65 -> Some RSA_FIXED_ECDH
-  | 66 -> Some ECDSA_FIXED_ECDH
   | _ -> None
 
 (* TLS compression methods, used in hello packets *)
 type compression_method =
   | NULL    [@id 0]
-  | DEFLATE [@id 1]
-  | LZS     [@id 64]
 
 let compression_method_to_int = function
   | NULL -> 0
-  | DEFLATE -> 1
-  | LZS -> 64
 and int_to_compression_method = function
   | 0 -> Some NULL
-  | 1 -> Some DEFLATE
-  | 64 -> Some LZS
   | _ -> None
 
 (* TLS extensions in hello packets from RFC 6066, formerly RFC 4366 *)

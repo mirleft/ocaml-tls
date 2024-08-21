@@ -515,7 +515,6 @@ let parse_server_hello buf =
   in
   let rt' = match parse_compression_method rt with
     | Some NULL, buf' -> buf'
-    | Some _   , _    -> raise_unknown "unsupported compression method"
     | None     , _    -> raise_unknown "compression method"
   in
   (* depending on the content of the server_random we have to diverge in behaviour *)
