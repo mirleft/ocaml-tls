@@ -14,7 +14,7 @@ build: [
 ]
 
 depends: [
-  "ocaml" {>= "4.08.0"}
+  "ocaml" {>= "4.13.0"}
   "dune" {>= "3.0"}
   "tls" {= version}
   "mirage-crypto-rng-lwt" {>= "1.0.0"}
