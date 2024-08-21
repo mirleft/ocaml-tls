@@ -261,9 +261,9 @@ let run seed operations =
     Rresult.R.failwith_error_msg (Ca.make fuzz_coop seed)
   in
   let cfg_server =
-    Tls.Config.server ~certificates:(`Single ([ cert ], pk)) ()
+    Result.get_ok (Tls.Config.server ~certificates:(`Single ([ cert ], pk)) ())
   in
-  let cfg_client = Tls.Config.client ~authenticator () in
+  let cfg_client = Result.get_ok (Tls.Config.client ~authenticator ()) in
   let to_client, to_server = List.split operations in
   let stop = Stop.create () in
   let prm0 = Miou.async @@ fun () -> run_server ~to_server ~stop fd cfg_server in

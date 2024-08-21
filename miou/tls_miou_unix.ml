@@ -293,7 +293,11 @@ let resolve host service =
   | ai :: _ -> ai.ai_addr
 
 let connect authenticator (v, port) =
-  let conf = Tls.Config.client ~authenticator () in
+  let conf =
+    match Tls.Config.client ~authenticator () with
+    | Ok config -> config
+    | Error `Msg msg -> Fmt.invalid_arg "Configuration failure: %s" msg
+  in
   let addr = resolve v (string_of_int port) in
   let fd =
     match addr with
