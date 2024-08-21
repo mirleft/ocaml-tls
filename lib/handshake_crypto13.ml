@@ -15,12 +15,15 @@ let not_all_zero r =
   try
     for i = 0 to String.length str - 1 do
       if String.unsafe_get str i != '\x00' then raise_notrace Not_found;
-    done; Error (`Fatal `InvalidDH)
+    done;
+    Error (`Fatal (`Handshake (`BadDH "all zero")))
   with Not_found -> Ok str
 
 let dh_shared secret share =
   (* RFC 8556, Section 7.4.1 - we need zero-padding on the left *)
-  let map_ecdh_error = Result.map_error (fun e -> `Fatal (`BadECDH e)) in
+  let map_ecdh_error =
+    Result.map_error (fun e -> `Fatal (`Handshake (`BadECDH e)))
+  in
   let open Mirage_crypto_ec in
   not_all_zero
     (match secret with
@@ -29,11 +32,12 @@ let dh_shared secret share =
        let bits = Mirage_crypto_pk.Dh.modulus_size group in
        let* () =
          (* truncated share, better reject this *)
-         guard (String.length share = cdiv bits 8) (`Fatal `InvalidDH)
+         guard (String.length share = cdiv bits 8)
+           (`Fatal (`Handshake (`BadDH "truncated")))
        in
        let* shared =
          Option.to_result
-           ~none:(`Fatal `InvalidDH)
+           ~none:(`Fatal (`Handshake (`BadDH "invalid FF")))
            (Mirage_crypto_pk.Dh.shared secret share)
        in
        Ok (left_pad_dh group shared)

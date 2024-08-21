@@ -59,70 +59,35 @@ type error = [
   | `NoConfiguredVersions of Core.tls_version list
   | `NoConfiguredSignatureAlgorithm of Core.signature_algorithm list
   | `NoMatchingCertificateFound of string
-  | `NoCertificateConfigured
   | `CouldntSelectCertificate
-]
-
-type client_hello_errors = [
-  | `EmptyCiphersuites
-  | `NotSetCiphersuites of Packet.any_ciphersuite list
-  | `NoSupportedCiphersuite of Packet.any_ciphersuite list
-  | `NotSetExtension of Core.client_extension list
-  | `NoSignatureAlgorithmsExtension
-  | `NoGoodSignatureAlgorithms of Core.signature_algorithm list
-  | `NoKeyShareExtension
-  | `NoSupportedGroupExtension
-  | `NotSetSupportedGroup of Packet.named_group list
-  | `NotSetKeyShare of (Packet.named_group * string) list
-  | `NotSubsetKeyShareSupportedGroup of (Packet.named_group list * (Packet.named_group * string) list)
-  | `Has0rttAfterHRR
-  | `NoCookie
 ]
 
 (** failures from received garbage or lack of features *)
 type fatal = [
-  | `NoSecureRenegotiation
-  | `NoSupportedGroup
-  | `NoVersions of Core.tls_any_version list
-  | `ReaderError of Reader.error
-  | `NoCertificateReceived
-  | `NoCertificateVerifyReceived
-  | `NotRSACertificate
-  | `KeyTooSmall
-  | `SignatureVerificationFailed of string
-  | `SigningFailed of string
-  | `BadCertificateChain
-  | `MACMismatch
-  | `MACUnderflow
-  | `RecordOverflow of int
-  | `UnknownRecordVersion of int * int
-  | `UnknownContentType of int
-  | `CannotHandleApplicationDataYet
-  | `NoHeartbeat
-  | `BadRecordVersion of Core.tls_any_version
-  | `BadFinished
-  | `HandshakeFragmentsNotEmpty
-  | `InsufficientDH
-  | `InvalidDH
-  | `BadECDH of Mirage_crypto_ec.error
-  | `InvalidRenegotiation
-  | `InvalidClientHello of client_hello_errors
-  | `InvalidServerHello
-  | `InvalidRenegotiationVersion of Core.tls_version
-  | `InappropriateFallback
-  | `UnexpectedCCS
-  | `UnexpectedHandshake of Core.tls_handshake
-  | `InvalidCertificateUsage
-  | `InvalidCertificateExtendedUsage
-  | `InvalidSession
-  | `NoApplicationProtocol
-  | `HelloRetryRequest
-  | `InvalidMessage
-  | `Toomany0rttbytes
-  | `MissingContentType
-  | `Downgrade12
-  | `Downgrade11
-  | `WriteHalfClosed
+  | `Protocol_version of [
+      | `None_supported of Core.tls_any_version list
+      | `Unknown_record of int * int
+      | `Bad_record of Core.tls_any_version
+    ]
+  | `Unexpected of [
+      | `Content_type of int
+      | `Message of string
+      | `Handshake of Core.tls_handshake
+    ]
+  | `Decode of string
+  | `Handshake of [
+      | `Message of string
+      | `Fragments
+      | `BadDH of string
+      | `BadECDH of Mirage_crypto_ec.error
+    ]
+  | `Bad_certificate of string
+  | `Missing_extension of string
+  | `Bad_mac
+  | `Record_overflow of int
+  | `Unsupported_extension
+  | `Inappropriate_fallback
+  | `No_application_protocol
 ]
 
 (** type of failures *)

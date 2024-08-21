@@ -2,7 +2,6 @@ open Tls
 open OUnit2
 open Testlib
 
-
 let good_any_version_parser major minor result _ =
   let ver = list_to_cstruct [ major ; minor ] in
   match Reader.parse_any_version ver with
@@ -88,10 +87,10 @@ let good_record_parser (bytes, result) _ =
     assert_equal rhdr hdr ;
     assert_cs_eq y x ;
     assert_cs_eq g f
-  | Ok (`Fragment x), `Fragment y -> assert_cs_eq y x
-  | Error (Overflow x), `Overflow y -> assert_equal y x
-  | Error (UnknownVersion x), `UnknownVersion y -> assert_equal y x
-  | Error (UnknownContent x), `UnknownContent y -> assert_equal y x
+  | Ok `Fragment x, `Fragment y -> assert_cs_eq y x
+  | Error `Record_overflow x, `Overflow y -> assert_equal y x
+  | Error `Protocol_version `Unknown_record x, `UnknownVersion y -> assert_equal y x
+  | Error `Unexpected `Content_type x, `UnknownContent y -> assert_equal y x
   | _ -> assert_failure "record parser broken"
 
 let good_records =
@@ -135,60 +134,26 @@ let good_alerts =
     (2, 10, (f, Packet.UNEXPECTED_MESSAGE));
 (*    (1, 20, (w, Packet.BAD_RECORD_MAC)); *)
     (2, 20, (f, Packet.BAD_RECORD_MAC));
-(*    (1, 21, (w, Packet.DECRYPTION_FAILED)); *)
-    (2, 21, (f, Packet.DECRYPTION_FAILED));
 (*    (1, 22, (w, Packet.RECORD_OVERFLOW)); *)
     (2, 22, (f, Packet.RECORD_OVERFLOW));
-(*    (1, 30, (w, Packet.DECOMPRESSION_FAILURE)); *)
-    (2, 30, (f, Packet.DECOMPRESSION_FAILURE));
 (*    (1, 40, (w, Packet.HANDSHAKE_FAILURE)); *)
     (2, 40, (f, Packet.HANDSHAKE_FAILURE));
-    (1, 41, (w, Packet.NO_CERTIFICATE_RESERVED));
-    (2, 41, (f, Packet.NO_CERTIFICATE_RESERVED));
 (*    (1, 42, (w, Packet.BAD_CERTIFICATE)); *)
     (2, 42, (f, Packet.BAD_CERTIFICATE));
-(*    (1, 43, (w, Packet.UNSUPPORTED_CERTIFICATE)); *)
-    (2, 43, (f, Packet.UNSUPPORTED_CERTIFICATE));
-(*    (1, 44, (w, Packet.CERTIFICATE_REVOKED)); *)
-    (2, 44, (f, Packet.CERTIFICATE_REVOKED));
     (1, 45, (w, Packet.CERTIFICATE_EXPIRED));
     (2, 45, (f, Packet.CERTIFICATE_EXPIRED));
-(*    (1, 46, (w, Packet.CERTIFICATE_UNKNOWN)); *)
-    (2, 46, (f, Packet.CERTIFICATE_UNKNOWN));
-(*    (1, 47, (w, Packet.ILLEGAL_PARAMETER)); *)
-    (2, 47, (f, Packet.ILLEGAL_PARAMETER));
-(*    (1, 48, (w, Packet.UNKNOWN_CA)); *)
-    (2, 48, (f, Packet.UNKNOWN_CA));
-(*    (1, 49, (w, Packet.ACCESS_DENIED)); *)
-    (2, 49, (f, Packet.ACCESS_DENIED));
 (*    (1, 50, (w, Packet.DECODE_ERROR)); *)
     (2, 50, (f, Packet.DECODE_ERROR));
-(*    (1, 51, (w, Packet.DECRYPT_ERROR)); *)
-    (2, 51, (f, Packet.DECRYPT_ERROR));
-    (1, 60, (w, Packet.EXPORT_RESTRICTION_RESERVED));
-    (2, 60, (f, Packet.EXPORT_RESTRICTION_RESERVED));
 (*    (1, 70, (w, Packet.PROTOCOL_VERSION)); *)
     (2, 70, (f, Packet.PROTOCOL_VERSION));
-(*    (1, 71, (w, Packet.INSUFFICIENT_SECURITY)); *)
-    (2, 71, (f, Packet.INSUFFICIENT_SECURITY));
-(*    (1, 80, (w, Packet.INTERNAL_ERROR)); *)
-    (2, 80, (f, Packet.INTERNAL_ERROR));
     (1, 90, (w, Packet.USER_CANCELED));
 (*    (2, 90, (f, Packet.USER_CANCELED)); *)
     (1, 100, (w, Packet.NO_RENEGOTIATION));
 (*    (2, 100, (f, Packet.NO_RENEGOTIATION)); *)
 (*    (1, 110, (w, Packet.UNSUPPORTED_EXTENSION)); *)
     (2, 110, (f, Packet.UNSUPPORTED_EXTENSION));
-    (1, 111, (w, Packet.CERTIFICATE_UNOBTAINABLE));
-    (2, 111, (f, Packet.CERTIFICATE_UNOBTAINABLE));
 (*    (1, 112, (w, Packet.UNRECOGNIZED_NAME)); *)
     (2, 112, (f, Packet.UNRECOGNIZED_NAME));
-(*    (1, 113, (w, Packet.BAD_CERTIFICATE_STATUS_RESPONSE)); *)
-    (2, 113, (f, Packet.BAD_CERTIFICATE_STATUS_RESPONSE));
-    (1, 114, (w, Packet.BAD_CERTIFICATE_HASH_VALUE));
-    (2, 114, (f, Packet.BAD_CERTIFICATE_HASH_VALUE));
-(*    (1, 115, (w, Packet.UNKNOWN_PSK_IDENTITY)); *)
-    (2, 115, (f, Packet.UNKNOWN_PSK_IDENTITY));
     (2, 120, (f, Packet.NO_APPLICATION_PROTOCOL));
   ]
 
@@ -196,21 +161,6 @@ let good_alert_tests =
   List.mapi
     (fun i args -> "Good alert " ^ string_of_int i >:: good_alert_parser args)
     good_alerts
-
-let bad_alert_parser xs _ =
-  let buf = list_to_cstruct xs in
-  match Reader.parse_alert buf with
-  | Ok _    -> assert_failure "bad alert passes"
-  | Error _ -> ()
-
-let bad_alerts = [
-  [3; 0] ;
-  [1; 2] ;
-  [2; 200] ;
-  [0; 200] ;
-  [0; 0; 0] ;
-(* TODO: validate those who are 'always fatal' *)
-]
 
 let alert_too_small _ =
   let buf = list_to_cstruct [ 0 ] in
@@ -225,11 +175,8 @@ let alert_too_small2 _ =
   | Error _ -> ()
 
 let bad_alerts_tests =
-  ("short alert" >:: alert_too_small) ::
-  ("short alert 2" >:: alert_too_small2) ::
-  (List.mapi
-     (fun i args -> "Bad alert " ^ string_of_int i >:: bad_alert_parser args)
-     bad_alerts)
+  [ ("short alert" >:: alert_too_small) ;
+    ("short alert 2" >:: alert_too_small2) ]
 
 let good_dhparams = [
   [

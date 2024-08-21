@@ -27,11 +27,14 @@ and int_to_content_type = function
   | 23 -> Some APPLICATION_DATA
   | _ -> None
 
-let pp_content_type ppf = function
-  | CHANGE_CIPHER_SPEC -> Fmt.string ppf "change cipher spec"
-  | ALERT -> Fmt.string ppf "alert"
-  | HANDSHAKE -> Fmt.string ppf "handshake"
-  | APPLICATION_DATA -> Fmt.string ppf "application data"
+let content_type_to_string = function
+  | CHANGE_CIPHER_SPEC -> "change cipher spec"
+  | ALERT -> "alert"
+  | HANDSHAKE -> "handshake"
+  | APPLICATION_DATA -> "application data"
+
+let pp_content_type ppf ct =
+  Fmt.string ppf (content_type_to_string ct)
 
 (* TLS alert level *)
 type alert_level =
@@ -55,145 +58,76 @@ type alert_type =
   | CLOSE_NOTIFY                    [@id 0]   (*RFC5246*)
   | UNEXPECTED_MESSAGE              [@id 10]  (*RFC5246*)
   | BAD_RECORD_MAC                  [@id 20]  (*RFC5246*)
-  | DECRYPTION_FAILED               [@id 21]  (*RFC5246*)
   | RECORD_OVERFLOW                 [@id 22]  (*RFC5246*)
-  | DECOMPRESSION_FAILURE           [@id 30]  (*RFC5246*)
   | HANDSHAKE_FAILURE               [@id 40]  (*RFC5246*)
-  | NO_CERTIFICATE_RESERVED         [@id 41]  (*RFC5246*)
   | BAD_CERTIFICATE                 [@id 42]  (*RFC5246*)
-  | UNSUPPORTED_CERTIFICATE         [@id 43]  (*RFC5246*)
-  | CERTIFICATE_REVOKED             [@id 44]  (*RFC5246*)
   | CERTIFICATE_EXPIRED             [@id 45]  (*RFC5246*)
-  | CERTIFICATE_UNKNOWN             [@id 46]  (*RFC5246*)
-  | ILLEGAL_PARAMETER               [@id 47]  (*RFC5246*)
-  | UNKNOWN_CA                      [@id 48]  (*RFC5246*)
-  | ACCESS_DENIED                   [@id 49]  (*RFC5246*)
   | DECODE_ERROR                    [@id 50]  (*RFC5246*)
-  | DECRYPT_ERROR                   [@id 51]  (*RFC5246*)
-  | EXPORT_RESTRICTION_RESERVED     [@id 60]  (*RFC5246*)
   | PROTOCOL_VERSION                [@id 70]  (*RFC5246*)
-  | INSUFFICIENT_SECURITY           [@id 71]  (*RFC5246*)
-  | INTERNAL_ERROR                  [@id 80]  (*RFC5246*)
   | INAPPROPRIATE_FALLBACK          [@id 86]  (*draft-ietf-tls-downgrade-scsv*)
   | USER_CANCELED                   [@id 90]  (*RFC5246*)
   | NO_RENEGOTIATION                [@id 100] (*RFC5246*)
   | MISSING_EXTENSION               [@id 109] (*RFC8446*)
   | UNSUPPORTED_EXTENSION           [@id 110] (*RFC5246*)
-  | CERTIFICATE_UNOBTAINABLE        [@id 111] (*RFC6066*)
   | UNRECOGNIZED_NAME               [@id 112] (*RFC6066*)
-  | BAD_CERTIFICATE_STATUS_RESPONSE [@id 113] (*RFC6066*)
-  | BAD_CERTIFICATE_HASH_VALUE      [@id 114] (*RFC6066*)
-  | UNKNOWN_PSK_IDENTITY            [@id 115] (*RFC4279*)
-  | CERTIFICATE_REQUIRED            [@id 116] (*RFC8446*)
   | NO_APPLICATION_PROTOCOL         [@id 120] (*RFC7301*)
+  | UNKNOWN of int
 
 let alert_type_to_string = function
   | CLOSE_NOTIFY -> "close notify"
   | UNEXPECTED_MESSAGE -> "unexpected message"
   | BAD_RECORD_MAC -> "bad record mac"
-  | DECRYPTION_FAILED -> "decryption failed"
   | RECORD_OVERFLOW -> "record overflow"
-  | DECOMPRESSION_FAILURE -> "decompression failure"
   | HANDSHAKE_FAILURE -> "handshake failure"
-  | NO_CERTIFICATE_RESERVED -> "no certificate"
   | BAD_CERTIFICATE -> "bad certificate"
-  | UNSUPPORTED_CERTIFICATE -> "unsupported certificate"
-  | CERTIFICATE_REVOKED -> "certificate revoked"
   | CERTIFICATE_EXPIRED -> "certificate expired"
-  | CERTIFICATE_UNKNOWN -> "certificate unknown"
-  | ILLEGAL_PARAMETER -> "illegal parameter"
-  | UNKNOWN_CA -> "unknown CA"
-  | ACCESS_DENIED -> "access denied"
   | DECODE_ERROR -> "decode error"
-  | DECRYPT_ERROR -> "decrypt error"
-  | EXPORT_RESTRICTION_RESERVED -> "export restrictions"
   | PROTOCOL_VERSION -> "protocol version"
-  | INSUFFICIENT_SECURITY -> "insufficient security"
-  | INTERNAL_ERROR -> "internal error"
   | INAPPROPRIATE_FALLBACK -> "inappropriate fallback"
   | USER_CANCELED -> "user canceled"
   | NO_RENEGOTIATION -> "no renegotiation"
   | MISSING_EXTENSION -> "missing extension"
   | UNSUPPORTED_EXTENSION -> "unsupported extension"
-  | CERTIFICATE_UNOBTAINABLE -> "certificate unobtainable"
   | UNRECOGNIZED_NAME -> "unrecognized name"
-  | BAD_CERTIFICATE_STATUS_RESPONSE -> "bad certificate status response"
-  | BAD_CERTIFICATE_HASH_VALUE -> "bad certificate hash value"
-  | UNKNOWN_PSK_IDENTITY -> "unknown psk identity"
-  | CERTIFICATE_REQUIRED -> "certificate required"
   | NO_APPLICATION_PROTOCOL -> "no application protocol"
+  | UNKNOWN x -> "unknown " ^ string_of_int x
 
 let alert_type_to_int = function
   | CLOSE_NOTIFY                    -> 0   (*RFC5246*)
   | UNEXPECTED_MESSAGE              -> 10  (*RFC5246*)
   | BAD_RECORD_MAC                  -> 20  (*RFC5246*)
-  | DECRYPTION_FAILED               -> 21  (*RFC5246*)
   | RECORD_OVERFLOW                 -> 22  (*RFC5246*)
-  | DECOMPRESSION_FAILURE           -> 30  (*RFC5246*)
   | HANDSHAKE_FAILURE               -> 40  (*RFC5246*)
-  | NO_CERTIFICATE_RESERVED         -> 41  (*RFC5246*)
   | BAD_CERTIFICATE                 -> 42  (*RFC5246*)
-  | UNSUPPORTED_CERTIFICATE         -> 43  (*RFC5246*)
-  | CERTIFICATE_REVOKED             -> 44  (*RFC5246*)
   | CERTIFICATE_EXPIRED             -> 45  (*RFC5246*)
-  | CERTIFICATE_UNKNOWN             -> 46  (*RFC5246*)
-  | ILLEGAL_PARAMETER               -> 47  (*RFC5246*)
-  | UNKNOWN_CA                      -> 48  (*RFC5246*)
-  | ACCESS_DENIED                   -> 49  (*RFC5246*)
   | DECODE_ERROR                    -> 50  (*RFC5246*)
-  | DECRYPT_ERROR                   -> 51  (*RFC5246*)
-  | EXPORT_RESTRICTION_RESERVED     -> 60  (*RFC5246*)
   | PROTOCOL_VERSION                -> 70  (*RFC5246*)
-  | INSUFFICIENT_SECURITY           -> 71  (*RFC5246*)
-  | INTERNAL_ERROR                  -> 80  (*RFC5246*)
   | INAPPROPRIATE_FALLBACK          -> 86  (*draft-ietf-tls-downgrade-scsv*)
   | USER_CANCELED                   -> 90  (*RFC5246*)
   | NO_RENEGOTIATION                -> 100 (*RFC5246*)
   | MISSING_EXTENSION               -> 109 (*RFC8446*)
   | UNSUPPORTED_EXTENSION           -> 110 (*RFC5246*)
-  | CERTIFICATE_UNOBTAINABLE        -> 111 (*RFC6066*)
   | UNRECOGNIZED_NAME               -> 112 (*RFC6066*)
-  | BAD_CERTIFICATE_STATUS_RESPONSE -> 113 (*RFC6066*)
-  | BAD_CERTIFICATE_HASH_VALUE      -> 114 (*RFC6066*)
-  | UNKNOWN_PSK_IDENTITY            -> 115 (*RFC4279*)
-  | CERTIFICATE_REQUIRED            -> 116 (*RFC8446*)
   | NO_APPLICATION_PROTOCOL         -> 120 (*RFC7301*)
+  | UNKNOWN x -> x
 and int_to_alert_type = function
-  | 0 -> Some CLOSE_NOTIFY
-  | 10 -> Some UNEXPECTED_MESSAGE
-  | 20 -> Some BAD_RECORD_MAC
-  | 21 -> Some DECRYPTION_FAILED
-  | 22 -> Some RECORD_OVERFLOW
-  | 30 -> Some DECOMPRESSION_FAILURE
-  | 40 -> Some HANDSHAKE_FAILURE
-  | 41 -> Some NO_CERTIFICATE_RESERVED
-  | 42 -> Some BAD_CERTIFICATE
-  | 43 -> Some UNSUPPORTED_CERTIFICATE
-  | 44 -> Some CERTIFICATE_REVOKED
-  | 45 -> Some CERTIFICATE_EXPIRED
-  | 46 -> Some CERTIFICATE_UNKNOWN
-  | 47 -> Some ILLEGAL_PARAMETER
-  | 48 -> Some UNKNOWN_CA
-  | 49 -> Some ACCESS_DENIED
-  | 50 -> Some DECODE_ERROR
-  | 51 -> Some DECRYPT_ERROR
-  | 60 -> Some EXPORT_RESTRICTION_RESERVED
-  | 70 -> Some PROTOCOL_VERSION
-  | 71 -> Some INSUFFICIENT_SECURITY
-  | 80 -> Some INTERNAL_ERROR
-  | 86 -> Some INAPPROPRIATE_FALLBACK
-  | 90 -> Some USER_CANCELED
-  | 100 -> Some NO_RENEGOTIATION
-  | 109 -> Some MISSING_EXTENSION
-  | 110 -> Some UNSUPPORTED_EXTENSION
-  | 111 -> Some CERTIFICATE_UNOBTAINABLE
-  | 112 -> Some UNRECOGNIZED_NAME
-  | 113 -> Some BAD_CERTIFICATE_STATUS_RESPONSE
-  | 114 -> Some BAD_CERTIFICATE_HASH_VALUE
-  | 115 -> Some UNKNOWN_PSK_IDENTITY
-  | 116 -> Some CERTIFICATE_REQUIRED
-  | 120 -> Some NO_APPLICATION_PROTOCOL
-  | _ -> None
+  | 0 -> CLOSE_NOTIFY
+  | 10 -> UNEXPECTED_MESSAGE
+  | 20 -> BAD_RECORD_MAC
+  | 22 -> RECORD_OVERFLOW
+  | 40 -> HANDSHAKE_FAILURE
+  | 42 -> BAD_CERTIFICATE
+  | 45 -> CERTIFICATE_EXPIRED
+  | 50 -> DECODE_ERROR
+  | 70 -> PROTOCOL_VERSION
+  | 86 -> INAPPROPRIATE_FALLBACK
+  | 90 -> USER_CANCELED
+  | 100 -> NO_RENEGOTIATION
+  | 109 -> MISSING_EXTENSION
+  | 110 -> UNSUPPORTED_EXTENSION
+  | 112 -> UNRECOGNIZED_NAME
+  | 120 -> NO_APPLICATION_PROTOCOL
+  | x -> UNKNOWN x
 
 let pp_alert ppf (lvl, typ) =
   Fmt.pf ppf "ALERT %a %s" pp_alert_level lvl (alert_type_to_string typ)
@@ -265,90 +199,36 @@ and int_to_handshake_type = function
 (* TLS certificate types *)
 type client_certificate_type =
   | RSA_SIGN                  [@id 1]  (*RFC5246*)
-  | DSS_SIGN                  [@id 2]  (*RFC5246*)
-  | RSA_FIXED_DH              [@id 3]  (*RFC5246*)
-  | DSS_FIXED_DH              [@id 4]  (*RFC5246*)
-  | RSA_EPHEMERAL_DH_RESERVED [@id 5]  (*RFC5246*)
-  | DSS_EPHEMERAL_DH_RESERVED [@id 6]  (*RFC5246*)
-  | FORTEZZA_DMS_RESERVED     [@id 20] (*RFC5246*)
   | ECDSA_SIGN                [@id 64] (*RFC4492*)
-  | RSA_FIXED_ECDH            [@id 65] (*RFC4492*)
-  | ECDSA_FIXED_ECDH          [@id 66] (*RFC4492*)
 
 let client_certificate_type_to_int = function
   | RSA_SIGN                  -> 1  (*RFC5246*)
-  | DSS_SIGN                  -> 2  (*RFC5246*)
-  | RSA_FIXED_DH              -> 3  (*RFC5246*)
-  | DSS_FIXED_DH              -> 4  (*RFC5246*)
-  | RSA_EPHEMERAL_DH_RESERVED -> 5  (*RFC5246*)
-  | DSS_EPHEMERAL_DH_RESERVED -> 6  (*RFC5246*)
-  | FORTEZZA_DMS_RESERVED     -> 20 (*RFC5246*)
   | ECDSA_SIGN                -> 64 (*RFC4492*)
-  | RSA_FIXED_ECDH            -> 65 (*RFC4492*)
-  | ECDSA_FIXED_ECDH          -> 66 (*RFC4492*)
 and int_to_client_certificate_type = function
   | 1 -> Some RSA_SIGN
-  | 2 -> Some DSS_SIGN
-  | 3 -> Some RSA_FIXED_DH
-  | 4 -> Some DSS_FIXED_DH
-  | 5 -> Some RSA_EPHEMERAL_DH_RESERVED
-  | 6 -> Some DSS_EPHEMERAL_DH_RESERVED
-  | 20 -> Some FORTEZZA_DMS_RESERVED
   | 64 -> Some ECDSA_SIGN
-  | 65 -> Some RSA_FIXED_ECDH
-  | 66 -> Some ECDSA_FIXED_ECDH
   | _ -> None
 
 (* TLS compression methods, used in hello packets *)
 type compression_method =
   | NULL    [@id 0]
-  | DEFLATE [@id 1]
-  | LZS     [@id 64]
 
 let compression_method_to_int = function
   | NULL -> 0
-  | DEFLATE -> 1
-  | LZS -> 64
 and int_to_compression_method = function
   | 0 -> Some NULL
-  | 1 -> Some DEFLATE
-  | 64 -> Some LZS
   | _ -> None
 
 (* TLS extensions in hello packets from RFC 6066, formerly RFC 4366 *)
 type extension_type =
   | SERVER_NAME                            [@id 0]
   | MAX_FRAGMENT_LENGTH                    [@id 1]
-  | CLIENT_CERTIFICATE_URL                 [@id 2]
-  | TRUSTED_CA_KEYS                        [@id 3]
-  | TRUNCATED_HMAC                         [@id 4]
-  | STATUS_REQUEST                         [@id 5]
-  | USER_MAPPING                           [@id 6]  (*RFC4681*)
-  | CLIENT_AUTHZ                           [@id 7]  (*RFC5878*)
-  | SERVER_AUTHZ                           [@id 8]  (*RFC5878*)
-  | CERT_TYPE                              [@id 9]  (*RFC6091*)
   | SUPPORTED_GROUPS                       [@id 10] (*RFC4492, RFC8446*)
   | EC_POINT_FORMATS                       [@id 11] (*RFC4492*)
-  | SRP                                    [@id 12] (*RFC5054*)
   | SIGNATURE_ALGORITHMS                   [@id 13] (*RFC5246*)
-  | USE_SRTP                               [@id 14] (*RFC5764*)
-  | HEARTBEAT                              [@id 15] (*RFC6520*)
   | APPLICATION_LAYER_PROTOCOL_NEGOTIATION [@id 16] (*RFC7301*)
-  | STATUS_REQUEST_V2                      [@id 17] (*RFC6961*)
-  | SIGNED_CERTIFICATE_TIMESTAMP           [@id 18] (*RFC6962*)
-  | CLIENT_CERTIFICATE_TYPE                [@id 19] (*RFC7250*)
-  | SERVER_CERTIFICATE_TYPE                [@id 20] (*RFC7250*)
   | PADDING                                [@id 21] (*RFC7685*)
-  | ENCRYPT_THEN_MAC                       [@id 22] (*RFC7366*)
   | EXTENDED_MASTER_SECRET                 [@id 23] (*RFC7627*)
-  | TOKEN_BINDING                          [@id 24] (*RFC8472*)
-  | CACHED_INFO                            [@id 25] (*RFC7924*)
-  | TLS_LTS                                [@id 26] (*draft-gutmann-tls-lts*)
-  | COMPRESSED_CERTIFICATE                 [@id 27] (*draft-ietf-tls-certificate-compression*)
-  | RECORD_SIZE_LIMIT                      [@id 28] (*RFC8449*)
-  | PWD_PROTECT                            [@id 29] (*RFC-harkins-tls-dragonfly-03*)
-  | PWD_CLEAR                              [@id 30] (*RFC-harkins-tls-dragonfly-03*)
-  | PASSWORD_SALT                          [@id 31] (*RFC-harkins-tls-dragonfly-03*)
   | SESSION_TICKET                         [@id 35] (*RFC4507*)
   | PRE_SHARED_KEY                         [@id 41] (*RFC8446*)
   | EARLY_DATA                             [@id 42] (*RFC8446*)
@@ -356,46 +236,19 @@ type extension_type =
   | COOKIE                                 [@id 44] (*RFC8446*)
   | PSK_KEY_EXCHANGE_MODES                 [@id 45] (*RFC8446*)
   | CERTIFICATE_AUTHORITIES                [@id 47] (*RFC8446*)
-  | OID_FILTERS                            [@id 48] (*RFC8446*)
   | POST_HANDSHAKE_AUTH                    [@id 49] (*RFC8446*)
-  | SIGNATURE_ALGORITHMS_CERT              [@id 50] (*RFC8446*)
   | KEY_SHARE                              [@id 51] (*RFC8446*)
   | RENEGOTIATION_INFO                     [@id 0xFF01] (*RFC5746*)
-  | DRAFT_SUPPORT                          [@id 0xFF02] (*draft*)
 
 let extension_type_to_int = function
   | SERVER_NAME                            -> 0
   | MAX_FRAGMENT_LENGTH                    -> 1
-  | CLIENT_CERTIFICATE_URL                 -> 2
-  | TRUSTED_CA_KEYS                        -> 3
-  | TRUNCATED_HMAC                         -> 4
-  | STATUS_REQUEST                         -> 5
-  | USER_MAPPING                           -> 6  (*RFC4681*)
-  | CLIENT_AUTHZ                           -> 7  (*RFC5878*)
-  | SERVER_AUTHZ                           -> 8  (*RFC5878*)
-  | CERT_TYPE                              -> 9  (*RFC6091*)
   | SUPPORTED_GROUPS                       -> 10 (*RFC4492, RFC8446*)
   | EC_POINT_FORMATS                       -> 11 (*RFC4492*)
-  | SRP                                    -> 12 (*RFC5054*)
   | SIGNATURE_ALGORITHMS                   -> 13 (*RFC5246*)
-  | USE_SRTP                               -> 14 (*RFC5764*)
-  | HEARTBEAT                              -> 15 (*RFC6520*)
   | APPLICATION_LAYER_PROTOCOL_NEGOTIATION -> 16 (*RFC7301*)
-  | STATUS_REQUEST_V2                      -> 17 (*RFC6961*)
-  | SIGNED_CERTIFICATE_TIMESTAMP           -> 18 (*RFC6962*)
-  | CLIENT_CERTIFICATE_TYPE                -> 19 (*RFC7250*)
-  | SERVER_CERTIFICATE_TYPE                -> 20 (*RFC7250*)
   | PADDING                                -> 21 (*RFC7685*)
-  | ENCRYPT_THEN_MAC                       -> 22 (*RFC7366*)
   | EXTENDED_MASTER_SECRET                 -> 23 (*RFC7627*)
-  | TOKEN_BINDING                          -> 24 (*RFC8472*)
-  | CACHED_INFO                            -> 25 (*RFC7924*)
-  | TLS_LTS                                -> 26 (*draft-gutmann-tls-lts*)
-  | COMPRESSED_CERTIFICATE                 -> 27 (*draft-ietf-tls-certificate-compression*)
-  | RECORD_SIZE_LIMIT                      -> 28 (*RFC8449*)
-  | PWD_PROTECT                            -> 29 (*RFC-harkins-tls-dragonfly-03*)
-  | PWD_CLEAR                              -> 30 (*RFC-harkins-tls-dragonfly-03*)
-  | PASSWORD_SALT                          -> 31 (*RFC-harkins-tls-dragonfly-03*)
   | SESSION_TICKET                         -> 35 (*RFC4507*)
   | PRE_SHARED_KEY                         -> 41 (*RFC8446*)
   | EARLY_DATA                             -> 42 (*RFC8446*)
@@ -403,45 +256,18 @@ let extension_type_to_int = function
   | COOKIE                                 -> 44 (*RFC8446*)
   | PSK_KEY_EXCHANGE_MODES                 -> 45 (*RFC8446*)
   | CERTIFICATE_AUTHORITIES                -> 47 (*RFC8446*)
-  | OID_FILTERS                            -> 48 (*RFC8446*)
   | POST_HANDSHAKE_AUTH                    -> 49 (*RFC8446*)
-  | SIGNATURE_ALGORITHMS_CERT              -> 50 (*RFC8446*)
   | KEY_SHARE                              -> 51 (*RFC8446*)
   | RENEGOTIATION_INFO                     -> 0xFF01 (*RFC5746*)
-  | DRAFT_SUPPORT                          -> 0xFF02 (*draft*)
 and int_to_extension_type = function
   | 0 -> Some SERVER_NAME
   | 1 -> Some MAX_FRAGMENT_LENGTH
-  | 2 -> Some CLIENT_CERTIFICATE_URL
-  | 3 -> Some TRUSTED_CA_KEYS
-  | 4 -> Some TRUNCATED_HMAC
-  | 5 -> Some STATUS_REQUEST
-  | 6 -> Some USER_MAPPING
-  | 7 -> Some CLIENT_AUTHZ
-  | 8 -> Some SERVER_AUTHZ
-  | 9 -> Some CERT_TYPE
   | 10 -> Some SUPPORTED_GROUPS
   | 11 -> Some EC_POINT_FORMATS
-  | 12 -> Some SRP
   | 13 -> Some SIGNATURE_ALGORITHMS
-  | 14 -> Some USE_SRTP
-  | 15 -> Some HEARTBEAT
   | 16 -> Some APPLICATION_LAYER_PROTOCOL_NEGOTIATION
-  | 17 -> Some STATUS_REQUEST_V2
-  | 18 -> Some SIGNED_CERTIFICATE_TIMESTAMP
-  | 19 -> Some CLIENT_CERTIFICATE_TYPE
-  | 20 -> Some SERVER_CERTIFICATE_TYPE
   | 21 -> Some PADDING
-  | 22 -> Some ENCRYPT_THEN_MAC
   | 23 -> Some EXTENDED_MASTER_SECRET
-  | 24 -> Some TOKEN_BINDING
-  | 25 -> Some CACHED_INFO
-  | 26 -> Some TLS_LTS
-  | 27 -> Some COMPRESSED_CERTIFICATE
-  | 28 -> Some RECORD_SIZE_LIMIT
-  | 29 -> Some PWD_PROTECT
-  | 30 -> Some PWD_CLEAR
-  | 31 -> Some PASSWORD_SALT
   | 35 -> Some SESSION_TICKET
   | 41 -> Some PRE_SHARED_KEY
   | 42 -> Some EARLY_DATA
@@ -449,12 +275,9 @@ and int_to_extension_type = function
   | 44 -> Some COOKIE
   | 45 -> Some PSK_KEY_EXCHANGE_MODES
   | 47 -> Some CERTIFICATE_AUTHORITIES
-  | 48 -> Some OID_FILTERS
   | 49 -> Some POST_HANDSHAKE_AUTH
-  | 50 -> Some SIGNATURE_ALGORITHMS_CERT
   | 51 -> Some KEY_SHARE
   | 0xFF01 -> Some RENEGOTIATION_INFO
-  | 0xFF02 -> Some DRAFT_SUPPORT
   | _ -> None
 
 let extension_type_to_string et = string_of_int (extension_type_to_int et)

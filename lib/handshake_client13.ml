@@ -6,18 +6,21 @@ open Config
 let answer_server_hello state ch (sh : server_hello) secrets raw log =
   (* assume SH valid, version 1.3, extensions are subset *)
   match Ciphersuite.ciphersuite_to_ciphersuite13 sh.ciphersuite with
-  | None -> Error (`Fatal `InvalidServerHello)
+  | None -> Error (`Fatal (`Handshake (`Message "not a TLS 1.3 ciphersuite")))
   | Some cipher ->
-    let* () = guard (List.mem cipher (ciphers13 state.config)) (`Fatal `InvalidServerHello) in
-    let* () = guard (String.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) in
+    let* () =
+      guard (List.mem cipher (ciphers13 state.config))
+        (`Fatal (`Handshake (`Message "not a configured ciphersuite")))
+    in
+    let* () = guard (String.length state.hs_fragment = 0) (`Fatal (`Handshake `Fragments)) in
 
     (* TODO: PSK *)
     (* TODO: early_secret elsewhere *)
     match Utils.map_find ~f:(function `KeyShare ks -> Some ks | _ -> None) sh.extensions with
-    | None -> Error (`Fatal `InvalidServerHello)
+    | None -> Error (`Fatal (`Handshake (`Message "missing key share extension")))
     | Some (g, share) ->
       match List.find_opt (fun (g', _) -> g = g') secrets with
-      | None -> Error (`Fatal `InvalidServerHello)
+      | None -> Error (`Fatal (`Handshake (`Message "couldn't find our secret for the key share")))
       | Some (_, secret) ->
         let* shared = Handshake_crypto13.dh_shared secret share in
         let hlen =
@@ -31,7 +34,7 @@ let answer_server_hello state ch (sh : server_hello) secrets raw log =
           with
           | None, _ | _, None -> Ok (String.make hlen '\x00', false)
           | Some idx, Some (psk, _epoch) ->
-            let* () = guard (idx = 0) (`Fatal `InvalidServerHello) in
+            let* () = guard (idx = 0) (`Fatal (`Handshake (`Message "resumed pre-shared idx not 0"))) in
             Ok (psk.secret, true)
         in
         let early_secret = Handshake_crypto13.(derive (empty cipher) psk) in
@@ -62,9 +65,17 @@ let answer_hello_retry_request state (ch : client_hello) hrr _secrets raw log =
      -> we advertised the group and cipher
      -> TODO we did advertise such a keyshare already (does it matter?)
   *)
-  let* () = guard (`TLS_1_3 = hrr.retry_version) (`Fatal `InvalidMessage) in
-  let* () = guard (List.mem hrr.selected_group state.config.groups) (`Fatal `InvalidMessage) in
-  let* () = guard (List.mem hrr.ciphersuite (ciphers13 state.config)) (`Fatal `InvalidMessage) in
+  let* () =
+    guard (`TLS_1_3 = hrr.retry_version)
+      (`Fatal (`Handshake (`Message "hello retry request with a version <> 1.3")))
+  in
+  let* () =
+    guard (List.mem hrr.selected_group state.config.groups)
+      (`Fatal (`Handshake (`Message "hello retry request with group we didn't advertise")))
+  in
+  let* () =
+    guard (List.mem hrr.ciphersuite (ciphers13 state.config))
+      (`Fatal (`Handshake (`Message "hello retet request with ciphersuite we didn't advertise"))) in
   (* generate a fresh keyshare *)
   let secret, keyshare =
     let g = hrr.selected_group in
@@ -149,8 +160,8 @@ let answer_certificate_request (state : handshake_state) (session : session_data
 let answer_finished state (session : session_data13) server_hs_secret client_hs_secret sigalgs fin raw log =
   let hash = Ciphersuite.hash13 session.ciphersuite13 in
   let f_data = Handshake_crypto13.finished hash server_hs_secret log in
-  let* () = guard (String.equal fin f_data) (`Fatal `BadFinished) in
-  let* () = guard (String.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) in
+  let* () = guard (String.equal fin f_data) (`Fatal (`Handshake (`Message "couldn't verify finished"))) in
+  let* () = guard (String.length state.hs_fragment = 0) (`Fatal (`Handshake `Fragments)) in
   let log = log ^ raw in
   let server_app_secret, server_app_ctx, client_app_secret, client_app_ctx =
     Handshake_crypto13.app_ctx session.master_secret log
@@ -230,7 +241,7 @@ let answer_session_ticket state st =
 let handle_key_update state req =
   match state.session with
   | `TLS13 session :: _ ->
-    let* () = guard (String.length state.hs_fragment = 0) (`Fatal `HandshakeFragmentsNotEmpty) in
+    let* () = guard (String.length state.hs_fragment = 0) (`Fatal (`Handshake `Fragments)) in
     let server_app_secret, server_ctx =
       Handshake_crypto13.app_secret_n_1 session.master_secret session.server_app_secret
     in
@@ -250,7 +261,7 @@ let handle_key_update state req =
     let session = `TLS13 session' :: state.session in
     let state' = { state with machina = Server13 Established13 ; session } in
     Ok (state', `Change_dec server_ctx :: out)
-  | _ -> Error (`Fatal `InvalidSession)
+  | _ -> Error (`Fatal (`Handshake (`Message "couldn't find an earlier session")))
 
 let handle_handshake cs hs buf =
   let open Reader in
@@ -264,17 +275,26 @@ let handle_handshake cs hs buf =
   | AwaitServerCertificateRequestOrCertificate13 (sd, es, ss, log), CertificateRequest cr ->
     let* ctx, exts = map_reader_error (parse_certificate_request_1_3 cr) in
     (* during handshake, context must be empty! *)
-    let* () = guard (ctx = None) (`Fatal `InvalidMessage) in
+    let* () =
+      guard (ctx = None)
+        (`Fatal (`Handshake (`Message "certificate request context must be empty")))
+    in
     answer_certificate_request hs sd es ss exts buf log
   | AwaitServerCertificateRequestOrCertificate13 (sd, es, ss, log), Certificate cs ->
     let* con, cs = map_reader_error (parse_certificates_1_3 cs) in
     (* during handshake, context must be empty! and we'll not get any new certificate from server *)
-    let* () = guard (String.length con = 0) (`Fatal `InvalidMessage) in
+    let* () =
+      guard (String.length con = 0)
+        (`Fatal (`Handshake (`Message "certificate context must be empty")))
+    in
     answer_certificate hs sd es ss None cs buf log
   | AwaitServerCertificate13 (sd, es, ss, sigalgs, log), Certificate cs ->
     let* con, cs = map_reader_error (parse_certificates_1_3 cs) in
     (* during handshake, context must be empty! and we'll not get any new certificate from server *)
-    let* () = guard (String.length con = 0) (`Fatal `InvalidMessage) in
+    let* () =
+      guard (String.length con = 0)
+        (`Fatal (`Handshake (`Message "certificate context must be empty")))
+    in
     answer_certificate hs sd es ss sigalgs cs buf log
   | AwaitServerCertificateVerify13 (sd, es, ss, sigalgs, log), CertificateVerify cv ->
     answer_certificate_verify hs sd es ss sigalgs cv buf log
@@ -282,6 +302,6 @@ let handle_handshake cs hs buf =
     answer_finished hs sd es ss sigalgs fin buf log
   | Established13, SessionTicket se -> answer_session_ticket hs se
   | Established13, CertificateRequest _ ->
-    Error (`Fatal (`UnexpectedHandshake handshake)) (* TODO send out C, CV, F *)
+    Error (`Fatal (`Unexpected (`Handshake handshake))) (* TODO send out C, CV, F *)
   | Established13, KeyUpdate req -> handle_key_update hs req
-  | _, hs -> Error (`Fatal (`UnexpectedHandshake hs))
+  | _, hs -> Error (`Fatal (`Unexpected (`Handshake hs)))

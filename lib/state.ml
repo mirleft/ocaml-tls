@@ -197,7 +197,6 @@ type error = [
   | `NoConfiguredVersions of tls_version list
   | `NoConfiguredSignatureAlgorithm of signature_algorithm list
   | `NoMatchingCertificateFound of string
-  | `NoCertificateConfigured
   | `CouldntSelectCertificate
 ]
 
@@ -215,156 +214,67 @@ let pp_error ppf = function
       Fmt.(list ~sep:(any ", ") pp_signature_algorithm) sas
   | `NoMatchingCertificateFound host ->
     Fmt.pf ppf "no matching certificate found for %s" host
-  | `NoCertificateConfigured -> Fmt.string ppf "no certificate configured"
   | `CouldntSelectCertificate -> Fmt.string ppf "couldn't select certificate"
 
-type client_hello_errors = [
-  | `EmptyCiphersuites
-  | `NotSetCiphersuites of Packet.any_ciphersuite list
-  | `NoSupportedCiphersuite of Packet.any_ciphersuite list
-  | `NotSetExtension of client_extension list
-  | `NoSignatureAlgorithmsExtension
-  | `NoGoodSignatureAlgorithms of signature_algorithm list
-  | `NoKeyShareExtension
-  | `NoSupportedGroupExtension
-  | `NotSetSupportedGroup of Packet.named_group list
-  | `NotSetKeyShare of (Packet.named_group * string) list
-  | `NotSubsetKeyShareSupportedGroup of Packet.named_group list * (Packet.named_group * string) list
-  | `Has0rttAfterHRR
-  | `NoCookie
-]
-
-let pp_client_hello_error ppf = function
-  | `EmptyCiphersuites -> Fmt.string ppf "empty ciphersuites"
-  | `NotSetCiphersuites cs ->
-    Fmt.pf ppf "ciphersuites not a set: %a"
-      Fmt.(list ~sep:(any ", ") Ciphersuite.pp_any_ciphersuite) cs
-  | `NoSupportedCiphersuite cs ->
-    Fmt.pf ppf "no supported ciphersuite %a"
-      Fmt.(list ~sep:(any ", ") Ciphersuite.pp_any_ciphersuite) cs
-  | `NotSetExtension _ -> Fmt.string ppf "extensions not a set"
-  | `NoSignatureAlgorithmsExtension ->
-    Fmt.string ppf "no signature algorithms extension"
-  | `NoGoodSignatureAlgorithms sas ->
-    Fmt.pf ppf "no good signature algorithm: %a"
-      Fmt.(list ~sep:(any ", ") pp_signature_algorithm) sas
-  | `NoKeyShareExtension -> Fmt.string ppf "no keyshare extension"
-  | `NoSupportedGroupExtension ->
-    Fmt.string ppf "no supported group extension"
-  | `NotSetSupportedGroup groups ->
-    Fmt.pf ppf "supported groups not a set: %a"
-      Fmt.(list ~sep:(any ", ") int) (List.map Packet.named_group_to_int groups)
-  | `NotSetKeyShare ks ->
-    Fmt.pf ppf "key share not a set: %a"
-      Fmt.(list ~sep:(any ", ") int)
-      (List.map (fun (g, _) -> Packet.named_group_to_int g) ks)
-  | `NotSubsetKeyShareSupportedGroup (ng, ks) ->
-    Fmt.pf ppf "key share not a subset of supported groups: %a@ keyshare %a"
-      Fmt.(list ~sep:(any ", ") int) (List.map Packet.named_group_to_int ng)
-      Fmt.(list ~sep:(any ", ") int)
-      (List.map (fun (g, _) -> Packet.named_group_to_int g) ks)
-  | `Has0rttAfterHRR -> Fmt.string ppf "has 0RTT after HRR"
-  | `NoCookie -> Fmt.string ppf "no cookie"
-
 type fatal = [
-  | `NoSecureRenegotiation
-  | `NoSupportedGroup
-  | `NoVersions of tls_any_version list
-  | `ReaderError of Reader.error
-  | `NoCertificateReceived
-  | `NoCertificateVerifyReceived
-  | `NotRSACertificate
-  | `KeyTooSmall
-  | `SignatureVerificationFailed of string
-  | `SigningFailed of string
-  | `BadCertificateChain
-  | `MACMismatch
-  | `MACUnderflow
-  | `RecordOverflow of int
-  | `UnknownRecordVersion of int * int
-  | `UnknownContentType of int
-  | `CannotHandleApplicationDataYet
-  | `NoHeartbeat
-  | `BadRecordVersion of tls_any_version
-  | `BadFinished
-  | `HandshakeFragmentsNotEmpty
-  | `InsufficientDH
-  | `InvalidDH
-  | `BadECDH of Mirage_crypto_ec.error
-  | `InvalidRenegotiation
-  | `InvalidClientHello of client_hello_errors
-  | `InvalidServerHello
-  | `InvalidRenegotiationVersion of tls_version
-  | `InappropriateFallback
-  | `UnexpectedCCS
-  | `UnexpectedHandshake of tls_handshake
-  | `InvalidCertificateUsage
-  | `InvalidCertificateExtendedUsage
-  | `InvalidSession
-  | `NoApplicationProtocol
-  | `HelloRetryRequest
-  | `InvalidMessage
-  | `Toomany0rttbytes
-  | `MissingContentType
-  | `Downgrade12
-  | `Downgrade11
-  | `WriteHalfClosed
+  | `Protocol_version of [
+      | `None_supported of tls_any_version list
+      | `Unknown_record of int * int
+      | `Bad_record of tls_any_version
+    ]
+  | `Unexpected of [
+      | `Content_type of int
+      | `Message of string
+      | `Handshake of tls_handshake
+    ]
+  | `Decode of string
+  | `Handshake of [
+      | `Message of string
+      | `Fragments
+      | `BadDH of string
+      | `BadECDH of Mirage_crypto_ec.error
+    ]
+  | `Bad_certificate of string
+  | `Missing_extension of string
+  | `Bad_mac
+  | `Record_overflow of int
+  | `Unsupported_extension
+  | `Inappropriate_fallback
+  | `No_application_protocol
 ]
+
+let pp_protocol_version ppf = function
+  | `None_supported vs ->
+    Fmt.pf ppf "none supported, client provided %a"
+      Fmt.(list ~sep:(any ", ") pp_tls_any_version) vs
+  | `Unknown_record (maj, min) ->
+    Fmt.pf ppf "unknown record version %u.%u" maj min
+  | `Bad_record v ->
+    Fmt.pf ppf "bad record version %a" pp_tls_any_version v
+
+let pp_unexpected ppf = function
+  | `Content_type c -> Fmt.pf ppf "content type %u" c
+  | `Message msg -> Fmt.string ppf msg
+  | `Handshake hs -> Fmt.pf ppf "handshake %a" pp_handshake hs
+
+let pp_handshake_error ppf = function
+  | `Message msg -> Fmt.string ppf msg
+  | `Fragments -> Fmt.string ppf "fragments are not empty"
+  | `BadDH msg -> Fmt.pf ppf "bad DH %s" msg
+  | `BadECDH e -> Fmt.pf ppf "bad ECDH %a" Mirage_crypto_ec.pp_error e
 
 let pp_fatal ppf = function
-  | `NoSecureRenegotiation -> Fmt.string ppf "no secure renegotiation"
-  | `NoSupportedGroup -> Fmt.string ppf "no supported group"
-  | `NoVersions vs ->
-    Fmt.pf ppf "no versions %a" Fmt.(list ~sep:(any ", ") pp_tls_any_version) vs
-  | `ReaderError re -> Fmt.pf ppf "reader error: %a" Reader.pp_error re
-  | `NoCertificateReceived -> Fmt.string ppf "no certificate received"
-  | `NoCertificateVerifyReceived ->
-    Fmt.string ppf "no certificate verify received"
-  | `NotRSACertificate -> Fmt.string ppf "not a RSA certificate"
-  | `KeyTooSmall -> Fmt.string ppf "key too small"
-  | `SignatureVerificationFailed msg ->
-    Fmt.pf ppf "signature verification failed: %s" msg
-  | `SigningFailed msg -> Fmt.pf ppf "signing failed: %s" msg
-  | `BadCertificateChain -> Fmt.string ppf "bad certificate chain"
-  | `MACMismatch -> Fmt.string ppf "MAC mismatch"
-  | `MACUnderflow -> Fmt.string ppf "MAC underflow"
-  | `RecordOverflow n -> Fmt.pf ppf "record overflow %u" n
-  | `UnknownRecordVersion (m, n) ->
-    Fmt.pf ppf "unknown record version %u.%u" m n
-  | `UnknownContentType c -> Fmt.pf ppf "unknown content type %u" c
-  | `CannotHandleApplicationDataYet ->
-    Fmt.string ppf "cannot handle application data yet"
-  | `NoHeartbeat -> Fmt.string ppf "no heartbeat"
-  | `BadRecordVersion v ->
-    Fmt.pf ppf "bad record version %a" pp_tls_any_version v
-  | `BadFinished -> Fmt.string ppf "bad finished"
-  | `HandshakeFragmentsNotEmpty ->
-    Fmt.string ppf "handshake fragments not empty"
-  | `InsufficientDH -> Fmt.string ppf "insufficient DH"
-  | `InvalidDH -> Fmt.string ppf "invalid DH"
-  | `BadECDH e -> Fmt.pf ppf "bad ECDH %a" Mirage_crypto_ec.pp_error e
-  | `InvalidRenegotiation -> Fmt.string ppf "invalid renegotiation"
-  | `InvalidClientHello ce ->
-    Fmt.pf ppf "invalid client hello: %a" pp_client_hello_error ce
-  | `InvalidServerHello -> Fmt.string ppf "invalid server hello"
-  | `InvalidRenegotiationVersion v ->
-    Fmt.pf ppf "invalid renegotiation version %a" pp_tls_version v
-  | `InappropriateFallback -> Fmt.string ppf "inappropriate fallback"
-  | `UnexpectedCCS -> Fmt.string ppf "unexpected change cipher spec"
-  | `UnexpectedHandshake hs ->
-    Fmt.pf ppf "unexpected handshake %a" pp_handshake hs
-  | `InvalidCertificateUsage -> Fmt.string ppf "invalid certificate usage"
-  | `InvalidCertificateExtendedUsage ->
-    Fmt.string ppf "invalid certificate extended usage"
-  | `InvalidSession -> Fmt.string ppf "invalid session"
-  | `NoApplicationProtocol -> Fmt.string ppf "no application protocol"
-  | `HelloRetryRequest -> Fmt.string ppf "hello retry request"
-  | `InvalidMessage -> Fmt.string ppf "invalid message"
-  | `Toomany0rttbytes -> Fmt.string ppf "too many 0RTT bytes"
-  | `MissingContentType -> Fmt.string ppf "missing content type"
-  | `Downgrade12 -> Fmt.string ppf "downgrade 1.2"
-  | `Downgrade11 -> Fmt.string ppf "downgrade 1.1"
-  | `WriteHalfClosed -> Fmt.string ppf "write half already closed"
+  | `Protocol_version e -> Fmt.pf ppf "version error: %a" pp_protocol_version e
+  | `Unexpected p -> Fmt.pf ppf "unexpected: %a" pp_unexpected p
+  | `Decode msg -> Fmt.pf ppf "decode error: %s" msg
+  | `Handshake h -> Fmt.pf ppf "handshake error: %a" pp_handshake_error h
+  | `Bad_certificate msg -> Fmt.pf ppf "bad certificate: %s" msg
+  | `Missing_extension msg -> Fmt.pf ppf "missing extension: %s" msg
+  | `Bad_mac -> Fmt.string ppf "MAC mismatch"
+  | `Record_overflow n -> Fmt.pf ppf "record overflow %u" n
+  | `Unsupported_extension -> Fmt.string ppf "unsupported extension"
+  | `Inappropriate_fallback -> Fmt.string ppf "inappropriate fallback"
+  | `No_application_protocol -> Fmt.string ppf "no application protocol"
 
 type failure = [
   | `Error of error
