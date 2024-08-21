@@ -6,15 +6,6 @@ type error =
   | WrongLength    of string
   | Unknown        of string
 
-let pp_error ppf =
-  let re = "reader error:"
-  and unk = "unknown"
-  in
-  function
-  | TrailingBytes msg -> Fmt.pf ppf "%s trailing bytes: %s" re msg
-  | WrongLength msg -> Fmt.pf ppf "%s wrong length: %s" re msg
-  | Unknown msg -> Fmt.pf ppf "%s %s %s" unk re msg
-
 exception Reader_error of error
 
 let raise_unknown msg        = raise (Reader_error (Unknown msg))
@@ -25,8 +16,10 @@ let shift str amount = String.sub str amount (String.length str - amount)
 
 let catch f x =
   try Ok (f x) with
-  | Reader_error err   -> Error err
-  | Invalid_argument msg -> Error (Unknown msg)
+  | Reader_error TrailingBytes msg -> Error (`Decode ("trailing bytes: " ^ msg))
+  | Reader_error WrongLength msg -> Error (`Decode ("wrong length: " ^ msg))
+  | Reader_error Unknown msg -> Error (`Decode msg)
+  | Invalid_argument msg -> Error (`Decode msg)
 
 let parse_version_int buf =
   let major = String.get_uint8 buf 0 in
@@ -64,15 +57,15 @@ let parse_record buf =
       (* 2 ^ 14 + 2048 for TLSCiphertext
          2 ^ 14 + 1024 for TLSCompressed
          2 ^ 14 for TLSPlaintext *)
-      Error (`RecordOverflow x)
+      Error (`Record_overflow x)
     | x when 5 + x > String.length buf -> Ok (`Fragment buf)
     | x ->
       match
         tls_any_version_of_pair version,
         int_to_content_type typ
       with
-      | None, _ -> Error (`UnknownRecordVersion version)
-      | _, None -> Error (`UnknownContentType typ)
+      | None, _ -> Error (`Protocol_version (`Unknown_record version))
+      | _, None -> Error (`Unexpected (`Content_type typ))
       | Some version, Some content_type ->
         let payload, rest = split_str ~start:5 buf x in
         Ok (`Record (({ content_type ; version }, payload), rest))
@@ -82,15 +75,11 @@ let validate_alert (lvl, typ) =
   match lvl, typ with
   (* from RFC, find out which ones must be always FATAL
      and report if this does not meet the expectations *)
-  | WARNING, (UNEXPECTED_MESSAGE | BAD_RECORD_MAC | DECRYPTION_FAILED |
-              RECORD_OVERFLOW | DECOMPRESSION_FAILURE | HANDSHAKE_FAILURE |
-              BAD_CERTIFICATE | UNSUPPORTED_CERTIFICATE | CERTIFICATE_REVOKED |
-              CERTIFICATE_UNKNOWN | ILLEGAL_PARAMETER | UNKNOWN_CA |
-              ACCESS_DENIED | DECODE_ERROR | DECRYPT_ERROR | PROTOCOL_VERSION |
-              INSUFFICIENT_SECURITY | INTERNAL_ERROR | INAPPROPRIATE_FALLBACK |
-              MISSING_EXTENSION | UNSUPPORTED_EXTENSION | UNRECOGNIZED_NAME |
-              BAD_CERTIFICATE_STATUS_RESPONSE | UNKNOWN_PSK_IDENTITY |
-              CERTIFICATE_REQUIRED | NO_APPLICATION_PROTOCOL as x) ->
+  | WARNING, (UNEXPECTED_MESSAGE | BAD_RECORD_MAC | RECORD_OVERFLOW
+             | HANDSHAKE_FAILURE | BAD_CERTIFICATE | DECODE_ERROR
+             | PROTOCOL_VERSION | INAPPROPRIATE_FALLBACK | MISSING_EXTENSION
+             | UNSUPPORTED_EXTENSION | UNRECOGNIZED_NAME |
+             NO_APPLICATION_PROTOCOL as x) ->
     raise_unknown (alert_type_to_string x ^ " must always be fatal")
 
   (* those are always warnings *)
@@ -113,7 +102,7 @@ let parse_alert = catch @@ fun buf ->
 let parse_change_cipher_spec buf =
   match String.length buf, String.get_uint8 buf 0 with
   | 1, 1 -> Ok ()
-  | _    -> Error (Unknown "bad change cipher spec message")
+  | _    -> Error (`Decode "bad change cipher spec message")
 
 let rec parse_count_list parsef buf acc = function
   | 0 -> (List.rev acc, buf)

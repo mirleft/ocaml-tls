@@ -5,14 +5,10 @@ open Handshake_common
 open Handshake_crypto13
 
 let answer_client_hello ~hrr state ch raw =
-  let* () =
-    Result.map_error
-      (fun e -> `Fatal (`InvalidClientHello e))
-      (client_hello_valid `TLS_1_3 ch)
-  in
+  let* () = client_hello_valid `TLS_1_3 ch in
   let* () =
     guard (not (hrr && List.mem `EarlyDataIndication ch.extensions))
-      (`Fatal (`InvalidClientHello `Has0rttAfterHRR))
+      (`Fatal (`Handshake (`Message "has 0RTT after hello retry request")))
   in
   Tracing.debug (fun m -> m "version %a" pp_tls_version `TLS_1_3) ;
 
@@ -23,7 +19,7 @@ let answer_client_hello ~hrr state ch raw =
   let* groups =
     let* gs =
       Option.to_result
-        ~none:(`Fatal (`InvalidClientHello `NoSupportedGroupExtension))
+        ~none:(`Fatal (`Missing_extension "supported group"))
         (Utils.map_find ~f:(function `SupportedGroups gs -> Some gs | _ -> None) ch.extensions)
     in
     Ok (List.filter_map Core.named_group_to_group gs)
@@ -32,7 +28,7 @@ let answer_client_hello ~hrr state ch raw =
   let* keyshares =
     let* ks =
       Option.to_result
-        ~none:(`Fatal (`InvalidClientHello `NoKeyShareExtension))
+        ~none:(`Fatal (`Missing_extension "key share"))
         (Utils.map_find ~f:(function `KeyShare ks -> Some ks | _ -> None) ch.extensions)
     in
     List.fold_left (fun acc (g, ks) ->
@@ -63,24 +59,21 @@ let answer_client_hello ~hrr state ch raw =
       { base with common_session_data13 ; ciphersuite13 = cipher ; resumed }
     in
     (sh, session)
-  and keyshare group =
-    try Some (snd (List.find (fun (g, _) -> g = group) keyshares)) with Not_found -> None
   in
-  let keyshare_groups = List.map fst keyshares in
   let config = state.config in
   match
-    Utils.first_match keyshare_groups config.Config.groups,
+    Utils.first_match (List.map fst keyshares) config.Config.groups,
     Utils.first_match ciphers (Config.ciphers13 config)
   with
   | _, None -> Error (`Error (`NoConfiguredCiphersuite ciphers))
   | None, Some cipher ->
     if hrr then
       (* avoid loops CH -> HRR -> CH -> HRR -> ... *)
-      Error (`Fatal `NoSupportedGroup)
+      Error (`Fatal (`Handshake (`Message "hello retry request already sent, still no supported group")))
     else
       (* no keyshare, looks whether there's a supported group ++ send back HRR *)
       begin match Utils.first_match groups config.Config.groups with
-        | None -> Error (`Fatal `NoSupportedGroup)
+        | None -> Error (`Fatal (`Handshake (`Message "no supported group found")))
         | Some group ->
           let cookie =
             let module H = (val Digestif.module_of_hash' (Ciphersuite.hash13 cipher)) in
@@ -103,16 +96,20 @@ let answer_client_hello ~hrr state ch raw =
     Log.debug (fun m -> m "cipher %a" Ciphersuite.pp_ciphersuite cipher) ;
     Log.debug (fun m -> m "group %a" pp_group group) ;
 
-    match List.mem group groups, keyshare group with
-    | false, _ | _, None -> Error (`Fatal `NoSupportedGroup) (* TODO: better error type? *)
-    | _, Some keyshare ->
+    if not (List.mem group groups) then
+      Error (`Fatal (`Handshake (`Message "keyshare group not in group list")))
+    else
+      (* we already checked above in keyshares that group is present there *)
+      let keyshare =
+        snd (List.find (fun (g, _) -> g = group) keyshares)
+      in
       (* DHE - full handshake *)
 
       let* log =
         if hrr then
           let* c =
             Option.to_result
-              ~none:(`Fatal (`InvalidClientHello `NoCookie))
+              ~none:(`Fatal (`Missing_extension "cookie"))
               (Utils.map_find ~f:(function `Cookie c -> Some c | _ -> None) ch.extensions)
           in
           (* log is: 254 00 00 length c :: HRR *)
@@ -230,7 +227,7 @@ let answer_client_hello ~hrr state ch raw =
 
       let* sigalgs =
         Option.to_result
-          ~none:(`Fatal (`InvalidClientHello `NoSignatureAlgorithmsExtension))
+          ~none:(`Fatal (`Missing_extension "signature algorithms"))
           (Utils.map_find ~f:(function `SignatureAlgorithms sa -> Some sa | _ -> None) ch.extensions)
       in
       (* TODO respect certificate_signature_algs if present *)
@@ -240,7 +237,7 @@ let answer_client_hello ~hrr state ch raw =
         let* r = agreed_cert ~f ~signature_algorithms:sigalgs config.Config.own_certificates hostname in
         match r with
         | c::cs, priv -> Ok (c::cs, priv)
-        | _ -> Error (`Fatal `InvalidSession)
+        | _ -> Error (`Fatal (`Handshake (`Message "couldn't find certificate chain")))
       in
       let* alpn_protocol = alpn_protocol config ch in
       let session =
@@ -325,7 +322,7 @@ let answer_client_hello ~hrr state ch raw =
 
       let* () =
         guard (String.length state.hs_fragment = 0)
-          (`Fatal `HandshakeFragmentsNotEmpty)
+          (`Fatal (`Handshake `Fragments))
       in
 
       (* send sessionticket early *)
@@ -382,7 +379,7 @@ let answer_client_hello ~hrr state ch raw =
 let answer_client_certificate state cert (sd : session_data13) client_fini dec_ctx st raw log =
   let* c = map_reader_error (Reader.parse_certificates_1_3 cert) in
   match c, state.config.Config.authenticator with
-  | (_, []), None -> Error (`Fatal `InvalidSession) (* TODO this cannot happen *)
+  | (_, []), None -> Error (`Fatal (`Handshake (`Message "couldn't find authenticator")))
   | (_ctx, []), Some auth ->
     begin match auth ~host:None [] with
       | Ok anchor ->
@@ -434,10 +431,13 @@ let answer_client_finished state fin client_fini dec_ctx st raw log =
   | `TLS13 session :: rest ->
     let hash = Ciphersuite.hash13 session.ciphersuite13 in
     let data = finished hash client_fini log in
-    let* () = guard (String.equal data fin) (`Fatal `BadFinished) in
+    let* () =
+      guard (String.equal data fin)
+        (`Fatal (`Handshake (`Message "couldn't verify finished")))
+    in
     let* () =
       guard (String.length state.hs_fragment = 0)
-        (`Fatal `HandshakeFragmentsNotEmpty)
+        (`Fatal (`Handshake `Fragments))
     in
     let session' = match st, state.config.Config.ticket_cache with
       | None, _ | _, None -> session
@@ -453,7 +453,7 @@ let answer_client_finished state fin client_fini dec_ctx st raw log =
     in
     let state' = { state with machina = Server13 Established13 ; session = `TLS13 session' :: rest } in
     Ok (state', [ `Change_dec dec_ctx ])
-  | _ -> Error (`Fatal `InvalidSession)
+  | _ -> Error (`Fatal (`Handshake (`Message "no session found in finished")))
 
 let handle_end_of_early_data state cf hs_ctx cc st buf log =
   let machina = AwaitClientFinished13 (cf, cc, st, log ^ buf) in
@@ -462,14 +462,14 @@ let handle_end_of_early_data state cf hs_ctx cc st buf log =
     let session = `TLS13 { s1 with state = `Established } :: state.session in
     Ok ({ state with machina = Server13 machina ; session }, [ `Change_dec hs_ctx ])
   | _ ->
-    Error (`Fatal `InvalidSession)
+    Error (`Fatal (`Handshake (`Message "no session handling end of early data")))
 
 let handle_key_update state req =
   match state.session with
   | `TLS13 session :: _ ->
     let* () =
       guard (String.length state.hs_fragment = 0)
-        (`Fatal `HandshakeFragmentsNotEmpty)
+        (`Fatal (`Handshake `Fragments))
     in
     let client_app_secret, client_ctx =
       app_secret_n_1 session.master_secret session.client_app_secret
@@ -490,7 +490,7 @@ let handle_key_update state req =
     let session = `TLS13 session' :: state.session in
     let state' = { state with machina = Server13 Established13 ; session } in
     Ok (state', `Change_dec client_ctx :: out)
-  | _ -> Error (`Fatal `InvalidSession)
+  | _ -> Error (`Fatal (`Handshake (`Message "no session while handling key update")))
 
 let handle_handshake cs hs buf =
   let* handshake = map_reader_error (Reader.parse_handshake buf) in
@@ -508,4 +508,4 @@ let handle_handshake cs hs buf =
     handle_end_of_early_data hs cf hs_c cc st buf log
   | Established13, KeyUpdate req ->
     handle_key_update hs req
-  | _, hs -> Error (`Fatal (`UnexpectedHandshake hs))
+  | _, hs -> Error (`Fatal (`Unexpected (`Handshake hs)))

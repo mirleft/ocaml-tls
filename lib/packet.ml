@@ -55,143 +55,71 @@ type alert_type =
   | CLOSE_NOTIFY                    [@id 0]   (*RFC5246*)
   | UNEXPECTED_MESSAGE              [@id 10]  (*RFC5246*)
   | BAD_RECORD_MAC                  [@id 20]  (*RFC5246*)
-  | DECRYPTION_FAILED               [@id 21]  (*RFC5246*)
   | RECORD_OVERFLOW                 [@id 22]  (*RFC5246*)
-  | DECOMPRESSION_FAILURE           [@id 30]  (*RFC5246*)
   | HANDSHAKE_FAILURE               [@id 40]  (*RFC5246*)
-  | NO_CERTIFICATE_RESERVED         [@id 41]  (*RFC5246*)
   | BAD_CERTIFICATE                 [@id 42]  (*RFC5246*)
-  | UNSUPPORTED_CERTIFICATE         [@id 43]  (*RFC5246*)
-  | CERTIFICATE_REVOKED             [@id 44]  (*RFC5246*)
   | CERTIFICATE_EXPIRED             [@id 45]  (*RFC5246*)
-  | CERTIFICATE_UNKNOWN             [@id 46]  (*RFC5246*)
-  | ILLEGAL_PARAMETER               [@id 47]  (*RFC5246*)
-  | UNKNOWN_CA                      [@id 48]  (*RFC5246*)
-  | ACCESS_DENIED                   [@id 49]  (*RFC5246*)
   | DECODE_ERROR                    [@id 50]  (*RFC5246*)
-  | DECRYPT_ERROR                   [@id 51]  (*RFC5246*)
-  | EXPORT_RESTRICTION_RESERVED     [@id 60]  (*RFC5246*)
   | PROTOCOL_VERSION                [@id 70]  (*RFC5246*)
-  | INSUFFICIENT_SECURITY           [@id 71]  (*RFC5246*)
-  | INTERNAL_ERROR                  [@id 80]  (*RFC5246*)
   | INAPPROPRIATE_FALLBACK          [@id 86]  (*draft-ietf-tls-downgrade-scsv*)
   | USER_CANCELED                   [@id 90]  (*RFC5246*)
   | NO_RENEGOTIATION                [@id 100] (*RFC5246*)
   | MISSING_EXTENSION               [@id 109] (*RFC8446*)
   | UNSUPPORTED_EXTENSION           [@id 110] (*RFC5246*)
-  | CERTIFICATE_UNOBTAINABLE        [@id 111] (*RFC6066*)
   | UNRECOGNIZED_NAME               [@id 112] (*RFC6066*)
-  | BAD_CERTIFICATE_STATUS_RESPONSE [@id 113] (*RFC6066*)
-  | BAD_CERTIFICATE_HASH_VALUE      [@id 114] (*RFC6066*)
-  | UNKNOWN_PSK_IDENTITY            [@id 115] (*RFC4279*)
-  | CERTIFICATE_REQUIRED            [@id 116] (*RFC8446*)
   | NO_APPLICATION_PROTOCOL         [@id 120] (*RFC7301*)
 
 let alert_type_to_string = function
   | CLOSE_NOTIFY -> "close notify"
   | UNEXPECTED_MESSAGE -> "unexpected message"
   | BAD_RECORD_MAC -> "bad record mac"
-  | DECRYPTION_FAILED -> "decryption failed"
   | RECORD_OVERFLOW -> "record overflow"
-  | DECOMPRESSION_FAILURE -> "decompression failure"
   | HANDSHAKE_FAILURE -> "handshake failure"
-  | NO_CERTIFICATE_RESERVED -> "no certificate"
   | BAD_CERTIFICATE -> "bad certificate"
-  | UNSUPPORTED_CERTIFICATE -> "unsupported certificate"
-  | CERTIFICATE_REVOKED -> "certificate revoked"
   | CERTIFICATE_EXPIRED -> "certificate expired"
-  | CERTIFICATE_UNKNOWN -> "certificate unknown"
-  | ILLEGAL_PARAMETER -> "illegal parameter"
-  | UNKNOWN_CA -> "unknown CA"
-  | ACCESS_DENIED -> "access denied"
   | DECODE_ERROR -> "decode error"
-  | DECRYPT_ERROR -> "decrypt error"
-  | EXPORT_RESTRICTION_RESERVED -> "export restrictions"
   | PROTOCOL_VERSION -> "protocol version"
-  | INSUFFICIENT_SECURITY -> "insufficient security"
-  | INTERNAL_ERROR -> "internal error"
   | INAPPROPRIATE_FALLBACK -> "inappropriate fallback"
   | USER_CANCELED -> "user canceled"
   | NO_RENEGOTIATION -> "no renegotiation"
   | MISSING_EXTENSION -> "missing extension"
   | UNSUPPORTED_EXTENSION -> "unsupported extension"
-  | CERTIFICATE_UNOBTAINABLE -> "certificate unobtainable"
   | UNRECOGNIZED_NAME -> "unrecognized name"
-  | BAD_CERTIFICATE_STATUS_RESPONSE -> "bad certificate status response"
-  | BAD_CERTIFICATE_HASH_VALUE -> "bad certificate hash value"
-  | UNKNOWN_PSK_IDENTITY -> "unknown psk identity"
-  | CERTIFICATE_REQUIRED -> "certificate required"
   | NO_APPLICATION_PROTOCOL -> "no application protocol"
 
 let alert_type_to_int = function
   | CLOSE_NOTIFY                    -> 0   (*RFC5246*)
   | UNEXPECTED_MESSAGE              -> 10  (*RFC5246*)
   | BAD_RECORD_MAC                  -> 20  (*RFC5246*)
-  | DECRYPTION_FAILED               -> 21  (*RFC5246*)
   | RECORD_OVERFLOW                 -> 22  (*RFC5246*)
-  | DECOMPRESSION_FAILURE           -> 30  (*RFC5246*)
   | HANDSHAKE_FAILURE               -> 40  (*RFC5246*)
-  | NO_CERTIFICATE_RESERVED         -> 41  (*RFC5246*)
   | BAD_CERTIFICATE                 -> 42  (*RFC5246*)
-  | UNSUPPORTED_CERTIFICATE         -> 43  (*RFC5246*)
-  | CERTIFICATE_REVOKED             -> 44  (*RFC5246*)
   | CERTIFICATE_EXPIRED             -> 45  (*RFC5246*)
-  | CERTIFICATE_UNKNOWN             -> 46  (*RFC5246*)
-  | ILLEGAL_PARAMETER               -> 47  (*RFC5246*)
-  | UNKNOWN_CA                      -> 48  (*RFC5246*)
-  | ACCESS_DENIED                   -> 49  (*RFC5246*)
   | DECODE_ERROR                    -> 50  (*RFC5246*)
-  | DECRYPT_ERROR                   -> 51  (*RFC5246*)
-  | EXPORT_RESTRICTION_RESERVED     -> 60  (*RFC5246*)
   | PROTOCOL_VERSION                -> 70  (*RFC5246*)
-  | INSUFFICIENT_SECURITY           -> 71  (*RFC5246*)
-  | INTERNAL_ERROR                  -> 80  (*RFC5246*)
   | INAPPROPRIATE_FALLBACK          -> 86  (*draft-ietf-tls-downgrade-scsv*)
   | USER_CANCELED                   -> 90  (*RFC5246*)
   | NO_RENEGOTIATION                -> 100 (*RFC5246*)
   | MISSING_EXTENSION               -> 109 (*RFC8446*)
   | UNSUPPORTED_EXTENSION           -> 110 (*RFC5246*)
-  | CERTIFICATE_UNOBTAINABLE        -> 111 (*RFC6066*)
   | UNRECOGNIZED_NAME               -> 112 (*RFC6066*)
-  | BAD_CERTIFICATE_STATUS_RESPONSE -> 113 (*RFC6066*)
-  | BAD_CERTIFICATE_HASH_VALUE      -> 114 (*RFC6066*)
-  | UNKNOWN_PSK_IDENTITY            -> 115 (*RFC4279*)
-  | CERTIFICATE_REQUIRED            -> 116 (*RFC8446*)
   | NO_APPLICATION_PROTOCOL         -> 120 (*RFC7301*)
 and int_to_alert_type = function
   | 0 -> Some CLOSE_NOTIFY
   | 10 -> Some UNEXPECTED_MESSAGE
   | 20 -> Some BAD_RECORD_MAC
-  | 21 -> Some DECRYPTION_FAILED
   | 22 -> Some RECORD_OVERFLOW
-  | 30 -> Some DECOMPRESSION_FAILURE
   | 40 -> Some HANDSHAKE_FAILURE
-  | 41 -> Some NO_CERTIFICATE_RESERVED
   | 42 -> Some BAD_CERTIFICATE
-  | 43 -> Some UNSUPPORTED_CERTIFICATE
-  | 44 -> Some CERTIFICATE_REVOKED
   | 45 -> Some CERTIFICATE_EXPIRED
-  | 46 -> Some CERTIFICATE_UNKNOWN
-  | 47 -> Some ILLEGAL_PARAMETER
-  | 48 -> Some UNKNOWN_CA
-  | 49 -> Some ACCESS_DENIED
   | 50 -> Some DECODE_ERROR
-  | 51 -> Some DECRYPT_ERROR
-  | 60 -> Some EXPORT_RESTRICTION_RESERVED
   | 70 -> Some PROTOCOL_VERSION
-  | 71 -> Some INSUFFICIENT_SECURITY
-  | 80 -> Some INTERNAL_ERROR
   | 86 -> Some INAPPROPRIATE_FALLBACK
   | 90 -> Some USER_CANCELED
   | 100 -> Some NO_RENEGOTIATION
   | 109 -> Some MISSING_EXTENSION
   | 110 -> Some UNSUPPORTED_EXTENSION
-  | 111 -> Some CERTIFICATE_UNOBTAINABLE
   | 112 -> Some UNRECOGNIZED_NAME
-  | 113 -> Some BAD_CERTIFICATE_STATUS_RESPONSE
-  | 114 -> Some BAD_CERTIFICATE_HASH_VALUE
-  | 115 -> Some UNKNOWN_PSK_IDENTITY
-  | 116 -> Some CERTIFICATE_REQUIRED
   | 120 -> Some NO_APPLICATION_PROTOCOL
   | _ -> None
 

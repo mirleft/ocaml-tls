@@ -14,7 +14,7 @@ let hello_request state =
     let state = { state with machina = Server AwaitClientHelloRenegotiate } in
     Ok (state, [`Record (Packet.HANDSHAKE, Writer.assemble_handshake hr)])
   else
-    Error (`Fatal `InvalidSession)
+    Error (`Fatal (`Handshake (`Message "renegotation is not supported")))
 
 
 let answer_client_finished state (session : session_data) client_fin raw log =
@@ -24,14 +24,17 @@ let answer_client_finished state (session : session_data) client_fin raw log =
     in
     (checksum "client finished" log, checksum "server finished" (log @ [raw]))
   in
-  let* () = guard (String.equal client client_fin) (`Fatal `BadFinished) in
+  let* () =
+    guard (String.equal client client_fin)
+      (`Fatal (`Handshake (`Message "couldn't verify finished")))
+  in
   let session = { session with tls_unique = client } in
   let fin = Finished server in
   let fin_raw = Writer.assemble_handshake fin in
   (* we really do not want to have any leftover handshake fragments *)
   let* () =
     guard (String.length state.hs_fragment = 0)
-      (`Fatal `HandshakeFragmentsNotEmpty)
+      (`Fatal (`Handshake `Fragments))
   in
   let session = { session with renegotiation = (client, server) }
   and machina = Server Established
@@ -44,11 +47,14 @@ let answer_client_finished_resume state (session : session_data) server_verify c
   let client_verify =
     Handshake_crypto.finished (state_version state) session.ciphersuite session.common_session_data.master_secret "client finished" log
   in
-  let* () = guard (String.equal client_verify client_fin) (`Fatal `BadFinished) in
+  let* () =
+    guard (String.equal client_verify client_fin)
+      (`Fatal (`Handshake (`Message "couldn't verify finished")))
+  in
   (* we really do not want to have any leftover handshake fragments *)
   let* () =
     guard (String.length state.hs_fragment = 0)
-      (`Fatal `HandshakeFragmentsNotEmpty)
+      (`Fatal (`Handshake `Fragments))
   in
   let session = { session with renegotiation = (client_verify, server_verify) }
   and machina = Server Established
@@ -78,7 +84,7 @@ let establish_master_secret state (session : session_data) premastersecret raw l
 let private_key (session : session_data) =
   match session.common_session_data.own_private_key with
     | Some priv -> Ok priv
-    | None      -> Error (`Fatal `InvalidSession) (* TODO: assert false / ensure via typing in config *)
+    | None -> Error (`Fatal (`Handshake (`Message "couldn't locate private key")))
 
 let validate_certs certs authenticator ip (session : session_data) =
   let* peer_certificate, received_certificates, peer_certificate_chain, trust_anchor =
@@ -143,14 +149,14 @@ let answer_client_key_exchange_RSA state (session : session_data) kex raw log =
       | Some k -> validate_premastersecret k
     in
     Ok (establish_master_secret state session pms raw log)
-  | _ -> Error (`Fatal (`BadCertificate "expected RSA certificate"))
+  | _ -> Error (`Fatal (`Bad_certificate "expected RSA certificate"))
 
 let answer_client_key_exchange_DHE state session secret kex raw log =
   let* pms =
     let open Mirage_crypto_ec in
     let map_ecdh_error =
       Result.map_error
-        (fun e -> `Fatal (`BadDH (Fmt.to_to_string Mirage_crypto_ec.pp_error e)))
+        (fun e -> `Fatal (`Handshake (`BadDH (Fmt.to_to_string Mirage_crypto_ec.pp_error e))))
     in
     match secret with
     | `P256 priv ->
@@ -168,7 +174,7 @@ let answer_client_key_exchange_DHE state session secret kex raw log =
     | `Finite_field secret ->
       let* share = map_reader_error (Reader.parse_client_dh_key_exchange kex) in
       Option.to_result
-        ~none:(`Fatal (`BadDH "invalid FF"))
+        ~none:(`Fatal (`Handshake (`BadDH "invalid FF")))
         (Mirage_crypto_pk.Dh.shared secret share)
   in
   Ok (establish_master_secret state session pms raw log)
@@ -289,7 +295,7 @@ let answer_client_hello_common state reneg ch raw =
       | (c::cs, priv) ->
         let cciphers = agreed_cipher c (ecc_group <> None) cciphers in
         Ok (cciphers, c::cs, Some priv)
-      | ([], _) -> Error (`Fatal `InvalidSession) (* TODO: assert false / remove by types in config *)
+      | ([], _) -> Error (`Fatal (`Handshake (`Message "couldn't find certificate chain")))
     in
 
     let* cipher =
@@ -298,7 +304,7 @@ let answer_client_hello_common state reneg ch raw =
       | None   ->
         let* _ =
           Option.to_result
-            ~none:(`Fatal (`InvalidClientHello (`NoSupportedCiphersuite ch.ciphersuites)))
+            ~none:(`Fatal (`Handshake (`Message "no supported ciphersuite")))
             (Utils.first_match cciphers Config.Ciphers.supported)
         in
         Error (`Error (`NoConfiguredCiphersuite cciphers))
@@ -362,13 +368,6 @@ let answer_client_hello_common state reneg ch raw =
            Ok (assemble_certificate_request certs cas)
          | `TLS_1_2 ->
            Ok (assemble_certificate_request_1_2 certs config.signature_algorithms cas)
-         | `TLS_1_3 ->
-           (* TLS 1.3 handshakes are diverted in answer_client_hello, this will
-              never be executed. for renegotiation, it is checked that the
-              protocol version did not change from the previous epoch (in
-              answer_client_hello_reneg, process_client_hello the
-              guard (version = oldversion)) *)
-           Error (`Fatal (`BadRecordVersion (version :> tls_any_version)))
        in
        let certreq = CertificateRequest data in
        Tracing.hs ~tag:"handshake-out" certreq ;
@@ -424,7 +423,7 @@ let answer_client_hello_common state reneg ch raw =
   and hello_done = Writer.assemble_handshake ServerHelloDone
   in
   let* cert_req, session =
-    cert_request state.protocol_version state.config session
+    cert_request (state_version state) state.config session
   in
 
   let* out_recs, machina =
@@ -482,16 +481,17 @@ let agreed_version supported (client_hello : client_hello) =
   with
   | Some x -> Ok x
   | None   -> match supported_versions with
-    | [] -> Error (`Fatal (`NoVersions raw_client_versions))
+    | [] -> Error (`Fatal (`Protocol_version (`None_supported raw_client_versions)))
     | _ -> Error (`Error (`NoConfiguredVersions supported_versions))
 
 let answer_client_hello state (ch : client_hello) raw =
   let ensure_reneg ciphers their_data  =
     let reneg_cs = List.mem Packet.TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphers in
+    let err = `Fatal (`Handshake (`Message "invalid renegotiation")) in
     match reneg_cs, their_data with
-    | _, Some x -> guard (String.length x = 0) (`Fatal `InvalidRenegotiation)
+    | _, Some x -> guard (String.length x = 0) err
     | true, _ -> Ok ()
-    | _ -> Error (`Fatal `NoSecureRenegotiation)
+    | _ -> Error err
 
   and resume (ch : client_hello) state =
     let epoch_matches (epoch : Core.epoch_data) version ciphers extensions =
@@ -522,7 +522,7 @@ let answer_client_hello state (ch : client_hello) raw =
     (* we really do not want to have any leftover handshake fragments *)
     let* () =
       guard (String.length state.hs_fragment = 0)
-        (`Fatal `HandshakeFragmentsNotEmpty)
+        (`Fatal (`Handshake `Fragments))
     in
     let client_ctx, server_ctx =
       Handshake_crypto.initialise_crypto_ctx version session
@@ -548,15 +548,11 @@ let answer_client_hello state (ch : client_hello) raw =
 
   let process_client_hello config ch version =
     let cciphers = ch.ciphersuites in
-    let* () =
-      Result.map_error
-        (fun e -> `Fatal (`InvalidClientHello e))
-        (client_hello_valid version ch)
-    in
+    let* () = client_hello_valid version ch in
     let* () =
       guard (not (List.mem Packet.TLS_FALLBACK_SCSV cciphers) ||
              version = max_protocol_version config.protocol_versions)
-        (`Fatal `InappropriateFallback)
+        (`Fatal `Inappropriate_fallback)
     in
     let theirs = get_secure_renegotiation ch.extensions in
     ensure_reneg cciphers theirs
@@ -577,22 +573,19 @@ let answer_client_hello state (ch : client_hello) raw =
 
 let answer_client_hello_reneg state (ch : client_hello) raw =
   (* ensure reneg allowed and supplied *)
-  let ensure_reneg our_data their_data  =
+  let ensure_reneg our_data their_data =
+    let err = `Fatal (`Handshake (`Message "invalid renegotiation")) in
     match our_data, their_data with
-    | (cvd, _), Some x -> guard (String.equal cvd x) (`Fatal `InvalidRenegotiation)
-    | _ -> Error (`Fatal `NoSecureRenegotiation)
+    | (cvd, _), Some x -> guard (String.equal cvd x) err
+    | _ -> Error err
   in
 
   let process_client_hello config oldversion ours ch =
-    let* () =
-      Result.map_error
-        (fun x -> `Fatal (`InvalidClientHello x))
-        (client_hello_valid oldversion ch)
-    in
+    let* () = client_hello_valid oldversion ch in
     let* version = agreed_version config.protocol_versions ch in
     let* () =
       guard (version = oldversion)
-        (`Fatal (`InvalidRenegotiationVersion version))
+        (`Fatal (`Handshake (`Message "invalid renegotiation version")))
     in
     let theirs = get_secure_renegotiation ch.extensions in
     let* () = ensure_reneg ours theirs in
@@ -609,7 +602,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
     let no_reneg = Writer.assemble_alert ~level:Packet.WARNING Packet.NO_RENEGOTIATION in
     Tracing.debug (fun m -> m "alert-out (warning, no_renegotiation)") ;
     Ok (state, [`Record (Packet.ALERT, no_reneg)])
-  | true , _             -> Error (`Fatal `InvalidSession) (* I'm pretty sure this can be an assert false *)
+  | true , _ -> Error (`Fatal (`Handshake (`Message "couldn't find an earlier session")))
 
 let handle_change_cipher_spec ss state packet =
   let* () = map_reader_error (Reader.parse_change_cipher_spec packet) in
@@ -617,7 +610,7 @@ let handle_change_cipher_spec ss state packet =
   | AwaitClientChangeCipherSpec (session, server_ctx, client_ctx, log) ->
      let* () =
        guard (String.length state.hs_fragment = 0)
-         (`Fatal `HandshakeFragmentsNotEmpty)
+         (`Fatal (`Handshake `Fragments))
      in
      let ccs = change_cipher_spec in
      let machina = AwaitClientFinished (session, log)
@@ -630,7 +623,7 @@ let handle_change_cipher_spec ss state packet =
   | AwaitClientChangeCipherSpecResume (session, client_ctx, server_verify, log) ->
      let* () =
        guard (String.length state.hs_fragment = 0)
-         (`Fatal `HandshakeFragmentsNotEmpty)
+         (`Fatal (`Handshake `Fragments))
      in
      let machina = AwaitClientFinishedResume (session, server_verify, log)
      in
@@ -638,7 +631,7 @@ let handle_change_cipher_spec ss state packet =
 
      Ok ({ state with machina = Server machina },
          [`Change_dec client_ctx])
-  | _ -> Error (`Fatal `UnexpectedCCS)
+  | _ -> Error (`Fatal (`Unexpected (`Message "change cipher spec")))
 
 let handle_handshake ss hs buf =
   let* handshake = map_reader_error (Reader.parse_handshake buf) in
@@ -667,4 +660,4 @@ let handle_handshake ss hs buf =
     answer_client_hello_reneg hs ch buf
   | AwaitClientHelloRenegotiate, ClientHello ch -> (* hello-request send, renegotiation *)
     answer_client_hello_reneg hs ch buf
-  | _, hs -> Error (`Fatal (`UnexpectedHandshake hs))
+  | _, hs -> Error (`Fatal (`Unexpected (`Handshake hs)))

@@ -3,7 +3,6 @@ open State
 
 type state = State.state
 
-type client_hello_errors = State.client_hello_errors
 type error = State.error
 type fatal = State.fatal
 type failure = State.failure
@@ -21,44 +20,17 @@ let alert_of_error = function
   | `CouldntSelectCertificate -> Packet.HANDSHAKE_FAILURE
 
 let alert_of_fatal = function
-  | `NoSecureRenegotiation -> Packet.HANDSHAKE_FAILURE
-  | `NoSupportedGroup -> Packet.HANDSHAKE_FAILURE
-  | `MACUnderflow -> Packet.BAD_RECORD_MAC
-  | `MACMismatch -> Packet.BAD_RECORD_MAC
-  | `RecordOverflow _ -> Packet.RECORD_OVERFLOW
-  | `UnknownRecordVersion _ -> Packet.PROTOCOL_VERSION
-  | `UnknownContentType _ -> Packet.UNEXPECTED_MESSAGE
-  | `ReaderError (Reader.TrailingBytes _ | Reader.WrongLength _) -> Packet.UNEXPECTED_MESSAGE
-  | `ReaderError (Reader.Unknown _) -> Packet.DECODE_ERROR
-  | `CannotHandleApplicationDataYet -> Packet.UNEXPECTED_MESSAGE
-  | `BadRecordVersion _ -> Packet.PROTOCOL_VERSION
-  | `InvalidRenegotiation -> Packet.HANDSHAKE_FAILURE
-  | `InvalidServerHello -> Packet.UNSUPPORTED_EXTENSION
-  | `InvalidRenegotiationVersion _ -> Packet.HANDSHAKE_FAILURE
-  | `BadCertificate _ -> Packet.BAD_CERTIFICATE
-  | `NoVersions _ -> Packet.PROTOCOL_VERSION
-  | `BadDH _ -> Packet.ILLEGAL_PARAMETER
-  | `BadFinished -> Packet.DECRYPT_ERROR
-  | `HandshakeFragmentsNotEmpty -> Packet.HANDSHAKE_FAILURE
-  | `InvalidSession -> Packet.HANDSHAKE_FAILURE
-  | `UnexpectedCCS -> Packet.UNEXPECTED_MESSAGE
-  | `UnexpectedHandshake _ -> Packet.UNEXPECTED_MESSAGE
-  | `SignatureVerificationFailed _ -> Packet.HANDSHAKE_FAILURE
-  | `SigningFailed _ -> Packet.HANDSHAKE_FAILURE
-  | `InvalidClientHello `NoSignatureAlgorithmsExtension
-  | `InvalidClientHello `NoKeyShareExtension
-  | `InvalidClientHello `NoSupportedGroupExtension -> Packet.MISSING_EXTENSION
-  | `InvalidClientHello (`NotSetSupportedGroup _)
-  | `InvalidClientHello (`NotSetKeyShare _)
-  | `InvalidClientHello (`NotSubsetKeyShareSupportedGroup _) -> Packet.ILLEGAL_PARAMETER
-  | `InvalidClientHello _ -> Packet.HANDSHAKE_FAILURE
-  | `InappropriateFallback -> Packet.INAPPROPRIATE_FALLBACK
-  | `NoApplicationProtocol -> Packet.NO_APPLICATION_PROTOCOL
-  | `InvalidMessage -> Packet.HANDSHAKE_FAILURE
-  | `Toomany0rttbytes -> Packet.UNEXPECTED_MESSAGE
-  | `MissingContentType -> Packet.UNEXPECTED_MESSAGE
-  | `Downgrade12 | `Downgrade11 -> Packet.ILLEGAL_PARAMETER
-  | `WriteHalfClosed -> Packet.UNEXPECTED_MESSAGE
+  | `Protocol_version _ -> Packet.PROTOCOL_VERSION
+  | `Unexpected _ -> Packet.UNEXPECTED_MESSAGE
+  | `Decode _ -> Packet.DECODE_ERROR
+  | `Handshake _ -> Packet.HANDSHAKE_FAILURE
+  | `Bad_mac -> Packet.BAD_RECORD_MAC
+  | `Record_overflow _ -> Packet.RECORD_OVERFLOW
+  | `Unsupported_extension -> Packet.UNSUPPORTED_EXTENSION
+  | `Bad_certificate _ -> Packet.BAD_CERTIFICATE
+  | `Missing_extension _ -> Packet.MISSING_EXTENSION
+  | `Inappropriate_fallback -> Packet.INAPPROPRIATE_FALLBACK
+  | `No_application_protocol -> Packet.NO_APPLICATION_PROTOCOL
 
 let alert_of_failure = function
   | `Error x -> Packet.FATAL, alert_of_error x
@@ -178,13 +150,13 @@ let verify_mac sequence mac mac_k ty ver decrypted =
     let module H = (val Digestif.module_of_hash' mac) in
     String.length decrypted - H.digest_size
   in
-  let* () = guard (macstart >= 0) (`Fatal `MACUnderflow) in
+  let* () = guard (macstart >= 0) (`Fatal (`Decode "MAC underflow")) in
   let (body, mmac) = split_str decrypted macstart in
   let cmac =
     let ver = pair_of_tls_version ver in
     let hdr = Crypto.pseudo_header sequence ty ver (String.length body) in
     Crypto.mac mac mac_k hdr body in
-  let* () = guard (String.equal cmac mmac) (`Fatal `MACMismatch) in
+  let* () = guard (String.equal cmac mmac) (`Fatal `Bad_mac) in
   Ok body
 
 
@@ -202,7 +174,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
      https://www.openssl.org/~bodo/tls-cbc.txt *)
   let mask_decrypt_failure seq mac mac_k =
     let* _ = compute_mac seq mac mac_k buf in
-    Error (`Fatal `MACMismatch)
+    Error (`Fatal `Bad_mac)
   in
 
   let dec ctx =
@@ -223,7 +195,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
             Ok (CBC { c with iv_mode = Iv iv' }, msg)
          | Random_iv ->
             if String.length buf < Crypto.cbc_block c.cipher then
-              Error (`Fatal `MACUnderflow)
+              Error (`Fatal (`Decode "MAC underflow"))
             else
               let iv, buf = split_str buf (Crypto.cbc_block c.cipher) in
               let* msg, _ = dec iv buf in
@@ -233,7 +205,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
       if c.explicit_nonce then
         let explicit_nonce_len = 8 in
         if String.length buf < explicit_nonce_len then
-          Error (`Fatal `MACUnderflow)
+          Error (`Fatal (`Decode "MAC underflow"))
         else
           let explicit_nonce, buf = split_str buf explicit_nonce_len in
           let adata =
@@ -242,7 +214,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
           and nonce = c.nonce ^ explicit_nonce
           in
           match Crypto.decrypt_aead ~cipher:c.cipher ~key:c.cipher_secret ~nonce ~adata buf with
-          | None -> Error (`Fatal `MACMismatch)
+          | None -> Error (`Fatal `Bad_mac)
           | Some x -> Ok (AEAD c, x)
       else
         (* RFC 7905: no explicit nonce, instead TLS 1.3 construction is adapted *)
@@ -252,7 +224,7 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
         and nonce = Crypto.aead_nonce c.nonce seq
         in
         (match Crypto.decrypt_aead ~adata ~cipher:c.cipher ~key:c.cipher_secret ~nonce buf with
-         | None -> Error (`Fatal `MACMismatch)
+         | None -> Error (`Fatal `Bad_mac)
          | Some x -> Ok (AEAD c, x))
   in
   match st, version with
@@ -275,12 +247,12 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
           let nonce = Crypto.aead_nonce c.nonce ctx.sequence in
           let unpad x =
             let rec eat = function
-              | -1 -> Error (`Fatal `MissingContentType)
+              | -1 -> Error (`Fatal (`Unexpected (`Message "missing content type")))
               | idx -> match String.get_uint8 x idx with
                 | 0 -> eat (pred idx)
                 | n -> match Packet.int_to_content_type n with
                   | Some ct -> Ok (String.sub x 0 idx, ct)
-                  | None -> Error (`Fatal (`UnknownContentType n))
+                  | None -> Error (`Fatal (`Unexpected (`Content_type n)))
             in
             eat (pred (String.length x))
           in
@@ -290,12 +262,13 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
              if trial then
                Ok (Some ctx, "", Packet.APPLICATION_DATA)
              else
-               Error (`Fatal `MACMismatch)
+               Error (`Fatal `Bad_mac)
            | Some x ->
              let* data, ty = unpad x in
              Ok (Some { ctx with sequence = Int64.succ ctx.sequence }, data, ty))
-        | _ -> Error (`Fatal `InvalidMessage))
-     | _ -> Error (`Fatal `InvalidMessage))
+        | _ -> Error (`Fatal (`Handshake (`Message "unexpected cipher state (must be AEAD)"))))
+     | _ ->
+       Error (`Fatal (`Handshake (`Message "unexpected content type (TLS 1.3)"))))
   | Some ctx, _ ->
     let* st', msg = dec ctx in
     let ctx' = { cipher_st = st' ; sequence = Int64.succ ctx.sequence } in
@@ -392,7 +365,7 @@ let handle_change_cipher_spec = function
   | Server13 AwaitClientHelloHRR13
   | Server13 (AwaitClientCertificate13 _)
   | Server13 (AwaitClientFinished13 _) -> (fun s _ -> Ok (s, []))
-  | _ -> (fun _ _ -> Error (`Fatal `UnexpectedCCS))
+  | _ -> (fun _ _ -> Error (`Fatal (`Unexpected (`Message "change cipher spec"))))
 
 and handle_handshake = function
   | Client cs -> Handshake_client.handle_handshake cs
@@ -420,7 +393,7 @@ let handle_packet hs buf = function
       (Tracing.cs ~tag:"application-data-in" buf;
        Ok (hs, [], non_empty buf, false))
     else
-      Error (`Fatal `CannotHandleApplicationDataYet)
+      Error (`Fatal (`Unexpected (`Message "application data")))
 
   | Packet.CHANGE_CIPHER_SPEC ->
      let* hs, items = handle_change_cipher_spec hs.machina hs buf in
@@ -442,7 +415,10 @@ let decrement_early_data hs ty buf =
   let bytes left cipher =
     let count = String.length buf - fst (Ciphersuite.kn_13 (Ciphersuite.privprot13 cipher)) in
     let left' = Int32.sub left (Int32.of_int count) in
-    if left' < 0l then Error (`Fatal `Toomany0rttbytes) else Ok left'
+    if left' < 0l then
+      Error (`Fatal (`Unexpected (`Message "too many 0RTT bytes")))
+    else
+      Ok left'
   in
   if ty = Packet.APPLICATION_DATA && early_data hs then
     let cipher = match hs.session with
@@ -466,8 +442,12 @@ let handle_raw_record state (hdr, buf as record : raw_record) =
     | Client (AwaitServerHello _), _ -> Ok ()
     | Server AwaitClientHello, _ -> Ok ()
     | Server13 AwaitClientHelloHRR13, _ -> Ok ()
-    | _, `TLS_1_3 -> guard (hdr.version = `TLS_1_2) (`Fatal (`BadRecordVersion hdr.version))
-    | _, v -> guard (version_eq hdr.version v) (`Fatal (`BadRecordVersion hdr.version))
+    | _, `TLS_1_3 ->
+      guard (hdr.version = `TLS_1_2)
+        (`Fatal (`Protocol_version (`Bad_record hdr.version)))
+    | _, v ->
+      guard (version_eq hdr.version v)
+        (`Fatal (`Protocol_version (`Bad_record hdr.version)))
   in
   let trial = match hs.machina with
     | Server13 (AwaitEndOfEarlyData13 _) | Server13 Established13 -> false
@@ -607,7 +587,7 @@ let reneg ?authenticator ?acceptable_cas ?cert st =
 
 let key_update ?(request = true) state =
   if state.write_closed then
-    Error (`Fatal `WriteHalfClosed)
+    Error (`Fatal (`Unexpected (`Message "write half already closed")))
   else
     let* state', out = Handshake_common.output_key_update ~request state in
     let _, outbuf = send_records state [out] in
