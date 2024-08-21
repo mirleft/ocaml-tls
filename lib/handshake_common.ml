@@ -55,7 +55,7 @@ let agreed_cert certs ?f ?signature_algorithms hostname =
     | Some s -> List.exists (pk_matches_sa (snd c)) s
   in
   match certs, hostname with
-  | `None, _ -> Error (`Error `NoCertificateConfigured)
+  | `None, _ -> Error (`Error `CouldntSelectCertificate)
   | `Single c, _ ->
     if filter c && filter_sigalg c then Ok c else Error (`Error `CouldntSelectCertificate)
   | `Multiple_default (c, _), None ->

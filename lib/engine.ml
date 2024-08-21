@@ -18,7 +18,6 @@ let alert_of_error = function
   | `NoConfiguredSignatureAlgorithm _ -> Packet.HANDSHAKE_FAILURE
   | `AuthenticationFailure err -> alert_of_authentication_failure err
   | `NoMatchingCertificateFound _ -> Packet.UNRECOGNIZED_NAME
-  | `NoCertificateConfigured -> Packet.HANDSHAKE_FAILURE
   | `CouldntSelectCertificate -> Packet.HANDSHAKE_FAILURE
 
 let alert_of_fatal = function

@@ -197,7 +197,6 @@ type error = [
   | `NoConfiguredVersions of tls_version list
   | `NoConfiguredSignatureAlgorithm of signature_algorithm list
   | `NoMatchingCertificateFound of string
-  | `NoCertificateConfigured
   | `CouldntSelectCertificate
 ]
 
@@ -215,7 +214,6 @@ let pp_error ppf = function
       Fmt.(list ~sep:(any ", ") pp_signature_algorithm) sas
   | `NoMatchingCertificateFound host ->
     Fmt.pf ppf "no matching certificate found for %s" host
-  | `NoCertificateConfigured -> Fmt.string ppf "no certificate configured"
   | `CouldntSelectCertificate -> Fmt.string ppf "couldn't select certificate"
 
 type client_hello_errors = [

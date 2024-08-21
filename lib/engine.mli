@@ -59,7 +59,6 @@ type error = [
   | `NoConfiguredVersions of Core.tls_version list
   | `NoConfiguredSignatureAlgorithm of Core.signature_algorithm list
   | `NoMatchingCertificateFound of string
-  | `NoCertificateConfigured
   | `CouldntSelectCertificate
 ]
 
