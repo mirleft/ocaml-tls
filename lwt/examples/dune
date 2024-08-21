@@ -44,6 +44,11 @@
  (libraries tls-lwt lwt.unix ex_common))
 
 (executable
+ (name tls_over_tls)
+ (modules tls_over_tls)
+ (libraries tls-lwt lwt lwt.unix ex_common))
+
+(executable
  (name http_client)
  (modules http_client)
  (libraries tls-lwt lwt.unix ex_common))
