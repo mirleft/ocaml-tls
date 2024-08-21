@@ -309,15 +309,13 @@ let client_hello_valid version (ch : client_hello) =
   in
   match
     not (empty ch.ciphersuites),
-    Utils.List_set.is_proper_set ch.ciphersuites,
     share_ciphers,
     Utils.List_set.is_proper_set (extension_types to_client_ext_type ch.extensions)
   with
-  | true, _, true, true -> version_good
-  | false, _ , _, _ -> Error `EmptyCiphersuites
-  (*  | _, false, _, _ -> Error (`NotSetCiphersuites ch.ciphersuites) *)
-  | _, _, false, _ -> Error (`NoSupportedCiphersuite ch.ciphersuites)
-  | _, _, _, false -> Error (`NotSetExtension ch.extensions)
+  | true, true, true -> version_good
+  | false, _, _ -> Error `EmptyCiphersuites
+  | _, false, _ -> Error (`NoSupportedCiphersuite ch.ciphersuites)
+  | _, _, false -> Error (`NotSetExtension ch.extensions)
 
 
 let server_hello_valid (sh : server_hello) =

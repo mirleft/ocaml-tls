@@ -65,7 +65,6 @@ type error = [
 
 type client_hello_errors = [
   | `EmptyCiphersuites
-  | `NotSetCiphersuites of Packet.any_ciphersuite list
   | `NoSupportedCiphersuite of Packet.any_ciphersuite list
   | `NotSetExtension of Core.client_extension list
   | `NoSignatureAlgorithmsExtension
@@ -86,7 +85,6 @@ type fatal = [
   | `NoVersions of Core.tls_any_version list
   | `ReaderError of Reader.error
   | `NoCertificateReceived
-  | `NoCertificateVerifyReceived
   | `NotRSACertificate
   | `KeyTooSmall
   | `SignatureVerificationFailed of string
@@ -98,7 +96,6 @@ type fatal = [
   | `UnknownRecordVersion of int * int
   | `UnknownContentType of int
   | `CannotHandleApplicationDataYet
-  | `NoHeartbeat
   | `BadRecordVersion of Core.tls_any_version
   | `BadFinished
   | `HandshakeFragmentsNotEmpty
@@ -116,7 +113,6 @@ type fatal = [
   | `InvalidCertificateExtendedUsage
   | `InvalidSession
   | `NoApplicationProtocol
-  | `HelloRetryRequest
   | `InvalidMessage
   | `Toomany0rttbytes
   | `MissingContentType

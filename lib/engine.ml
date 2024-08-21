@@ -34,13 +34,11 @@ let alert_of_fatal = function
   | `ReaderError Reader.Underflow -> Packet.DECODE_ERROR
   | `ReaderError _ -> Packet.ILLEGAL_PARAMETER
   | `CannotHandleApplicationDataYet -> Packet.UNEXPECTED_MESSAGE
-  | `NoHeartbeat -> Packet.UNEXPECTED_MESSAGE
   | `BadRecordVersion _ -> Packet.PROTOCOL_VERSION
   | `InvalidRenegotiation -> Packet.HANDSHAKE_FAILURE
   | `InvalidServerHello -> Packet.UNSUPPORTED_EXTENSION
   | `InvalidRenegotiationVersion _ -> Packet.HANDSHAKE_FAILURE
   | `NoCertificateReceived -> Packet.HANDSHAKE_FAILURE
-  | `NoCertificateVerifyReceived -> Packet.HANDSHAKE_FAILURE
   | `NotRSACertificate -> Packet.BAD_CERTIFICATE
   | `InvalidCertificateUsage -> Packet.BAD_CERTIFICATE
   | `InvalidCertificateExtendedUsage -> Packet.BAD_CERTIFICATE
@@ -66,7 +64,6 @@ let alert_of_fatal = function
   | `InvalidClientHello _ -> Packet.HANDSHAKE_FAILURE
   | `InappropriateFallback -> Packet.INAPPROPRIATE_FALLBACK
   | `NoApplicationProtocol -> Packet.NO_APPLICATION_PROTOCOL
-  | `HelloRetryRequest -> Packet.HANDSHAKE_FAILURE (* TODO check *)
   | `InvalidMessage -> Packet.HANDSHAKE_FAILURE
   | `Toomany0rttbytes -> Packet.UNEXPECTED_MESSAGE
   | `MissingContentType -> Packet.UNEXPECTED_MESSAGE
