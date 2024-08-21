@@ -267,8 +267,9 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
              let* data, ty = unpad x in
              Ok (Some { ctx with sequence = Int64.succ ctx.sequence }, data, ty))
         | _ -> Error (`Fatal (`Handshake (`Message "unexpected cipher state (must be AEAD)"))))
-     | _ ->
-       Error (`Fatal (`Handshake (`Message "unexpected content type (TLS 1.3)"))))
+     | ct ->
+       let msg = "unexpected content type (TLS 1.3, encrypted) " ^ Packet.content_type_to_string ct in
+       Error (`Fatal (`Handshake (`Message msg))))
   | Some ctx, _ ->
     let* st', msg = dec ctx in
     let ctx' = { cipher_st = st' ; sequence = Int64.succ ctx.sequence } in

@@ -27,11 +27,14 @@ and int_to_content_type = function
   | 23 -> Some APPLICATION_DATA
   | _ -> None
 
-let pp_content_type ppf = function
-  | CHANGE_CIPHER_SPEC -> Fmt.string ppf "change cipher spec"
-  | ALERT -> Fmt.string ppf "alert"
-  | HANDSHAKE -> Fmt.string ppf "handshake"
-  | APPLICATION_DATA -> Fmt.string ppf "application data"
+let content_type_to_string = function
+  | CHANGE_CIPHER_SPEC -> "change cipher spec"
+  | ALERT -> "alert"
+  | HANDSHAKE -> "handshake"
+  | APPLICATION_DATA -> "application data"
+
+let pp_content_type ppf ct =
+  Fmt.string ppf (content_type_to_string ct)
 
 (* TLS alert level *)
 type alert_level =
