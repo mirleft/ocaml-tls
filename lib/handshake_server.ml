@@ -148,7 +148,10 @@ let answer_client_key_exchange_RSA state (session : session_data) kex raw log =
 let answer_client_key_exchange_DHE state session secret kex raw log =
   let* pms =
     let open Mirage_crypto_ec in
-    let map_ecdh_error = Result.map_error (fun e -> `Fatal (`BadECDH e)) in
+    let map_ecdh_error =
+      Result.map_error
+        (fun e -> `Fatal (`BadDH (Fmt.to_to_string Mirage_crypto_ec.pp_error e)))
+    in
     match secret with
     | `P256 priv ->
       let* share = map_reader_error (Reader.parse_client_ec_key_exchange kex) in
@@ -165,7 +168,7 @@ let answer_client_key_exchange_DHE state session secret kex raw log =
     | `Finite_field secret ->
       let* share = map_reader_error (Reader.parse_client_dh_key_exchange kex) in
       Option.to_result
-        ~none:(`Fatal `InvalidDH)
+        ~none:(`Fatal (`BadDH "invalid FF"))
         (Mirage_crypto_pk.Dh.shared secret share)
   in
   Ok (establish_master_secret state session pms raw log)

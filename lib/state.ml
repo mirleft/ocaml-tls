@@ -277,9 +277,7 @@ type fatal = [
   | `BadRecordVersion of tls_any_version
   | `BadFinished
   | `HandshakeFragmentsNotEmpty
-  | `InsufficientDH
-  | `InvalidDH
-  | `BadECDH of Mirage_crypto_ec.error
+  | `BadDH of string
   | `InvalidRenegotiation
   | `InvalidClientHello of client_hello_errors
   | `InvalidServerHello
@@ -320,9 +318,7 @@ let pp_fatal ppf = function
   | `BadFinished -> Fmt.string ppf "bad finished"
   | `HandshakeFragmentsNotEmpty ->
     Fmt.string ppf "handshake fragments not empty"
-  | `InsufficientDH -> Fmt.string ppf "insufficient DH"
-  | `InvalidDH -> Fmt.string ppf "invalid DH"
-  | `BadECDH e -> Fmt.pf ppf "bad ECDH %a" Mirage_crypto_ec.pp_error e
+  | `BadDH msg -> Fmt.pf ppf "bad DH %s" msg
   | `InvalidRenegotiation -> Fmt.string ppf "invalid renegotiation"
   | `InvalidClientHello ce ->
     Fmt.pf ppf "invalid client hello: %a" pp_client_hello_error ce

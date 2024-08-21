@@ -271,7 +271,7 @@ let answer_server_key_exchange_DHE state (session : session_data) kex raw log =
       let* group, shared = unpack_dh dh_params in
       let* () =
         guard (Mirage_crypto_pk.Dh.modulus_size group >= Config.min_dh_size)
-          (`Fatal `InsufficientDH)
+          (`Fatal (`BadDH "too small"))
       in
       Ok (`Finite_field group, shared, raw_dh_params, leftover)
   in
@@ -291,13 +291,16 @@ let answer_server_key_exchange_DHE state (session : session_data) kex raw log =
 
   let* pms, kex =
     let open Mirage_crypto_ec in
-    let map_ecdh_error = Result.map_error (fun e -> `Fatal (`BadECDH e)) in
+    let map_ecdh_error =
+      Result.map_error
+        (fun e -> `Fatal (`BadDH (Fmt.to_to_string Mirage_crypto_ec.pp_error e)))
+    in
     match group with
     | `Finite_field g ->
       let secret, client_share = Mirage_crypto_pk.Dh.gen_key g in
       let* pms =
         Option.to_result
-          ~none:(`Fatal `InvalidDH)
+          ~none:(`Fatal (`BadDH "invalid FF"))
           (Mirage_crypto_pk.Dh.shared secret shared)
       in
       Ok (pms, Writer.assemble_client_dh_key_exchange client_share)

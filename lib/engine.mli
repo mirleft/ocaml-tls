@@ -95,9 +95,7 @@ type fatal = [
   | `BadRecordVersion of Core.tls_any_version
   | `BadFinished
   | `HandshakeFragmentsNotEmpty
-  | `InsufficientDH
-  | `InvalidDH
-  | `BadECDH of Mirage_crypto_ec.error
+  | `BadDH of string
   | `InvalidRenegotiation
   | `InvalidClientHello of client_hello_errors
   | `InvalidServerHello
