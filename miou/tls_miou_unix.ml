@@ -74,7 +74,12 @@ let handle flow tls str =
       let state = inject_state state flow.state in
       let state = Option.(value ~default:state (map (fun `Eof -> half_close state `read) eof)) in
       flow.state <- state;
+      let to_close = flow.state = `Closed in
       Option.iter (inhibit $ write flow) resp;
+      (* NOTE(dinosaure): [write flow] can set [flow.state]. So we must
+         check if the actual [flow.state] or the [flow.state] after [write flow]
+         want to close the underlying file-descriptor. *)
+      if to_close || flow.state = `Closed then Miou_unix.close flow.fd;
       data
   | Error (fail, `Response resp) ->
       let exn = match fail with
@@ -166,7 +171,7 @@ let writev flow bufs =
   | `Active tls | `Read_closed tls -> (
       match Tls.Engine.send_application_data tls bufs with
       | Some (tls, answer) ->
-          flow.state <- `Active tls;
+          flow.state <- inject_state tls flow.state;
           write flow answer
       | None -> assert false)
 
@@ -199,7 +204,7 @@ let close flow =
       flow.rd_closed <- true;
       flow.state <- `Closed;
       Miou_unix.close flow.fd
-  | `Closed -> flow.rd_closed <- true;
+  | `Closed -> flow.rd_closed <- true
   | `Error _ ->
       flow.rd_closed <- true;
       Miou_unix.close flow.fd
@@ -212,13 +217,17 @@ let shutdown flow mode =
   closed_by_user flow mode;
   match (flow.state, mode) with
   | `Active tls, `read ->
+      Log.debug (fun m -> m "shutdown `read");
       flow.state <- inject_state tls (half_close flow.state mode)
   | (`Active tls | `Read_closed tls), (`write | `read_write) ->
       let tls, str = Tls.Engine.send_close_notify tls in
-      if mode = `read_write then flow.rd_closed <- true;
       flow.state <- inject_state tls (half_close flow.state mode);
+      (* NOTE(dinosaure): [write flow] can set [flow.state]. So we must
+         check if the actual [flow.state] or the [flow.state] after [write flow]
+         want to close the underlying file-descriptor. *)
+      let to_close = flow.state = `Closed in
       inhibit (write flow) str;
-      if flow.state = `Closed then Miou_unix.close flow.fd
+      if to_close || flow.state = `Closed then Miou_unix.close flow.fd
   | `Write_closed tls, (`read | `read_write) ->
       flow.state <- inject_state tls (half_close flow.state mode);
       if flow.state = `Closed then Miou_unix.close flow.fd
