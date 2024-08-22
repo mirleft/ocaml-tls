@@ -38,8 +38,10 @@ module Ca = struct
       @ [ Relative_distinguished_name.singleton (CN "Ephemeral CA for fuzzer") ])
 
   let cacert_lifetime = Ptime.Span.v (365, 0L)
+  let _10s = Ptime.Span.of_int_s 10
 
   let make domain_name seed =
+    let valid_from = Option.get Ptime.(sub_span (v (Ptime_clock.now_d_ps ())) _10s) in
     Domain_name.of_string domain_name >>= Domain_name.host
     >>= fun domain_name ->
     let private_key =
@@ -47,7 +49,6 @@ module Ca = struct
       let g = Mirage_crypto_rng.(create ~seed (module Fortuna)) in
       Mirage_crypto_pk.Rsa.generate ~g ~bits:2048 ()
     in
-    let valid_from = Ptime.v (Ptime_clock.now_d_ps ()) in
     Ptime.add_span valid_from cacert_lifetime
     |> Option.to_result ~none:(R.msgf "End time out of range")
     >>= fun valid_until ->
