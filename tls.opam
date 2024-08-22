@@ -50,3 +50,4 @@ algorithm, and hash algorithm are negotiated.
 
 Read [further](https://nqsb.io) and our [Usenix Security 2015 paper](https://usenix15.nqsb.io).
 """
+available: [ arch != "arm32" ] # see SIGBUS failures at https://github.com/ocaml/opam-repository/pull/26387
