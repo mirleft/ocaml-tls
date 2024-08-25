@@ -1,3 +1,8 @@
+## v1.0.1 (2024-08-25)
+
+* tls-miou-unix: fix file descriptor leak (#508 @dinosaure)
+* tls-miou-unix: fix fuzz test (#507 @dinosaure)
+
 ## v1.0.0 (2024-08-21)
 
 * API breaking change: remove usage of Cstruct.t inside of TLS, use bytes
