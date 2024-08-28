@@ -1,4 +1,5 @@
 (library
  (name tls)
  (public_name tls)
- (libraries logs hkdf ohex digestif mirage-crypto mirage-crypto-rng mirage-crypto-pk x509 domain-name fmt mirage-crypto-ec ipaddr))
+ (libraries logs kdf.hkdf ohex digestif mirage-crypto mirage-crypto-rng
+   mirage-crypto-pk x509 domain-name fmt mirage-crypto-ec ipaddr))
