@@ -154,6 +154,8 @@ module Unix = struct
           | `Closed -> Lwt.return `Eof
 
   let rec read t ?(off = 0) buf =
+    if off < 0 || off >= Bytes.length buf then
+      invalid_arg "offset must be >= 0 and < Bytes.length buf";
 
     let writeout res =
       let rlen = String.length res in
