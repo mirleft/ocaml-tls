@@ -51,12 +51,13 @@ module Unix : sig
 
   (** {2 Common stream operations} *)
 
-  (** [read t buffer] is [length], the number of bytes read into
-      [buffer]. *)
-  val read   : t -> bytes       -> int  Lwt.t
+  (** [read t ~off buffer] is [length], the number of bytes read into
+      [buffer]. It fills [buffer] starting at [off] (default is 0). *)
+  val read   : t -> ?off:int -> bytes -> int  Lwt.t
 
-  (** [write t buffer] writes the [buffer] to the session. *)
-  val write  : t -> string      -> unit Lwt.t
+  (** [write t ~off buffer] writes the [buffer] starting at [off] (default is 0)
+      to the session. *)
+  val write  : t -> ?off:int -> string -> unit Lwt.t
 
   (** [writev t buffers] writes the [buffers] to the session. *)
   val writev : t -> string list -> unit Lwt.t
