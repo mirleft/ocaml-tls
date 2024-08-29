@@ -183,11 +183,7 @@ module Unix = struct
             ( t.state <- inject_state tls t.state ; write_t t tlsdata )
         | None -> Lwt.reraise @@ Invalid_argument "tls: write: socket not ready"
 
-  let write t ?(off = 0) cs =
-    let buf =
-      if off = 0 then cs else String.sub cs off (String.length cs - off)
-    in
-    writev t [buf]
+  let write t cs = writev t [cs]
 
   (*
    * XXX bad XXX
