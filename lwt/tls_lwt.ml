@@ -153,12 +153,14 @@ module Unix = struct
             handle tls (String.sub (Bytes.unsafe_to_string t.recv_buf) 0 n)
           | `Closed -> Lwt.return `Eof
 
-  let rec read t buf =
+  let rec read t ?(off = 0) buf =
+    if off < 0 || off >= Bytes.length buf then
+      invalid_arg "offset must be >= 0 and < Bytes.length buf";
 
     let writeout res =
       let rlen = String.length res in
-      let n    = min (Bytes.length buf) rlen in
-      Bytes.blit_string res 0 buf 0 n ;
+      let n    = min (Bytes.length buf - off) rlen in
+      Bytes.blit_string res 0 buf off n ;
       t.linger <-
         (if n < rlen then Some (String.sub res n (rlen - n)) else None) ;
       Lwt.return n in
@@ -168,7 +170,7 @@ module Unix = struct
     | None     ->
         read_react t >>= function
           | `Eof           -> Lwt.return 0
-          | `Ok None       -> read t buf
+          | `Ok None       -> read t ~off buf
           | `Ok (Some res) -> writeout res
 
   let writev t css =
