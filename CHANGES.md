@@ -1,3 +1,8 @@
+## v1.0.2 (2024-09-04)
+
+* tls-lwt: `read` now has an optional `?off:int` argument (#510 @hannesm)
+* Use the kdf package instead of hkdf (#509 @hannesm)
+
 ## v1.0.1 (2024-08-25)
 
 * tls-miou-unix: fix file descriptor leak (#508 @dinosaure)
