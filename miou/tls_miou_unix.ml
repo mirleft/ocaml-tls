@@ -161,7 +161,7 @@ let rec read_in flow ?(off= 0) ?len buf =
   | Some res -> write_in res
   | None -> (
       match read_react flow with
-      | None -> read_in flow buf
+      | None -> read_in ~off ~len flow buf
       | Some res -> write_in res)
 
 let writev flow bufs =
