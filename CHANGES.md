@@ -1,3 +1,7 @@
+## v1.0.3 (2024-09-29)
+
+* tls-miou-unix: fix recursive call in read_in (#511 @dinosaure)
+
 ## v1.0.2 (2024-09-04)
 
 * tls-lwt: `read` now has an optional `?off:int` argument (#510 @hannesm)
