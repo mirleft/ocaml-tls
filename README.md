@@ -14,7 +14,7 @@ authenticate (using X.509) either or both endpoints. It provides algorithmic
 agility, which means that the key exchange method, symmetric encryption
 algorithm, and hash algorithm are negotiated.
 
-Read [further](https://nqsb.io) and our [Usenix Security 2015 paper](https://www.usenix.org/conference/usenixsecurity15/technical-sessions/presentation/kaloper-mersinjak).
+Read our [Usenix Security 2015 paper](https://www.usenix.org/conference/usenixsecurity15/technical-sessions/presentation/kaloper-mersinjak) for further details.
 
 ## Documentation
 
