@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Handshake_crypto (tls.Tls.Handshake_crypto)</title><meta charset="utf-8"/><link rel="stylesheet" href="../../../odoc.support/odoc.css"/><meta name="generator" content="odoc 2.4.2"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../../index.html">tls</a> &#x00BB; <a href="../index.html">Tls</a> &#x00BB; Handshake_crypto</nav><header class="odoc-preamble"><h1>Module <code><span>Tls.Handshake_crypto</span></code></h1></header><div class="odoc-content"><div class="odoc-spec"><div class="spec value anchored" id="val-derive_master_secret"><a href="#val-derive_master_secret" class="anchor"></a><code><span><span class="keyword">val</span> derive_master_secret : 
+  <span><a href="../Core/index.html#type-tls_before_13">Core.tls_before_13</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../State/index.html#type-session_data">State.session_data</a> <span class="arrow">&#45;&gt;</span></span>
+  <span>string <span class="arrow">&#45;&gt;</span></span>
+  <span><span>string list</span> <span class="arrow">&#45;&gt;</span></span>
+  <a href="../Core/index.html#type-master_secret">Core.master_secret</a></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-initialise_crypto_ctx"><a href="#val-initialise_crypto_ctx" class="anchor"></a><code><span><span class="keyword">val</span> initialise_crypto_ctx : 
+  <span><a href="../Core/index.html#type-tls_before_13">Core.tls_before_13</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../State/index.html#type-session_data">State.session_data</a> <span class="arrow">&#45;&gt;</span></span>
+  <a href="../State/index.html#type-crypto_context">State.crypto_context</a> * <a href="../State/index.html#type-crypto_context">State.crypto_context</a></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-finished"><a href="#val-finished" class="anchor"></a><code><span><span class="keyword">val</span> finished : 
+  <span><a href="../Core/index.html#type-tls_before_13">Core.tls_before_13</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../Ciphersuite/index.html#type-ciphersuite">Ciphersuite.ciphersuite</a> <span class="arrow">&#45;&gt;</span></span>
+  <span>string <span class="arrow">&#45;&gt;</span></span>
+  <span>string <span class="arrow">&#45;&gt;</span></span>
+  <span><span>string list</span> <span class="arrow">&#45;&gt;</span></span>
+  string</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-pseudo_random_function"><a href="#val-pseudo_random_function" class="anchor"></a><code><span><span class="keyword">val</span> pseudo_random_function : 
+  <span><a href="../Core/index.html#type-tls_before_13">Core.tls_before_13</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../Ciphersuite/index.html#type-ciphersuite">Ciphersuite.ciphersuite</a> <span class="arrow">&#45;&gt;</span></span>
+  <span>int <span class="arrow">&#45;&gt;</span></span>
+  <span>string <span class="arrow">&#45;&gt;</span></span>
+  <span>string <span class="arrow">&#45;&gt;</span></span>
+  <span>string <span class="arrow">&#45;&gt;</span></span>
+  string</span></code></div><div class="spec-doc"><p><code>pseudo_random_function version cipher length secret label seed</code></p></div></div></div></body></html>
