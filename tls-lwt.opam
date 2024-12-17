@@ -29,3 +29,4 @@ synopsis: "Transport Layer Security purely in OCaml, Lwt layer"
 description: """
 Tls-lwt provides an effectful Tls_lwt module to be used with Lwt.
 """
+x-maintenance-intent: [ "(latest)" ]

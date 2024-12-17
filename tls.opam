@@ -51,3 +51,4 @@ algorithm, and hash algorithm are negotiated.
 Read our [Usenix Security 2015 paper](https://www.usenix.org/conference/usenixsecurity15/technical-sessions/presentation/kaloper-mersinjak).
 """
 available: [ arch != "arm32" ] # see SIGBUS failures at https://github.com/ocaml/opam-repository/pull/26387
+x-maintenance-intent: [ "(latest)" ]

@@ -31,3 +31,4 @@ synopsis: "Transport Layer Security purely in OCaml, Miou+Unix layer"
 description: """
 Tls-miou provides an effectful Tls_miou module to be used with Miou and Unix.
 """
+x-maintenance-intent: [ "(latest)" ]

@@ -31,3 +31,4 @@ synopsis: "Transport Layer Security purely in OCaml, Async layer"
 description: """
 Tls-async provides Async-friendly tls bindings
 """
+x-maintenance-intent: [ "(latest)" ]
