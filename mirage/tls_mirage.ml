@@ -255,7 +255,7 @@ module Make (F : Mirage_flow.S) = struct
 
 end
 
-module X509 (KV : Mirage_kv.RO) (C: Mirage_clock.PCLOCK) = struct
+module X509 (KV : Mirage_kv.RO) = struct
 
   let ca_roots_file = Mirage_kv.Key.v "ca-roots.crt"
   let default_cert  = "server"
@@ -279,8 +279,8 @@ module X509 (KV : Mirage_kv.RO) (C: Mirage_clock.PCLOCK) = struct
       Some [ crl ]
 
   let authenticator ?allowed_hashes ?crl kv =
-    let time () = Some (Ptime.v (C.now_d_ps ())) in
-    let now = Ptime.v (C.now_d_ps ()) in
+    let time () = Some (Mirage_ptime.now ()) in
+    let now = Mirage_ptime.now () in
     read kv ca_roots_file >|= Cstruct.to_string >>=
     decode_or_fail X509.Certificate.decode_pem_multiple >>= fun cas ->
     let ta = X509.Validation.valid_cas ~time:now cas in
