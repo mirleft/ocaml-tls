@@ -18,7 +18,7 @@ type t = [ `Tls | Eio.Flow.two_way_ty | Eio.Resource.close_ty ] r
 (** [server_of_flow server flow] is [t], after server-side TLS
     handshake of [flow] using [server] configuration.
 
-    You must ensure a RNG is installed while using TLS, e.g. using [Mirage_crypto_rng_eio].
+    You must ensure a RNG is installed while using TLS, e.g. using [Mirage_crypto_rng_unix.use_default ()].
     Ideally, this would be part of the [server] config so you couldn't forget it,
     but for now you'll get a runtime error if you forget. *)
 val server_of_flow :
@@ -28,7 +28,7 @@ val server_of_flow :
 (** [client_of_flow client ~host fd] is [t], after client-side
     TLS handshake of [flow] using [client] configuration and [host].
 
-    You must ensure a RNG is installed while using TLS, e.g. using [Mirage_crypto_rng_eio].
+    You must ensure a RNG is installed while using TLS, e.g. using [Mirage_crypto_rng_unix.use_default ()].
     Ideally, this would be part of the [client] config so you couldn't forget it,
     but for now you'll get a runtime error if you forget. *)
 val client_of_flow :
