@@ -1,3 +1,8 @@
+## v2.0.0 (2025-02-05)
+
+* Use dune variants (mirage-ptime) instead of functorising over PCLOCK
+  (#513 @hannesm)
+
 ## v1.0.4 (2024-10-28)
 
 * Removed links to nqsb (we're no longer in charge of that domain)
