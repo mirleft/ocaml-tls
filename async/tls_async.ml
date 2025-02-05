@@ -151,4 +151,4 @@ let connect
 ;;
 
 (* initialized RNG early to maximise available entropy. *)
-let () = Mirage_crypto_rng_async.initialize (module Mirage_crypto_rng.Fortuna)
+let () = Mirage_crypto_rng_unix.use_default ()

@@ -2,7 +2,7 @@
 # #require "digestif.c";;
 # #require "eio_main";;
 # #require "tls-eio";;
-# #require "mirage-crypto-rng-eio";;
+# #require "mirage-crypto-rng.unix";;
 ```
 
 ```ocaml
@@ -84,7 +84,7 @@ let serve_ssl ~config server_s callback =
 # Eio_main.run @@ fun env ->
   let net = env#net in
   let certificates_dir = env#cwd in
-  Mirage_crypto_rng_eio.run (module Mirage_crypto_rng.Fortuna) env @@ fun () ->
+  Mirage_crypto_rng_unix.use_default ();
   Switch.run @@ fun sw ->
   let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 4433) in
   let listening_socket = Eio.Net.listen ~sw net ~backlog:5 ~reuse_addr:true addr in

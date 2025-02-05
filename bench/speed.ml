@@ -268,7 +268,7 @@ and handshake =
 let run fns =
   List.iter (fun (_, fn) -> fn ()) fns
 
-let () = Mirage_crypto_rng_unix.initialize (module Mirage_crypto_rng.Fortuna)
+let () = Mirage_crypto_rng_unix.use_default ()
 
 let () =
   let seed = "0xdeadbeef" in

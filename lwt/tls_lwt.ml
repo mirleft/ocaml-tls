@@ -353,7 +353,7 @@ and connect authenticator addr =
   | Error _ as e -> Lwt.return e
 
 (* Boot the entropy loop at module init time. *)
-let () = Mirage_crypto_rng_lwt.initialize (module Mirage_crypto_rng.Fortuna)
+let () = Mirage_crypto_rng_unix.use_default ()
 
 let () =
   Printexc.register_printer (function

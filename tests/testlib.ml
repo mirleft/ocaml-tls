@@ -1,6 +1,6 @@
 open OUnit2
 
-let () = Mirage_crypto_rng_unix.initialize (module Mirage_crypto_rng.Fortuna)
+let () = Mirage_crypto_rng_unix.use_default ()
 
 let time f =
   let t1 = Sys.time () in

@@ -52,7 +52,7 @@ module Make (F : Mirage_flow.S) : sig
 end
 
 (** X.509 handling given a key value store and a clock *)
-module X509 (KV : Mirage_kv.RO) (C : Mirage_clock.PCLOCK) : sig
+module X509 (KV : Mirage_kv.RO) : sig
   (** [authenticator ~allowed_hashes ~crl store] creates an [authenticator],
       using the given certificate authorities in the [store] as
       value for key "ca_roots.crt". If [allowed_hashes] is provided,
