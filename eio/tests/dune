@@ -10,7 +10,7 @@
     server-ec.pem
     server-ec.key
     (package tls-eio)
-    (package mirage-crypto-rng.unix)
+    (package mirage-crypto-rng)
     (package eio_main)))
 
 ; "dune runtest" just does a quick run with random inputs.
