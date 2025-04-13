@@ -81,17 +81,19 @@ let pp_frame ppf (ty, data) =
     (String.length data)
 
 (* well-behaved pure encryptor *)
-let encrypt (version : tls_version) (st : crypto_state) ty buf =
+let encrypt (version : tls_version) (st : crypto_state) ty buf off len =
   match st with
-  | None -> (st, ty, buf)
+  | None -> (st, ty, String.sub buf off len)
   | Some ctx ->
      match version with
      | `TLS_1_3 ->
         (match ctx.cipher_st with
          | AEAD c ->
             let buf =
-              let t = String.make 1 (Char.unsafe_chr (Packet.content_type_to_int ty)) in
-              buf ^ t
+              let b = Bytes.create (len + 1) in
+              Bytes.set_uint8 b len (Packet.content_type_to_int ty);
+              Bytes.blit_string buf off b 0 len;
+              Bytes.unsafe_to_string b
             in
             let nonce = Crypto.aead_nonce c.nonce ctx.sequence in
             let adata = Crypto.adata_1_3 (String.length buf + Crypto.tag_len c.cipher) in
@@ -103,17 +105,16 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
           let seq = ctx.sequence
           and ver = pair_of_tls_version version
           in
-          Crypto.pseudo_header seq ty ver (String.length buf)
-        in
-        let to_encrypt mac mac_k =
-          let signature = Crypto.mac mac mac_k pseudo_hdr buf in
-          buf ^ signature
+          Crypto.pseudo_header seq ty ver len
         in
         let c_st, enc =
           match ctx.cipher_st with
           | CBC c ->
              let enc iv =
-               let to_encrypt = to_encrypt c.hmac c.hmac_secret in
+               (* TODO only until digestig goes beyond 1.2.0 (feedable hmac) *)
+               let data = String.sub buf off len in
+               let signature = Crypto.mac c.hmac c.hmac_secret pseudo_hdr buf in
+               let to_encrypt = data ^ signature in
                Crypto.encrypt_cbc ~cipher:c.cipher ~key:c.cipher_secret ~iv to_encrypt
              in
              ( match c.iv_mode with
@@ -124,8 +125,8 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf =
                | Iv iv ->
                   let m, iv' = enc iv in
                   (CBC { c with iv_mode = Iv iv' }, m) )
-
           | AEAD c ->
+            let buf = String.sub buf off len in
             if c.explicit_nonce then
               let explicit_nonce = Crypto.sequence_buf ctx.sequence in
               let nonce = c.nonce ^ explicit_nonce
@@ -288,21 +289,31 @@ let rec separate_records : string -> ((tls_hdr * string) list * string, failure)
     Error (`Fatal e)
 
 let encrypt_records encryptor version records =
-  let rec split = function
-    | [] -> []
-    | (t1, a) :: xs when String.length a >= 1 lsl 14 ->
-      let fst, snd = split_str a (1 lsl 14) in
-      (t1, fst) :: split ((t1, snd) :: xs)
-    | x::xs -> x :: split xs
-
-  and crypt st = function
-    | []            -> (st, [])
-    | (ty, buf)::rs ->
-        let (st, ty, enc) = encrypt version st ty buf in
-        let (st, encs) = crypt st rs in
-        (st, (ty, enc) :: encs)
+  let rec crypt st acc = function
+    | [] -> st, List.rev acc
+    | (ty, buf) :: rest ->
+      let bufl = String.length buf in
+      let rec doit st acc off =
+        if bufl - off >= 1 lsl 14 then
+          let len = 1 lsl 14 in
+          let st, ty, buf = encrypt version st ty buf off len in
+          doit st ((ty, buf) :: acc) (off + len)
+        else
+          let st, ty, buf = encrypt version st ty buf off (bufl - off) in
+          st, List.rev ((ty, buf) :: acc)
+      in
+      let st, res =
+        if String.length buf >= 1 lsl 14 then
+          doit st [] 0
+        else
+          let st, ty, buf =
+            encrypt version st ty buf 0 (String.length buf)
+          in
+          st, [ ty, buf ]
+      in
+      crypt st (res @ acc) rest
   in
-  crypt encryptor (split records)
+  crypt encryptor [] records
 
 module Alert = struct
   (* The alert protocol:

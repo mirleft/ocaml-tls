@@ -101,7 +101,7 @@ let pseudo_header seq ty (v_major, v_minor) v_length =
 (* MAC used in TLS *)
 let mac hash key pseudo_hdr data =
   let module H = (val Digestif.module_of_hash' hash) in
-  H.(to_raw_string (hmac_string ~key (pseudo_hdr ^ data)))
+  H.(to_raw_string (hmacv_string ~key [ pseudo_hdr ; data ]))
 
 let cbc_block (type a) cipher =
   let module C = (val cipher : Block.CBC with type key = a) in C.block_size
