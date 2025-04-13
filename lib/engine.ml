@@ -300,7 +300,7 @@ let encrypt_records encryptor version records =
           doit st ((ty, buf) :: acc) (off + len)
         else
           let st, ty, buf = encrypt version st ty buf off (bufl - off) in
-          st, List.rev ((ty, buf) :: acc)
+          st, (ty, buf) :: acc
       in
       let st, res =
         if String.length buf >= 1 lsl 14 then
