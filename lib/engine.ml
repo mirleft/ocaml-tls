@@ -111,7 +111,7 @@ let encrypt (version : tls_version) (st : crypto_state) ty buf off len =
           match ctx.cipher_st with
           | CBC c ->
              let enc iv =
-               (* TODO only until digestig goes beyond 1.2.0 (feedable hmac) *)
+               (* TODO only until digestif goes beyond 1.2.0 (feedable hmac) *)
                let data = String.sub buf off len in
                let signature = Crypto.mac c.hmac c.hmac_secret pseudo_hdr buf in
                let to_encrypt = data ^ signature in
@@ -302,15 +302,7 @@ let encrypt_records encryptor version records =
           let st, ty, buf = encrypt version st ty buf off (bufl - off) in
           st, (ty, buf) :: acc
       in
-      let st, res =
-        if String.length buf >= 1 lsl 14 then
-          doit st [] 0
-        else
-          let st, ty, buf =
-            encrypt version st ty buf 0 (String.length buf)
-          in
-          st, [ ty, buf ]
-      in
+      let st, res = doit st [] 0 in
       (crypt [@tailcall]) st (res @ acc) rest
   in
   crypt encryptor [] records
