@@ -1,3 +1,10 @@
+## v2.0.1 (2025-04-14)
+
+* core, send_application_data: allocate much fewer data. previously, we
+  allocated a lot to split the data into chunks of 2^14 - and did not have
+  tail calls. the memory footprint, esp. for big amounts of data passed to
+  send_application_data has changed now (#515 @hannesm @reynir)
+
 ## v2.0.0 (2025-02-05)
 
 * Use dune variants (mirage-ptime) instead of functorising over PCLOCK
