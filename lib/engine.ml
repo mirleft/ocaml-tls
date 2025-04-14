@@ -297,7 +297,7 @@ let encrypt_records encryptor version records =
         if bufl - off >= 1 lsl 14 then
           let len = 1 lsl 14 in
           let st, ty, buf = encrypt version st ty buf off len in
-          doit st ((ty, buf) :: acc) (off + len)
+          (doit [@tailcall]) st ((ty, buf) :: acc) (off + len)
         else
           let st, ty, buf = encrypt version st ty buf off (bufl - off) in
           st, (ty, buf) :: acc
@@ -311,7 +311,7 @@ let encrypt_records encryptor version records =
           in
           st, [ ty, buf ]
       in
-      crypt st (res @ acc) rest
+      (crypt [@tailcall]) st (res @ acc) rest
   in
   crypt encryptor [] records
 
