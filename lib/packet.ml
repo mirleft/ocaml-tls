@@ -62,6 +62,7 @@ type alert_type =
   | HANDSHAKE_FAILURE               [@id 40]  (*RFC5246*)
   | BAD_CERTIFICATE                 [@id 42]  (*RFC5246*)
   | CERTIFICATE_EXPIRED             [@id 45]  (*RFC5246*)
+  | CERTIFICATE_UNKNOWN             [@id 46]  (*RFC5246*)
   | DECODE_ERROR                    [@id 50]  (*RFC5246*)
   | PROTOCOL_VERSION                [@id 70]  (*RFC5246*)
   | INAPPROPRIATE_FALLBACK          [@id 86]  (*draft-ietf-tls-downgrade-scsv*)
@@ -81,6 +82,7 @@ let alert_type_to_string = function
   | HANDSHAKE_FAILURE -> "handshake failure"
   | BAD_CERTIFICATE -> "bad certificate"
   | CERTIFICATE_EXPIRED -> "certificate expired"
+  | CERTIFICATE_UNKNOWN -> "certificate unknown"
   | DECODE_ERROR -> "decode error"
   | PROTOCOL_VERSION -> "protocol version"
   | INAPPROPRIATE_FALLBACK -> "inappropriate fallback"
@@ -100,6 +102,7 @@ let alert_type_to_int = function
   | HANDSHAKE_FAILURE               -> 40  (*RFC5246*)
   | BAD_CERTIFICATE                 -> 42  (*RFC5246*)
   | CERTIFICATE_EXPIRED             -> 45  (*RFC5246*)
+  | CERTIFICATE_UNKNOWN             -> 46  (*RFC5246*)
   | DECODE_ERROR                    -> 50  (*RFC5246*)
   | PROTOCOL_VERSION                -> 70  (*RFC5246*)
   | INAPPROPRIATE_FALLBACK          -> 86  (*draft-ietf-tls-downgrade-scsv*)
@@ -118,6 +121,7 @@ and int_to_alert_type = function
   | 40 -> HANDSHAKE_FAILURE
   | 42 -> BAD_CERTIFICATE
   | 45 -> CERTIFICATE_EXPIRED
+  | 46 -> CERTIFICATE_UNKNOWN
   | 50 -> DECODE_ERROR
   | 70 -> PROTOCOL_VERSION
   | 86 -> INAPPROPRIATE_FALLBACK
