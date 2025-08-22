@@ -1,3 +1,8 @@
+## v2.0.2 (2025-08-22)
+
+* put CERTIFICATE_UNKNOWN alert back (#516 @copy)
+* improve README (#514 @dinosaure)
+
 ## v2.0.1 (2025-04-14)
 
 * core, send_application_data: allocate much fewer data. previously, we
