@@ -1,65 +1,96 @@
-(** Effectful operations using [Unix] for pure TLS. *)
+(** Effectful operations using Unix for pure TLS.
 
-(** possible errors: incoming alert, processing failure, or a
-    problem in the underlying [Unix] flow. *)
-type error =
-  | Alert of Tls.Packet.alert_type
-  | Failure of Tls.Engine.failure
-  | Unix_error of Unix.error * string * string
-  | Closed
+    The pure TLS is state and buffer in, state and buffer out. This module uses
+    the Unix layer for communication over the network. *)
 
-val pp_error : Format.formatter -> error -> unit
-(** Pretty-printer of {!val:error}. *)
+exception Tls_alert of Tls.Packet.alert_type
+exception Tls_failure of Tls.Engine.failure
+exception Closed_by_peer
 
-type flow
-(** The type of flows. *)
+type t
+(** Abstract type of a session. *)
 
-val read : flow -> ([ `Data of Cstruct.t | `Eof ], error) result
-(** [read flow] blocks until some data is available and returns a
-    fresh buffer containing it.
+val file_descr : t -> Unix.file_descr
+(** [file_descr] returns the underlying file-descriptor used by the given
+    TLS {i socket}. *)
 
-    If the remote endpoint calls [close] then calls to [read] will
-    keep returning data until all the {i in-flight} data has been read.
-    [read flow] will return [`Eof] when the remote endpoint has
-    called [close] and when there is no more (i in-flight} data.
-*)
+val read : t -> ?off:int -> ?len:int -> bytes -> int
+(** [read fd buf ~off ~len] reads up to [len] bytes (defaults to
+    [Bytes.length buf - off] from the given TLS {i socket} [fd], storing them in
+    byte sequence [buf], starting at position [off] in [buf] (defaults to [0]).
+    It returns the actual number of characters read, between 0 and [len]
+    (inclusive).
 
-val write : flow -> Cstruct.t -> (unit, error) result
-(** [write flow buffer] writes a buffer to the TLS flow. There is no
-    indication when the buffer has actually been read and, therefore,
-    it must not be reused. The result [Ok ()] indicates success,
-    [Error Closed] indicates that the connection is now closed and
-    therefore the data could not be written. Other errors are possible.
-*)
+    @raise Unix_error raised by the system call {!val:Unix.read}. The function
+    handles {!val:Unix.EINTR}, {!val:Unix.EAGAIN} and {!val:Unix.EWOULDBLOCK}
+    exceptions and redo the system call.
 
-val writev : flow -> Cstruct.t list -> (unit, error) result
-(** [writev flow bufs] is a successive call of {!val:write} with
-    given [bufs]. *)
+    @raise Invalid_argument if [off] and [len] do not designate a valid range of
+    [buf]. *)
 
-val close : flow -> unit
-(** [close flow] sends a close notification to the peer and close the
-    underlying [Unix] socket. *)
+val really_read : t -> ?off:int -> ?len:int -> bytes -> unit
+(** [really_read fd buf ~off ~len] reads [len] bytes (defaults to
+    [Bytes.length buf - off]) from the given TLS {i socket} [fd], storing them
+    in byte sequence [buf], starting at position [off] in [buf] (defaults to
+    [0]). If [len = 0], [really_read] does nothing.
 
-(** [reneg ~authenticator ~acceptable_cas ~cert ~drop t] renegotiates the
-    session, and blocks until the renegotiation finished.  Optionally, a new
-    [authenticator] and [acceptable_cas] can be used.  The own certificate can
-    be adjusted by [cert]. If [drop] is [true] (the default),
-    application data received before the renegotiation finished is dropped. *)
-val reneg : ?authenticator:X509.Authenticator.t ->
-  ?acceptable_cas:X509.Distinguished_name.t list -> ?cert:Tls.Config.own_cert ->
-  ?drop:bool -> flow -> (unit, error) result
+    @raise Unix_error raised by the system call {!val:Unix.read}. The function
+    handles {!val:Unix.EINTR}, {!val:Unix.EAGAIN} and {!val:Unix.EWOULDBLOCK}
+    exceptions and redo the system call.
 
-(** [key_update ~request t] updates the traffic key and requests a traffic key
-    update from the peer if [request] is provided and [true] (the default).
-    This is only supported in TLS 1.3. *)
-val key_update : ?request:bool -> flow -> (unit, error) result
+    @raise End_of_file if {!val:Unix.read} returns [0] before [len] characters
+    have been read.
 
-(** [client_of_flow client ~host socket] upgrades the existing connection
-    to TLS using [client] configuration, using [host] as peer name. *)
-val client_of_flow : Tls.Config.client -> ?host:[ `host ] Domain_name.t ->
-  Unix.file_descr -> (flow, error) result
+    @raise Invalid_argument if [off] and [len] do not designate a valid range of
+    [buf]. *)
 
-(** [server_of_flow server flow] upgrades the flow to a TLS
-    connection using the [server] configuration. *)
-val server_of_flow : Tls.Config.server -> Unix.file_descr ->
-  (flow, error) result
+val write : t -> ?off:int -> ?len:int -> string -> unit
+(** [write t str ~off ~len] writes [len] bytes (defaults to
+    [String.length str - off]) from byte sequence [str], starting at offset
+    [off] (defaults to [0]), to the given TLS {i socket} [fd].
+
+    @raise Unix_error raised by the syscall call {!val:Unix.write}. The function
+    handles {!val:Unix.EINTR}, {!val:Unix.EAGAIN} and {!val:Unix.EWOULDBLOCK}
+    exceptions and redo the system call.
+
+    @raise Closed_by_peer if [t] is connected to a peer whose reading end is
+    closed. Similar to the {!val:EPIPE} error for pipe/socket connected.
+
+    @raise Invalid_argument if [off] and [len] do not designate a valid range of
+    [buf]. *)
+
+val close : t -> unit
+(** [close flow] closes the TLS session and the underlying file-descriptor. *)
+
+val shutdown : t -> [ `read | `write | `read_write ] -> unit
+(** [shutdown t direction] closes the direction of the TLS session [t]. If
+    [`read_write] or [`write] is closed, a TLS close-notify is sent to the other
+    endpoint. If this results in a fully-closed session (or an errorneous
+    session), the underlying file descriptor is closed. *)
+
+val client_of_fd :
+  Tls.Config.client ->
+  ?read_buffer_size:int ->
+  ?host:[ `host ] Domain_name.t ->
+  Unix.file_descr ->
+  t
+(** [client_of_flow client ~host fd] is [t], after client-side TLS handshake of
+    [fd] using [client] configuration and [host].
+
+    @raise End_of_file if we are not able to complete the handshake. *)
+
+val server_of_fd :
+  Tls.Config.server -> ?read_buffer_size:int -> Unix.file_descr -> t
+(** [server_of_fd server fd] is [t], after server-side TLS handshake of [fd]
+    using [server] configuration.
+
+    @raise End_of_file if we are not able to complete the handshake. *)
+
+val connect : X509.Authenticator.t -> string * int -> t
+(** [connect authenticator (host, port)] is [t], a connected TLS connection
+    to [host] on [port] using the default configuration and the
+    [authenticator]. *)
+
+val epoch : t -> Tls.Core.epoch_data option
+(** [epoch t] returns [epoch], which contains information of the active
+    session. *)
