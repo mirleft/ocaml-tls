@@ -1,4 +1,4 @@
-let src = Logs.Src.create "tls-miou"
+let src = Logs.Src.create "tls-unix"
 
 module Log = (val Logs.src_log src : Logs.LOG)
 
@@ -278,13 +278,13 @@ let server_of_fd conf ?(read_buffer_size = 0x1000) fd =
 let write flow ?(off = 0) ?len str =
   let len = Option.value ~default:(String.length str - off) len in
   if off < 0 || len < 0 || off > String.length str - len
-  then invalid_arg "Tls_miou.write";
+  then invalid_arg "Tls_unix.write";
   if len > 0 then writev flow [ String.sub str off len ]
 
 let read t ?(off= 0) ?len buf =
   let len = Option.value ~default:(Bytes.length buf - off) len in
   if off < 0 || len < 0 || off > Bytes.length buf - len
-  then invalid_arg "Tls_miou.read";
+  then invalid_arg "Tls_unix.read";
   if t.rd_closed then 0
   else try read_in t ~off ~len buf with End_of_file -> 0
 
@@ -297,7 +297,7 @@ let rec really_read_go t off len buf =
 let really_read t ?(off= 0) ?len buf =
   let len = Option.value ~default:(Bytes.length buf - off) len in
   if off < 0 || len < 0 || off > Bytes.length buf - len
-  then invalid_arg "Tls_miou.really_read";
+  then invalid_arg "Tls_unix.really_read";
   if len > 0 then really_read_go t off len buf
 
 let resolve host service =
@@ -315,7 +315,7 @@ let connect authenticator (v, port) =
   let addr = resolve v (string_of_int port) in
   let fd =
     match addr with
-    | Unix.ADDR_UNIX _ -> invalid_arg "Tls_miou.connect: Invalid UNIX socket"
+    | Unix.ADDR_UNIX _ -> invalid_arg "Tls_unix.connect: Invalid UNIX socket"
     | Unix.ADDR_INET (inet_addr, _) ->
         if Unix.is_inet6_addr inet_addr then
           Unix.socket Unix.PF_INET6 Unix.SOCK_STREAM 0
