@@ -1,3 +1,5 @@
+(* NOTE: the unix/tls_unix.ml is mostly copied from here, so any change should be synchronized. *)
+
 let src = Logs.Src.create "tls-miou"
 
 module Log = (val Logs.src_log src : Logs.LOG)
