@@ -1,6 +1,6 @@
-(* NOTE: the unix/tls_unix.ml is mostly copied from here, so any change should be synchronized. *)
+(* NOTE: mostly copied from miou/tls_miou_unix.ml, so any change should be synchronized. *)
 
-let src = Logs.Src.create "tls-miou"
+let src = Logs.Src.create "tls-unix"
 
 module Log = (val Logs.src_log src : Logs.LOG)
 
@@ -28,7 +28,7 @@ type state =
 
 type t = {
   role : [ `Server | `Client ];
-  fd : Miou_unix.file_descr;
+  fd : Unix.file_descr;
   mutable state : state;
   mutable linger : string option;
   read_buffer_size : int;
@@ -59,9 +59,14 @@ let tls_alert a = Tls_alert a
 let tls_fail f = Tls_failure f
 let inhibit fn v = try fn v with _ -> ()
 
+let rec unix_write fd str off len =
+  let written = Unix.write_substring fd str off len in
+  if not (Int.equal written len) then
+    unix_write fd str (off + written) (len - written)
+
 let write flow str =
   Log.debug (fun m -> m "try to write %d byte(s)" (String.length str));
-  try Miou_unix.write flow.fd str with
+  try unix_write flow.fd str 0 (String.length str) with
   | Unix.Unix_error ((Unix.EPIPE | Unix.ECONNRESET), _, _) ->
       flow.state <- half_close flow.state `write;
       raise Closed_by_peer
@@ -81,7 +86,7 @@ let handle flow tls str =
       (* NOTE(dinosaure): [write flow] can set [flow.state]. So we must
          check if the actual [flow.state] or the [flow.state] after [write flow]
          want to close the underlying file-descriptor. *)
-      if to_close || flow.state = `Closed then Miou_unix.close flow.fd;
+      if to_close || flow.state = `Closed then Unix.close flow.fd;
       data
   | Error (fail, `Response resp) ->
       let exn = match fail with
@@ -91,7 +96,7 @@ let handle flow tls str =
       raise exn
 
 let read flow =
-  match Miou_unix.read flow.fd flow.buf ~off:0 ~len:(Bytes.length flow.buf) with
+  match Unix.read flow.fd flow.buf 0 (Bytes.length flow.buf) with
   | 0 -> Ok String.empty
   | len -> Ok (Bytes.sub_string flow.buf 0 len)
   | exception Unix.Unix_error (Unix.ECONNRESET, _, _) -> Ok String.empty
@@ -139,7 +144,7 @@ let read_react flow =
       raise exn
     | Ok "" ->
       (* XXX(dinosaure): see [`Read_closed _ | `Closed] case. *)
-      raise End_of_file 
+      raise End_of_file
     | Ok str ->
       Log.debug (fun m -> m "got %d byte(s)" (String.length str));
       match flow.state with
@@ -201,15 +206,15 @@ let close flow =
       flow.state <- inject_state tls flow.state;
       flow.state <- `Closed;
       inhibit (write flow) str;
-      Miou_unix.close flow.fd
+      Unix.close flow.fd
   | `Write_closed _ ->
       flow.rd_closed <- true;
       flow.state <- `Closed;
-      Miou_unix.close flow.fd
+      Unix.close flow.fd
   | `Closed -> flow.rd_closed <- true
   | `Error _ ->
       flow.rd_closed <- true;
-      Miou_unix.close flow.fd
+      Unix.close flow.fd
 
 let closed_by_user flow = function
   | `read | `read_write -> flow.rd_closed <- true
@@ -229,11 +234,11 @@ let shutdown flow mode =
          want to close the underlying file-descriptor. *)
       let to_close = flow.state = `Closed in
       inhibit (write flow) str;
-      if to_close || flow.state = `Closed then Miou_unix.close flow.fd
+      if to_close || flow.state = `Closed then Unix.close flow.fd
   | `Write_closed tls, (`read | `read_write) ->
       flow.state <- inject_state tls (half_close flow.state mode);
-      if flow.state = `Closed then Miou_unix.close flow.fd
-  | `Error _, _ -> Miou_unix.close flow.fd
+      if flow.state = `Closed then Unix.close flow.fd
+  | `Error _, _ -> Unix.close flow.fd
   | `Read_closed _, `read -> ()
   | `Write_closed _, `write -> ()
   | `Closed, _ -> ()
@@ -275,13 +280,13 @@ let server_of_fd conf ?(read_buffer_size = 0x1000) fd =
 let write flow ?(off = 0) ?len str =
   let len = Option.value ~default:(String.length str - off) len in
   if off < 0 || len < 0 || off > String.length str - len
-  then invalid_arg "Tls_miou.write";
+  then invalid_arg "Tls_unix.write";
   if len > 0 then writev flow [ String.sub str off len ]
 
 let read t ?(off= 0) ?len buf =
   let len = Option.value ~default:(Bytes.length buf - off) len in
   if off < 0 || len < 0 || off > Bytes.length buf - len
-  then invalid_arg "Tls_miou.read";
+  then invalid_arg "Tls_unix.read";
   if t.rd_closed then 0
   else try read_in t ~off ~len buf with End_of_file -> 0
 
@@ -294,7 +299,7 @@ let rec really_read_go t off len buf =
 let really_read t ?(off= 0) ?len buf =
   let len = Option.value ~default:(Bytes.length buf - off) len in
   if off < 0 || len < 0 || off > Bytes.length buf - len
-  then invalid_arg "Tls_miou.really_read";
+  then invalid_arg "Tls_unix.really_read";
   if len > 0 then really_read_go t off len buf
 
 let resolve host service =
@@ -312,16 +317,18 @@ let connect authenticator (v, port) =
   let addr = resolve v (string_of_int port) in
   let fd =
     match addr with
-    | Unix.ADDR_UNIX _ -> invalid_arg "Tls_miou.connect: Invalid UNIX socket"
+    | Unix.ADDR_UNIX _ -> invalid_arg "Tls_unix.connect: Invalid UNIX socket"
     | Unix.ADDR_INET (inet_addr, _) ->
-        if Unix.is_inet6_addr inet_addr then Miou_unix.tcpv6 ()
-        else Miou_unix.tcpv4 ()
+        if Unix.is_inet6_addr inet_addr then
+          Unix.socket Unix.PF_INET6 Unix.SOCK_STREAM 0
+        else
+          Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0
   in
   let host = Result.to_option Domain_name.(Result.bind (of_string v) host) in
-  match Miou_unix.connect fd addr with
+  match Unix.connect fd addr with
   | () -> client_of_fd conf ?host fd
   | exception exn ->
-      Miou_unix.close fd;
+      Unix.close fd;
       raise exn
 
 let epoch flow = match flow.state with

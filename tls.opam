@@ -29,6 +29,7 @@ depends: [
   "ipaddr"
   "ohex" {>= "0.2.0"}
   "digestif" {>= "1.2.0"}
+  "ptime" {>= "1.2.0"}
   "alcotest" {with-test}
   "cmdliner" {with-test & >= "1.3.0"}
 ]
