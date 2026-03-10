@@ -1,3 +1,8 @@
+## v2.0.4 (2026-03-10)
+
+* Fix exception in parse_change_cipher_spec on empty input (#519 @samoht)
+  This has been present since the initial release 0.1.0.
+
 ## v2.0.3 (2025-09-26)
 
 * Provide an implementation which uses the Unix module (distributed with OCaml),
