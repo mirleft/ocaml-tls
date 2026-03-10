@@ -99,9 +99,8 @@ let parse_alert = catch @@ fun buf ->
       | _ -> raise_unknown @@ "alert level " ^ string_of_int level
 
 let parse_change_cipher_spec buf =
-  match String.length buf, String.get_uint8 buf 0 with
-  | 1, 1 -> Ok ()
-  | _    -> Error (`Decode "bad change cipher spec message")
+  if String.length buf = 1 && String.get_uint8 buf 0 = 1 then Ok ()
+  else Error (`Decode "bad change cipher spec message")
 
 let rec parse_count_list parsef buf acc = function
   | 0 -> (List.rev acc, buf)
