@@ -117,7 +117,7 @@ module Make (F : Mirage_flow.S) = struct
         let bufs = List.map Cstruct.to_string bufs in
         match Tls.Engine.send_application_data tls bufs with
         | Some (tls, answer) ->
-            flow.state <- `Active tls ;
+            flow.state <- inject_state tls flow.state ;
             write_flow flow answer
         | None ->
             (* "Impossible" due to handshake draining. *)
