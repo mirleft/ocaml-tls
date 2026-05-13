@@ -77,14 +77,18 @@ val client_of_fd :
 (** [client_of_flow client ~host fd] is [t], after client-side TLS handshake of
     [fd] using [client] configuration and [host].
 
-    @raise End_of_file if we are not able to complete the handshake. *)
+    Succeeds even if the peer has already closed one half of the connection.
+
+    @raise End_of_file if the peer closes before the handshake completes. *)
 
 val server_of_fd :
   Tls.Config.server -> ?read_buffer_size:int -> Miou_unix.file_descr -> t
 (** [server_of_fd server fd] is [t], after server-side TLS handshake of [fd]
     using [server] configuration.
 
-    @raise End_of_file if we are not able to complete the handshake. *)
+    Succeeds even if the peer has already closed one half of the connection.
+
+    @raise End_of_file if the peer closes before the handshake completes. *)
 
 val connect : X509.Authenticator.t -> string * int -> t
 (** [connect authenticator (host, port)] is [t], a connected TLS connection
