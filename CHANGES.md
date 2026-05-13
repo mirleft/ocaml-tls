@@ -1,3 +1,10 @@
+## Unreleased
+
+* tls-eio, tls-lwt, tls-mirage, tls-miou-unix, tls-unix: `drain_handshake`
+  now returns once the handshake completes, even if the peer has already
+  closed one half of the connection. It still raises `End_of_file` if the
+  peer closes before the handshake finishes (#520 @samoht)
+
 ## v2.0.4 (2026-03-10)
 
 * Fix exception in parse_change_cipher_spec on empty input (#519 @samoht)
