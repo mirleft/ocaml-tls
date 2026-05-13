@@ -134,7 +134,8 @@ module Make (F : Mirage_flow.S) = struct
    * *)
   let rec drain_handshake flow =
     match flow.state with
-    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
+    | `Active tls | `Read_closed tls | `Write_closed tls
+      when not (Tls.Engine.handshake_in_progress tls) ->
         Lwt.return @@ Ok flow
     | _ ->
       (* read_react re-throws *)

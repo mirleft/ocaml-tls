@@ -185,7 +185,8 @@ let rec drain_handshake flow =
     | Some cs, Some l -> flow.linger <- Some (l ^ cs)
   in
   match flow.state with
-  | `Active tls when not (Tls.Engine.handshake_in_progress tls) -> flow
+  | `Active tls | `Read_closed tls | `Write_closed tls
+    when not (Tls.Engine.handshake_in_progress tls) -> flow
   | (`Read_closed _ | `Closed) when garbage flow -> flow
   | _ ->
       Log.debug (fun m -> m "start to read something from the TLS session");
