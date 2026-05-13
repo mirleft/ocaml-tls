@@ -200,7 +200,8 @@ module Unix = struct
       | (Some cs, Some l) -> t.linger <- Some (l ^ cs)
     in
     match t.state with
-    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
+    | `Active tls | `Read_closed tls | `Write_closed tls
+      when not (Tls.Engine.handshake_in_progress tls) ->
         Lwt.return t
     | _ ->
         read_react t >>= function

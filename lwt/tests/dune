@@ -1,0 +1,8 @@
+(copy_files ../../certificates/server.key)
+(copy_files ../../certificates/server.pem)
+
+(test
+ (name drain_handshake)
+ (package tls-lwt)
+ (deps server.key server.pem)
+ (libraries tls tls-lwt lwt lwt.unix x509 mirage-crypto-rng.unix))

@@ -143,7 +143,8 @@ module Raw = struct
       | (Some cs, Some l) -> t.linger <- Some (Cstruct.append l cs)
     in
     match t.state with
-    | `Active tls when not (Tls.Engine.handshake_in_progress tls) ->
+    | `Active tls | `Read_closed tls | `Write_closed tls
+      when not (Tls.Engine.handshake_in_progress tls) ->
         t
     | _ ->
         let cs = read_react t in
