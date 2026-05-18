@@ -1,6 +1,10 @@
+
 * tls-eio, tls-lwt, tls-mirage, tls-miou-unix, tls-unix: `drain_handshake`
   returns once the handshake completes, even if the peer has already
   closed one half of the connection (#520 @samoht)
+* tls-mirage: use inject_state in `writev` and `key_update` - previously
+  `` `Active `` was used, which is incorrect especially for half-closed flows
+  (#521 #522 @samoht)
 
 ## v2.0.4 (2026-03-10)
 
