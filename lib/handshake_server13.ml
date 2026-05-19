@@ -400,6 +400,7 @@ let answer_client_certificate state cert (sd : session_data13) client_fini dec_c
     let* peer_certificate, received_certificates, peer_certificate_chain, trust_anchor =
       validate_chain auth certs state.config.Config.ip None
     in
+    let* () = validate_client_keyusage peer_certificate in
     let sd' = let common_session_data13 = {
         sd.common_session_data13 with
         received_certificates ;

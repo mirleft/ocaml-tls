@@ -90,6 +90,7 @@ let validate_certs certs authenticator ip (session : session_data) =
   let* peer_certificate, received_certificates, peer_certificate_chain, trust_anchor =
     validate_chain authenticator certs ip None
   in
+  let* () = validate_client_keyusage peer_certificate in
   let common_session_data = {
     session.common_session_data with
     received_certificates ;
