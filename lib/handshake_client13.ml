@@ -123,6 +123,7 @@ let answer_certificate state (session : session_data13) server_hs_secret client_
   let* peer_certificate, received_certificates, peer_certificate_chain, trust_anchor =
     validate_chain state.config.authenticator certs state.config.ip state.config.peer_name
   in
+  let* () = validate_keyusage peer_certificate `FFDHE in
   let session =
     let common_session_data13 = {
       session.common_session_data13 with
