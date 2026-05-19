@@ -1,4 +1,11 @@
+## v2.1.0 (2026-05-20)
 
+* tls: server add keyUsage and extendedKeyUsage validation
+  reported by Ben Smyth CVE-2026-45389 OSEC-2026-07
+  (b1a598ef9be83a4f8b0f73a4e2d9730d50906049 @hannesm)
+* tls: client TLS version 1.3 add keyUsage and extendedKeyUsage validation
+  reported by Ben Smyth CVE-2026-45388 OSEC-2026-06
+  (6a12247b3fbd747972ad2d35b74d9a89f6404952 @hannesm)
 * tls-eio, tls-lwt, tls-mirage, tls-miou-unix, tls-unix: `drain_handshake`
   returns once the handshake completes, even if the peer has already
   closed one half of the connection (#520 @samoht)
