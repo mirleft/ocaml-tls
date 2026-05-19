@@ -203,7 +203,7 @@ let answer_certificate_RSA state (session : session_data) cs raw log =
   let* peer_certificate, received_certificates, peer_certificate_chain, trust_anchor =
     validate_chain cfg.authenticator cs cfg.ip cfg.peer_name
   in
-  let* () = validate_keyusage peer_certificate `RSA in
+  let* () = validate_server_keyusage peer_certificate `RSA in
   let session =
     let common_session_data = { session.common_session_data with received_certificates ; peer_certificate ; peer_certificate_chain ; trust_anchor } in
     { session with common_session_data }
@@ -235,7 +235,7 @@ let answer_certificate_DHE state (session : session_data) cs raw log =
   let* peer_certificate, received_certificates, peer_certificate_chain, trust_anchor =
     validate_chain cfg.authenticator cs cfg.ip cfg.peer_name
   in
-  let* () = validate_keyusage peer_certificate `FFDHE in
+  let* () = validate_server_keyusage peer_certificate `FFDHE in
   let session =
     let common_session_data = { session.common_session_data with received_certificates ; peer_certificate ; peer_certificate_chain ; trust_anchor } in
     { session with common_session_data }

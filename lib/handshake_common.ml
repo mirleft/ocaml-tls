@@ -517,7 +517,7 @@ let validate_chain authenticator certificates ip hostname =
           ~some:(fun (chain, anchor) -> (server, certs, chain, Some anchor))
           anchor)
 
-let validate_keyusage certificate kex =
+let validate_server_keyusage certificate kex =
   let usage = Ciphersuite.required_usage kex in
   let* cert =
     Option.to_result ~none:(`Fatal (`Bad_certificate "none received")) certificate
