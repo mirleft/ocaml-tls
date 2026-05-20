@@ -246,7 +246,12 @@
   <span><span>(<span><span class="xref-unresolved">X509</span>.Certificate.t option</span> * <span><span class="xref-unresolved">X509</span>.Certificate.t list</span> * <span><span class="type-var">'c</span> list</span> * <span><span class="type-var">'d</span> option</span>,
     <span>[&gt; <span>`Error of <span>[&gt; <span>`AuthenticationFailure of <span class="type-var">'e</span></span> ]</span></span>
     <span><span>| `Fatal</span> of <span>[&gt; <span>`Bad_certificate of string</span> ]</span></span> ]</span>)</span>
-    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-output_key_update"><a href="#val-output_key_update" class="anchor"></a><code><span><span class="keyword">val</span> output_key_update : 
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-validate_server_keyusage"><a href="#val-validate_server_keyusage" class="anchor"></a><code><span><span class="keyword">val</span> validate_server_keyusage : 
+  <span><span><span class="xref-unresolved">X509</span>.Certificate.t option</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span>[&lt; `ECDHE <span>| `FFDHE</span> <span>| `RSA</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span>(unit, <span>[&gt; <span>`Fatal of <span>[&gt; <span>`Bad_certificate of string</span> ]</span></span> ]</span>)</span> <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-validate_client_keyusage"><a href="#val-validate_client_keyusage" class="anchor"></a><code><span><span class="keyword">val</span> validate_client_keyusage : 
+  <span><span><span class="xref-unresolved">X509</span>.Certificate.t option</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span>(unit, <span>[&gt; <span>`Fatal of <span>[&gt; <span>`Bad_certificate of string</span> ]</span></span> ]</span>)</span> <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-output_key_update"><a href="#val-output_key_update" class="anchor"></a><code><span><span class="keyword">val</span> output_key_update : 
   <span><span class="label">request</span>:bool <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../State/index.html#type-state">State.state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span>(<a href="../State/index.html#type-state">State.state</a> * <span>(<a href="../Packet/index.html#type-content_type">Packet.content_type</a> * string)</span>,
