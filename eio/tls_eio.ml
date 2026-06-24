@@ -192,10 +192,12 @@ module Raw = struct
       recv_buf = Cstruct.create 4096
     }
 
-  let client_of_flow config ?host flow =
-    let config' = match host with
-      | None -> config
-      | Some host -> Tls.Config.peer config host
+  let client_of_flow config ?host ?ip flow =
+    let config =
+      Option.value ~default:config (Option.map (Tls.Config.peer config) host)
+    in
+    let config' =
+      Option.value ~default:config (Option.map (Tls.Config.ip config) ip)
     in
     let (tls, init) = Tls.Engine.client config' in
     let t = {
@@ -235,8 +237,11 @@ let handler =
 
 let of_t t = Eio.Resource.T (t, handler)
 
-let server_of_flow config       flow = Raw.server_of_flow config       flow |> of_t
-let client_of_flow config ?host flow = Raw.client_of_flow config ?host flow |> of_t
+let server_of_flow config flow =
+  Raw.server_of_flow config flow |> of_t
+
+let client_of_flow config ?host ?ip flow =
+  Raw.client_of_flow config ?host ?ip flow |> of_t
 
 let reneg ?authenticator ?acceptable_cas ?cert ?drop (t:t) = Raw.reneg ?authenticator ?acceptable_cas ?cert ?drop (raw t)
 let key_update ?request (t:t) = Raw.key_update ?request (raw t)

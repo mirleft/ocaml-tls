@@ -29,8 +29,8 @@ val server_of_flow :
   Tls.Config.server ->
   [> Eio.Flow.two_way_ty | Eio.Resource.close_ty] r -> t
 
-(** [client_of_flow client ~host fd] is [t], after client-side
-    TLS handshake of [flow] using [client] configuration and [host].
+(** [client_of_flow client ~host ~ip fd] is [t], after client-side
+    TLS handshake of [flow] using [client] configuration and [host] or [ip].
 
     You must ensure a RNG is installed while using TLS, e.g. using [Mirage_crypto_rng_unix.use_default ()].
     Ideally, this would be part of the [client] config so you couldn't forget it,
@@ -40,7 +40,7 @@ val server_of_flow :
 
     @raise End_of_file if the peer closes before the handshake completes. *)
 val client_of_flow :
-  Tls.Config.client -> ?host:[ `host ] Domain_name.t ->
+  Tls.Config.client -> ?host:[ `host ] Domain_name.t -> ?ip:Ipaddr.t ->
   [> Eio.Flow.two_way_ty | Eio.Resource.close_ty] r -> t
 
 (** {2 Control of TLS features} *)

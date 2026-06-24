@@ -94,6 +94,9 @@ val server :
 (** [peer client name] is [client] with [name] as [peer_name] *)
 val peer : client -> [ `host ] Domain_name.t -> client
 
+(** [ip client ip] is [client] with [ip] as [ip] *)
+val ip : client -> Ipaddr.t -> client
+
 (** {1 Note on ALPN protocol selection}
 
     Both {!val:client} and {!val:server} constructors accept an [alpn_protocols] list. The list for server

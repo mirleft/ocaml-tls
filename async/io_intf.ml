@@ -25,6 +25,7 @@ module type S = sig
   val client_of_fd
     :  Tls.Config.client
     -> ?host:[ `host ] Domain_name.t
+    -> ?ip:Ipaddr.t
     -> Fd.t
     -> t Deferred.Or_error.t
 
