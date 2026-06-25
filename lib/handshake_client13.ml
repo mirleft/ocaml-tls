@@ -260,7 +260,7 @@ let handle_key_update state req =
         [ `Record (Packet.HANDSHAKE, ku_raw); `Change_enc client_ctx ]
     in
     let session = `TLS13 session' :: state.session in
-    let state' = { state with machina = Server13 Established13 ; session } in
+    let state' = { state with machina = Client13 Established13 ; session } in
     Ok (state', `Change_dec server_ctx :: out)
   | _ -> Error (`Fatal (`Handshake (`Message "couldn't find an earlier session")))
 
