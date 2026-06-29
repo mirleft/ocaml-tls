@@ -22,6 +22,7 @@ depends: [
   "cmdliner" {>= "1.1.0"}
   "ptime" {>= "0.8.1"}
   "randomconv" {with-test & >= "0.2.0"}
+  "x509" {with-test & >= "1.1.0"}
 ]
 conflicts: [ "result" {< "1.5"} ]
 tags: [ "org:mirage"]
