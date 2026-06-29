@@ -59,9 +59,9 @@ let upgrade_server_reader_writer_to_tls config rw =
   upgrade_connection tls_session rw |> Deferred.ok
 ;;
 
-let upgrade_client_reader_writer_to_tls ?host config rw =
+let upgrade_client_reader_writer_to_tls ?host ?ip config rw =
   let open Deferred.Or_error.Let_syntax in
-  let%bind tls_session = Session.client_of_fd ?host config rw in
+  let%bind tls_session = Session.client_of_fd ?host ?ip config rw in
   upgrade_connection tls_session rw |> Deferred.ok
 ;;
 
@@ -107,14 +107,14 @@ let listen
       upgrade_server_handler ~config (handle_client sock))
 ;;
 
-let upgrade_client_to_tls config ~host outer_reader outer_writer =
+let upgrade_client_to_tls config ~host ?ip outer_reader outer_writer =
   let open Deferred.Or_error.Let_syntax in
   let%bind ( tls_session
            , inner_reader
            , inner_writer
            , `Tls_closed_and_flushed_downstream inner_cafd )
     =
-    upgrade_client_reader_writer_to_tls ?host config (outer_reader, outer_writer)
+    upgrade_client_reader_writer_to_tls ?host ?ip config (outer_reader, outer_writer)
   in
   don't_wait_for
     (let%bind.Deferred () = inner_cafd in
@@ -131,8 +131,9 @@ let connect
       ?timeout
       ?time_source
       config
-      where_to_connect
+      ?ip
       ~host
+      where_to_connect
   =
   let open Deferred.Or_error.Let_syntax in
   let%bind (_ : ([ `Active ], 'a) Socket.t), outer_reader, outer_writer =
@@ -147,7 +148,7 @@ let connect
       where_to_connect
     |> Deferred.ok
   in
-  upgrade_client_to_tls ~host config outer_reader outer_writer
+  upgrade_client_to_tls ~host ?ip config outer_reader outer_writer
 ;;
 
 (* initialized RNG early to maximise available entropy. *)

@@ -214,10 +214,12 @@ module Make (F : Mirage_flow.S) = struct
     | `Error _ | `Closed ->
       F.close flow.flow
 
-  let client_of_flow conf ?host flow =
-    let conf' = match host with
-      | None      -> conf
-      | Some host -> Tls.Config.peer conf host
+  let client_of_flow conf ?host ?ip flow =
+    let conf =
+      Option.value ~default:conf (Option.map (Tls.Config.peer conf) host)
+    in
+    let conf' =
+      Option.value ~default:conf (Option.map (Tls.Config.ip conf) ip)
     in
     let (tls, init) = Tls.Engine.client conf' in
     let tls_flow = {

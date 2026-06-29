@@ -52,8 +52,9 @@ val upgrade_server_handler
 val connect
   :  ?socket:([ `Unconnected ], 'addr) Socket.t
   -> (Tls.Config.client
-      -> 'addr Tcp.Where_to_connect.t
+      -> ?ip:Ipaddr.t
       -> host:[ `host ] Domain_name.t option
+      -> 'addr Tcp.Where_to_connect.t
       -> (Session.t * Reader.t * Writer.t) Deferred.Or_error.t)
        Tcp.Aliases.with_connect_options
 
@@ -69,6 +70,7 @@ val connect
 val upgrade_client_to_tls
   :  Tls.Config.client
   -> host:[ `host ] Domain_name.t option
+  -> ?ip:Ipaddr.t
   -> Reader.t
   -> Writer.t
   -> (Session.t * Reader.t * Writer.t) Deferred.Or_error.t

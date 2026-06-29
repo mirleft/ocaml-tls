@@ -581,6 +581,8 @@ and of_client conf = conf
 
 let peer conf name = { conf with peer_name = Some name }
 
+let ip conf ip = { conf with ip = Some ip }
+
 let with_authenticator conf auth = { conf with authenticator = Some auth }
 
 let with_own_certificates conf own_certificates = { conf with own_certificates }

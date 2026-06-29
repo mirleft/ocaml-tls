@@ -36,14 +36,15 @@ module Make (F : Mirage_flow.S) : sig
       This is only supported in TLS 1.3. *)
   val key_update : ?request:bool -> flow -> (unit, [ write_error | `Msg of string ]) result Lwt.t
 
-  (** [client_of_flow client ~host flow] upgrades the existing connection
-      to TLS using the [client] configuration, using [host] as peer name.
+  (** [client_of_flow client ~host ~ip flow] upgrades the existing connection
+      to TLS using the [client] configuration, using [host] as peer name or [ip]
+      as IP address for validation.
 
       Returns a TLS flow which may be fully active or half-closed.
       Returns [Error `Closed] if the peer closes before the handshake
       completes. *)
   val client_of_flow : Tls.Config.client -> ?host:[ `host ] Domain_name.t ->
-     F.flow -> (flow, write_error) result Lwt.t
+    ?ip:Ipaddr.t -> F.flow -> (flow, write_error) result Lwt.t
 
   (** [server_of_flow server flow] upgrades the flow to a TLS
       connection using the [server] configuration.

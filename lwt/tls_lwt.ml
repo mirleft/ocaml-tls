@@ -265,10 +265,12 @@ module Unix = struct
   let server_of_fd config fd =
     server_of_fd config (Lwt_fd.of_fd fd)
 
-  let client_of_fd config ?host fd =
-    let config' = match host with
-      | None -> config
-      | Some host -> Tls.Config.peer config host
+  let client_of_fd config ?host ?ip fd =
+    let config =
+      Option.value ~default:config (Option.map (Tls.Config.peer config) host)
+    in
+    let config' =
+      Option.value ~default:config (Option.map (Tls.Config.ip config) ip)
     in
     let (tls, init) = Tls.Engine.client config' in
     let t = {
@@ -281,11 +283,11 @@ module Unix = struct
     write_t t init >>= fun () ->
     drain_handshake t
 
-  let client_of_channels config ?host (ic, oc) =
-    client_of_fd config ?host (Lwt_fd.of_channels ic oc)
+  let client_of_channels config ?host ?ip (ic, oc) =
+    client_of_fd config ?host ?ip (Lwt_fd.of_channels ic oc)
 
-  let client_of_fd config ?host fd =
-    client_of_fd config ?host (Lwt_fd.of_fd fd)
+  let client_of_fd config ?host ?ip fd =
+    client_of_fd config ?host ?ip (Lwt_fd.of_fd fd)
 
   let accept conf fd =
     Lwt_unix.accept fd >>= fun (fd', addr) ->
@@ -298,11 +300,16 @@ module Unix = struct
     resolve host (string_of_int port) >>= fun addr ->
     let fd = Lwt_unix.(socket (Unix.domain_of_sockaddr addr) SOCK_STREAM 0) in
     Lwt.catch (fun () ->
-      let host =
-        Result.to_option
-          (Result.bind (Domain_name.of_string host) Domain_name.host)
-      in
-      Lwt_unix.connect fd addr >>= fun () -> client_of_fd conf ?host fd)
+        let host, ip =
+          match Ipaddr.of_string host with
+          | Error _ ->
+            Result.to_option
+              (Result.bind (Domain_name.of_string host) Domain_name.host),
+            None
+          | Ok ip -> None, Some ip
+        in
+        Lwt_unix.connect fd addr >>= fun () ->
+        client_of_fd conf ?host ?ip fd)
       (function
         | Out_of_memory -> raise Out_of_memory
         | exn -> safely (Lwt_unix.close fd) >>= fun () -> Lwt.reraise exn)

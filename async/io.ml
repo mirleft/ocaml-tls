@@ -176,11 +176,16 @@ module Make (Fd : Fd) : S with module Fd := Fd = struct
       }
   ;;
 
-  let client_of_fd config ?host fd =
-    let config' =
+  let client_of_fd config ?host ?ip fd =
+    let config =
       match host with
       | None -> config
       | Some host -> Tls.Config.peer config host
+    in
+    let config' =
+      match ip with
+      | None -> config
+      | Some ip -> Tls.Config.ip config ip
     in
     let t = { state = Eof; fd; linger = None; recv_buf = Bytes.create 4096 } in
     let tls, init = Tls.Engine.client config' in
