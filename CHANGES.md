@@ -1,3 +1,12 @@
+## v2.1.1 (2026-06-29)
+
+* tls-async, tls-lwt, tls-mirage, tls-miou-unix, tls-eio, tls.unix: add ?ip in
+  client_of_fd (and similar functions) to check the IP address in the
+  server certificate. Also adds 'Config.ip : config -> Ipaddr.t -> config'
+  The motivation was testing with bettertls (#523 @hannesm)
+* tls, client 1.3: fix KeyUpdate (the out state is now Client13 Established, it
+  used to be Server13 Established - which was a typo) (#524 @samoht)
+
 ## v2.1.0 (2026-05-20)
 
 * tls: server add keyUsage and extendedKeyUsage validation
