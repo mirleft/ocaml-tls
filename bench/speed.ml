@@ -84,11 +84,11 @@ let make ?groups ~cipher ~digest ~key version direction =
 let actually_send_application_data client_state server_state direction buf =
   match direction with
   | `To_server ->
-      let[@warning "-8"] Some (client_state, to_server) =
+      let[@warning "-partial-match"] Some (client_state, to_server) =
         Tls.Engine.send_application_data client_state [ buf ] in
       To_server (client_state, server_state, Some to_server)
   | `To_client ->
-      let[@warning "-8"] Some (server_state, to_client) =
+      let[@warning "-partial-match"] Some (server_state, to_client) =
         Tls.Engine.send_application_data server_state [ buf ] in
       To_client (client_state, server_state, Some to_client)
 
