@@ -254,7 +254,7 @@ let pp_str ppf str = Hxd_string.pp Hxd.default ppf str
 
 let run seed operations =
   Miou_unix.run ~domains:1 @@ fun () ->
-  let rng = Mirage_crypto_rng_miou_unix.(initialize (module Pfortuna)) in
+  Mirage_crypto_rng_unix.use_default ();
   let fd, addr, path = bind_and_listen () in
   let finally () = Unix.unlink path in
   Fun.protect ~finally @@ fun () ->
@@ -280,10 +280,8 @@ let run seed operations =
       Crowbar.check (String.equal send_to_server send_to_server');
       let n = String.length send_to_client in
       let m = String.length send_to_server in
-      Mirage_crypto_rng_miou_unix.kill rng;
       epr "[%a] %db %db transmitted\n%!" Fmt.(styled `Green string) "OK" n m
   | a, b ->
-      Mirage_crypto_rng_miou_unix.kill rng;
       Crowbar.failf "[%a] Unexpected result: %a & %a\n%!"
         Fmt.(styled `Red string) "ERROR"
         Fmt.(Dump.result ~error:pp_exn ~ok:Fmt.(Dump.list (Dump.result ~error:pp_exn ~ok:pp_str))) a
