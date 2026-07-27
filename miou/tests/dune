@@ -2,7 +2,7 @@
  (name fuzz)
  (package tls-miou-unix)
  (libraries
-   mirage-crypto-rng-miou-unix
+   mirage-crypto-rng.unix
    ohex
    rresult
    ptime
