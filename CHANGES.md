@@ -1,3 +1,10 @@
+## v2.1.2 (2026-07-30)
+
+* expose Config.src : Logs.src, requested by @mneumann in #526
+* internal: use warning name instead of number (#527 @hannesm)
+* miou-unix: use mirage-crypto-rng instead of deprecated
+  mirage-crypto-rng-miou-unix (#528 @hannesm)
+
 ## v2.1.1 (2026-06-29)
 
 * tls-async, tls-lwt, tls-mirage, tls-miou-unix, tls-eio, tls.unix: add ?ip in

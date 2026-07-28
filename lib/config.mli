@@ -1,5 +1,8 @@
 open Core
 
+(** The log source being used *)
+val src : Logs.src
+
 (** Configuration of the TLS stack *)
 
 (** {1 Config type} *)
