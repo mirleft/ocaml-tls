@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Handshake_common (tls.Tls.Handshake_common)</title><meta charset="utf-8"/><link rel="stylesheet" href="../../../odoc.support/odoc.css"/><meta name="generator" content="odoc 3.1.0"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../../../index.html">Index</a> &#x00BB; <a href="../../index.html">tls</a> &#x00BB; <a href="../index.html">Tls</a> &#x00BB; Handshake_common</nav><header class="odoc-preamble"><h1>Module <code><span>Tls.Handshake_common</span></code></h1></header><div class="odoc-content"><div class="odoc-spec"><div class="spec value anchored" id="val-src"><a href="#val-src" class="anchor"></a><code><span><span class="keyword">val</span> src : <span class="xref-unresolved">Logs</span>.src</span></code></div></div><div class="odoc-spec"><div class="spec module anchored" id="module-Log"><a href="#module-Log" class="anchor"></a><code><span><span class="keyword">module</span> Log</span><span> : <span class="xref-unresolved">Logs</span>.LOG</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-trace_cipher"><a href="#val-trace_cipher" class="anchor"></a><code><span><span class="keyword">val</span> trace_cipher : 
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Handshake_common (tls.Tls.Handshake_common)</title><meta charset="utf-8"/><link rel="stylesheet" href="../../../odoc.support/odoc.css"/><meta name="generator" content="odoc 3.2.1"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../../../index.html">Index</a> &#x00BB; <a href="../../index.html">tls</a> &#x00BB; <a href="../index.html">Tls</a> &#x00BB; Handshake_common</nav><header class="odoc-preamble"><h1>Module <code><span>Tls.Handshake_common</span></code></h1></header><div class="odoc-content"><div class="odoc-spec"><div class="spec value anchored" id="val-src"><a href="#val-src" class="anchor"></a><code><span><span class="keyword">val</span> src : <span class="xref-unresolved">Logs</span>.src</span></code></div></div><div class="odoc-spec"><div class="spec module anchored" id="module-Log"><a href="#module-Log" class="anchor"></a><code><span><span class="keyword">module</span> Log</span><span> : <span class="xref-unresolved">Logs</span>.LOG</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-trace_cipher"><a href="#val-trace_cipher" class="anchor"></a><code><span><span class="keyword">val</span> trace_cipher : 
   <span><span>[&lt; `AES_128_CCM_SHA256
   <span>| `AES_128_GCM_SHA256</span>
   <span>| `AES_256_GCM_SHA384</span>
@@ -66,23 +66,8 @@
     <span>(<span><span class="xref-unresolved">X509</span>.Certificate.t list</span> * <span class="type-var">'g</span>)</span> * <span><span>(<span><span class="xref-unresolved">X509</span>.Certificate.t list</span> * <span class="type-var">'h</span>)</span> list</span></span>
   <span>| `None</span>
   <span><span>| `Single</span> of <span><span class="xref-unresolved">X509</span>.Certificate.t list</span> * <span class="type-var">'g</span></span> ]</span> <span class="arrow">&#45;&gt;</span></span>
-  <span><span class="optlabel">?f</span>:<span>(<span><span class="xref-unresolved">X509</span>.Certificate.t <span class="arrow">&#45;&gt;</span></span> bool)</span> <span class="arrow">&#45;&gt;</span></span>
-  <span><span class="optlabel">?signature_algorithms</span>:
-    <span><span>[&lt; `ECDSA_SECP256R1_SHA1
-    <span>| `ECDSA_SECP256R1_SHA256</span>
-    <span>| `ECDSA_SECP384R1_SHA384</span>
-    <span>| `ECDSA_SECP521R1_SHA512</span>
-    <span>| `ED25519</span>
-    <span>| `RSA_PKCS1_MD5</span>
-    <span>| `RSA_PKCS1_SHA1</span>
-    <span>| `RSA_PKCS1_SHA224</span>
-    <span>| `RSA_PKCS1_SHA256</span>
-    <span>| `RSA_PKCS1_SHA384</span>
-    <span>| `RSA_PKCS1_SHA512</span>
-    <span>| `RSA_PSS_RSAENC_SHA256</span>
-    <span>| `RSA_PSS_RSAENC_SHA384</span>
-    <span>| `RSA_PSS_RSAENC_SHA512</span> ECDSA_SECP256R1_SHA1 ECDSA_SECP256R1_SHA256 ECDSA_SECP384R1_SHA384 ECDSA_SECP521R1_SHA512 ED25519 ]</span>
-      list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="optlabel">?f</span>:<span class="error">???</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="optlabel">?signature_algorithms</span>:<span class="error">???</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span><span><span>[ `host ]</span> <span class="xref-unresolved">Domain_name</span>.t</span> option</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span>(<span><span class="xref-unresolved">X509</span>.Certificate.t list</span> * <span class="type-var">'g</span>,
     <span>[&gt; <span>`Error of
@@ -207,7 +192,7 @@
          <span><span>| `Missing_extension</span> of string</span> ]</span></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-server_hello_valid"><a href="#val-server_hello_valid" class="anchor"></a><code><span><span class="keyword">val</span> server_hello_valid : <span><a href="../Core/index.html#type-server_hello">Core.server_hello</a> <span class="arrow">&#45;&gt;</span></span> bool</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-to_sign_1_3"><a href="#val-to_sign_1_3" class="anchor"></a><code><span><span class="keyword">val</span> to_sign_1_3 : <span><span>string option</span> <span class="arrow">&#45;&gt;</span></span> string</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-signature"><a href="#val-signature" class="anchor"></a><code><span><span class="keyword">val</span> signature : 
   <span><span>[&lt; `TLS_1_0 <span>| `TLS_1_1</span> <span>| `TLS_1_2</span> <span>| `TLS_1_3</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
-  <span><span class="optlabel">?context_string</span>:string <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="optlabel">?context_string</span>:<span class="error">???</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Stdlib</span>.String.t <span class="arrow">&#45;&gt;</span></span>
   <span><span><span><a href="../Core/index.html#type-signature_algorithm">Core.signature_algorithm</a> list</span> option</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span><a href="../Core/index.html#type-signature_algorithm">Core.signature_algorithm</a> list</span> <span class="arrow">&#45;&gt;</span></span>
@@ -222,7 +207,7 @@
   <span><span>(<span class="xref-unresolved">X509</span>.Public_key.t, <span>[&gt; <span>`Fatal of <span>[&gt; <span>`Bad_certificate of string</span> ]</span></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-verify_digitally_signed"><a href="#val-verify_digitally_signed" class="anchor"></a><code><span><span class="keyword">val</span> verify_digitally_signed : 
   <span><span>[&lt; `TLS_1_0 <span>| `TLS_1_1</span> <span>| `TLS_1_2</span> <span>| `TLS_1_3</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
-  <span><span class="optlabel">?context_string</span>:string <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="optlabel">?context_string</span>:<span class="error">???</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span><a href="../Core/index.html#type-signature_algorithm">Core.signature_algorithm</a> list</span> <span class="arrow">&#45;&gt;</span></span>
   <span>string <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Stdlib</span>.String.t <span class="arrow">&#45;&gt;</span></span>
@@ -235,7 +220,7 @@
       <span><span>| `Decode</span> of string</span>
       <span><span>| `Handshake</span> of <span>[&gt; <span>`Message of string</span> ]</span></span> ]</span></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-validate_chain"><a href="#val-validate_chain" class="anchor"></a><code><span><span class="keyword">val</span> validate_chain : 
-  <span><span><span>(<span><span class="optlabel">?ip</span>:<span class="type-var">'a</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span><span>(<span><span class="optlabel">?ip</span>:<span class="error">???</span> <span class="arrow">&#45;&gt;</span></span>
     <span><span class="label">host</span>:<span class="type-var">'b</span> <span class="arrow">&#45;&gt;</span></span>
     <span><span><span class="xref-unresolved">X509</span>.Certificate.t list</span> <span class="arrow">&#45;&gt;</span></span>
     <span><span>(<span><span>(<span><span class="type-var">'c</span> list</span> * <span class="type-var">'d</span>)</span> option</span>, <span class="type-var">'e</span>)</span> <span class="xref-unresolved">Stdlib</span>.result</span>)</span>
