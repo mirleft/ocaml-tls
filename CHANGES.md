@@ -1,3 +1,7 @@
+## v2.1.3 (2026-09-13)
+
+* update to X509 1.2.0 (#530 @hannesm)
+
 ## v2.1.2 (2026-07-30)
 
 * expose Config.src : Logs.src, requested by @mneumann in #526
