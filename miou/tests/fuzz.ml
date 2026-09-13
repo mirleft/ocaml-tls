@@ -30,12 +30,12 @@ module Ca = struct
 
   let prefix =
     X509.Distinguished_name.
-      [ Relative_distinguished_name.singleton (CN "Fuzzer") ]
+      [ Relative_distinguished_name.singleton (CN (Common_name.v "Fuzzer")) ]
 
   let cacert_dn =
     X509.Distinguished_name.(
       prefix
-      @ [ Relative_distinguished_name.singleton (CN "Ephemeral CA for fuzzer") ])
+      @ [ Relative_distinguished_name.singleton (CN (Common_name.v "Ephemeral CA for fuzzer")) ])
 
   let cacert_lifetime = Ptime.Span.v (365, 0L)
   let _10s = Ptime.Span.of_int_s 10

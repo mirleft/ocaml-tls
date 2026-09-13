@@ -3,7 +3,7 @@ let now = Ptime_clock.now
 let cert ~digest ~key =
   let subject =
     let open X509.Distinguished_name in
-    [ Relative_distinguished_name.singleton (CN "ocaml-tls") ]
+    [ Relative_distinguished_name.singleton (CN (Common_name.v "ocaml-tls")) ]
   in
   let csr = X509.Signing_request.create ~digest subject key |> Result.get_ok in
   let pubkey = (X509.Signing_request.info csr).public_key in
