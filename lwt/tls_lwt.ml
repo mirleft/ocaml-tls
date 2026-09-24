@@ -302,11 +302,17 @@ module Unix = struct
     Lwt.catch (fun () ->
         let host, ip =
           match Ipaddr.of_string host with
-          | Error _ ->
-            Result.to_option
-              (Result.bind (Domain_name.of_string host) Domain_name.host),
-            None
           | Ok ip -> None, Some ip
+          | Error _ ->
+            (match
+               Result.bind (Domain_name.of_string host) Domain_name.host
+             with
+             | Ok host -> Some host, None
+             | Error (`Msg msg) ->
+               let msg =
+                 Printf.sprintf "not a valid hostname %s: %s" host msg
+               in
+               Lwt.reraise (Invalid_argument msg))
         in
         Lwt_unix.connect fd addr >>= fun () ->
         client_of_fd conf ?host ?ip fd)
