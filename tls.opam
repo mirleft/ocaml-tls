@@ -20,7 +20,7 @@ depends: [
   "mirage-crypto-ec" {>= "1.0.0"}
   "mirage-crypto-pk" {>= "1.0.0"}
   "mirage-crypto-rng" {>= "1.2.0"}
-  "x509" {>= "1.0.0"}
+  "x509" {>= "1.2.0"}
   "domain-name" {>= "0.3.0"}
   "fmt" {>= "0.8.7"}
   "ounit2" {with-test & >= "2.2.0"}
