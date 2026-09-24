@@ -314,17 +314,22 @@ let connect authenticator (v, port) =
     | Error `Msg msg -> Fmt.invalid_arg "Configuration failure: %s" msg
   in
   let addr = resolve v (string_of_int port) in
+  let host, ip =
+    match Ipaddr.of_string v with
+    | Ok ip -> None, Some ip
+    | Error _ ->
+      (match Domain_name.(Result.bind (of_string v) host) with
+       | Ok host -> Some host, None
+       | Error `Msg msg ->
+         Fmt.invalid_arg "Tls_miou.connect: not a valid hostname %s: %s" v
+           msg)
+  in
   let fd =
     match addr with
     | Unix.ADDR_UNIX _ -> invalid_arg "Tls_miou.connect: Invalid UNIX socket"
     | Unix.ADDR_INET (inet_addr, _) ->
         if Unix.is_inet6_addr inet_addr then Miou_unix.tcpv6 ()
         else Miou_unix.tcpv4 ()
-  in
-  let host, ip =
-    match Ipaddr.of_string v with
-    | Error _ -> Result.to_option Domain_name.(Result.bind (of_string v) host), None
-    | Ok ip -> None, Some ip
   in
   match Miou_unix.connect fd addr with
   | () -> client_of_fd conf ?host ?ip fd
