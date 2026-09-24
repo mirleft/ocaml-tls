@@ -460,11 +460,11 @@ let answer_client_hello_common state reneg ch raw =
 
 (* TODO could benefit from result monadd *)
 let agreed_version supported (client_hello : client_hello) =
-  let raw_client_versions =
+  let* raw_client_versions =
     match List.filter_map (function `SupportedVersions vs -> Some vs | _ -> None) client_hello.extensions with
-    | [] -> [client_hello.client_version]
-    | [vs] -> vs
-    | _ -> invalid_arg "bad supported version extension"
+    | [] -> Ok [client_hello.client_version]
+    | [vs] -> Ok vs
+    | _ -> Error (`Fatal (`Handshake (`Message "multiple supported version extensions")))
   in
   let supported_versions = List.fold_left (fun acc v ->
       match any_version_to_version v with

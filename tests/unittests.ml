@@ -5,4 +5,5 @@ let suite =
     "Reader" >::: Readertests.reader_tests ;
     "Writer" >::: Writertests.writer_tests ;
     "ReaderWriter" >::: Readerwritertests.readerwriter_tests ;
+    "Regression" >::: Regression.tests ;
   ]
