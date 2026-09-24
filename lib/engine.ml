@@ -417,7 +417,7 @@ let handle_packet hs buf = function
 
 let decrement_early_data hs ty buf =
   let bytes left cipher =
-    let count = String.length buf - fst (Ciphersuite.kn_13 (Ciphersuite.privprot13 cipher)) in
+    let count = String.length buf - (Ciphersuite.tag_length (Ciphersuite.privprot13 cipher) + 1 (* content type *)) in
     let left' = Int32.sub left (Int32.of_int count) in
     if left' < 0l then
       Error (`Fatal (`Unexpected (`Message "too many 0RTT bytes")))
