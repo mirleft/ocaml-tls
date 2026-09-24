@@ -71,6 +71,14 @@ let kn_13 = function
   | AES_256_CCM -> (32, 12)
   | CHACHA20_POLY1305 -> (32, 12)
 
+(* same as Crypto.tag_len *)
+let tag_length = function
+  | AES_128_GCM -> 16
+  | AES_256_GCM -> 16
+  | AES_128_CCM -> 16
+  | AES_256_CCM -> 16
+  | CHACHA20_POLY1305 -> 16
+
 (** [key_length iv payload_protection] is [(key size, IV size, mac size)] where key IV, and mac sizes are the required bytes for the given [payload_protection] *)
 (* NB only used for <= TLS 1.2, IV length for AEAD defined in RFC 5288 Section 3 (for GCM), salt[4] for CCM in RFC 6655 Section 3 *)
 let key_length iv pp =
