@@ -7,8 +7,9 @@
 (test
  (name unittestrunner)
  (package tls)
- (modules readertests readerwritertests writertests unittests unittestrunner)
- (libraries tls ounit2 testlib))
+ (modules readertests readerwritertests writertests unittests unittestrunner regression)
+ (libraries tls ounit2 testlib x509)
+ (deps server.key server.pem))
 
 (test
  (name key_derivation)
