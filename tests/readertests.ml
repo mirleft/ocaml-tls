@@ -605,24 +605,23 @@ let bad_digitally_signed_tests =
 
 let good_handshake_hdrs =
   let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
-  let empty = "" in
   [
-  ([0; 0; 0], (None, list_to_cstruct [0;0;0])) ;
-  ([0; 0; 0; 0], (Some (list_to_cstruct [0;0;0;0]), empty)) ;
-  ([0; 0; 0; 0xFF], (None, list_to_cstruct [0;0;0;255])) ;
-  ([0; 0; 1; 0], (None, list_to_cstruct [0;0;1;0])) ;
-  ([16; 0; 0; 12] @ data , (Some (list_to_cstruct ([16;0;0;12] @ data)), empty)) ;
-  ([16; 0; 0; 14] @ data , (None, list_to_cstruct ([16;0;0;14] @ data)))
+  ([0; 0; 0], (None, 0)) ;
+  ([0; 0; 0; 0], (Some (list_to_cstruct [0;0;0;0]), 4)) ;
+  ([0; 0; 0; 0xFF], (None, 0)) ;
+  ([0; 0; 1; 0], (None, 0)) ;
+  ([16; 0; 0; 12] @ data , (Some (list_to_cstruct ([16;0;0;12] @ data)), 16)) ;
+  ([16; 0; 0; 14] @ data , (None, 0))
   ]
 
 let good_handshake_hdr_parser (xs, (hs, rest)) _ =
   let buf = list_to_cstruct xs in
-  match Reader.parse_handshake_frame buf, hs with
+  match Reader.parse_handshake_frame buf 0, hs with
   | (Some x, rest'), Some y ->
     assert_cs_eq y x ;
-    assert_cs_eq rest rest' ;
+    assert_equal rest rest' ;
   | (None, rest'), None ->
-    assert_cs_eq rest rest' ;
+    assert_equal rest rest' ;
   | _ -> assert_failure "handshake_frame parser broken"
 
 let good_handshake_hdr_tests =

@@ -773,17 +773,17 @@ let parse_keyupdate buf =
     | Some y -> y
     | None -> raise_unknown "key update content"
 
-let parse_handshake_frame buf =
-  if String.length buf < 4 then
-    (None, buf)
+let parse_handshake_frame buf off =
+  if String.length buf - off < 4 then
+    (None, off)
   else
-    let l = get_uint24_len ~off:1 buf in
+    let l = get_uint24_len ~off:(off + 1) buf in
     let hslen = l + 4 in
-    if String.length buf >= hslen then
-      let hs, rest = split_str buf hslen in
-      (Some hs, rest)
+    if String.length buf - off >= hslen then
+      let hs = String.sub buf off hslen in
+      (Some hs, off + hslen)
     else
-      (None, buf)
+      (None, off)
 
 let parse_handshake = catch @@ fun buf ->
   let typ = String.get_uint8 buf 0 in

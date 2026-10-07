@@ -8,7 +8,7 @@ val parse_record      : string -> int ->
       | `Protocol_version of [> `Unknown_record of int * int ]
       | `Record_overflow of int ]) result
 
-val parse_handshake_frame : string -> (string option * string)
+val parse_handshake_frame : string -> int -> (string option * int)
 val parse_handshake : string -> (Core.tls_handshake, [> `Decode of string ]) result
 
 val parse_alert     : string -> (Core.tls_alert, [> `Decode of string ]) result

@@ -353,12 +353,19 @@ let early_data s =
   | Server13 (AwaitClientCertificate13 _) | Server13 (AwaitClientCertificateVerify13 _) -> true
   | _ -> false
 
-let rec separate_handshakes buf =
-  match Reader.parse_handshake_frame buf with
-  | None, rest -> [], rest
-  | Some hs, rest ->
-    let rt, frag = separate_handshakes rest in
-    hs :: rt, frag
+let separate_handshakes buf =
+  let rec go buf off =
+    match Reader.parse_handshake_frame buf off with
+    | None, rest_off ->
+      let rest =
+        if rest_off = 0 then buf else String.sub buf rest_off (String.length buf - rest_off)
+      in
+      [], rest
+    | Some hs, off ->
+      let rt, frag = go buf off in
+      hs :: rt, frag
+  in
+  go buf 0
 
 let handle_change_cipher_spec = function
   | Client cs -> Handshake_client.handle_change_cipher_spec cs
