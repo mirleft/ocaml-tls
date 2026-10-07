@@ -277,16 +277,19 @@ let decrypt ?(trial = false) (version : tls_version) (st : crypto_state) ty buf 
     Ok (Some ctx', msg, ty)
 
 (* party time *)
-let rec separate_records : string -> ((tls_hdr * string) list * string, failure) result
-= fun buf ->
-  match Reader.parse_record buf with
-  | Ok (`Fragment b) -> Ok ([], b)
-  | Ok (`Record (packet, fragment)) ->
-    let* tl, frag = separate_records fragment in
-    Ok (packet :: tl, frag)
-  | Error e ->
-    Tracing.cs ~tag:"buf-in" buf ;
-    Error (`Fatal e)
+let separate_records : string -> ((tls_hdr * string) list * string, failure) result
+  = fun buf ->
+    let rec go buf off =
+      match Reader.parse_record buf off with
+      | Ok (`Fragment b) -> Ok ([], b)
+      | Ok (`Record (packet, off)) ->
+        let* tl, frag = go buf off in
+        Ok (packet :: tl, frag)
+      | Error e ->
+        Tracing.cs ~tag:"buf-in" buf ;
+        Error (`Fatal e)
+    in
+    go buf 0
 
 let encrypt_records encryptor version records =
   let rec crypt st acc = function

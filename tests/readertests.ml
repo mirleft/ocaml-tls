@@ -82,11 +82,11 @@ let version_tests =
 let good_record_parser (bytes, result) _ =
   let buf = list_to_cstruct bytes in
   let open Reader in
-  match parse_record buf, result with
+  match parse_record buf 0, result with
   | Ok (`Record ((hdr, x), f)), `Record ((rhdr, y), g) ->
     assert_equal rhdr hdr ;
     assert_cs_eq y x ;
-    assert_cs_eq g f
+    assert_equal g f
   | Ok `Fragment x, `Fragment y -> assert_cs_eq y x
   | Error `Record_overflow x, `Overflow y -> assert_equal y x
   | Error `Protocol_version `Unknown_record x, `UnknownVersion y -> assert_equal y x
@@ -98,17 +98,17 @@ let good_records =
   let open Packet in
   let empty = "" in
   [
-    ([ 20 ; 3 ; 1 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = `TLS_1_0 }, empty), empty) ) ;
-    ([ 21 ; 3 ; 2 ; 0 ; 0 ], `Record (({ content_type = ALERT ; version = `TLS_1_1 }, empty), empty) ) ;
-    ([ 22 ; 3 ; 3 ; 0 ; 0 ], `Record (({ content_type = HANDSHAKE ; version = `TLS_1_2 }, empty), empty) ) ;
-    ([ 23 ; 3 ; 0 ; 0 ; 0 ], `Record (({ content_type = APPLICATION_DATA ; version = `SSL_3 }, empty), empty) ) ;
+    ([ 20 ; 3 ; 1 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = `TLS_1_0 }, empty), 5) ) ;
+    ([ 21 ; 3 ; 2 ; 0 ; 0 ], `Record (({ content_type = ALERT ; version = `TLS_1_1 }, empty), 5) ) ;
+    ([ 22 ; 3 ; 3 ; 0 ; 0 ], `Record (({ content_type = HANDSHAKE ; version = `TLS_1_2 }, empty), 5) ) ;
+    ([ 23 ; 3 ; 0 ; 0 ; 0 ], `Record (({ content_type = APPLICATION_DATA ; version = `SSL_3 }, empty), 5) ) ;
     ([ 16 ; 3 ; 1 ; 0 ; 0 ], `UnknownContent 16 ) ;
     ([ 19 ; 3 ; 1 ; 0 ; 0 ], `UnknownContent 19 ) ;
     ([ 20 ; 5 ; 1 ; 0 ; 0 ], `UnknownVersion (5, 1) ) ;
     ([ 20 ; 3 ; 1 ; 0 ; 100 ], `Fragment (list_to_cstruct [ 20 ; 3 ; 1 ; 0 ; 100 ] )) ;
     ([ 0 ], `Fragment (list_to_cstruct [ 0 ])) ;
     ([ ], `Fragment empty) ;
-    ([ 20 ; 3 ; 1 ; 0 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = `TLS_1_0 }, empty), list_to_cstruct [ 0 ]) ) ;
+    ([ 20 ; 3 ; 1 ; 0 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = `TLS_1_0 }, empty), 5) ) ;
     ([ 0 ; 0 ; 0 ; 255 ; 255 ], `Overflow 65535) ;
     ([ 0 ; 0 ; 0 ; 72 ; 1 ], `Overflow 18433)
 ]

@@ -1,8 +1,8 @@
 
 val parse_version     : string -> (Core.tls_version, [> `Decode of string ]) result
 val parse_any_version : string -> (Core.tls_any_version, [> `Decode of string ]) result
-val parse_record      : string ->
-  ([ `Record of (Core.tls_hdr * string) * string
+val parse_record      : string -> int ->
+  ([ `Record of (Core.tls_hdr * string) * int
    | `Fragment of string
    ], [> `Unexpected of [> `Content_type of int ]
       | `Protocol_version of [> `Unknown_record of int * int ]

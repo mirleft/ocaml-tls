@@ -21,9 +21,9 @@ let catch f x =
   | Reader_error Unknown msg -> Error (`Decode msg)
   | Invalid_argument msg -> Error (`Decode msg)
 
-let parse_version_int buf =
-  let major = String.get_uint8 buf 0 in
-  let minor = String.get_uint8 buf 1 in
+let parse_version_int ?(off = 0) buf =
+  let major = String.get_uint8 buf off in
+  let minor = String.get_uint8 buf (off + 1) in
   (major, minor)
 
 let parse_version_exn buf =
@@ -45,20 +45,27 @@ let parse_version = catch parse_version_exn
 
 let parse_any_version = catch parse_any_version_exn
 
-let parse_record buf =
-  if String.length buf < 5 then
-    Ok (`Fragment buf)
-  else
-    let typ = String.get_uint8 buf 0
-    and version = parse_version_int (shift buf 1)
+let parse_record buf off =
+  if String.length buf - off < 5 then
+    let r =
+      if off = 0 then buf else String.sub buf off (String.length buf - off)
     in
-    match String.get_uint16_be buf 3 with
+    Ok (`Fragment r)
+  else
+    let typ = String.get_uint8 buf off
+    and version = parse_version_int ~off:(off + 1) buf
+    in
+    match String.get_uint16_be buf (off + 3) with
     | x when x > (1 lsl 14 + 2048) ->
       (* 2 ^ 14 + 2048 for TLSCiphertext
          2 ^ 14 + 1024 for TLSCompressed
          2 ^ 14 for TLSPlaintext *)
       Error (`Record_overflow x)
-    | x when 5 + x > String.length buf -> Ok (`Fragment buf)
+    | x when 5 + x > String.length buf - off ->
+      let r =
+        if off = 0 then buf else String.sub buf off (String.length buf - off)
+      in
+      Ok (`Fragment r)
     | x ->
       match
         tls_any_version_of_pair version,
@@ -67,8 +74,8 @@ let parse_record buf =
       | None, _ -> Error (`Protocol_version (`Unknown_record version))
       | _, None -> Error (`Unexpected (`Content_type typ))
       | Some version, Some content_type ->
-        let payload, rest = split_str ~start:5 buf x in
-        Ok (`Record (({ content_type ; version }, payload), rest))
+        let payload = String.sub buf (off + 5) x in
+        Ok (`Record (({ content_type ; version }, payload), off + 5 + x))
 
 let validate_alert (lvl, typ) =
   let open Packet in
