@@ -1,3 +1,15 @@
+## v2.1.4 (2026-10-21)
+
+* lwt/miou/unix: do not drop hostname validation, even is the provided hostname
+  is not a valid hostname (#532 @hannesm)
+* client, TLS 1.3: only accept ALPN we advertised (#533 @hannesm)
+* early data: use tag length (instead of key length) (#534 @hannesm)
+* server: avoid crash when multiple SupportedVersion extensions are provided
+  (#531 @hannesm)
+* config: revise signature algorithm processing (#535 @hannesm)
+* Engine: separate_records / separate_handshake: avoid excessive copying
+  (#536 @hannesm)
+
 ## v2.1.3 (2026-09-13)
 
 * update to X509 1.2.0 (#530 @hannesm)
