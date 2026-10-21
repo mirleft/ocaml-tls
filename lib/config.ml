@@ -297,57 +297,35 @@ let ciphers_and_groups ?ciphers ?groups default_ciphers =
     else
       Ok (cs, g)
 
-let ciphers_and_sig_alg ?ciphers ?signature_algorithms default_ciphers =
+let ciphers_with_sig_alg ?ciphers signature_algorithms default_ciphers =
   let tls13 = function #Ciphersuite.ciphersuite13 -> true | _ -> false in
-  let default_sa_from_ciphers c =
-    let has_key k c = tls13 c || k = Ciphersuite.ciphersuite_keytype c in
-    match List.exists (has_key `RSA) c, List.exists (has_key `EC) c with
-    | true, true -> Ok supported_signature_algorithms
-    | true, false ->
-      Log.warn (fun m -> m "removed EC signature algorithms (no EC ciphersuite present)");
-      Ok (List.filter rsa_sigalg supported_signature_algorithms)
-    | false, true ->
-      Log.warn (fun m -> m "removed RSA signature algorithms (no RSA ciphersuite present)");
-      Ok (List.filter (fun sa -> not (rsa_sigalg sa)) supported_signature_algorithms)
-    | false, false ->
-      Error (`Msg "ciphersuite list without RSA and EC keys")
-  in
-  let ( let* ) = Result.bind in
-  match ciphers, signature_algorithms with
-  | None, None ->
-    let* sig_algs = default_sa_from_ciphers default_ciphers in
-    Ok (default_ciphers, sig_algs)
-  | Some c, None ->
-    let* sig_algs = default_sa_from_ciphers c in
-    Ok (c, sig_algs)
-  | None, Some sa ->
-    begin match List.partition rsa_sigalg sa with
+  match ciphers with
+  | None ->
+    begin match List.partition rsa_sigalg signature_algorithms with
       | [], [] -> Error (`Msg "empty signature algorithms provided")
       | _::_, [] ->
         Log.warn (fun m -> m "removing EC ciphers (no EC signature algorithm provided)");
         Ok (List.filter
               (fun c -> tls13 c || not (Ciphersuite.ciphersuite_keytype c = `EC))
-              default_ciphers,
-            sa)
+              default_ciphers)
       | [], _::_ ->
         Log.warn (fun m -> m "removing RSA ciphers (no RSA signature algorithm provided)");
         Ok (List.filter
               (fun c -> tls13 c || not (Ciphersuite.ciphersuite_keytype c = `RSA))
-              default_ciphers,
-            sa)
-      | _::_, _::_ -> Ok (default_ciphers, sa)
+              default_ciphers)
+      | _::_, _::_ -> Ok default_ciphers
     end
-  | Some c, Some sa ->
-    if List.exists rsa_sigalg sa && not (List.exists (fun c -> Ciphersuite.ciphersuite_keytype c = `RSA) c) then
+  | Some c ->
+    if List.exists rsa_sigalg signature_algorithms && not (List.exists (fun c -> Ciphersuite.ciphersuite_keytype c = `RSA) c) then
       Error (`Msg "RSA signature algorithm, but no ciphersuites with RSA keys")
-    else if List.exists (fun s -> not (rsa_sigalg s)) sa && not (List.exists (fun c -> Ciphersuite.ciphersuite_keytype c = `EC) c) then
+    else if List.exists (fun s -> not (rsa_sigalg s)) signature_algorithms && not (List.exists (fun c -> Ciphersuite.ciphersuite_keytype c = `EC) c) then
       Error (`Msg "EC signature algorithm, but no ciphersuites with EC keys")
-    else if List.exists (fun c -> Ciphersuite.ciphersuite_keytype c = `RSA) c && not (List.exists rsa_sigalg sa) then
+    else if List.exists (fun c -> Ciphersuite.ciphersuite_keytype c = `RSA) c && not (List.exists rsa_sigalg signature_algorithms) then
       Error (`Msg "RSA ciphersuite, but no RSA signature algorithm")
-    else if List.exists (fun c -> Ciphersuite.ciphersuite_keytype c = `EC) c && not (List.exists (fun s -> not (rsa_sigalg s)) sa) then
+    else if List.exists (fun c -> Ciphersuite.ciphersuite_keytype c = `EC) c && not (List.exists (fun s -> not (rsa_sigalg s)) signature_algorithms) then
       Error (`Msg "EC ciphersuite, but no EC signature algorithm")
     else
-      Ok (c, sa)
+      Ok c
 
 let validate_common config =
   let ( let* ) = Result.bind in
@@ -595,7 +573,8 @@ let client
     ~authenticator ?peer_name ?ciphers ?version ?signature_algorithms ?reneg ?certificates ?cached_session ?cached_ticket ?ticket_cache ?alpn_protocols ?groups ?ip () =
   let ( let* ) = Result.bind in
   let* ciphers', groups = ciphers_and_groups ?ciphers ?groups default_config.ciphers in
-  let* ciphers, signature_algorithms = ciphers_and_sig_alg ?ciphers ?signature_algorithms ciphers' in
+  let signature_algorithms = signature_algorithms <?> default_config.signature_algorithms in
+  let* ciphers = ciphers_with_sig_alg ?ciphers signature_algorithms ciphers' in
   let config =
     { default_config with
         authenticator = Some authenticator ;
@@ -621,7 +600,8 @@ let server
     ?ciphers ?version ?signature_algorithms ?reneg ?certificates ?acceptable_cas ?authenticator ?session_cache ?ticket_cache ?alpn_protocols ?groups ?zero_rtt ?ip () =
   let ( let* ) = Result.bind in
   let* ciphers', groups = ciphers_and_groups ?ciphers ?groups default_config.ciphers in
-  let* ciphers, signature_algorithms = ciphers_and_sig_alg ?ciphers ?signature_algorithms ciphers' in
+  let signature_algorithms = signature_algorithms <?> default_config.signature_algorithms in
+  let* ciphers = ciphers_with_sig_alg ?ciphers signature_algorithms ciphers' in
   let config =
     { default_config with
         ciphers ;
