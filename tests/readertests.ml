@@ -82,11 +82,11 @@ let version_tests =
 let good_record_parser (bytes, result) _ =
   let buf = list_to_cstruct bytes in
   let open Reader in
-  match parse_record buf, result with
+  match parse_record buf 0, result with
   | Ok (`Record ((hdr, x), f)), `Record ((rhdr, y), g) ->
     assert_equal rhdr hdr ;
     assert_cs_eq y x ;
-    assert_cs_eq g f
+    assert_equal g f
   | Ok `Fragment x, `Fragment y -> assert_cs_eq y x
   | Error `Record_overflow x, `Overflow y -> assert_equal y x
   | Error `Protocol_version `Unknown_record x, `UnknownVersion y -> assert_equal y x
@@ -98,17 +98,17 @@ let good_records =
   let open Packet in
   let empty = "" in
   [
-    ([ 20 ; 3 ; 1 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = `TLS_1_0 }, empty), empty) ) ;
-    ([ 21 ; 3 ; 2 ; 0 ; 0 ], `Record (({ content_type = ALERT ; version = `TLS_1_1 }, empty), empty) ) ;
-    ([ 22 ; 3 ; 3 ; 0 ; 0 ], `Record (({ content_type = HANDSHAKE ; version = `TLS_1_2 }, empty), empty) ) ;
-    ([ 23 ; 3 ; 0 ; 0 ; 0 ], `Record (({ content_type = APPLICATION_DATA ; version = `SSL_3 }, empty), empty) ) ;
+    ([ 20 ; 3 ; 1 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = `TLS_1_0 }, empty), 5) ) ;
+    ([ 21 ; 3 ; 2 ; 0 ; 0 ], `Record (({ content_type = ALERT ; version = `TLS_1_1 }, empty), 5) ) ;
+    ([ 22 ; 3 ; 3 ; 0 ; 0 ], `Record (({ content_type = HANDSHAKE ; version = `TLS_1_2 }, empty), 5) ) ;
+    ([ 23 ; 3 ; 0 ; 0 ; 0 ], `Record (({ content_type = APPLICATION_DATA ; version = `SSL_3 }, empty), 5) ) ;
     ([ 16 ; 3 ; 1 ; 0 ; 0 ], `UnknownContent 16 ) ;
     ([ 19 ; 3 ; 1 ; 0 ; 0 ], `UnknownContent 19 ) ;
     ([ 20 ; 5 ; 1 ; 0 ; 0 ], `UnknownVersion (5, 1) ) ;
     ([ 20 ; 3 ; 1 ; 0 ; 100 ], `Fragment (list_to_cstruct [ 20 ; 3 ; 1 ; 0 ; 100 ] )) ;
     ([ 0 ], `Fragment (list_to_cstruct [ 0 ])) ;
     ([ ], `Fragment empty) ;
-    ([ 20 ; 3 ; 1 ; 0 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = `TLS_1_0 }, empty), list_to_cstruct [ 0 ]) ) ;
+    ([ 20 ; 3 ; 1 ; 0 ; 0 ; 0 ], `Record (({ content_type = CHANGE_CIPHER_SPEC ; version = `TLS_1_0 }, empty), 5) ) ;
     ([ 0 ; 0 ; 0 ; 255 ; 255 ], `Overflow 65535) ;
     ([ 0 ; 0 ; 0 ; 72 ; 1 ], `Overflow 18433)
 ]
@@ -605,24 +605,23 @@ let bad_digitally_signed_tests =
 
 let good_handshake_hdrs =
   let data = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11 ] in
-  let empty = "" in
   [
-  ([0; 0; 0], (None, list_to_cstruct [0;0;0])) ;
-  ([0; 0; 0; 0], (Some (list_to_cstruct [0;0;0;0]), empty)) ;
-  ([0; 0; 0; 0xFF], (None, list_to_cstruct [0;0;0;255])) ;
-  ([0; 0; 1; 0], (None, list_to_cstruct [0;0;1;0])) ;
-  ([16; 0; 0; 12] @ data , (Some (list_to_cstruct ([16;0;0;12] @ data)), empty)) ;
-  ([16; 0; 0; 14] @ data , (None, list_to_cstruct ([16;0;0;14] @ data)))
+  ([0; 0; 0], (None, 0)) ;
+  ([0; 0; 0; 0], (Some (list_to_cstruct [0;0;0;0]), 4)) ;
+  ([0; 0; 0; 0xFF], (None, 0)) ;
+  ([0; 0; 1; 0], (None, 0)) ;
+  ([16; 0; 0; 12] @ data , (Some (list_to_cstruct ([16;0;0;12] @ data)), 16)) ;
+  ([16; 0; 0; 14] @ data , (None, 0))
   ]
 
 let good_handshake_hdr_parser (xs, (hs, rest)) _ =
   let buf = list_to_cstruct xs in
-  match Reader.parse_handshake_frame buf, hs with
+  match Reader.parse_handshake_frame buf 0, hs with
   | (Some x, rest'), Some y ->
     assert_cs_eq y x ;
-    assert_cs_eq rest rest' ;
+    assert_equal rest rest' ;
   | (None, rest'), None ->
-    assert_cs_eq rest rest' ;
+    assert_equal rest rest' ;
   | _ -> assert_failure "handshake_frame parser broken"
 
 let good_handshake_hdr_tests =

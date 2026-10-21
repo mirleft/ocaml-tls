@@ -21,17 +21,19 @@ let version_tests =
 
 let readerwriter_header (v, ct, cs) _ =
   let buf = Writer.assemble_hdr v (ct, cs) in
-  match Reader.parse_record buf with
+  let l = String.length buf in
+  match Reader.parse_record buf 0 with
   | Ok (`Record ((hdr, payload), f)) ->
     let open Core in
-    assert_equal 0 (String.length f) ;
+    assert_equal l f ;
     assert_equal (v :> tls_any_version) hdr.version ;
     assert_equal ct hdr.content_type ;
     assert_cs_eq cs payload ;
     let buf' = Writer.assemble_hdr v (hdr.content_type, payload) in
-    (match Reader.parse_record buf' with
+    let l' = String.length buf' in
+    (match Reader.parse_record buf' 0 with
      | Ok (`Record ((hdr, payload), f)) ->
-       assert_equal 0 (String.length f) ;
+       assert_equal l' f ;
        assert_equal (v :> tls_any_version) hdr.version ;
        assert_equal ct hdr.content_type ;
        assert_cs_eq cs payload ;
