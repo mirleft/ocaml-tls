@@ -39,7 +39,8 @@
   <span><span><span>[&gt; <span>`ALPN of string</span> ]</span> list</span> <span class="arrow">&#45;&gt;</span></span>
   <span>string <span class="arrow">&#45;&gt;</span></span>
   <span>string <span class="arrow">&#45;&gt;</span></span>
-  <span><span>(<a href="../State/index.html#type-handshake_state">State.handshake_state</a> * <span><span class="type-var">'a</span> list</span>, <span class="type-var">'b</span>)</span> <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-answer_certificate"><a href="#val-answer_certificate" class="anchor"></a><code><span><span class="keyword">val</span> answer_certificate : 
+  <span><span>(<a href="../State/index.html#type-handshake_state">State.handshake_state</a> * <span><span class="type-var">'a</span> list</span>, <span>[&gt; <span>`Fatal of <span>[&gt; `Unsupported_extension ]</span></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-answer_certificate"><a href="#val-answer_certificate" class="anchor"></a><code><span><span class="keyword">val</span> answer_certificate : 
   <span><a href="../State/index.html#type-handshake_state">State.handshake_state</a> <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../State/index.html#type-session_data13">State.session_data13</a> <span class="arrow">&#45;&gt;</span></span>
   <span>string <span class="arrow">&#45;&gt;</span></span>
@@ -127,5 +128,6 @@
         <span><span>| `BadECDH</span> of <span class="xref-unresolved">Mirage_crypto_ec</span>.error</span>
         <span>| `Fragments</span>
         <span><span>| `Message</span> of string</span> ]</span></span>
-      <span><span>| `Unexpected</span> of <span>[&gt; <span>`Handshake of <a href="../Core/index.html#type-tls_handshake">Core.tls_handshake</a></span> ]</span></span> ]</span></span> ]</span>)</span>
+      <span><span>| `Unexpected</span> of <span>[&gt; <span>`Handshake of <a href="../Core/index.html#type-tls_handshake">Core.tls_handshake</a></span> ]</span></span>
+      <span>| `Unsupported_extension</span> ]</span></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div></div></body></html>
