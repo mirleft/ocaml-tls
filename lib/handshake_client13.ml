@@ -218,7 +218,7 @@ let answer_finished state (session : session_data13) server_hs_secret client_hs_
 
   Tracing.hs ~tag:"handshake-out" (Finished myfin);
 
-  Ok ({ state with machina ; session = `TLS13 session :: state.session },
+  Ok ({ state with machina ; session = Some (`TLS13 session) },
       List.map (fun data -> `Record (Packet.HANDSHAKE, data)) c_cv @
       [ `Record (Packet.HANDSHAKE, mfin) ;
         `Change_dec server_app_ctx ; `Change_enc client_app_ctx ])
@@ -229,7 +229,7 @@ let answer_session_ticket state st =
    | Some cache ->
      (* looks like we'll need the resumption secret in the state (we can compute once finished is done)! *)
      match state.session with
-     | `TLS13 session :: _ ->
+     | Some (`TLS13 session) ->
        let epoch = epoch_of_session false state.config.Config.peer_name `TLS_1_3 (`TLS13 session) in
        let secret = Handshake_crypto13.res_secret
            (Ciphersuite.hash13 session.ciphersuite13)
@@ -247,7 +247,7 @@ let answer_session_ticket state st =
 
 let handle_key_update state req =
   match state.session with
-  | `TLS13 session :: _ ->
+  | Some (`TLS13 session) ->
     let* () = guard (String.length state.hs_fragment = 0) (`Fatal (`Handshake `Fragments)) in
     let server_app_secret, server_ctx =
       Handshake_crypto13.app_secret_n_1 session.master_secret session.server_app_secret
@@ -265,7 +265,7 @@ let handle_key_update state req =
         { session' with client_app_secret },
         [ `Record (Packet.HANDSHAKE, ku_raw); `Change_enc client_ctx ]
     in
-    let session = `TLS13 session' :: state.session in
+    let session = Some (`TLS13 session') in
     let state' = { state with machina = Client13 Established13 ; session } in
     Ok (state', `Change_dec server_ctx :: out)
   | _ -> Error (`Fatal (`Handshake (`Message "couldn't find an earlier session")))

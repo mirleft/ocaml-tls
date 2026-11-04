@@ -547,7 +547,7 @@ let validate_client_keyusage certificate =
 let output_key_update ~request state =
   let hs = state.handshake in
   match hs.session with
-  | `TLS13 session :: _ ->
+  | Some (`TLS13 session) ->
     let* session', encryptor =
       match hs.machina with
       | Client13 Established13 ->
@@ -564,7 +564,7 @@ let output_key_update ~request state =
         Ok ({ session with server_app_secret }, server_ctx)
       | _ -> Error (`Fatal (`Handshake (`Message "invalid state for key update")))
     in
-    let handshake = { hs with session = `TLS13 session' :: hs.session } in
+    let handshake = { hs with session = Some (`TLS13 session') } in
     let ku =
       let p =
         Packet.(if request then UPDATE_REQUESTED else UPDATE_NOT_REQUESTED)

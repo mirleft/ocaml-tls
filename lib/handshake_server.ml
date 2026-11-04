@@ -40,7 +40,7 @@ let answer_client_finished state (session : session_data) client_fin raw log =
   and machina = Server Established
   in
   Tracing.hs ~tag:"handshake-out" fin ;
-  Ok ({ state with machina ; session = `TLS session :: state.session },
+  Ok ({ state with machina ; session = Some (`TLS session) },
       [`Record (Packet.HANDSHAKE, fin_raw)])
 
 let answer_client_finished_resume state (session : session_data) server_verify client_fin _raw log =
@@ -59,7 +59,7 @@ let answer_client_finished_resume state (session : session_data) server_verify c
   let session = { session with renegotiation = (client_verify, server_verify) }
   and machina = Server Established
   in
-  Ok ({ state with machina ; session = `TLS session :: state.session }, [])
+  Ok ({ state with machina ; session = Some (`TLS session) }, [])
 
 let establish_master_secret state (session : session_data) premastersecret raw log =
   let log = log @ [raw] in
@@ -594,7 +594,7 @@ let answer_client_hello_reneg state (ch : client_hello) raw =
 
   let config = state.config in
   match config.use_reneg, state.session with
-  | true , `TLS session :: _  ->
+  | true , Some (`TLS session) ->
      let reneg = session.renegotiation in
      let* _version = process_client_hello config state.protocol_version reneg ch in
      answer_client_hello_common state (Some reneg) ch raw

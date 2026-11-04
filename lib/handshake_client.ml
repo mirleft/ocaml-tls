@@ -428,7 +428,7 @@ let answer_server_finished state (session : session_data) client_verify fin log 
   in
   let machina = Established
   and session = { session with renegotiation = (client_verify, computed) } in
-  Ok ({ state with machina = Client machina ; session = `TLS session :: state.session }, [])
+  Ok ({ state with machina = Client machina ; session = Some (`TLS session) }, [])
 
 let answer_server_finished_resume state (session : session_data) fin raw log =
   let client, server =
@@ -450,7 +450,7 @@ let answer_server_finished_resume state (session : session_data) fin raw log =
   let finished = Finished client in
   let raw_finished = Writer.assemble_handshake finished in
   Tracing.hs ~tag:"handshake-out" finished ;
-  Ok ({ state with machina = Client machina ; session = `TLS session :: state.session },
+  Ok ({ state with machina = Client machina ; session = Some (`TLS session) },
       [`Record (Packet.HANDSHAKE, raw_finished)])
 
 let answer_hello_request state =
@@ -464,7 +464,7 @@ let answer_hello_request state =
   in
 
   match state.config.use_reneg, state.session with
-  | true , `TLS x :: _ ->
+  | true , Some (`TLS x) ->
     let ext = `SecureRenegotiation (fst x.renegotiation) in
     Ok (produce_client_hello x state.config [ext])
   | true , _      -> Error (`Fatal (`Handshake (`Message "couldn't find session")))

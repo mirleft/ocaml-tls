@@ -54,7 +54,7 @@ let new_state config role =
   in
   let version = max_protocol_version Config.(config.protocol_versions) in
   let handshake = {
-    session          = [] ;
+    session          = None ;
     protocol_version = version ;
     early_data_left  = 0l ;
     machina          = handshake_state ;
@@ -436,7 +436,7 @@ let decrement_early_data hs ty buf =
   in
   if ty = Packet.APPLICATION_DATA && early_data hs then
     let cipher = match hs.session with
-      | `TLS13 sd::_ -> sd.ciphersuite13
+      | Some (`TLS13 sd) -> sd.ciphersuite13
       | _ -> `AES_128_GCM_SHA256
       (* TODO assert and ensure that all early_data states have a cipher  *)
     in
