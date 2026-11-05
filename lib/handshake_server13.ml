@@ -354,13 +354,13 @@ let answer_client_hello ~hrr state ch raw =
       let st, session =
         if can_use_early_data then
           (AwaitEndOfEarlyData13 (client_hs_secret, client_ctx, client_app_ctx, st, log),
-           `TLS13 { session with state = `ZeroRTT } :: state.session)
+           Some (`TLS13 { session with state = `ZeroRTT }))
         else if session.common_session_data13.client_auth then
           (AwaitClientCertificate13 (session, client_hs_secret, client_app_ctx, st, log),
            state.session)
         else
           (AwaitClientFinished13 (client_hs_secret, client_app_ctx, st, log),
-           `TLS13 session :: state.session)
+           Some (`TLS13 session))
       in
       let early_data_left = if List.mem `EarlyDataIndication ch.extensions then config.Config.zero_rtt else 0l in
       Ok ({ state with machina = Server13 st ; session ; early_data_left },
@@ -390,7 +390,7 @@ let answer_client_certificate state cert (sd : session_data13) client_fini dec_c
         let common_session_data13 = { sd.common_session_data13 with trust_anchor } in
         let sd = { sd with common_session_data13 } in
         let st = AwaitClientFinished13 (client_fini, dec_ctx, st, log ^ raw) in
-        Ok ({ state with machina = Server13 st ; session = `TLS13 sd :: state.session }, [])
+        Ok ({ state with machina = Server13 st ; session = Some (`TLS13 sd) }, [])
       | Error e -> Error (`Error (`AuthenticationFailure e))
     end
   | (_ctx, cert_exts), auth ->
@@ -425,11 +425,11 @@ let answer_client_certificate_verify state cv (sd : session_data13) client_fini 
       sd.common_session_data13.peer_certificate
   in
   let st = AwaitClientFinished13 (client_fini, dec_ctx, st, log ^ raw) in
-  Ok ({ state with machina = Server13 st ; session = `TLS13 sd :: state.session }, [])
+  Ok ({ state with machina = Server13 st ; session = Some (`TLS13 sd) }, [])
 
 let answer_client_finished state fin client_fini dec_ctx st raw log =
   match state.session with
-  | `TLS13 session :: rest ->
+  | Some (`TLS13 session) ->
     let hash = Ciphersuite.hash13 session.ciphersuite13 in
     let data = finished hash client_fini log in
     let* () =
@@ -452,22 +452,22 @@ let answer_client_finished state fin client_fini dec_ctx st raw log =
         cache.Config.ticket_granted psk epoch ;
         session
     in
-    let state' = { state with machina = Server13 Established13 ; session = `TLS13 session' :: rest } in
+    let state' = { state with machina = Server13 Established13 ; session = Some (`TLS13 session') } in
     Ok (state', [ `Change_dec dec_ctx ])
   | _ -> Error (`Fatal (`Handshake (`Message "no session found in finished")))
 
 let handle_end_of_early_data state cf hs_ctx cc st buf log =
   let machina = AwaitClientFinished13 (cf, cc, st, log ^ buf) in
   match state.session with
-  | `TLS13 s1 :: _ ->
-    let session = `TLS13 { s1 with state = `Established } :: state.session in
+  | Some (`TLS13 s1) ->
+    let session = Some (`TLS13 { s1 with state = `Established }) in
     Ok ({ state with machina = Server13 machina ; session }, [ `Change_dec hs_ctx ])
   | _ ->
     Error (`Fatal (`Handshake (`Message "no session handling end of early data")))
 
 let handle_key_update state req =
   match state.session with
-  | `TLS13 session :: _ ->
+  | Some (`TLS13 session) ->
     let* () =
       guard (String.length state.hs_fragment = 0)
         (`Fatal (`Handshake `Fragments))
@@ -488,7 +488,7 @@ let handle_key_update state req =
         { session' with server_app_secret },
         [ `Record (Packet.HANDSHAKE, ku_raw); `Change_enc server_ctx ]
     in
-    let session = `TLS13 session' :: state.session in
+    let session = Some (`TLS13 session') in
     let state' = { state with machina = Server13 Established13 ; session } in
     Ok (state', `Change_dec client_ctx :: out)
   | _ -> Error (`Fatal (`Handshake (`Message "no session while handling key update")))

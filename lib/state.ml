@@ -157,7 +157,7 @@ type handshake_machina_state =
 
 (* state during a handshake, used in the handlers *)
 type handshake_state = {
-  session          : [ `TLS of session_data | `TLS13 of session_data13 ] list ;
+  session          : [ `TLS of session_data | `TLS13 of session_data13 ] option ;
   protocol_version : tls_version ;
   early_data_left  : int32 ;
   machina          : handshake_machina_state ; (* state machine state *)
@@ -347,6 +347,4 @@ let epoch_of_hs hs =
     | Server _ | Server13 _ -> true
   and peer_name = Config.(hs.config.peer_name)
   in
-  match hs.session with
-  | []           -> None
-  | session :: _ -> Some (epoch_of_session server peer_name hs.protocol_version session)
+  Option.map (epoch_of_session server peer_name hs.protocol_version) hs.session
