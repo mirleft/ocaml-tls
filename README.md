@@ -84,6 +84,11 @@ which makes it portable and available on many systems (even the most restricted
 ones such as [Solo5](https://github.com/solo5/solo5) as long as OCaml is
 available on them.
 
+## AI
+
+Contributions involving AI must comply with the rules set out [here](./AI.md).
+If they do not comply, we reserve the right to reject your contribution.
+
 [sendmail]: https://github.com/mirage/colombe
 [albatross]: https://github.com/robur-coop/albatross
 [ssl]: https://github.com/savonet/ocaml-ssl
