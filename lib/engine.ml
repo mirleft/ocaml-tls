@@ -301,9 +301,12 @@ let encrypt_records encryptor version records =
           let len = 1 lsl 14 in
           let st, ty, buf = encrypt version st ty buf off len in
           (doit [@tailcall]) st ((ty, buf) :: acc) (off + len)
-        else
+        else if bufl - off > 0 || off = 0 then
+          (* '|| off = 0': we like to send empty frames (for TLS 1.0 CBC, BEAST) *)
           let st, ty, buf = encrypt version st ty buf off (bufl - off) in
           st, (ty, buf) :: acc
+        else
+          st, acc
       in
       let st, res = doit st [] 0 in
       (crypt [@tailcall]) st (res @ acc) rest
