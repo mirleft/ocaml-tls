@@ -1,3 +1,12 @@
+## v2.1.5 (2026-11-05)
+
+* State.session is now an option instead of a list: only the head was ever used,
+  and keeping a list leads to memory leak (with a specifically crafted attacker)
+  (#540 @hannesm, fixes #537 @bikallem)
+* Engine.encrypt_records: avoid sending out empty data if they're on 1 lsl 14
+  boundary (#539 @hannesm, fixes #538 @bikallem)
+* Add AI policy (#541 @hannesm)
+
 ## v2.1.4 (2026-10-21)
 
 * lwt/miou/unix: do not drop hostname validation, even is the provided hostname
